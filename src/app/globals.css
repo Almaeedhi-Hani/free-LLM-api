@@ -10,23 +10,39 @@
 
 body {
   color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  background-color: rgb(var(--background-end-rgb));
   direction: rtl;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
-/* Ensure raw text is readily accessible and well structured for bots and readers */
 .golden-paragraph {
   border-right: 4px solid #d97706;
   background-color: #fef3c7;
-  padding: 1rem 1.25rem;
-  border-radius: 0.375rem 0 0 0.375rem;
+  padding: 1.25rem;
+  border-radius: 0.5rem 0 0 0.5rem;
   font-weight: 500;
-  line-height: 1.8;
+  line-height: 1.9;
   color: #78350f;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+}
+
+.luxury-card {
+  background: #ffffff;
+  border-radius: 1rem;
+  padding: 2rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+  transition: all 0.3s ease;
+}
+
+.luxury-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
+  border-color: #cbd5e1;
+}
+
+[dir='ltr'] .golden-paragraph {
+  border-right: none;
+  border-left: 4px solid #d97706;
+  border-radius: 0 0.5rem 0.5rem 0;
 }

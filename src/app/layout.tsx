@@ -2,6 +2,7 @@ import './globals.css';
 import { Metadata } from 'next';
 import React from 'react';
 import { ProfessionalServiceSchema } from '@/components/SchemaMarkup';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
 export const metadata: Metadata = {
   title: 'تأسيس الشركات وخدمات المستثمرين الأجانب في السعودية | MISA License',
@@ -38,22 +39,26 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen bg-slate-50 font-sans antialiased text-slate-900">
         <ProfessionalServiceSchema />
-        <header className="border-b border-slate-200 bg-white sticky top-0 z-50 shadow-sm">
+        <header className="border-b border-slate-200 bg-white sticky top-0 z-50 shadow-sm backdrop-blur-md bg-white/90">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
             <div className="flex items-center space-x-4 space-x-reverse">
-              <a href="/" className="text-2xl font-bold text-slate-900 tracking-tight">
-                استثمر في السعودية <span className="text-gold-500 font-medium text-sm block sm:inline sm:mr-2">| خدمات المستثمرين</span>
+              <a href="/" className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-amber-500 inline-block"></span>
+                استثمر في السعودية <span className="text-amber-600 font-medium text-xs sm:text-sm block sm:inline sm:mr-2">| خدمات المستثمرين</span>
               </a>
             </div>
-            <nav className="hidden md:flex space-x-8 space-x-reverse font-medium text-slate-700">
-              <a href="/" className="hover:text-gold-600 transition-colors">الرئيسية</a>
-              <a href="/services/misa-license" className="hover:text-gold-600 transition-colors">ترخيص MISA</a>
-              <a href="/services/company-formation" className="hover:text-gold-600 transition-colors">تأسيس الشركات</a>
-              <a href="/services/contract-drafting" className="hover:text-gold-600 transition-colors">صياغة العقود</a>
-              <a href="/services/premium-residency" className="hover:text-gold-600 transition-colors">الإقامة المميزة</a>
-              <a href="/services/investment-funds" className="hover:text-gold-600 transition-colors">صناديق الاستثمار</a>
-              <a href="/ai-readable" className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded hover:bg-slate-200 transition-colors">LLM Version (Plain Text)</a>
+            <nav className="hidden lg:flex space-x-6 space-x-reverse font-medium text-slate-700 text-sm">
+              <a href="/" className="hover:text-amber-600 transition-colors">الرئيسية</a>
+              <a href="/services/misa-license" className="hover:text-amber-600 transition-colors">ترخيص MISA</a>
+              <a href="/services/company-formation" className="hover:text-amber-600 transition-colors">تأسيس الشركات</a>
+              <a href="/services/contract-drafting" className="hover:text-amber-600 transition-colors">صياغة العقود</a>
+              <a href="/services/premium-residency" className="hover:text-amber-600 transition-colors">الإقامة المميزة</a>
+              <a href="/services/investment-funds" className="hover:text-amber-600 transition-colors">صناديق الاستثمار</a>
+              <a href="/ai-readable" className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded hover:bg-slate-200 transition-colors">LLM Version</a>
             </nav>
+            <div className="flex items-center space-x-4 space-x-reverse">
+              <LanguageSwitcher />
+            </div>
           </div>
         </header>
 
