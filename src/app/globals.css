@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 15, 23, 42;
+  --background-start-rgb: 255, 255, 255;
+  --background-end-rgb: 248, 250, 252;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+  direction: rtl;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+/* Ensure raw text is readily accessible and well structured for bots and readers */
+.golden-paragraph {
+  border-right: 4px solid #d97706;
+  background-color: #fef3c7;
+  padding: 1rem 1.25rem;
+  border-radius: 0.375rem 0 0 0.375rem;
+  font-weight: 500;
+  line-height: 1.8;
+  color: #78350f;
+}
