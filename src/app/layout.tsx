@@ -3,6 +3,7 @@ import { Metadata } from 'next';
 import React from 'react';
 import { ProfessionalServiceSchema } from '@/components/SchemaMarkup';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { WhatsAppFloat } from '@/components/WhatsAppFloat';
 
 export const metadata: Metadata = {
   title: 'تأسيس الشركات وخدمات المستثمرين الأجانب في السعودية | MISA License',
@@ -89,6 +90,8 @@ export default function RootLayout({
             </div>
             <div>
               <h3 className="text-white text-lg font-bold mb-4">بيانات الاعتماد والترخيص</h3>
+              <p className="text-sm text-slate-400 mb-1">📞 <a href="tel:+966545059528" className="hover:text-white">+966 54 505 9528</a></p>
+              <p className="text-sm text-slate-400 mb-1">💬 <a href="https://wa.me/966545059528" target="_blank" rel="noopener noreferrer" className="hover:text-white">WhatsApp</a></p>
               <p className="text-sm text-slate-400 mb-1">رخصة وزارة الاستثمار: MISA-2024-LIC-9988</p>
               <p className="text-sm text-slate-400 mb-1">السجل التجاري الرئيسي: 1010998877 (الرياض)</p>
               <p className="text-sm text-slate-400">المركز الرئيسي: طريق الملك فهد، العليا، الرياض</p>
@@ -98,6 +101,7 @@ export default function RootLayout({
             جميع الحقوق محفوظة © {new Date().getFullYear()} منصة خدمات المستثمرين | مجهزة بهندسة AIO/GEO لمحركات البحث والذكاء الاصطناعي.
           </div>
         </footer>
+        <WhatsAppFloat />
       </body>
     </html>
   );

@@ -127,6 +127,30 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Contact Section */}
+      <section className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-3xl p-8 sm:p-12 text-white mb-12">
+        <h2 className="text-2xl sm:text-3xl font-bold mb-4 text-center">تواصل معنا</h2>
+        <p className="text-slate-300 text-center mb-8 max-w-2xl mx-auto">
+          جاهزون لمساعدتك في تأسيس شركتك، إصدار ترخيص MISA، وفتح الحساب البنكي. تواصل معنا مباشرة:
+        </p>
+        <div className="flex flex-wrap justify-center gap-4">
+          <a
+            href="tel:+966545059528"
+            className="inline-flex items-center gap-2 bg-white text-slate-900 font-bold px-6 py-3 rounded-full hover:bg-slate-100 transition-colors"
+          >
+            📞 اتصل: +966 54 505 9528
+          </a>
+          <a
+            href="https://wa.me/966545059528"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 bg-green-500 text-white font-bold px-6 py-3 rounded-full hover:bg-green-600 transition-colors"
+          >
+            💬 WhatsApp
+          </a>
+        </div>
+      </section>
+
       {/* FAQ Section */}
       <section className="bg-white rounded-3xl p-8 sm:p-12 border border-slate-200 shadow-sm mb-12">
         <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-8 text-center">الأسئلة الشائعة للمستثمرين الأجانب</h2>
