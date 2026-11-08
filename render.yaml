@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: investor-services
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+
+  - type: cron
+    name: investor-ai-optimization-agent
+    schedule: "0 2 * * *"
+    buildCommand: echo "no build required"
+    startCommand: >-
+      curl -fsS -H "Authorization: Bearer ${CRON_SECRET}"
+      https://investinsaudi-services.sa/api/cron-agent
+    envVars:
+      - key: CRON_SECRET
+        sync: false
