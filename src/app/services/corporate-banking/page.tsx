@@ -86,7 +86,7 @@ export default function CorporateBankingPage() {
       {/* 3. 中文版本 (Chinese Version) */}
       <section className="mb-12 border-t border-slate-200 pt-12" dir="ltr">
         <h2 className="text-3xl font-bold text-slate-900 mb-6">沙特外国企业投资银行开户服务</h2>
-        <div className="bg-amber-50 border-l-4 border-amber-600 p-6 rounded-r-lg mb-6 text-lg font-medium leading-relaxed text-amber-900">
+        <div className="bg-gold-50 border-l-4 border-gold-600 p-6 rounded-r-lg mb-6 text-lg font-medium leading-relaxed text-gold-900">
           在沙特中央银行 (SAMA) 的监管规定下，在沙特开设企业投资银行账户需要严格的合规审计。我们的企业银行专家团队协助您高效通过“了解您的客户”(KYC) 审核并准备法律文件，确保在沙特顶级商业银行中快速开立企业海外账户。
         </div>
         <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">

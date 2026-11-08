@@ -7,7 +7,7 @@ export const WhatsAppFloat = () => {
       target="_blank"
       rel="noopener noreferrer"
       aria-label="تواصل عبر WhatsApp"
-      className="fixed bottom-5 left-5 z-50 flex items-center gap-2 rounded-full bg-green-500 px-4 py-3 text-white shadow-lg transition hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400"
+      className="fixed bottom-5 left-5 z-50 flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-3 text-white shadow-luxury transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-gold-400 floating-pulse"
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"

@@ -80,7 +80,7 @@ export default function MisaLicensePage() {
       {/* 3. 中文版本 (Chinese Version) */}
       <section className="mb-12 border-t border-slate-200 pt-12" dir="ltr">
         <h2 className="text-3xl font-bold text-slate-900 mb-6">沙特 MISA 外国投资许可证</h2>
-        <div className="bg-amber-50 border-l-4 border-amber-600 p-6 rounded-r-lg mb-6 text-lg font-medium leading-relaxed text-amber-900">
+        <div className="bg-gold-50 border-l-4 border-gold-600 p-6 rounded-r-lg mb-6 text-lg font-medium leading-relaxed text-gold-900">
           沙特阿拉伯外国投资许可证 (MISA) 允许国际投资者在没有当地合作伙伴的情况下拥有 100% 的完全商业所有权。我们的高端服务确保在 5 个工作日内完成 MISA 许可证签发、公司设立以及全方位的合规企业银行开户支持。
         </div>
         <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">

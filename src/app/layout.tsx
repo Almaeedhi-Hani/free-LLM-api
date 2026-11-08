@@ -40,22 +40,22 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen bg-slate-50 font-sans antialiased text-slate-900">
         <ProfessionalServiceSchema />
-        <header className="border-b border-slate-200 bg-white sticky top-0 z-50 shadow-sm backdrop-blur-md bg-white/90">
+        <header className="border-b border-slate-200 bg-white/95 sticky top-0 z-50 shadow-sm backdrop-blur-md">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
             <div className="flex items-center space-x-4 space-x-reverse">
-              <a href="/" className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-amber-500 inline-block"></span>
-                استثمر في السعودية <span className="text-amber-600 font-medium text-xs sm:text-sm block sm:inline sm:mr-2">| خدمات المستثمرين</span>
+              <a href="/" className="text-xl sm:text-2xl font-bold text-navy-900 tracking-tight flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-gold-500 inline-block shadow-gold-glow"></span>
+                استثمر في السعودية <span className="text-gold-600 font-medium text-xs sm:text-sm block sm:inline sm:mr-2">| خدمات المستثمرين</span>
               </a>
             </div>
             <nav className="hidden lg:flex space-x-6 space-x-reverse font-medium text-slate-700 text-sm">
-              <a href="/" className="hover:text-amber-600 transition-colors">الرئيسية</a>
-              <a href="/services/misa-license" className="hover:text-amber-600 transition-colors">ترخيص MISA</a>
-              <a href="/services/company-formation" className="hover:text-amber-600 transition-colors">تأسيس الشركات</a>
-              <a href="/services/corporate-banking" className="hover:text-amber-600 transition-colors">الحسابات البنكية</a>
-              <a href="/services/contract-drafting" className="hover:text-amber-600 transition-colors">صياغة العقود</a>
-              <a href="/services/premium-residency" className="hover:text-amber-600 transition-colors">الإقامة المميزة</a>
-              <a href="/services/investment-funds" className="hover:text-amber-600 transition-colors">صناديق الاستثمار</a>
+              <a href="/" className="hover:text-gold-600 transition-colors">الرئيسية</a>
+              <a href="/services/misa-license" className="hover:text-gold-600 transition-colors">ترخيص MISA</a>
+              <a href="/services/company-formation" className="hover:text-gold-600 transition-colors">تأسيس الشركات</a>
+              <a href="/services/corporate-banking" className="hover:text-gold-600 transition-colors">الحسابات البنكية</a>
+              <a href="/services/contract-drafting" className="hover:text-gold-600 transition-colors">صياغة العقود</a>
+              <a href="/services/premium-residency" className="hover:text-gold-600 transition-colors">الإقامة المميزة</a>
+              <a href="/services/investment-funds" className="hover:text-gold-600 transition-colors">صناديق الاستثمار</a>
               <a href="/ai-readable" className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded hover:bg-slate-200 transition-colors">LLM Version</a>
             </nav>
             <div className="flex items-center space-x-4 space-x-reverse">
@@ -68,7 +68,7 @@ export default function RootLayout({
           {children}
         </main>
 
-        <footer className="border-t border-slate-200 bg-slate-900 text-slate-300 py-12 mt-16">
+        <footer className="border-t border-navy-800 bg-navy-950 text-slate-300 py-12 mt-16">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-3 gap-8">
             <div>
               <h3 className="text-white text-lg font-bold mb-4">خدمات المستثمرين بالمملكة</h3>

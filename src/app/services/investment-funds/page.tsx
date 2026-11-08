@@ -86,7 +86,7 @@ export default function InvestmentFundsPage() {
       {/* 3. 中文版本 (Chinese Version) */}
       <section className="mb-12 border-t border-slate-200 pt-12" dir="ltr">
         <h2 className="text-3xl font-bold text-slate-900 mb-6">沙特投资基金与风险投资 (VC) 设立服务</h2>
-        <div className="bg-amber-50 border-l-4 border-amber-600 p-6 rounded-r-lg mb-6 text-lg font-medium leading-relaxed text-amber-900">
+        <div className="bg-gold-50 border-l-4 border-gold-600 p-6 rounded-r-lg mb-6 text-lg font-medium leading-relaxed text-gold-900">
           沙特阿拉伯是资本市场管理局 (CMA) 监管下设立投资基金和风险投资 (VC) 公司的首选枢纽。我们的企业法律团队在 14 个工作日内提供全方位的基金架构搭建、法规起草以及沙特资本市场管理局 (CMA) 的牌照申请代办服务。
         </div>
         <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">

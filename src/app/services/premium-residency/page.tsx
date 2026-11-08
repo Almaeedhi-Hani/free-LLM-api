@@ -80,7 +80,7 @@ export default function PremiumResidencyPage() {
       {/* 3. 中文版本 (Chinese Version) */}
       <section className="mb-12 border-t border-slate-200 pt-12" dir="ltr">
         <h2 className="text-3xl font-bold text-slate-900 mb-6">沙特高级居住证（投资者专享）</h2>
-        <div className="bg-amber-50 border-l-4 border-amber-600 p-6 rounded-r-lg mb-6 text-lg font-medium leading-relaxed text-amber-900">
+        <div className="bg-gold-50 border-l-4 border-gold-600 p-6 rounded-r-lg mb-6 text-lg font-medium leading-relaxed text-gold-900">
           沙特高级居住证（Premium Residency）为全球投资者提供独家专属权益，包括永久居留权、房产所有权以及无保人公司运营。我们的法律专家为您高效代办高级居住证申请，并在 7 个工作日内完成政府审批流程。
         </div>
         <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">

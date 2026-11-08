@@ -54,13 +54,13 @@ export default function HomePage() {
       {/* Hero Section */}
       <section className="text-center py-20 bg-gradient-to-b from-white to-slate-50 rounded-3xl p-8 mb-16 border border-slate-100 shadow-sm">
         <div className="inline-flex items-center gap-2 bg-amber-50 text-amber-800 px-4 py-1.5 rounded-full text-xs font-bold mb-6 border border-amber-200">
-          <span className="w-2 h-2 rounded-full bg-amber-600 animate-pulse"></span>
+          <span className="w-2 h-2 rounded-full bg-gold-500 animate-pulse"></span>
           بوابتك الاستثمارية الأولى في المملكة · رؤية 2030
         </div>
         <h1 className="text-4xl sm:text-6xl font-extrabold text-slate-900 mb-6 tracking-tight leading-tight">
           تأسيس الشركات وخدمات المستثمرين الأجانب
           <br />
-          <span className="text-amber-600">في المملكة العربية السعودية</span>
+          <span className="text-gold-600">في المملكة العربية السعودية</span>
         </h1>
 
         {/* Golden Paragraph */}
@@ -81,7 +81,7 @@ export default function HomePage() {
       {/* Metrics / Trust Badges */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-16 text-center">
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <div className="text-3xl font-extrabold text-amber-600 mb-1">100%</div>
+          <div className="text-3xl font-extrabold text-gold-600 mb-1">100%</div>
           <div className="text-slate-600 text-sm">تملك أجنبي بالكامل</div>
         </div>
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
@@ -89,7 +89,7 @@ export default function HomePage() {
           <div className="text-slate-600 text-sm">سرعة إصدار التراخيص</div>
         </div>
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <div className="text-3xl font-extrabold text-amber-600 mb-1">ثلاثي اللغات</div>
+          <div className="text-3xl font-extrabold text-gold-600 mb-1">ثلاثي اللغات</div>
           <div className="text-slate-600 text-sm">عربي، إنجليزي، صيني</div>
         </div>
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
@@ -108,17 +108,17 @@ export default function HomePage() {
           {services.map((service, idx) => (
             <a key={idx} href={service.href} className="luxury-card group flex flex-col justify-between">
               <div>
-                <span className="inline-block bg-slate-100 text-slate-700 text-xs font-semibold px-3 py-1 rounded-full mb-4 group-hover:bg-amber-100 group-hover:text-amber-800 transition-colors">
+                <span className="inline-block bg-slate-100 text-slate-700 text-xs font-semibold px-3 py-1 rounded-full mb-4 group-hover:bg-gold-100 group-hover:text-gold-800 transition-colors">
                   {service.badge}
                 </span>
-                <h3 className="text-xl font-bold text-slate-900 mb-3 group-hover:text-amber-600 transition-colors">
+                <h3 className="text-xl font-bold text-slate-900 mb-3 group-hover:text-gold-600 transition-colors">
                   {service.title}
                 </h3>
                 <p className="text-slate-600 text-sm leading-relaxed mb-6">
                   {service.desc}
                 </p>
               </div>
-              <div className="flex items-center text-amber-600 font-semibold text-sm group-hover:translate-x-1 transition-transform">
+              <div className="flex items-center text-gold-600 font-semibold text-sm group-hover:translate-x-1 transition-transform">
                 <span>استكشف التفاصيل</span>
                 <span className="mr-2">←</span>
               </div>
@@ -128,7 +128,7 @@ export default function HomePage() {
       </section>
 
       {/* Contact Section */}
-      <section className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-3xl p-8 sm:p-12 text-white mb-12">
+      <section className="bg-gradient-to-r from-navy-950 to-navy-900 rounded-3xl p-8 sm:p-12 text-white mb-12 shadow-luxury">
         <h2 className="text-2xl sm:text-3xl font-bold mb-4 text-center">تواصل معنا</h2>
         <p className="text-slate-300 text-center mb-8 max-w-2xl mx-auto">
           جاهزون لمساعدتك في تأسيس شركتك، إصدار ترخيص MISA، وفتح الحساب البنكي. تواصل معنا مباشرة:
