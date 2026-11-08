@@ -18,7 +18,7 @@ const TARGET_QUESTIONS = [
   'كم تكلفة تأسيس شركة LLC في المملكة العربية السعودية؟'
 ];
 
-const SITE_URL = 'https://investinsaudi-services.sa';
+const SITE_URL = process.env.SITE_URL || 'https://free-llm-api-1-didl.onrender.com';
 const OUR_ANSWER_MARKER = 'investinsaudi-services.sa';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
