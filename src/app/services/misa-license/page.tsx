@@ -88,7 +88,7 @@ export default function MisaLicensePage() {
           <ul className="list-disc pl-6 space-y-1 text-slate-700">
             <li>母公司营业执照（经沙特驻华大使馆认证）。</li>
             <li>最近一财年的审计财务报表。</li>
-            <li>董事及股东의 护照复印件。</li>
+            <li>董事及股东的 护照复印件。</li>
           </ul>
         </div>
       </section>

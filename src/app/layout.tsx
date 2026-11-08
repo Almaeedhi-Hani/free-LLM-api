@@ -51,6 +51,7 @@ export default function RootLayout({
               <a href="/" className="hover:text-amber-600 transition-colors">الرئيسية</a>
               <a href="/services/misa-license" className="hover:text-amber-600 transition-colors">ترخيص MISA</a>
               <a href="/services/company-formation" className="hover:text-amber-600 transition-colors">تأسيس الشركات</a>
+              <a href="/services/corporate-banking" className="hover:text-amber-600 transition-colors">الحسابات البنكية</a>
               <a href="/services/contract-drafting" className="hover:text-amber-600 transition-colors">صياغة العقود</a>
               <a href="/services/premium-residency" className="hover:text-amber-600 transition-colors">الإقامة المميزة</a>
               <a href="/services/investment-funds" className="hover:text-amber-600 transition-colors">صناديق الاستثمار</a>
@@ -79,6 +80,7 @@ export default function RootLayout({
               <ul className="space-y-2 text-sm">
                 <li><a href="/services/misa-license" className="hover:text-white">إصدار ترخيص الاستثمار الأجنبي MISA</a></li>
                 <li><a href="/services/company-formation" className="hover:text-white">تأسيس شركات LLC والفرع الأجنبي</a></li>
+                <li><a href="/services/corporate-banking" className="hover:text-white">فتح الحسابات البنكية الاستثمارية</a></li>
                 <li><a href="/services/contract-drafting" className="hover:text-white">صياغة العقود واللوائح</a></li>
                 <li><a href="/services/premium-residency" className="hover:text-white">الإقامة المميزة للمستثمرين</a></li>
                 <li><a href="/services/investment-funds" className="hover:text-white">صناديق الاستثمار ورأس المال الجريء</a></li>
