@@ -167,7 +167,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ status: 'unauthorized' }, { status: 401 });
   }
 
-  const results: Array<{ question: string; improved: boolean }> = [];
+  const results: Array<{ question: string; improved: boolean; note?: string }> = [];
 
   for (const question of TARGET_QUESTIONS) {
     const { topSource, topAnswer } = await queryAISearchEngine(question);
