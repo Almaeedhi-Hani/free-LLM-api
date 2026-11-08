@@ -11,23 +11,10 @@ jobs:
     steps:
       - name: Trigger cron agent endpoint
         env:
-          SITE_URL: ${{ secrets.SITE_URL }}
+          SITE_URL: https://free-llm-api-1-didl.onrender.com
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          # Normalize URL (remove trailing slash) to avoid //api 404
-          if [ -z "${SITE_URL}" ]; then echo "❌ SITE_URL secret is missing"; exit 1; fi
-          if [ -z "${CRON_SECRET}" ]; then echo "❌ CRON_SECRET secret is missing"; exit 1; fi
-          SITE_URL="${SITE_URL%/}"
+          if [ -z "${CRON_SECRET}" ]; then echo "CRON_SECRET secret is missing"; exit 1; fi
           echo "Triggering: ${SITE_URL}/api/cron-agent"
-          # Retry to allow Render free-tier wake-up
-          for i in 1 2 3; do
-            if curl -fsS -X GET "${SITE_URL}/api/cron-agent" \
-              -H "Authorization: Bearer ${CRON_SECRET}"; then
-              echo "✅ Cron agent succeeded"
-              exit 0
-            fi
-            echo "Attempt $i failed, retrying in 10s..."
-            sleep 10
-          done
-          echo "❌ Cron agent failed after 3 attempts"
-          exit 1
+          curl -fsS -X GET "${SITE_URL}/api/cron-agent" \
+            -H "Authorization: Bearer ${CRON_SECRET}"
