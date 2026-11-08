@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = 'https://investinsaudi-services.sa';
+  const baseUrl = process.env.SITE_URL || 'https://free-llm-api-1-didl.onrender.com';
 
   const routes = [
     '',

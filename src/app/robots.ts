@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next';
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = 'https://investinsaudi-services.sa';
+  const baseUrl = process.env.SITE_URL || 'https://free-llm-api-1-didl.onrender.com';
 
   const userAgents = [
     // 1. القواعد العامة والمحركات العالمية الشاملة
