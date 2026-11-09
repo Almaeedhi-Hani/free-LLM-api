@@ -1,9 +1,10 @@
 import React from 'react';
+import { CONTACT } from '@/lib/contact';
 
 export const WhatsAppFloat = () => {
   return (
     <a
-      href="https://wa.me/966545059528"
+      href={CONTACT.whatsapp}
       target="_blank"
       rel="noopener noreferrer"
       aria-label="تواصل عبر WhatsApp"

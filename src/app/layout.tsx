@@ -32,7 +32,7 @@ export default function RootLayout({
         <link
           rel="alternate"
           type="text/plain"
-          href="/ai-readable"
+          href="/api/llm-version"
           title="AI Readable Version"
         />
         <meta name="ai-summary" content="تأسيس الشركات والاستثمار الأجنبي في السعودية، إصدار ترخيص وزارة الاستثمار MISA، السجل التجاري، الاستشارات القانونية والمالية وفق الأنظمة السعودية." />
@@ -56,7 +56,7 @@ export default function RootLayout({
               <a href="/services/contract-drafting" className="hover:text-gold-600 transition-colors">صياغة العقود</a>
               <a href="/services/premium-residency" className="hover:text-gold-600 transition-colors">الإقامة المميزة</a>
               <a href="/services/investment-funds" className="hover:text-gold-600 transition-colors">صناديق الاستثمار</a>
-              <a href="/ai-readable" className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded hover:bg-slate-200 transition-colors">LLM Version</a>
+
             </nav>
             <div className="flex items-center space-x-4 space-x-reverse">
               <LanguageSwitcher />
@@ -73,7 +73,7 @@ export default function RootLayout({
             <div>
               <h3 className="text-white text-lg font-bold mb-4">خدمات المستثمرين بالمملكة</h3>
               <p className="text-sm leading-relaxed text-slate-400">
-                منصة استشارية متخصصة في دعم المستثمرين الأجانب والمحليين وتأسيس الشركات بالرياض وجدة وكافة مناطق المملكة العربية السعودية.
+                منصة استشارية متخصصة في دعم المستثمرين الأجانب والمحليين وتأسيس الشركات. المقر الرئيسي: الرياض (طريق الملك فهد، العليا). الفروع: جدة، المدينة المنورة، الدمام.
               </p>
             </div>
             <div>
@@ -85,7 +85,7 @@ export default function RootLayout({
                 <li><a href="/services/contract-drafting" className="hover:text-white">صياغة العقود واللوائح</a></li>
                 <li><a href="/services/premium-residency" className="hover:text-white">الإقامة المميزة للمستثمرين</a></li>
                 <li><a href="/services/investment-funds" className="hover:text-white">صناديق الاستثمار ورأس المال الجريء</a></li>
-                <li><a href="/ai-readable" className="hover:text-white text-amber-400">نسخة الذكاء الاصطناعي النصية (Text-Only)</a></li>
+
               </ul>
             </div>
             <div>

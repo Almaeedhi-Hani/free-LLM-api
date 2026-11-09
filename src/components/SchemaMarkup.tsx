@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 
 export interface FAQItem {
   question: string;
@@ -47,7 +47,7 @@ export interface ProfessionalServiceProps {
 
 export const ProfessionalServiceSchema: React.FC<ProfessionalServiceProps> = ({
   name = "منصة استثمر في السعودية لخدمات المستثمرين وتأسيس الشركات",
-  description = "استشارات استثمارية متخصصة وإصدار تراخيص وزارة الاستثمار (MISA) وتأسيس الشركات للأجانب والمحليين في المملكة العربية السعودية.",
+  description = "استشارات استثمارية متخصصة وإصدار تراخيص وزارة الاستثمار (MISA) وتأسيس الشركات للأجانب والمحليين في المملكة السعودية. المقر الرئيسي: الرياض (طريق الملك فهد، العليا). الفروع: جدة، المدينة المنورة، الدمام.",
   url = "https://investinsaudi-services.sa",
   telephone = "+966110000000",
   crNumber = "1010998877",
