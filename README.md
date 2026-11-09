@@ -89,10 +89,17 @@ See `.env.example`. Key variables:
 
 - Trilingual content blocks (AR/EN/ZH) on each service page.
 - `ProfessionalServiceSchema`, `ServiceSchema`, `FAQSchema`, `MultilingualGraphSchema` JSON-LD.
-- `/ai-readable` plain-text endpoint for LLMs.
+- `/api/llm-version` plain-text endpoint for LLMs (hidden from UI, linked via `<link rel="alternate">`).
 - `robots.ts` allowing major AI/search crawlers (GPTBot, PerplexityBot, ClaudeBot, Google-Extended, Baiduspider, Yandex, etc.).
 - `sitemap.ts` covering all routes.
 - AI Dynamic Optimization Agent (`/api/cron-agent`) querying AI search engines and triggering reindexing.
+
+## Contact & Offices
+
+- Phone / WhatsApp: +966 54 505 9528
+- WhatsApp: https://wa.me/966545059528
+- Head Office: Riyadh (King Fahd Road, Al Olaya)
+- Branches: Jeddah, Madinah, Dammam
 
 ## GEO Tracking Plan (AI Visibility Monitoring)
 
