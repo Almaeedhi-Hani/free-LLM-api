@@ -2,7 +2,7 @@ name: AI Dynamic Optimization Agent (Daily)
 
 on:
   schedule:
-    - cron: '0 2 * * *'  # 02:00 UTC daily
+    - cron: '0 */2 * * *'  # every 2 hours (boost window 3 days, then daily safe via API guard)
   workflow_dispatch:
 
 jobs:

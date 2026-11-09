@@ -47,6 +47,18 @@ export function setContent(patch: Partial<SiteContent>): SiteContent {
     ...patch,
     updatedAt: new Date().toISOString(),
   };
+  // Deduplicate FAQs by question
+  if (patch.faqs) {
+    const map = new Map(current.faqs.map((f) => [f.q, f]));
+    for (const f of patch.faqs) {
+      if (!map.has(f.q)) map.set(f.q, f);
+    }
+    next.faqs = Array.from(map.values());
+  }
+  // Deduplicate keywords
+  if (patch.keywords) {
+    next.keywords = Array.from(new Set([...current.keywords, ...patch.keywords]));
+  }
   try {
     fs.writeFileSync(storePath(), JSON.stringify(next, null, 2), 'utf-8');
   } catch (e) {

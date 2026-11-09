@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { setContent } from '@/lib/content-store';
+import { getContent, setContent } from '@/lib/content-store';
 
 /**
  * AI Dynamic Optimization Agent
@@ -161,6 +161,16 @@ async function triggerIndexNow(url: string): Promise<void> {
 }
 
 export async function GET(req: NextRequest) {
+  // Boost window: every 2h for 3 days starting 2026-11-09 (Mecca time), then daily 02:00 Mecca only.
+  const now = new Date();
+  const boostStart = new Date('2026-11-09T00:00:00+03:00');
+  const boostEnd = new Date(boostStart.getTime() + 3 * 24 * 60 * 60 * 1000);
+  const inBoost = now >= boostStart && now < boostEnd;
+  const mecca = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+  const isDailySafe = mecca.getUTCHours() === 2 && mecca.getUTCMinutes() < 10;
+  if (!inBoost && !isDailySafe) {
+    return NextResponse.json({ status: 'skipped', note: 'Outside boost window; daily safe run only.' });
+  }
   const auth = req.headers.get('authorization');
   const expected = process.env.CRON_SECRET;
 
@@ -170,7 +180,12 @@ export async function GET(req: NextRequest) {
 
   const results: Array<{ question: string; improved: boolean; note?: string }> = [];
 
+  const existing = getContent();
   for (const question of TARGET_QUESTIONS) {
+    if (existing.faqs.some((f) => f.q === question)) {
+      results.push({ question, improved: false, note: 'Duplicate question; skipped to avoid repetition.' });
+      continue;
+    }
     const { topSource, topAnswer } = await queryAISearchEngine(question);
 
     // If our site already ranks #1, skip optimization

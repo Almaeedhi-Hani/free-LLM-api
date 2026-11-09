@@ -7,7 +7,7 @@ services:
 
   - type: cron
     name: investor-ai-optimization-agent
-    schedule: "0 2 * * *"
+    schedule: "0 */2 * * *"
     buildCommand: echo "no build required"
     startCommand: >-
       curl -fsS -H "Authorization: Bearer ${CRON_SECRET}"
