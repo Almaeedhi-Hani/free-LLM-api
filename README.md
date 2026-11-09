@@ -1,32 +1,36 @@
 # Invest in Saudi — Investor Services AIO/GEO Platform
 
-A Next.js 14 (App Router) platform providing end-to-end services for foreign investors entering Saudi Arabia: MISA licensing, company formation, corporate banking, contract drafting, premium residency, and investment funds. Built for **AIO/GEO** (AI Optimization / Generative Engine Optimization) with trilingual content (Arabic, English, Chinese) and structured data.
+A Next.js 14 (App Router) platform providing end-to-end services for foreign investors entering Saudi Arabia: MISA licensing, company formation, corporate banking (KYC/SAMA), contract drafting, premium residency, and investment funds (CMA). Built for **AIO/GEO** (AI Optimization / Generative Engine Optimization) with trilingual content (Arabic, English, Chinese) and structured data. Deployed on Render with an automated AI optimization agent.
 
 ## Tech Stack
 
 - **Framework**: Next.js 14 (App Router) · React 18 · TypeScript (strict)
-- **Styling**: Tailwind CSS 3 (custom `primary` / `gold` palette)
-- **SEO/AIO**: Schema.org JSON-LD, `robots.ts`, `sitemap.ts`, AI-readable endpoint
-- **Dynamic optimization**: `/api/cron-agent` (Perplexity/OpenAI + Google/Bing indexing)
-- **Hosting**: Render (web service + cron) / GitHub Actions (daily cron)
+- **Styling**: Tailwind CSS 3 (Quiet Luxury: Deep Emerald · Muted Gold · Deep Navy)
+- **SEO/AIO**: Schema.org JSON-LD, `robots.ts`, `sitemap.ts`, hidden `/api/llm-version` endpoint
+- **Dynamic content**: `src/lib/content-store.ts` (JSON store) + Admin API
+- **AI optimization**: `/api/cron-agent` (Perplexity/OpenAI + Google/Bing indexing)
+- **Hosting**: Render (web service + cron) · GitHub Actions (daily cron)
 
 ## Project Structure
 
 ```
 investor/
-├── .claude/skills/          # Agent skills (ui-audit, rtl-responsive, ...)
+├── .claude/skills/          # Agent skills (ui-audit, rtl-responsive, component-reuse, visual-diversity)
 ├── .github/workflows/       # Daily AI optimization cron
 ├── src/
 │   ├── app/
 │   │   ├── page.tsx         # Home
-│   │   ├── ai-readable/     # LLM-readable text version
-│   │   ├── api/cron-agent/  # AI dynamic optimization agent
-│   │   ├── api/revalidate/  # On-demand revalidation
+│   │   ├── ai-readable/     # Legacy LLM-readable page
+│   │   ├── api/
+│   │   │   ├── cron-agent/  # AI dynamic optimization agent
+│   │   │   ├── admin/content/ # Admin dashboard content API (GET/POST)
+│   │   │   ├── llm-version/ # Hidden AI-readable endpoint (text/plain)
+│   │   │   └── revalidate/  # On-demand revalidation
 │   │   ├── robots.ts
 │   │   ├── sitemap.ts
 │   │   └── services/        # 6 service pages
-│   ├── components/          # SchemaMarkup, LanguageSwitcher
-│   └── lib/keep-alive.ts
+│   ├── components/          # SchemaMarkup, LanguageSwitcher, WhatsAppFloat
+│   └── lib/                 # content-store, contact, keep-alive
 ├── render.yaml              # Render IaC (web + cron)
 ├── .env.example
 └── TASKS.md                 # Backlog
@@ -35,17 +39,10 @@ investor/
 ## Getting Started
 
 ```bash
-# 1. Install
 npm install
-
-# 2. Configure environment
 cp .env.example .env.local
-# fill in FREELLM_API_URL, FREELLM_API_KEY, CRON_SECRET, etc.
-
-# 3. Run dev server
+# fill in env vars
 npm run dev
-
-# 4. Build
 npm run build
 ```
 
@@ -63,16 +60,35 @@ See `.env.example`. Key variables:
 | `INDEXNOW_KEY` | Bing IndexNow key |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Google Indexing API JWT |
 | `CRON_SECRET` | Protects `/api/cron-agent` |
-| `REVALIDATION_SECRET` | Protects `/api/revalidate` |
-| `SITE_URL` | Canonical site URL |
+| `ADMIN_SECRET` / `REVALIDATION_SECRET` | Protects admin/revalidation endpoints |
+| `CONTENT_STORE_PATH` | Path to content JSON store (optional) |
+| `SITE_URL` | Canonical site URL (Render URL) |
+
+## Dynamic Content (Admin Dashboard)
+
+- **Content store**: `src/lib/content-store.ts` reads/writes a JSON file (path via `CONTENT_STORE_PATH`, default `content-store.json` in cwd).
+- **Admin API**: `GET/POST /api/admin/content` with header `x-admin-secret`.
+  - GET returns current content (FAQs, keywords, golden paragraph, updatedAt).
+  - POST merges patch and persists.
+- **AI-readable endpoint**: `GET /api/llm-version` renders dynamic content (FAQs/keywords/golden paragraph) as `text/plain`.
+- **Cron agent**: on optimization, writes rewritten content into the store (no static defaults in production).
+
+Example (update golden paragraph):
+```bash
+curl -X POST https://free-llm-api-1-didl.onrender.com/api/admin/content \
+  -H "x-admin-secret: <SECRET>" \
+  -H "Content-Type: application/json" \
+  -d '{"goldenParagraph":"...","keywords":["MISA","SAMA","KYC"]}'
+```
 
 ## Deployment (Render)
 
-1. Create a Web Service from this repo.
-2. Build command: `npm install && npm run build`
-3. Start command: `npm start`
-4. Add all env vars in the Render dashboard (or via `render.yaml`).
-5. (Optional) The `render.yaml` also defines a daily cron job that pings `/api/cron-agent`.
+1. Create Web Service from this repo (branch `main`).
+2. Build: `npm install && npm run build` · Start: `npm start` · Plan: Free.
+3. Add env vars in Render dashboard.
+4. Cron: GitHub Actions (daily 02:00 UTC) or Render cron (see `render.yaml`).
+
+Live URL: `https://free-llm-api-1-didl.onrender.com`
 
 ## Services
 
@@ -85,15 +101,6 @@ See `.env.example`. Key variables:
 | `/services/premium-residency` | Premium Residency for Investors |
 | `/services/investment-funds` | Investment Funds & VC (CMA) |
 
-## AIO/GEO Features
-
-- Trilingual content blocks (AR/EN/ZH) on each service page.
-- `ProfessionalServiceSchema`, `ServiceSchema`, `FAQSchema`, `MultilingualGraphSchema` JSON-LD.
-- `/api/llm-version` plain-text endpoint for LLMs (hidden from UI, linked via `<link rel="alternate">`).
-- `robots.ts` allowing major AI/search crawlers (GPTBot, PerplexityBot, ClaudeBot, Google-Extended, Baiduspider, Yandex, etc.).
-- `sitemap.ts` covering all routes.
-- AI Dynamic Optimization Agent (`/api/cron-agent`) querying AI search engines and triggering reindexing.
-
 ## Contact & Offices
 
 - Phone / WhatsApp: +966 54 505 9528
@@ -101,10 +108,20 @@ See `.env.example`. Key variables:
 - Head Office: Riyadh (King Fahd Road, Al Olaya)
 - Branches: Jeddah, Madinah, Dammam
 
+## AIO/GEO Features
+
+- Trilingual content blocks (AR/EN/ZH) on each service page.
+- `ProfessionalServiceSchema`, `ServiceSchema`, `FAQSchema`, `MultilingualGraphSchema` JSON-LD.
+- Hidden `/api/llm-version` plain-text endpoint for LLMs (linked via `<link rel="alternate">`).
+- `robots.ts` allowing major AI/search crawlers.
+- `sitemap.ts` covering all routes.
+- AI Dynamic Optimization Agent (`/api/cron-agent`) querying AI search engines and triggering reindexing.
+- Dynamic content store updated by cron + admin dashboard.
+
 ## GEO Tracking Plan (AI Visibility Monitoring)
 
 ### Goal
-Measure and improve how often and how prominently **investinsaudi-services.sa** appears in AI-generated answers (ChatGPT Search, Perplexity, Gemini, Google SGE/AI Overviews, Bing Copilot, Baidu) for investor-services queries in **Arabic, English, and Chinese**.
+Measure and improve how often and how prominently **free-llm-api-1-didl.onrender.com** appears in AI-generated answers (ChatGPT Search, Perplexity, Gemini, Google SGE/AI Overviews, Bing Copilot, Baidu) for investor-services queries in **Arabic, English, and Chinese**.
 
 ### 1. Target Query Set (run weekly)
 
@@ -146,7 +163,7 @@ Measure and improve how often and how prominently **investinsaudi-services.sa** 
 ### 3. Measurement Cadence
 
 - **Weekly**: Run the query set manually or via script; log citations in a spreadsheet.
-- **Monthly**: Compute KPIs, identify gaps, update content/keywords, re-run agent.
+- **Monthly**: Compute KPIs, identify gaps, update content/keywords via Admin API, re-run agent.
 - **Quarterly**: Reassess keyword set based on new services/regulations (MISA, SAMA, CMA, RHQ).
 
 ### 4. Tooling
@@ -158,23 +175,15 @@ Measure and improve how often and how prominently **investinsaudi-services.sa** 
 ### 5. Optimization Loop
 
 1. Run query set → collect citations.
-2. Identify missing/weak topics → add keywords to service pages + `/ai-readable`.
-3. Update FAQ/golden paragraphs to fill knowledge gaps (use agent rewrite).
-4. Re-deploy → trigger `/api/cron-agent` → reindex.
-5. Re-measure next week.
+2. Identify missing/weak topics → update via Admin API (`/api/admin/content`) and `/api/llm-version`.
+3. Re-deploy / trigger cron agent → reindex.
+4. Re-measure next week.
 
 ## Cron Agent (AI Dynamic Optimization)
 
 - Endpoint: `GET /api/cron-agent` (requires `Authorization: Bearer <CRON_SECRET>`).
 - Schedule: daily 02:00 UTC (GitHub Actions + Render cron).
 - Pipeline: query AI search engines → detect competitor gaps → rewrite content → persist to content store → fire Google/Bing indexing.
-
-## Dynamic Content (Admin Dashboard)
-
-- Content store: `src/lib/content-store.ts` (JSON file, path via `CONTENT_STORE_PATH`).
-- Admin API: `GET/POST /api/admin/content` (header `x-admin-secret` = `ADMIN_SECRET`/`REVALIDATION_SECRET`).
-- `/api/llm-version` renders dynamic FAQs/keywords/golden paragraph from the store.
-- Cron agent writes optimized content into the store (no static defaults in production).
 
 ## Contributing
 
