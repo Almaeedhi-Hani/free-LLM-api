@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { setContent } from '@/lib/content-store';
 
 /**
  * AI Dynamic Optimization Agent
@@ -178,6 +179,11 @@ export async function GET(req: NextRequest) {
       // CMS/database and update it with the rewritten version.
       const rewritten = await rewriteWithGPT4o(topAnswer, '');
       if (rewritten) {
+        // Persist optimized content to the dynamic content store
+        setContent({
+          goldenParagraph: rewritten,
+          faqs: [{ q: question, a: topAnswer.slice(0, 500) }],
+        });
         // Fire reindexing webhooks immediately
         await triggerGoogleIndexing(SITE_URL);
         await triggerIndexNow(SITE_URL);

@@ -167,7 +167,14 @@ Measure and improve how often and how prominently **investinsaudi-services.sa** 
 
 - Endpoint: `GET /api/cron-agent` (requires `Authorization: Bearer <CRON_SECRET>`).
 - Schedule: daily 02:00 UTC (GitHub Actions + Render cron).
-- Pipeline: query AI search engines → detect competitor gaps → rewrite content → fire Google/Bing indexing.
+- Pipeline: query AI search engines → detect competitor gaps → rewrite content → persist to content store → fire Google/Bing indexing.
+
+## Dynamic Content (Admin Dashboard)
+
+- Content store: `src/lib/content-store.ts` (JSON file, path via `CONTENT_STORE_PATH`).
+- Admin API: `GET/POST /api/admin/content` (header `x-admin-secret` = `ADMIN_SECRET`/`REVALIDATION_SECRET`).
+- `/api/llm-version` renders dynamic FAQs/keywords/golden paragraph from the store.
+- Cron agent writes optimized content into the store (no static defaults in production).
 
 ## Contributing
 
