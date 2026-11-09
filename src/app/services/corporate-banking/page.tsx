@@ -38,9 +38,9 @@ export default function CorporateBankingPage() {
           zh: "沙特外国企业投资银行开户服务"
         }}
         description={{
-          ar: "تجهيز ملفات الامتثال وفتح الحسابات المصرفية للشركات الدولية في البنوك السعودية.",
-          en: "Complete KYC structuring and legal representation for foreign corporate banking setup in KSA.",
-          zh: "为全球跨国企业提供沙特中央银行合规下的企业投资账户设立全套代办服务。"
+          ar: "تجهيز ملفات الامتثال وفتح الحسابات المصرفية للشركات الدولية في البنوك السعودية. المقر الرئيسي: الرياض (طريق الملك فهد، العليا). الفروع: جدة، المدينة المنورة، الدمام.",
+          en: "Complete KYC structuring and legal representation for foreign corporate banking setup in KSA. Head Office: Riyadh (King Fahd Road, Al Olaya). Branches: Jeddah, Madinah, Dammam.",
+          zh: "为全球跨国企业提供沙特中央银行合规下的企业投资账户设立全套代办服务。总部：利雅得（阿利雅，国王法赫德路）。分部：吉达、麦地那、达曼。"
         }}
         faqs={multilingualFaqs}
       />

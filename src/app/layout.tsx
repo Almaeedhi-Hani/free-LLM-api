@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   alternates: {
     canonical: '/',
     types: {
-      'text/plain': '/ai-readable',
+      'text/plain': '/api/llm-version',
     },
   },
   other: {
