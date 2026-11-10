@@ -18,7 +18,6 @@ export interface SiteContent {
   faqs: ContentFAQ[];
   keywords: string[];
   drafts: ContentDraft[];
-  version: number;
   updatedAt: string;
 }
 
@@ -33,7 +32,6 @@ const DEFAULT_CONTENT: SiteContent = {
   ],
   keywords: ['MISA', 'SAMA', 'KYC', 'RHQ', 'Premium Residency', 'CMA'],
   drafts: [],
-  version: 1,
   updatedAt: new Date().toISOString(),
 };
 
@@ -71,7 +69,7 @@ async function supabaseGet(cfg: { url: string; key: string; table: string }): Pr
       const rows = (await res.json()) as Array<{ content: SiteContent }>;
       if (rows && rows.length > 0 && rows[0].content) {
         const parsed = rows[0].content as Partial<SiteContent>;
-        return { ...DEFAULT_CONTENT, ...parsed, version: parsed.version ?? DEFAULT_CONTENT.version, drafts: parsed.drafts ?? DEFAULT_CONTENT.drafts } as SiteContent;
+        return { ...DEFAULT_CONTENT, ...parsed, drafts: parsed.drafts ?? DEFAULT_CONTENT.drafts } as SiteContent;
       }
     }
   } catch (e) {
@@ -80,21 +78,19 @@ async function supabaseGet(cfg: { url: string; key: string; table: string }): Pr
   return DEFAULT_CONTENT;
 }
 
-async function supabaseSet(cfg: { url: string; key: string; table: string }, next: SiteContent, expectedVersion: number): Promise<boolean> {
+async function supabaseSet(cfg: { url: string; key: string; table: string }, next: SiteContent): Promise<boolean> {
   try {
-    const res = await fetch(`${cfg.url}/rest/v1/${cfg.table}?id=eq.1&version=eq.${expectedVersion}`, {
-      method: 'PATCH',
+    const res = await fetch(`${cfg.url}/rest/v1/${cfg.table}`, {
+      method: 'POST',
       headers: {
         apikey: cfg.key,
         Authorization: `Bearer ${cfg.key}`,
         'Content-Type': 'application/json',
-        Prefer: 'return=representation',
+        Prefer: 'resolution=merge-duplicates',
       },
-      body: JSON.stringify({ content: next, version: next.version, updated_at: next.updatedAt }),
+      body: JSON.stringify({ id: 1, content: next, updated_at: next.updatedAt }),
     });
-    if (!res.ok) return false;
-    const rows = (await res.json()) as Array<unknown>;
-    return Array.isArray(rows) && rows.length > 0;
+    return res.ok;
   } catch (e) {
     console.error('Supabase setContent error:', e);
     return false;
@@ -107,7 +103,7 @@ export async function getContent(): Promise<SiteContent> {
   try {
     const raw = fs.readFileSync(storePath(), 'utf-8');
     const parsed = JSON.parse(raw) as Partial<SiteContent>;
-    return { ...DEFAULT_CONTENT, ...parsed, version: parsed.version ?? DEFAULT_CONTENT.version, drafts: parsed.drafts ?? DEFAULT_CONTENT.drafts } as SiteContent;
+    return { ...DEFAULT_CONTENT, ...parsed, drafts: parsed.drafts ?? DEFAULT_CONTENT.drafts } as SiteContent;
   } catch {
     return DEFAULT_CONTENT;
   }
@@ -121,7 +117,6 @@ export async function setContent(patch: Partial<SiteContent>): Promise<SiteConte
     const next: SiteContent = {
       ...current,
       ...patch,
-      version: (current.version || 1) + 1,
       updatedAt: new Date().toISOString(),
     };
     if (patch.faqs) {
@@ -139,7 +134,7 @@ export async function setContent(patch: Partial<SiteContent>): Promise<SiteConte
     }
 
     if (cfg) {
-      const ok = await supabaseSet(cfg, next, current.version || 1);
+      const ok = await supabaseSet(cfg, next);
       if (ok) return next;
       // conflict: retry
       continue;

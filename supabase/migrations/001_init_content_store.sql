@@ -2,13 +2,12 @@
 create table if not exists public.content_store (
   id int primary key,
   content jsonb not null default '{}'::jsonb,
-  version int not null default 1,
   updated_at timestamptz not null default now()
 );
 
 -- Seed initial row
-insert into public.content_store (id, content, version)
-values (1, '{}'::jsonb, 1)
+insert into public.content_store (id, content)
+values (1, '{}'::jsonb)
 on conflict (id) do nothing;
 
 -- Enable RLS (deny public access; service role bypasses)
