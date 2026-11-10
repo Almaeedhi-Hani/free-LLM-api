@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContent, setContent } from '@/lib/content-store';
+import { StorageConflictError, StorageUnavailableError } from '@/lib/storage-mode';
+
+export const dynamic = 'force-dynamic';
 
 function isAuthorized(req: NextRequest): boolean {
   const secret = process.env.ADMIN_SECRET || process.env.REVALIDATION_SECRET || '';
@@ -8,19 +11,44 @@ function isAuthorized(req: NextRequest): boolean {
   return provided === secret;
 }
 
+function errorResponse(error: unknown) {
+  if (error instanceof StorageConflictError) {
+    return NextResponse.json(
+      { status: 'conflict', message: 'Content changed concurrently. Reload and retry.' },
+      { status: 409 }
+    );
+  }
+  if (error instanceof StorageUnavailableError) {
+    return NextResponse.json(
+      { status: 'storage_unavailable', message: 'Persistent storage is unavailable.' },
+      { status: 503 }
+    );
+  }
+  console.error('admin content error:', error);
+  return NextResponse.json({ status: 'error', message: 'Request failed.' }, { status: 500 });
+}
+
 export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ status: 'unauthorized' }, { status: 401 });
   }
-  const content = await getContent();
-  return NextResponse.json(content);
+  try {
+    const content = await getContent();
+    return NextResponse.json(content);
+  } catch (e) {
+    return errorResponse(e);
+  }
 }
 
 export async function POST(req: NextRequest) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ status: 'unauthorized' }, { status: 401 });
   }
-  const body = await req.json();
-  const updated = await setContent(body);
-  return NextResponse.json({ status: 'updated', content: updated });
+  try {
+    const body = await req.json();
+    const updated = await setContent(body);
+    return NextResponse.json({ status: 'updated', content: updated });
+  } catch (e) {
+    return errorResponse(e);
+  }
 }

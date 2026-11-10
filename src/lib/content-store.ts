@@ -1,5 +1,12 @@
 import fs from 'fs';
 import path from 'path';
+import {
+  StorageConflictError,
+  StorageUnavailableError,
+  asStorageError,
+  getSupabaseCredentials,
+  resolveStorageMode,
+} from './storage-mode';
 
 export interface ContentFAQ {
   q: string;
@@ -65,11 +72,12 @@ function storePath(): string {
   return process.env.CONTENT_STORE_PATH || path.join(process.cwd(), 'content-store.json');
 }
 
-function supabaseConfig(): { url: string; key: string; table: string } | null {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) return null;
-  return { url: url.replace(/\/$/, ''), key, table: process.env.SUPABASE_TABLE || 'content_store' };
+function supabaseConfig(): { url: string; key: string; table: string } {
+  const credentials = getSupabaseCredentials();
+  if (!credentials) {
+    throw new StorageUnavailableError('Supabase credentials are missing');
+  }
+  return { ...credentials, table: process.env.SUPABASE_TABLE || 'content_store' };
 }
 
 let lock: Promise<void> = Promise.resolve();
@@ -87,23 +95,30 @@ function withLock<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 async function supabaseGet(cfg: { url: string; key: string; table: string }): Promise<SiteContent> {
-  const res = await fetch(`${cfg.url}/rest/v1/${cfg.table}?id=eq.1&select=content,updated_at`, {
-    headers: { apikey: cfg.key, Authorization: `Bearer ${cfg.key}` },
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${cfg.url}/rest/v1/${cfg.table}?id=eq.1&select=content,updated_at`, {
+      headers: { apikey: cfg.key, Authorization: `Bearer ${cfg.key}` },
+      cache: 'no-store',
+    });
+  } catch (e) {
+    throw asStorageError('Supabase getContent request failed', e);
+  }
   if (!res.ok) {
-    throw new Error(`Supabase getContent failed: ${res.status}`);
+    throw new StorageUnavailableError(`Supabase getContent failed: HTTP ${res.status}`);
   }
   const rows = (await res.json()) as Array<{ content: SiteContent; updated_at: string }>;
   if (!rows || rows.length === 0 || !rows[0].content) {
-    throw new Error('Supabase content row missing');
+    throw new StorageUnavailableError('Supabase content row is missing');
   }
   const parsed = rows[0].content as Partial<SiteContent>;
   return { ...DEFAULT_CONTENT, ...parsed, drafts: parsed.drafts ?? DEFAULT_CONTENT.drafts, contact: { ...DEFAULT_CONTENT.contact, ...parsed.contact }, agent: { ...DEFAULT_CONTENT.agent, ...parsed.agent }, updatedAt: rows[0].updated_at ?? parsed.updatedAt ?? DEFAULT_CONTENT.updatedAt } as SiteContent;
 }
 
 async function supabaseSet(cfg: { url: string; key: string; table: string }, next: SiteContent, expectedUpdatedAt: string): Promise<boolean> {
+  let res: Response;
   try {
-    const res = await fetch(`${cfg.url}/rest/v1/${cfg.table}?id=eq.1&updated_at=eq.${encodeURIComponent(expectedUpdatedAt)}`, {
+    res = await fetch(`${cfg.url}/rest/v1/${cfg.table}?id=eq.1&updated_at=eq.${encodeURIComponent(expectedUpdatedAt)}`, {
       method: 'PATCH',
       headers: {
         apikey: cfg.key,
@@ -111,20 +126,24 @@ async function supabaseSet(cfg: { url: string; key: string; table: string }, nex
         'Content-Type': 'application/json',
         Prefer: 'return=representation',
       },
+      cache: 'no-store',
       body: JSON.stringify({ content: next, updated_at: next.updatedAt }),
     });
-    if (!res.ok) return false;
-    const rows = (await res.json()) as Array<unknown>;
-    return Array.isArray(rows) && rows.length > 0;
   } catch (e) {
-    console.error('Supabase setContent error:', e);
-    return false;
+    throw asStorageError('Supabase setContent request failed', e);
   }
+  if (res.status === 409) return false;
+  if (!res.ok) {
+    throw new StorageUnavailableError(`Supabase setContent failed: HTTP ${res.status}`);
+  }
+  const rows = (await res.json()) as Array<unknown>;
+  return Array.isArray(rows) && rows.length > 0;
 }
 
 export async function getContent(): Promise<SiteContent> {
-  const cfg = supabaseConfig();
-  if (cfg) return supabaseGet(cfg);
+  if (resolveStorageMode() === 'supabase') {
+    return supabaseGet(supabaseConfig());
+  }
   try {
     const raw = fs.readFileSync(storePath(), 'utf-8');
     const parsed = JSON.parse(raw) as Partial<SiteContent>;
@@ -134,44 +153,57 @@ export async function getContent(): Promise<SiteContent> {
   }
 }
 
-export async function setContent(patch: Partial<SiteContent>): Promise<SiteContent> {
-  const cfg = supabaseConfig();
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const current = await getContent();
-    const next: SiteContent = {
-      ...current,
-      ...patch,
-      contact: { ...current.contact, ...patch.contact },
-      agent: { ...current.agent, ...patch.agent },
-      updatedAt: new Date().toISOString(),
-    };
-    if (patch.faqs) {
-      const map = new Map(current.faqs.map((f) => [f.q, f]));
-      for (const f of patch.faqs) if (!map.has(f.q)) map.set(f.q, f);
-      next.faqs = Array.from(map.values());
-    }
-    if (patch.keywords) {
-      next.keywords = Array.from(new Set([...current.keywords, ...patch.keywords]));
-    }
-    if (patch.drafts) {
-      const map = new Map(current.drafts.map((d) => [d.q, d]));
-      for (const d of patch.drafts) if (!map.has(d.q)) map.set(d.q, d);
-      next.drafts = Array.from(map.values());
-    }
+function buildNext(current: SiteContent, patch: Partial<SiteContent>): SiteContent {
+  const next: SiteContent = {
+    ...current,
+    ...patch,
+    contact: { ...current.contact, ...patch.contact },
+    agent: { ...current.agent, ...patch.agent },
+    updatedAt: new Date().toISOString(),
+  };
+  if (patch.faqs) {
+    const map = new Map(current.faqs.map((f) => [f.q, f]));
+    for (const f of patch.faqs) if (!map.has(f.q)) map.set(f.q, f);
+    next.faqs = Array.from(map.values());
+  }
+  if (patch.keywords) {
+    next.keywords = Array.from(new Set([...current.keywords, ...patch.keywords]));
+  }
+  if (patch.drafts) {
+    const map = new Map(current.drafts.map((d) => [d.q, d]));
+    for (const d of patch.drafts) if (!map.has(d.q)) map.set(d.q, d);
+    next.drafts = Array.from(map.values());
+  }
+  return next;
+}
 
-    if (cfg) {
-      const ok = await supabaseSet(cfg, next, current.updatedAt);
-      if (ok) return next;
-      continue;
-    }
+function writeLocalContent(data: SiteContent): SiteContent {
+  try {
+    fs.writeFileSync(storePath(), JSON.stringify(data, null, 2), 'utf-8');
+  } catch (e) {
+    throw asStorageError('Failed to write content store', e);
+  }
+  return data;
+}
+
+export async function setContent(patch: Partial<SiteContent>): Promise<SiteContent> {
+  const mode = resolveStorageMode();
+
+  if (mode === 'file') {
+    // Read-modify-write inside the lock, otherwise two concurrent saves can
+    // both read the same snapshot and the last writer silently loses data.
     return withLock(async () => {
-      try {
-        fs.writeFileSync(storePath(), JSON.stringify(next, null, 2), 'utf-8');
-      } catch (e) {
-        console.error('Failed to write content store:', e);
-      }
-      return next;
+      const current = await getContent();
+      return writeLocalContent(buildNext(current, patch));
     });
   }
-  throw new Error('Supabase write failed after retries');
+
+  const cfg = supabaseConfig();
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const current = await supabaseGet(cfg);
+    const next = buildNext(current, patch);
+    const ok = await supabaseSet(cfg, next, current.updatedAt);
+    if (ok) return next;
+  }
+  throw new StorageConflictError('Supabase content update failed after 3 attempts due to concurrent modification');
 }

@@ -25,24 +25,25 @@ export default function AdminDashboard() {
     }
   }, []);
 
-  const fetchContent = () => {
+  const fetchContent = async () => {
     if (!authed || !secret) return;
-    fetch('/api/admin/content', { headers: { 'x-admin-secret': secret } })
-      .then((r) => {
-        if (!r.ok) throw new Error('Unauthorized');
-        return r.json();
-      })
-      .then((d) => {
-        setContent(d);
-        if (d.contact) setContactForm(d.contact);
-        setGoldenDraft(d.goldenParagraph || '');
-        setError('');
-      })
-      .catch((e) => {
-        setError(e.message);
+    try {
+      const r = await fetch('/api/admin/content', { headers: { 'x-admin-secret': secret } });
+      let d: any = {};
+      try { d = await r.json(); } catch { d = {}; }
+      if (r.status === 401) {
         setAuthed(false);
         sessionStorage.removeItem('admin_secret');
-      });
+        throw new Error('Unauthorized');
+      }
+      if (!r.ok) throw new Error(d.message || `Load failed (${r.status})`);
+      setContent(d);
+      if (d.contact) setContactForm(d.contact);
+      setGoldenDraft(d.goldenParagraph || '');
+      setError('');
+    } catch (e: any) {
+      setError(e.message || 'Load failed');
+    }
   };
 
   useEffect(() => {
@@ -63,17 +64,35 @@ export default function AdminDashboard() {
     setContent(null);
   };
 
-  const save = (patch: any) => {
+  const save = async (patch: any) => {
     setSaving(true);
-    fetch('/api/admin/content', {
-      method: 'POST',
-      headers: { 'x-admin-secret': secret, 'Content-Type': 'application/json' },
-      body: JSON.stringify(patch),
-    })
-      .then((r) => r.json())
-      .then((d) => { setContent(d.content); if (d.content?.contact) setContactForm(d.content.contact); setError(''); })
-      .catch((e) => setError(e.message))
-      .finally(() => setSaving(false));
+    try {
+      const r = await fetch('/api/admin/content', {
+        method: 'POST',
+        headers: { 'x-admin-secret': secret, 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      let d: any = {};
+      try { d = await r.json(); } catch { d = {}; }
+      if (r.status === 401) {
+        setAuthed(false);
+        sessionStorage.removeItem('admin_secret');
+        throw new Error('Unauthorized');
+      }
+      if (r.status === 409) {
+        await fetchContent();
+        throw new Error('Conflict: data changed in another session. Reloaded; please retry.');
+      }
+      if (!r.ok) throw new Error(d.message || `Save failed (${r.status})`);
+      setContent(d.content);
+      if (d.content?.contact) setContactForm(d.content.contact);
+      if (d.content?.goldenParagraph !== undefined) setGoldenDraft(d.content.goldenParagraph);
+      setError('');
+    } catch (e: any) {
+      setError(e.message || 'Save failed');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const approveDraft = (idx: number) => {

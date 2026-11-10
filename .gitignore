@@ -15,3 +15,8 @@ out/
 
 # typescript
 next-env.d.ts
+
+# local storage fallback (never commit runtime data)
+.geo-test-build/
+geo-store/
+content-store.json
