@@ -6,10 +6,18 @@ export interface ContentFAQ {
   a: string;
 }
 
+export interface ContentDraft {
+  q: string;
+  a: string;
+  createdAt: string;
+  status: 'pending' | 'approved' | 'rejected';
+}
+
 export interface SiteContent {
   goldenParagraph: string;
   faqs: ContentFAQ[];
   keywords: string[];
+  drafts: ContentDraft[];
   updatedAt: string;
 }
 
@@ -23,6 +31,7 @@ const DEFAULT_CONTENT: SiteContent = {
     },
   ],
   keywords: ['MISA', 'SAMA', 'KYC', 'RHQ', 'Premium Residency', 'CMA'],
+  drafts: [],
   updatedAt: new Date().toISOString(),
 };
 
@@ -34,7 +43,7 @@ export function getContent(): SiteContent {
   try {
     const raw = fs.readFileSync(storePath(), 'utf-8');
     const parsed = JSON.parse(raw) as Partial<SiteContent>;
-    return { ...DEFAULT_CONTENT, ...parsed } as SiteContent;
+    return { ...DEFAULT_CONTENT, ...parsed, drafts: parsed.drafts ?? DEFAULT_CONTENT.drafts } as SiteContent;
   } catch {
     return DEFAULT_CONTENT;
   }
@@ -58,6 +67,14 @@ export function setContent(patch: Partial<SiteContent>): SiteContent {
   // Deduplicate keywords
   if (patch.keywords) {
     next.keywords = Array.from(new Set([...current.keywords, ...patch.keywords]));
+  }
+  // Deduplicate drafts by question
+  if (patch.drafts) {
+    const map = new Map(current.drafts.map((d) => [d.q, d]));
+    for (const d of patch.drafts) {
+      if (!map.has(d.q)) map.set(d.q, d);
+    }
+    next.drafts = Array.from(map.values());
   }
   try {
     fs.writeFileSync(storePath(), JSON.stringify(next, null, 2), 'utf-8');
