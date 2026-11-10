@@ -174,13 +174,13 @@ export async function GET(req: NextRequest) {
   const auth = req.headers.get('authorization');
   const expected = process.env.CRON_SECRET;
 
-  if (expected && auth !== `Bearer ${expected}`) {
+  if (!expected || auth !== `Bearer ${expected}`) {
     return NextResponse.json({ status: 'unauthorized' }, { status: 401 });
   }
 
   const results: Array<{ question: string; improved: boolean; note?: string }> = [];
 
-  const existing = getContent();
+  const existing = await getContent();
   for (const question of TARGET_QUESTIONS) {
     if (existing.faqs.some((f) => f.q === question)) {
       results.push({ question, improved: false, note: 'Duplicate question; skipped to avoid repetition.' });
@@ -197,8 +197,8 @@ export async function GET(req: NextRequest) {
       if (rewritten) {
         if (highRisk) {
           // Guardrail: high-risk info goes to draft for human approval
-          const content = getContent();
-          setContent({
+          const content = await getContent();
+          await setContent({
             drafts: [
               ...content.drafts,
               { q: question, a: rewritten, createdAt: new Date().toISOString(), status: 'pending' },
@@ -207,7 +207,7 @@ export async function GET(req: NextRequest) {
           results.push({ question, improved: false, note: 'High-risk content saved as draft (pending approval).' });
         } else {
           // Low-risk: auto-publish (keywords/titles)
-          setContent({
+          await setContent({
             goldenParagraph: rewritten,
             faqs: [{ q: question, a: topAnswer.slice(0, 500) }],
             keywords: ['invest Saudi', 'MISA license', 'Saudi company formation'],

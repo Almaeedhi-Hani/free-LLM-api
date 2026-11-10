@@ -2,7 +2,7 @@ import React from 'react';
 import { getContent } from '@/lib/content-store';
 
 export default async function AIReadablePage() {
-  const content = getContent();
+  const content = await getContent();
   const text = `# منصة خدمات المستثمرين في السعودية - إصدار الذكاء الاصطناعي (AI-Readable)
 
 هذه نسخة نصية مخففة للموقع مصممة خصيصاً للقراءة السريعة والتلخيص من قبل نماذج اللغة الكبيرة (LLMs) ومحركات البحث الذكية.

@@ -66,7 +66,7 @@ See `.env.example`. Key variables:
 
 ## Dynamic Content (Admin Dashboard)
 
-- **Content store**: `src/lib/content-store.ts` reads/writes a JSON file (path via `CONTENT_STORE_PATH`, default `content-store.json` in cwd).
+- **Content store**: `src/lib/content-store.ts` reads/writes JSON. Uses Supabase (PostgreSQL) if `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` are set; otherwise file fallback (ephemeral on Render).
 - **Admin API**: `GET/POST /api/admin/content` with header `x-admin-secret`.
   - GET returns current content (FAQs, keywords, golden paragraph, updatedAt).
   - POST merges patch and persists.

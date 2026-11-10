@@ -12,7 +12,8 @@ export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ status: 'unauthorized' }, { status: 401 });
   }
-  return NextResponse.json(getContent());
+  const content = await getContent();
+  return NextResponse.json(content);
 }
 
 export async function POST(req: NextRequest) {
@@ -20,6 +21,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ status: 'unauthorized' }, { status: 401 });
   }
   const body = await req.json();
-  const updated = setContent(body);
+  const updated = await setContent(body);
   return NextResponse.json({ status: 'updated', content: updated });
 }

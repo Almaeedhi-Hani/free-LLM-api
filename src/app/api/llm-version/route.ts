@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getContent } from '@/lib/content-store';
 
 export async function GET() {
-  const content = getContent();
+  const content = await getContent();
   const lines: string[] = [];
   lines.push('# Invest in Saudi — Investor Services (AI-Readable / Dynamic)');
   lines.push('');

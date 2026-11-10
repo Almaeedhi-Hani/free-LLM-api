@@ -39,7 +39,48 @@ function storePath(): string {
   return process.env.CONTENT_STORE_PATH || path.join(process.cwd(), 'content-store.json');
 }
 
-export function getContent(): SiteContent {
+function supabaseConfig(): { url: string; key: string; table: string } | null {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  return { url: url.replace(/\/$/, ''), key, table: process.env.SUPABASE_TABLE || 'content_store' };
+}
+
+// Simple in-process mutex to reduce concurrent write conflicts (file mode).
+let lock: Promise<void> = Promise.resolve();
+function withLock<T>(fn: () => Promise<T>): Promise<T> {
+  const prev = lock;
+  let resolveLock!: () => void;
+  lock = new Promise<void>((r) => (resolveLock = r));
+  return prev.then(async () => {
+    try {
+      return await fn();
+    } finally {
+      resolveLock();
+    }
+  });
+}
+
+export async function getContent(): Promise<SiteContent> {
+  const cfg = supabaseConfig();
+  if (cfg) {
+    try {
+      const res = await fetch(`${cfg.url}/rest/v1/${cfg.table}?id=eq.1&select=content`, {
+        headers: { apikey: cfg.key, Authorization: `Bearer ${cfg.key}` },
+      });
+      if (res.ok) {
+        const rows = (await res.json()) as Array<{ content: SiteContent }>;
+        if (rows && rows.length > 0 && rows[0].content) {
+          const parsed = rows[0].content as Partial<SiteContent>;
+          return { ...DEFAULT_CONTENT, ...parsed, drafts: parsed.drafts ?? DEFAULT_CONTENT.drafts } as SiteContent;
+        }
+      }
+    } catch (e) {
+      console.error('Supabase getContent error:', e);
+    }
+    return DEFAULT_CONTENT;
+  }
+  // File fallback
   try {
     const raw = fs.readFileSync(storePath(), 'utf-8');
     const parsed = JSON.parse(raw) as Partial<SiteContent>;
@@ -49,8 +90,9 @@ export function getContent(): SiteContent {
   }
 }
 
-export function setContent(patch: Partial<SiteContent>): SiteContent {
-  const current = getContent();
+export async function setContent(patch: Partial<SiteContent>): Promise<SiteContent> {
+  const cfg = supabaseConfig();
+  const current = await getContent();
   const next: SiteContent = {
     ...current,
     ...patch,
@@ -76,10 +118,31 @@ export function setContent(patch: Partial<SiteContent>): SiteContent {
     }
     next.drafts = Array.from(map.values());
   }
-  try {
-    fs.writeFileSync(storePath(), JSON.stringify(next, null, 2), 'utf-8');
-  } catch (e) {
-    console.error('Failed to write content store:', e);
+
+  if (cfg) {
+    try {
+      await fetch(`${cfg.url}/rest/v1/${cfg.table}`, {
+        method: 'POST',
+        headers: {
+          apikey: cfg.key,
+          Authorization: `Bearer ${cfg.key}`,
+          'Content-Type': 'application/json',
+          Prefer: 'resolution=merge-duplicates',
+        },
+        body: JSON.stringify({ id: 1, content: next, updated_at: next.updatedAt }),
+      });
+    } catch (e) {
+      console.error('Supabase setContent error:', e);
+    }
+    return next;
   }
-  return next;
+  // File fallback with lock
+  return withLock(async () => {
+    try {
+      fs.writeFileSync(storePath(), JSON.stringify(next, null, 2), 'utf-8');
+    } catch (e) {
+      console.error('Failed to write content store:', e);
+    }
+    return next;
+  });
 }
