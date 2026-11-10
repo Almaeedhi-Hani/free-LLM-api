@@ -61,36 +61,35 @@ function withLock<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 async function supabaseGet(cfg: { url: string; key: string; table: string }): Promise<SiteContent> {
-  try {
-    const res = await fetch(`${cfg.url}/rest/v1/${cfg.table}?id=eq.1&select=content`, {
-      headers: { apikey: cfg.key, Authorization: `Bearer ${cfg.key}` },
-    });
-    if (res.ok) {
-      const rows = (await res.json()) as Array<{ content: SiteContent }>;
-      if (rows && rows.length > 0 && rows[0].content) {
-        const parsed = rows[0].content as Partial<SiteContent>;
-        return { ...DEFAULT_CONTENT, ...parsed, drafts: parsed.drafts ?? DEFAULT_CONTENT.drafts } as SiteContent;
-      }
-    }
-  } catch (e) {
-    console.error('Supabase getContent error:', e);
+  const res = await fetch(`${cfg.url}/rest/v1/${cfg.table}?id=eq.1&select=content,updated_at`, {
+    headers: { apikey: cfg.key, Authorization: `Bearer ${cfg.key}` },
+  });
+  if (!res.ok) {
+    throw new Error(`Supabase getContent failed: ${res.status}`);
   }
-  return DEFAULT_CONTENT;
+  const rows = (await res.json()) as Array<{ content: SiteContent; updated_at: string }>;
+  if (!rows || rows.length === 0 || !rows[0].content) {
+    throw new Error('Supabase content row missing');
+  }
+  const parsed = rows[0].content as Partial<SiteContent>;
+  return { ...DEFAULT_CONTENT, ...parsed, drafts: parsed.drafts ?? DEFAULT_CONTENT.drafts, updatedAt: rows[0].updated_at ?? parsed.updatedAt ?? DEFAULT_CONTENT.updatedAt } as SiteContent;
 }
 
-async function supabaseSet(cfg: { url: string; key: string; table: string }, next: SiteContent): Promise<boolean> {
+async function supabaseSet(cfg: { url: string; key: string; table: string }, next: SiteContent, expectedUpdatedAt: string): Promise<boolean> {
   try {
-    const res = await fetch(`${cfg.url}/rest/v1/${cfg.table}`, {
-      method: 'POST',
+    const res = await fetch(`${cfg.url}/rest/v1/${cfg.table}?id=eq.1&updated_at=eq.${encodeURIComponent(expectedUpdatedAt)}`, {
+      method: 'PATCH',
       headers: {
         apikey: cfg.key,
         Authorization: `Bearer ${cfg.key}`,
         'Content-Type': 'application/json',
-        Prefer: 'resolution=merge-duplicates',
+        Prefer: 'return=representation',
       },
-      body: JSON.stringify({ id: 1, content: next, updated_at: next.updatedAt }),
+      body: JSON.stringify({ content: next, updated_at: next.updatedAt }),
     });
-    return res.ok;
+    if (!res.ok) return false;
+    const rows = (await res.json()) as Array<unknown>;
+    return Array.isArray(rows) && rows.length > 0;
   } catch (e) {
     console.error('Supabase setContent error:', e);
     return false;
@@ -134,7 +133,7 @@ export async function setContent(patch: Partial<SiteContent>): Promise<SiteConte
     }
 
     if (cfg) {
-      const ok = await supabaseSet(cfg, next);
+      const ok = await supabaseSet(cfg, next, current.updatedAt);
       if (ok) return next;
       // conflict: retry
       continue;
