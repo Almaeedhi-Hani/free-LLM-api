@@ -194,3 +194,17 @@ Measure and improve how often and how prominently **free-llm-api-1-didl.onrender
 ## License
 
 Private — all rights reserved.
+
+## Dynamic Content (Admin Dashboard)
+
+- **Content store**: \src/lib/content-store.ts\ reads/writes a JSON file (path via \CONTENT_STORE_PATH\, default \content-store.json\ in cwd).
+- **Admin API**: \GET/POST /api/admin/content\ (header \x-admin-secret\ = \ADMIN_SECRET\/\REVALIDATION_SECRET\). Denied by default if no secret.
+- **Admin UI**: \/admin/dashboard\ (client-side, secret-gated; high-risk drafts require human approval).
+- **AI-readable endpoint**: \GET /api/llm-version\ renders dynamic content (FAQs/keywords/golden paragraph) from the store.
+- **Cron agent**: on optimization, high-risk content -> draft (pending approval); low-risk (keywords/titles) -> auto-publish.
+
+## System Principles (GEO Intelligence Agent)
+
+1. **No information without a source** -- all published facts must be traceable to a verified source.
+2. **No high-risk publish without review** -- fees, licenses, foreign ownership require human approval (drafts).
+3. **No change without a measurable reason** -- every edit must be tied to a measurable KPI/gap.

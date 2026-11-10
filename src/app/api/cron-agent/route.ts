@@ -193,16 +193,29 @@ export async function GET(req: NextRequest) {
       // In a full production setup, this would fetch our current content from the
       // CMS/database and update it with the rewritten version.
       const rewritten = await rewriteWithGPT4o(topAnswer, '');
+      const highRisk = /MISA|license|رسوم|cost|ملكية|ownership|SAMA|KYC|إقامة|residency|CMA/i.test(question);
       if (rewritten) {
-        // Persist optimized content to the dynamic content store
-        setContent({
-          goldenParagraph: rewritten,
-          faqs: [{ q: question, a: topAnswer.slice(0, 500) }],
-        });
-        // Fire reindexing webhooks immediately
-        await triggerGoogleIndexing(SITE_URL);
-        await triggerIndexNow(SITE_URL);
-        results.push({ question, improved: true });
+        if (highRisk) {
+          // Guardrail: high-risk info goes to draft for human approval
+          const content = getContent();
+          setContent({
+            drafts: [
+              ...content.drafts,
+              { q: question, a: rewritten, createdAt: new Date().toISOString(), status: 'pending' },
+            ],
+          });
+          results.push({ question, improved: false, note: 'High-risk content saved as draft (pending approval).' });
+        } else {
+          // Low-risk: auto-publish (keywords/titles)
+          setContent({
+            goldenParagraph: rewritten,
+            faqs: [{ q: question, a: topAnswer.slice(0, 500) }],
+            keywords: ['invest Saudi', 'MISA license', 'Saudi company formation'],
+          });
+          await triggerGoogleIndexing(SITE_URL);
+          await triggerIndexNow(SITE_URL);
+          results.push({ question, improved: true });
+        }
       } else {
         results.push({ question, improved: false });
       }

@@ -4,7 +4,7 @@ import { getContent, setContent } from '@/lib/content-store';
 function isAuthorized(req: NextRequest): boolean {
   const secret = process.env.ADMIN_SECRET || process.env.REVALIDATION_SECRET || '';
   const provided = req.headers.get('x-admin-secret') || req.headers.get('x-vercel-revalidation-secret') || '';
-  if (!secret) return true; // allow in dev if no secret set
+  if (!secret) return false; // deny by default when no secret configured
   return provided === secret;
 }
 
