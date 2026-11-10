@@ -11,6 +11,9 @@ export default function AdminDashboard() {
   const [error, setError] = useState('');
   const [tab, setTab] = useState<Tab>('home');
   const [newFaq, setNewFaq] = useState({ q: '', a: '' });
+  const [editingFaq, setEditingFaq] = useState<{ index: number; q: string; a: string } | null>(null);
+  const [newKeyword, setNewKeyword] = useState('');
+  const [goldenDraft, setGoldenDraft] = useState('');
   const [contactForm, setContactForm] = useState({ phone: '', phoneDisplay: '', whatsapp: '', email: '' });
   const [saving, setSaving] = useState(false);
 
@@ -32,6 +35,7 @@ export default function AdminDashboard() {
       .then((d) => {
         setContent(d);
         if (d.contact) setContactForm(d.contact);
+        setGoldenDraft(d.goldenParagraph || '');
         setError('');
       })
       .catch((e) => {
@@ -93,6 +97,37 @@ export default function AdminDashboard() {
     const faqs = [...(content?.faqs || []), newFaq];
     save({ faqs });
     setNewFaq({ q: '', a: '' });
+  };
+
+  const updateFaq = () => {
+    if (!editingFaq) return;
+    const faqs = [...(content?.faqs || [])];
+    faqs[editingFaq.index] = { q: editingFaq.q, a: editingFaq.a };
+    save({ faqs });
+    setEditingFaq(null);
+  };
+
+  const deleteFaq = (idx: number) => {
+    const faqs = [...(content?.faqs || [])];
+    faqs.splice(idx, 1);
+    save({ faqs });
+  };
+
+  const addKeyword = () => {
+    if (!newKeyword.trim()) return;
+    const keywords = [...(content?.keywords || []), newKeyword.trim()];
+    save({ keywords });
+    setNewKeyword('');
+  };
+
+  const deleteKeyword = (idx: number) => {
+    const keywords = [...(content?.keywords || [])];
+    keywords.splice(idx, 1);
+    save({ keywords });
+  };
+
+  const saveGolden = () => {
+    save({ goldenParagraph: goldenDraft });
   };
 
   const saveContact = () => save({ contact: contactForm });
@@ -182,20 +217,55 @@ export default function AdminDashboard() {
       {tab === 'content' && (
         <div className="space-y-6">
           <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+            <h2 className="text-xl font-bold mb-2">Golden Paragraph</h2>
+            <textarea
+              className="w-full border border-slate-300 rounded-lg px-4 py-2 min-h-[120px]"
+              value={goldenDraft}
+              onChange={(e) => setGoldenDraft(e.target.value)}
+            />
+            <button onClick={saveGolden} className="btn-primary mt-3" disabled={saving}>Save Golden Paragraph</button>
+          </section>
+
+          <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
             <h2 className="text-xl font-bold mb-2">Keywords</h2>
             <div className="flex flex-wrap gap-2 mb-4">
               {content.keywords.map((k: string, i: number) => (
-                <span key={i} className="bg-gold-100 text-gold-800 text-xs font-semibold px-3 py-1 rounded-full">{k}</span>
+                <span key={i} className="bg-gold-100 text-gold-800 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-2">
+                  {k}
+                  <button onClick={() => deleteKeyword(i)} className="text-gold-700 hover:text-red-600" aria-label="delete keyword">×</button>
+                </span>
               ))}
             </div>
+            <div className="flex gap-2">
+              <input className="border border-slate-300 rounded-lg px-4 py-2 flex-1" placeholder="New keyword" value={newKeyword} onChange={(e) => setNewKeyword(e.target.value)} />
+              <button onClick={addKeyword} className="btn-primary" disabled={saving}>Add</button>
+            </div>
           </section>
+
           <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
             <h2 className="text-xl font-bold mb-4">FAQs</h2>
             <ul className="space-y-3">
               {content.faqs.map((f: any, i: number) => (
                 <li key={i} className="bg-slate-50 rounded-lg p-4">
-                  <p className="font-semibold">{f.q}</p>
-                  <p className="text-slate-600 text-sm mt-1">{f.a}</p>
+                  {editingFaq?.index === i ? (
+                    <div className="space-y-2">
+                      <input className="w-full border border-slate-300 rounded-lg px-4 py-2" value={editingFaq.q} onChange={(e) => setEditingFaq({ ...editingFaq, q: e.target.value })} />
+                      <textarea className="w-full border border-slate-300 rounded-lg px-4 py-2" value={editingFaq.a} onChange={(e) => setEditingFaq({ ...editingFaq, a: e.target.value })} />
+                      <div className="flex gap-2">
+                        <button onClick={updateFaq} className="btn-primary text-xs" disabled={saving}>Save</button>
+                        <button onClick={() => setEditingFaq(null)} className="btn-secondary text-xs">Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="font-semibold">{f.q}</p>
+                      <p className="text-slate-600 text-sm mt-1">{f.a}</p>
+                      <div className="flex gap-2 mt-2">
+                        <button onClick={() => setEditingFaq({ index: i, q: f.q, a: f.a })} className="text-xs text-emerald-700 hover:underline">Edit</button>
+                        <button onClick={() => deleteFaq(i)} className="text-xs text-red-600 hover:underline">Delete</button>
+                      </div>
+                    </>
+                  )}
                 </li>
               ))}
             </ul>
