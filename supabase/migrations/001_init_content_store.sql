@@ -13,6 +13,8 @@ on conflict (id) do nothing;
 -- Enable RLS (deny public access; service role bypasses)
 alter table public.content_store enable row level security;
 
--- No policies for anon/authenticated => deny all (service role can still access)
--- Optional: allow read for authenticated users (uncomment if needed)
--- create policy "read_content" on public.content_store for select to authenticated using (true);
+-- Explicit grants for service_role (Supabase new default privileges)
+grant usage on schema public to service_role;
+grant select, insert, update on table public.content_store to service_role;
+
+-- No grants/policies for anon/authenticated => deny all (service role can still access)

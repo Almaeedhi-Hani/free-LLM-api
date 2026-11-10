@@ -1,6 +1,8 @@
 import React from 'react';
 import { getContent } from '@/lib/content-store';
 
+export const dynamic = 'force-dynamic';
+
 export default async function AIReadablePage() {
   const content = await getContent();
   const text = `# منصة خدمات المستثمرين في السعودية - إصدار الذكاء الاصطناعي (AI-Readable)
