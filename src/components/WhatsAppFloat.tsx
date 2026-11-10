@@ -1,10 +1,15 @@
 import React from 'react';
 import { CONTACT } from '@/lib/contact';
 
-export const WhatsAppFloat = () => {
+interface WhatsAppFloatProps {
+  phone?: string;
+  whatsapp?: string;
+}
+
+export const WhatsAppFloat = ({ phone = CONTACT.phone, whatsapp = CONTACT.whatsapp }: WhatsAppFloatProps) => {
   return (
     <a
-      href={CONTACT.whatsapp}
+      href={whatsapp}
       target="_blank"
       rel="noopener noreferrer"
       aria-label="تواصل عبر WhatsApp"

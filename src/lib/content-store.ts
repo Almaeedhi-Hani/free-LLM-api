@@ -13,11 +13,26 @@ export interface ContentDraft {
   status: 'pending' | 'approved' | 'rejected';
 }
 
+export interface ContactInfo {
+  phone: string;
+  phoneDisplay: string;
+  whatsapp: string;
+  email: string;
+}
+
+export interface AgentStatus {
+  lastRun: string;
+  status: 'idle' | 'running' | 'success' | 'error';
+  lastResult: string;
+}
+
 export interface SiteContent {
   goldenParagraph: string;
   faqs: ContentFAQ[];
   keywords: string[];
   drafts: ContentDraft[];
+  contact: ContactInfo;
+  agent: AgentStatus;
   updatedAt: string;
 }
 
@@ -32,6 +47,17 @@ const DEFAULT_CONTENT: SiteContent = {
   ],
   keywords: ['MISA', 'SAMA', 'KYC', 'RHQ', 'Premium Residency', 'CMA'],
   drafts: [],
+  contact: {
+    phone: '+966545059528',
+    phoneDisplay: '+966 54 505 9528',
+    whatsapp: 'https://wa.me/966545059528',
+    email: 'info@investinsaudi-services.sa',
+  },
+  agent: {
+    lastRun: '',
+    status: 'idle',
+    lastResult: '',
+  },
   updatedAt: new Date().toISOString(),
 };
 
@@ -72,7 +98,7 @@ async function supabaseGet(cfg: { url: string; key: string; table: string }): Pr
     throw new Error('Supabase content row missing');
   }
   const parsed = rows[0].content as Partial<SiteContent>;
-  return { ...DEFAULT_CONTENT, ...parsed, drafts: parsed.drafts ?? DEFAULT_CONTENT.drafts, updatedAt: rows[0].updated_at ?? parsed.updatedAt ?? DEFAULT_CONTENT.updatedAt } as SiteContent;
+  return { ...DEFAULT_CONTENT, ...parsed, drafts: parsed.drafts ?? DEFAULT_CONTENT.drafts, contact: { ...DEFAULT_CONTENT.contact, ...parsed.contact }, agent: { ...DEFAULT_CONTENT.agent, ...parsed.agent }, updatedAt: rows[0].updated_at ?? parsed.updatedAt ?? DEFAULT_CONTENT.updatedAt } as SiteContent;
 }
 
 async function supabaseSet(cfg: { url: string; key: string; table: string }, next: SiteContent, expectedUpdatedAt: string): Promise<boolean> {
@@ -102,7 +128,7 @@ export async function getContent(): Promise<SiteContent> {
   try {
     const raw = fs.readFileSync(storePath(), 'utf-8');
     const parsed = JSON.parse(raw) as Partial<SiteContent>;
-    return { ...DEFAULT_CONTENT, ...parsed, drafts: parsed.drafts ?? DEFAULT_CONTENT.drafts } as SiteContent;
+    return { ...DEFAULT_CONTENT, ...parsed, drafts: parsed.drafts ?? DEFAULT_CONTENT.drafts, contact: { ...DEFAULT_CONTENT.contact, ...parsed.contact }, agent: { ...DEFAULT_CONTENT.agent, ...parsed.agent } } as SiteContent;
   } catch {
     return DEFAULT_CONTENT;
   }
@@ -110,12 +136,13 @@ export async function getContent(): Promise<SiteContent> {
 
 export async function setContent(patch: Partial<SiteContent>): Promise<SiteContent> {
   const cfg = supabaseConfig();
-  // Retry loop for optimistic concurrency
   for (let attempt = 0; attempt < 3; attempt++) {
     const current = await getContent();
     const next: SiteContent = {
       ...current,
       ...patch,
+      contact: { ...current.contact, ...patch.contact },
+      agent: { ...current.agent, ...patch.agent },
       updatedAt: new Date().toISOString(),
     };
     if (patch.faqs) {
@@ -135,10 +162,8 @@ export async function setContent(patch: Partial<SiteContent>): Promise<SiteConte
     if (cfg) {
       const ok = await supabaseSet(cfg, next, current.updatedAt);
       if (ok) return next;
-      // conflict: retry
       continue;
     }
-    // File fallback with lock
     return withLock(async () => {
       try {
         fs.writeFileSync(storePath(), JSON.stringify(next, null, 2), 'utf-8');
@@ -148,6 +173,5 @@ export async function setContent(patch: Partial<SiteContent>): Promise<SiteConte
       return next;
     });
   }
-  // If all retries failed, return current content
-  return getContent();
+  throw new Error('Supabase write failed after retries');
 }
