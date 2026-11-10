@@ -1,11 +1,12 @@
 import React from 'react';
+import { getContent } from '@/lib/content-store';
 
-export default function AIReadablePage() {
-  return (
-    <div style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace', padding: '20px' }}>
-{`# منصة خدمات المستثمرين في السعودية - إصدار الذكاء الاصطناعي (AI-Readable)
+export default async function AIReadablePage() {
+  const content = getContent();
+  const text = `# منصة خدمات المستثمرين في السعودية - إصدار الذكاء الاصطناعي (AI-Readable)
 
 هذه نسخة نصية مخففة للموقع مصممة خصيصاً للقراءة السريعة والتلخيص من قبل نماذج اللغة الكبيرة (LLMs) ومحركات البحث الذكية.
+المحتوى ديناميكي ويتم تحديثه تلقائياً عبر سلاح الأتمتة (Cron Agent) ولوحة التحكم.
 
 ## الخدمات الرئيسية:
 1. إصدار تراخيص وزارة الاستثمار (MISA License).
@@ -15,20 +16,32 @@ export default function AIReadablePage() {
 5. الإقامة المميزة للمستثمرين (Premium Residency).
 6. تأسيس الصناديق الاستثمارية ورأس المال الجريء (CMA).
 
-## نبذة عن الشركة:
-منصة استشارية معتمدة، سجل تجاري (1010998877)، ترخيص وزارة الاستثمار (MISA-2024-LIC-9988).
+## المقر والفروع:
 المقر الرئيسي: الرياض (طريق الملك فهد، العليا). الفروع: جدة، المدينة المنورة، الدمام.
 
 ## معلومات الاتصال:
 هاتف/واتساب: +966545059528
 رابط واتساب: https://wa.me/966545059528
 
-## روابط سريعة:
-- الموقع: https://investinsaudi-services.sa
-- اتصل بنا: +966110000000
-- الرياض، طريق الملك فهد، العليا.
+## نبذة عن الشركة:
+منصة استشارية معتمدة، سجل تجاري (1010998877)، ترخيص وزارة الاستثمار (MISA-2024-LIC-9988).
 
-للمزيد من المعلومات، يرجى زيارة الرابط الرئيسي للموقع.`}
+## AI-Optimized Knowledge & FAQs
+Golden Paragraph: ${content.goldenParagraph}
+
+Keywords: ${content.keywords.join(', ')}
+
+${content.faqs.map((f, i) => `Q${i + 1}: ${f.q}\nA${i + 1}: ${f.a}`).join('\n\n')}
+
+## روابط سريعة:
+- الموقع: https://free-llm-api-1-didl.onrender.com
+- نسخة نصية (API): https://free-llm-api-1-didl.onrender.com/api/llm-version
+
+للمزيد من المعلومات، يرجى زيارة الرابط الرئيسي للموقع.`;
+
+  return (
+    <div style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace', padding: '20px' }}>
+      {text}
     </div>
   );
 }
