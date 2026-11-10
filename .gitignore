@@ -18,5 +18,8 @@ next-env.d.ts
 
 # local storage fallback (never commit runtime data)
 .geo-test-build/
+.market-test-build/
 geo-store/
+market-intel/
+market-intel-test/
 content-store.json
