@@ -6,6 +6,11 @@ import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { WhatsAppFloat } from '@/components/WhatsAppFloat';
 import { getContent } from '@/lib/content-store';
 
+// Contact/footer data comes from the mutable content store, so every page
+// must render at request time. Prerendering would either freeze stale content
+// or fail, because the Supabase read is explicitly no-store.
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'تأسيس الشركات وخدمات المستثمرين الأجانب في السعودية | MISA License',
   description: 'الدليل الرسمي وتأسيس الشركات الأجنبية والمحلية في المملكة العربية السعودية، إصدار تراخيص MISA، وصياغة العقود الاستثمارية وفق رؤية 2030.',
