@@ -503,7 +503,7 @@ export default function AdminDashboard() {
                             <td className="text-xs text-slate-400">{c.last_seen_at || '—'}</td>
                           </tr>
                         ))}
-                        {competitors.length === 0 && <tr><td colSpan={5} className="py-4 text-slate-400 text-center">لا يوجد منافسون بعد. (اكتشاف المنافسين يتطلب Brave Search API key)</td></tr>}
+                        {competitors.length === 0 && <tr><td colSpan={5} className="py-4 text-slate-400 text-center">لا يوجد منافسون بعد. (اكتشاف المنافسين يتطلب DuckDuckGo (بدون مفتاح))</td></tr>}
                       </tbody>
                     </table>
                   </div>
@@ -681,7 +681,7 @@ export default function AdminDashboard() {
                       </div>
                       <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm">
                         <p className="font-semibold text-amber-800">ملاحظة: 0 منافسين = 0 ملاحظات (competitor observations).</p>
-                        <p className="text-amber-700 mt-1">الفرص (27) مستنتجة من الكلمات (keyword_gap)، وليس من تحليل منافسين (content_gap). opportunitie типа content_gap تتطلب منافسين (Brave Search API key غير مُفعل).</p>
+                        <p className="text-amber-700 mt-1">الفرص (27) مستنتجة من الكلمات (keyword_gap)، وليس من تحليل منافسين (content_gap). opportunitie типа content_gap تتطلب منافسين (DuckDuckGo (بدون مفتاح) غير مُفعل).</p>
                       </div>
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm">
