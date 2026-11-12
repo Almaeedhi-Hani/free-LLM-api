@@ -129,6 +129,8 @@ export class DuckDuckGoHtmlSource implements SearchSource {
     let html: string | null = null;
     let status = 0;
     let error = '';
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
     try {
       const res = await fetch('https://html.duckduckgo.com/html/', {
         method: 'POST',
@@ -137,11 +139,17 @@ export class DuckDuckGoHtmlSource implements SearchSource {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
         body,
+        signal: controller.signal,
       });
       status = res.status;
       html = await res.text();
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
+      if (e instanceof Error && e.name === 'AbortError') {
+        error = 'timeout (10s) - Render cannot reach DuckDuckGo';
+      }
+    } finally {
+      clearTimeout(timeoutId);
     }
     const dt = Date.now() - t0;
     if (error) {
