@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
     const summary = await runDiscovery({
       maxCompetitors,
       maxSuggestionsPerSeed: 5,
+      allowedSourceIds: ['duckduckgo-html'],
       triggeredBy: 'admin',
     });
     const hasErrors = (summary.errors?.length || 0) > 0;
@@ -64,6 +65,7 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
 
 
 

@@ -1218,7 +1218,8 @@ export async function runMarketAnalysis(triggeredBy: TriggeredBy = 'manual'): Pr
 // ---------------------------------------------------------------------------
 
 export interface DiscoveryConfig {
-  seeds: Record<Language, string[]>;
+  seeds?: Record<Language, string[]>;
+  allowedSourceIds?: string[];
   maxSuggestionsPerSeed?: number;
   maxCompetitors?: number;
   triggeredBy?: TriggeredBy;
@@ -1247,7 +1248,8 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
   const maxSug = config?.maxSuggestionsPerSeed ?? 10;
   const maxComp = config?.maxCompetitors ?? 20;
 
-  const sources = defaultSources();
+  const allSources = defaultSources();
+  const sources = config?.allowedSourceIds ? allSources.filter((s) => config.allowedSourceIds!.includes(s.id)) : allSources;
   const summary: DiscoverySummary = {
     sources_used: [],
     sources_unavailable: availableSources().filter((s) => !s.available).map((s) => s.id),
@@ -1262,6 +1264,8 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
 
   const collectedTerms = new Set<string>();
   const discoveredDomains = new Set<string>();
+  const observedKeys = new Set<string>();
+
 
   // 1) Keyword/question discovery via suggest sources
   for (const source of sources) {
@@ -1308,6 +1312,7 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
         try {
           const results = await source.collectResults!(seed, lang, maxComp);
           for (const r of results) {
+            if (discoveredDomains.size >= maxComp) break;
             if (!r.domain) continue;
             if (isExcludedDomain(r.domain)) continue;
             try {
@@ -1318,6 +1323,7 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
                 source: 'search',
                 notes: `Discovered via ${source.id} for query "${seed}"`,
               });
+               if (discoveredDomains.has(r.domain)) continue;
                discoveredDomains.add(r.domain);
                summary.competitors_discovered += 1;
               await recordObservation({
@@ -1371,6 +1377,8 @@ export async function runRadar(config?: Partial<DiscoveryConfig>): Promise<{
 export function listAvailableSources() {
   return availableSources();
 }
+
+
 
 
 
