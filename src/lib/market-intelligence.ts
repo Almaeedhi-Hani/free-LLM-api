@@ -1234,6 +1234,7 @@ export interface DiscoverySummary {
   observations_recorded: number;
   unique_domains: number;
   success: boolean;
+  search_diagnostics: { source_id: string; language: string; results_parsed: number; results_accepted: number; failure_reason: string; }[];
   errors: string[];
 }
 
@@ -1259,12 +1260,17 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
     observations_recorded: 0,
     unique_domains: 0,
     success: false,
+    search_diagnostics: [],
     errors: [],
   };
 
   const collectedTerms = new Set<string>();
   const discoveredDomains = new Set<string>();
+  const searchDiagnostics: DiscoverySummary['search_diagnostics'] = [];
   const observedKeys = new Set<string>();
+
+
+
 
 
   // 1) Keyword/question discovery via suggest sources
@@ -1309,8 +1315,10 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
     for (const lang of ['ar', 'en', 'zh'] as Language[]) {
       const seedList = seeds[lang] || [];
       for (const seed of seedList.slice(0, 3)) {
+        const diag = { source_id: source.id, language: lang, results_parsed: 0, results_accepted: 0, failure_reason: '' };
         try {
           const results = await source.collectResults!(seed, lang, maxComp);
+          diag.results_parsed = results.length;
           for (const r of results) {
             if (discoveredDomains.size >= maxComp) break;
             if (!r.domain) continue;
@@ -1326,6 +1334,7 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
                if (discoveredDomains.has(r.domain)) continue;
                discoveredDomains.add(r.domain);
                summary.competitors_discovered += 1;
+               diag.results_accepted += 1;
               await recordObservation({
                 competitor_id: comp.id,
                 language: lang,
@@ -1343,13 +1352,18 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
               summary.errors.push(`competitor upsert failed: ${e instanceof Error ? e.message : String(e)}`);
             }
           }
+          searchDiagnostics.push(diag);
         } catch (e) {
+          diag.failure_reason = e instanceof Error ? e.message : String(e);
+          searchDiagnostics.push(diag);
           summary.errors.push(`${source.id} search failed: ${e instanceof Error ? e.message : String(e)}`);
         }
       }
     }
   }
 
+  summary.search_diagnostics = searchDiagnostics;
+  summary.search_diagnostics = searchDiagnostics;
   summary.unique_domains = discoveredDomains.size;
   summary.success = summary.competitors_discovered > 0;
   return summary;
