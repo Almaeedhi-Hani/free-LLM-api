@@ -1323,7 +1323,11 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
               await recordObservation({
                 competitor_id: comp.id,
                 language: lang,
-                query: seed,
+                 query: seed,
+                 rank: source.requiresKey ? null : r.rank,
+                 title: source.requiresKey ? undefined : r.title,
+                 snippet: source.requiresKey ? undefined : r.snippet,
+                 url: source.requiresKey ? undefined : r.url,
                 observed_at: new Date().toISOString(),
                 strengths: [],
                 weaknesses: [],

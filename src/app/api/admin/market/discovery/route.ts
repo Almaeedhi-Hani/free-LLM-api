@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   // DB-based lock (works across Render instances)
   try {
     const recentRuns = await listRuns(5);
-    const isRunning = recentRuns.some((r: any) => r.run_type === 'discovery' && r.status === 'running');
+    const isRunning = recentRuns.some((r: any) => r.run_type === 'radar' && r.status === 'running' && r.triggered_by === 'admin');
     if (isRunning) {
       return NextResponse.json({ status: 'busy', message: 'Discovery already running' }, { status: 429 });
     }
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
 
   let runId: string | null = null;
   try {
-    const run = await startRun('discovery', 'admin');
+    const run = await startRun('radar', 'admin');
     runId = run.id;
     const body = await req.json().catch(() => ({}));
     const maxCompetitors = Math.min(Number(body?.max_competitors) || 10, 20);
@@ -44,6 +44,8 @@ export async function POST(req: NextRequest) {
       maxSuggestionsPerSeed: 5,
       triggeredBy: 'admin',
     });
+    const hasErrors = (summary.errors?.length || 0) > 0;
+    const isPartial = summary.success && hasErrors;
     if (!summary.success) {
       if (runId) await finishRun(runId, 'failed', summary as any, 'Discovery did not find competitors or encountered errors');
       return NextResponse.json(
@@ -51,8 +53,9 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
-    if (runId) await finishRun(runId, 'success', summary as any);
-    return NextResponse.json({ ok: true, status: 'success', summary });
+    const finalStatus = isPartial ? 'partial' : 'success';
+    if (runId) await finishRun(runId, finalStatus, summary as any);
+    return NextResponse.json({ ok: true, status: finalStatus, summary, hasErrors });
   } catch (e) {
     if (runId) await finishRun(runId, 'failed', undefined, e instanceof Error ? e.message : String(e));
     return NextResponse.json(
@@ -61,4 +64,6 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+
 
