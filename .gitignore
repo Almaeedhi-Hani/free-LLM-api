@@ -23,3 +23,7 @@ geo-store/
 market-intel/
 market-intel-test/
 content-store.json
+
+.freellm-build/
+.geo-agent-build/
+.claude/

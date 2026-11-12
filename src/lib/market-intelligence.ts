@@ -1,4 +1,4 @@
-import fs from 'fs';
+﻿import fs from 'fs';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import {
@@ -38,6 +38,9 @@ export interface Evidence {
   url?: string;
   quote?: string;
   observed_at?: string;
+  // 'keyword' = derived from keyword collection; 'competitor' = backed by a
+  // competitor observation; 'manual' = entered by an operator.
+  origin?: 'keyword' | 'competitor' | 'manual';
 }
 
 export interface SuccessMetric {
@@ -229,24 +232,24 @@ const INTENT_PATTERNS: Array<{ intent: Intent; patterns: RegExp[] }> = [
     intent: 'transactional',
     patterns: [
       /\b(buy|order|hire|register|apply|license|cost|price|quote|contact)\b/i,
-      /(?:شراء|طلب|تسجيل|تقديم|رخصة|تكلفة|سعر|عرض|تواصل)/,
-      /(?:购买|申请|注册|许可证|价格|报价|联系)/,
+      /(?:Ø´Ø±Ø§Ø¡|Ø·Ù„Ø¨|ØªØ³Ø¬ÙŠÙ„|ØªÙ‚Ø¯ÙŠÙ…|Ø±Ø®ØµØ©|ØªÙƒÙ„ÙØ©|Ø³Ø¹Ø±|Ø¹Ø±Ø¶|ØªÙˆØ§ØµÙ„)/,
+      /(?:è´­ä¹°|ç”³è¯·|æ³¨å†Œ|è®¸å¯è¯|ä»·æ ¼|æŠ¥ä»·|è”ç³»)/,
     ],
   },
   {
     intent: 'commercial',
     patterns: [
       /\b(best|top|compare|vs|review|rating|alternative)\b/i,
-      /(?:أفضل|مقارنة|تقييم|بديل)/,
-      /(?:最佳|对比|评价|替代)/,
+      /(?:Ø£ÙØ¶Ù„|Ù…Ù‚Ø§Ø±Ù†Ø©|ØªÙ‚ÙŠÙŠÙ…|Ø¨Ø¯ÙŠÙ„)/,
+      /(?:æœ€ä½³|å¯¹æ¯”|è¯„ä»·|æ›¿ä»£)/,
     ],
   },
   {
     intent: 'navigational',
     patterns: [
       /\b(login|portal|dashboard|official|website)\b/i,
-      /(?:تسجيل دخول|بوابة|موقع رسمي)/,
-      /(?:登录|门户|官网)/,
+      /(?:ØªØ³Ø¬ÙŠÙ„ Ø¯Ø®ÙˆÙ„|Ø¨ÙˆØ§Ø¨Ø©|Ù…ÙˆÙ‚Ø¹ Ø±Ø³Ù…ÙŠ)/,
+      /(?:ç™»å½•|é—¨æˆ·|å®˜ç½‘)/,
     ],
   },
 ];
@@ -293,6 +296,78 @@ export function prioritizeGoals<T extends { priority: Priority; confidence: Conf
     if (rank[a.priority] !== rank[b.priority]) return rank[a.priority] - rank[b.priority];
     return conf[a.confidence] - conf[b.confidence];
   });
+}
+
+// ---------------------------------------------------------------------------
+// Domain exclusion (official / non-competitor sites)
+// ---------------------------------------------------------------------------
+
+const EXCLUDED_DOMAINS = new Set([
+  'misa.gov.sa', 'sama.gov.sa', 'cma.gov.sa', 'mol.gov.sa', 'mci.gov.sa',
+  'modon.gov.sa', 'zatca.gov.sa', 'hrsd.gov.sa', 'momah.gov.sa',
+  'wikipedia.org', 'en.wikipedia.org', 'ar.wikipedia.org', 'zh.wikipedia.org',
+  'youtube.com', 'linkedin.com', 'facebook.com', 'twitter.com', 'x.com',
+  'reddit.com', 'quora.com', 'medium.com',
+]);
+
+const EXCLUDED_SUFFIXES = ['.gov.sa', '.edu.sa', '.gov.cn', '.gouv.fr'];
+
+export function isExcludedDomain(domain: string): boolean {
+  const d = (domain || '').toLowerCase().trim();
+  if (!d) return true;
+  if (EXCLUDED_DOMAINS.has(d)) return true;
+  if (EXCLUDED_SUFFIXES.some((s) => d.endsWith(s))) return true;
+  // Directory/news/official patterns
+  if (/(directory|yellowpages|yelp|trustpilot|glassdoor|indeed)/.test(d)) return true;
+  return false;
+}
+
+// ---------------------------------------------------------------------------
+// Keyword clustering (topic + language + intent)
+// ---------------------------------------------------------------------------
+
+const KEYWORD_STOPWORDS = new Set([
+  'in', 'saudi', 'arabia', 'ksa', 'the', 'a', 'an', 'for', 'of', 'to',
+  'ÙÙŠ', 'Ø§Ù„Ø³Ø¹ÙˆØ¯ÙŠØ©', 'Ø³Ø¹ÙˆØ¯ÙŠ', 'Ù„', 'Ù…Ù†', 'Ø¹Ù„Ù‰',
+  'åœ¨', 'æ²™ç‰¹', 'é˜¿æ‹‰ä¼¯', 'çš„',
+]);
+
+const KEYWORD_MODIFIERS = new Set([
+  'fees', 'fee', 'cost', 'price', 'prices', 'requirements', 'requirement',
+  'renewal', 'renew', 'check', 'verification', 'verify', 'online', 'application',
+  'costs', 'procedure', 'process', 'documents', 'steps',
+  'ØªÙƒÙ„ÙØ©', 'Ø±Ø³ÙˆÙ…', 'Ù…ØªØ·Ù„Ø¨Ø§Øª', 'ØªØ¬Ø¯ÙŠØ¯', 'ØªØ­Ù‚Ù‚', 'Ø§Ø¬Ø±Ø§Ø¡Ø§Øª', 'Ù…Ø³ØªÙ†Ø¯Ø§Øª',
+  'è´¹ç”¨', 'è¦æ±‚', 'ç»­æœŸ', 'éªŒè¯',
+]);
+
+export function normalizeKeywordCore(term: string): string {
+  const t = (term || '').toLowerCase().trim();
+  if (!t) return '';
+  const tokens = t.split(/\s+/).filter(Boolean);
+  const core = tokens.filter((tok) => !KEYWORD_STOPWORDS.has(tok) && !KEYWORD_MODIFIERS.has(tok));
+  return (core.length ? core : tokens).join(' ');
+}
+
+export function clusterKeywords<T extends { id: string; term: string; language: string; intent: string }>(
+  keywords: T[]
+): Array<{ core: string; language: string; intent: string; representative: T; members: T[] }> {
+  const groups = new Map<string, T[]>();
+  for (const k of keywords) {
+    const core = normalizeKeywordCore(k.term);
+    const key = `${k.language}|${k.intent}|${core}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(k);
+  }
+  const clusters = [];
+  for (const entry of Array.from(groups.entries())) {
+    const key = entry[0];
+    const members = entry[1];
+    const [language, intent, core] = key.split('|', 3);
+    // representative: shortest term (most general)
+    const representative = members.reduce((a, b) => (a.term.length <= b.term.length ? a : b));
+    clusters.push({ core, language, intent, representative, members });
+  }
+  return clusters;
 }
 
 // ---------------------------------------------------------------------------
@@ -1029,9 +1104,8 @@ export async function runMarketAnalysis(triggeredBy: TriggeredBy = 'manual'): Pr
       const langs = Array.from(new Set(obs.map((o) => o.language))) as Language[];
       const evidence = obs.slice(0, 5).map((o) => ({
         source: 'competitor_observation',
-        url: o.url,
-        quote: (o.weaknesses || []).join('; '),
         observed_at: o.observed_at,
+        origin: 'competitor' as const,
       }));
       const score = scoreOpportunity({
         evidenceCount: evidence.length,
@@ -1066,42 +1140,61 @@ export async function runMarketAnalysis(triggeredBy: TriggeredBy = 'manual'): Pr
       goalsCreated += 1;
     }
 
+    const MAX_NEW_OPPORTUNITIES = 10;
+    const GOAL_SCORE_THRESHOLD = 50;
     const existingOpps = await listOpportunities();
-    for (const k of keywords) {
-      if (k.intent !== 'transactional' && k.intent !== 'commercial') continue;
-      const already = existingOpps.some((o) => o.title === `Target keyword: ${k.term} (${k.language})`);
+    const txKeywords = keywords.filter((k) => k.intent === 'transactional' || k.intent === 'commercial');
+    const clusters = clusterKeywords(txKeywords);
+    let newOppsThisRun = 0;
+    for (const cluster of clusters) {
+      if (newOppsThisRun >= MAX_NEW_OPPORTUNITIES) break;
+      const rep = cluster.representative;
+      const clusterTitle = `Target cluster: ${cluster.core} (${cluster.language})`;
+      const already = existingOpps.some((o) => o.title === clusterTitle);
       if (already) continue;
       const score = scoreOpportunity({
-        evidenceCount: 1,
-        languages: [k.language],
-        confidence: k.volume_confidence === 'high' ? 'high' : 'low',
+        evidenceCount: cluster.members.length,
+        languages: [cluster.language as 'ar' | 'en' | 'zh'],
+        confidence: cluster.members.some((m) => (m as Keyword).volume_confidence === 'high') ? 'high' : 'low',
         type: 'keyword_gap',
       });
       const opp = await createOpportunity({
-        title: `Target keyword: ${k.term} (${k.language})`,
+        title: clusterTitle,
         type: 'keyword_gap',
         priority: priorityFromScore(score),
         score,
-        evidence: [{ source: k.source, observed_at: k.last_seen_at }],
-        languages: [k.language],
-        related_keywords: [k.id],
-        confidence: k.volume_confidence === 'high' ? 'high' : 'low',
-        estimated_impact: 'Create or improve a page targeting this search intent',
+        evidence: cluster.members.map((m) => ({
+          source: (m as Keyword).source,
+          observed_at: (m as Keyword).last_seen_at,
+          origin: 'keyword',
+        })),
+        languages: [cluster.language as 'ar' | 'en' | 'zh'],
+        related_keywords: cluster.members.map((m) => m.id),
+        confidence: cluster.members.some((m) => (m as Keyword).volume_confidence === 'high') ? 'high' : 'low',
+        estimated_impact: `Cluster of ${cluster.members.length} related search terms`,
       });
       opportunitiesCreated += 1;
-      await createGoal({
-        title: `Build page for keyword: ${k.term}`,
-        description: `Create an original, source-backed page targeting the ${k.intent} intent for "${k.term}".`,
-        priority: opp.priority,
-        evidence: [{ source: k.source, observed_at: k.last_seen_at }],
-        success_metrics: [
-          { metric: 'page_created', target: '1', measurement: 'site_pages row with matching slug' },
-          { metric: 'indexed', target: 'true', measurement: 'search engine index status' },
-        ],
-        confidence: k.volume_confidence === 'high' ? 'high' : 'low',
-        related_opportunity_id: opp.id,
-      });
-      goalsCreated += 1;
+      newOppsThisRun += 1;
+      // Only auto-create goals for sufficiently strong opportunities.
+      if (score >= GOAL_SCORE_THRESHOLD) {
+        await createGoal({
+          title: `Build page for cluster: ${cluster.core}`,
+          description: `Create an original, source-backed page targeting the cluster: ${cluster.members.map((m) => (m as Keyword).term).join(', ')}.`,
+          priority: opp.priority,
+          evidence: cluster.members.map((m) => ({
+            source: (m as Keyword).source,
+            observed_at: (m as Keyword).last_seen_at,
+            origin: 'keyword' as const,
+          })),
+          success_metrics: [
+            { metric: 'page_created', target: '1', measurement: 'site_pages row with matching slug' },
+            { metric: 'indexed', target: 'true', measurement: 'search engine index status' },
+          ],
+          confidence: opp.confidence,
+          related_opportunity_id: opp.id,
+        });
+        goalsCreated += 1;
+      }
     }
 
     const summary = {
@@ -1144,7 +1237,7 @@ export interface DiscoverySummary {
 const DEFAULT_SEEDS: Record<Language, string[]> = {
   ar: ['تأسيس شركة في السعودية', 'رخصة مستثمر أجنبي', 'MISA license'],
   en: ['company formation Saudi Arabia', 'MISA license', 'foreign investment Saudi'],
-  zh: ['沙特公司注册', 'MISA许可证', '沙特投资'],
+  zh: ['沙特公司注册', 'MISA许可证', '沙特企业银行'],
 };
 
 export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<DiscoverySummary> {
@@ -1211,6 +1304,7 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
           const results = await source.collectResults!(seed, lang, maxComp);
           for (const r of results) {
             if (!r.domain) continue;
+            if (isExcludedDomain(r.domain)) continue;
             try {
               const comp = await upsertCompetitor({
                 name: r.title || r.domain,
@@ -1224,14 +1318,9 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
                 competitor_id: comp.id,
                 language: lang,
                 query: seed,
-                rank: r.rank,
-                title: r.title,
-                snippet: r.snippet,
-                url: r.url,
-                page_type: 'landing',
+                observed_at: new Date().toISOString(),
                 strengths: [],
                 weaknesses: [],
-                raw: { source: source.id },
               });
               summary.observations_recorded += 1;
             } catch (e) {
@@ -1270,3 +1359,4 @@ export async function runRadar(config?: Partial<DiscoveryConfig>): Promise<{
 export function listAvailableSources() {
   return availableSources();
 }
+

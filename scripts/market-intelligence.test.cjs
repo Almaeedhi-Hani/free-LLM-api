@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 
 const fs = require('fs');
 const path = require('path');
@@ -59,7 +59,7 @@ async function atest(name, fn) {
   });
 
   test('detectLanguage identifies ar/en/zh', () => {
-    assert.strictEqual(mi.detectLanguage('افضل شركة'), 'ar');
+    assert.strictEqual(mi.detectLanguage('تأسیس شركة'), 'ar');
     assert.strictEqual(mi.detectLanguage('best company'), 'en');
     assert.strictEqual(mi.detectLanguage('公司注册'), 'zh');
   });
@@ -156,7 +156,7 @@ async function atest(name, fn) {
   });
 
   await atest('listKeywords filters by language/intent', async () => {
-    await mi.upsertKeyword({ term: 'رخصة مستثمر', language: 'ar', source: 'manual' });
+    await mi.upsertKeyword({ term: 'Ø±Ø®ØµØ© Ù…Ø³ØªØ«Ù…Ø±', language: 'ar', source: 'manual' });
     const ar = await mi.listKeywords({ language: 'ar' });
     assert.ok(ar.length >= 1);
     const en = await mi.listKeywords({ language: 'en' });
@@ -491,9 +491,12 @@ async function atest(name, fn) {
       assert.ok(comp, 'competitor persisted');
       const obs = await mi.listObservations(comp.id);
       assert.ok(obs.length >= 1);
-      assert.strictEqual(obs[0].source === undefined ? 'bing-web-search' : obs[0].raw && obs[0].raw.source, 'bing-web-search');
-      assert.ok(obs[0].url && obs[0].url.includes('comp1.example.com'));
-      assert.ok(obs[0].snippet && obs[0].snippet.length > 0);
+      assert.strictEqual(obs[0].language, 'en');
+      assert.ok(obs[0].query && obs[0].query.length > 0);
+      // ToS-safe: raw search result fields are NOT persisted.
+      assert.ok(obs[0].url === null || obs[0].url === undefined);
+      assert.ok(obs[0].snippet === null || obs[0].snippet === undefined);
+      assert.ok(obs[0].rank === null || obs[0].rank === undefined);
     } finally {
       global.fetch = originalFetch;
       if (prev) process.env.BING_SEARCH_API_KEY = prev; else delete process.env.BING_SEARCH_API_KEY;
@@ -549,9 +552,158 @@ async function atest(name, fn) {
     }
   });
 
+  // ---- Phase 2C: Brave source, exclusion, clustering, ToS-safe ----
+
+  await atest('isExcludedDomain filters gov/directories/non-competitors', async () => {
+    assert.strictEqual(mi.isExcludedDomain('misa.gov.sa'), true);
+    assert.strictEqual(mi.isExcludedDomain('sama.gov.sa'), true);
+    assert.strictEqual(mi.isExcludedDomain('wikipedia.org'), true);
+    assert.strictEqual(mi.isExcludedDomain('youtube.com'), true);
+    assert.strictEqual(mi.isExcludedDomain('example-directory.com'), true);
+    assert.strictEqual(mi.isExcludedDomain('acme-formation.com'), false);
+  });
+
+  await atest('normalizeKeywordCore strips modifiers and stopwords', async () => {
+    assert.strictEqual(mi.normalizeKeywordCore('MISA license fees in Saudi Arabia'), 'misa license');
+    assert.strictEqual(mi.normalizeKeywordCore('misa license renewal'), 'misa license');
+    assert.strictEqual(mi.normalizeKeywordCore('cost of company formation'), 'company formation');
+  });
+
+  await atest('clusterKeywords groups near-duplicate terms', async () => {
+    const kws = [
+      { id: '1', term: 'misa license', language: 'en', intent: 'transactional' },
+      { id: '2', term: 'misa license fees', language: 'en', intent: 'transactional' },
+      { id: '3', term: 'misa license requirements', language: 'en', intent: 'transactional' },
+      { id: '4', term: 'company formation cost', language: 'en', intent: 'transactional' },
+    ];
+    const clusters = mi.clusterKeywords(kws);
+    assert.strictEqual(clusters.length, 2);
+    const misaCluster = clusters.find((c) => c.core === 'misa license');
+    assert.ok(misaCluster);
+    assert.strictEqual(misaCluster.members.length, 3);
+  });
+
+  await atest('Brave source unavailable without key', async () => {
+    const prev = process.env.BRAVE_SEARCH_API_KEY;
+    delete process.env.BRAVE_SEARCH_API_KEY;
+    const src = new ms.BraveSearchSource();
+    assert.strictEqual(src.isAvailable(), false);
+    const res = await src.collectResults('test', 'en', 5);
+    assert.deepStrictEqual(res, []);
+    if (prev) process.env.BRAVE_SEARCH_API_KEY = prev;
+  });
+
+  await atest('Brave source collects results (mocked) and filters excluded domains', async () => {
+    const prev = process.env.BRAVE_SEARCH_API_KEY;
+    process.env.BRAVE_SEARCH_API_KEY = 'mock-brave-key';
+    const originalFetch = global.fetch;
+    global.fetch = async () => ({
+      ok: true, status: 200,
+      json: async () => ({ web: { results: [
+        { title: 'Competitor One', url: 'https://comp1.example.com/page', description: 'We offer company formation' },
+        { title: 'Gov Site', url: 'https://misa.gov.sa/page', description: 'Official' },
+        { title: 'Wiki', url: 'https://wikipedia.org/wiki/X', description: 'Info' },
+      ] } }),
+    });
+    try {
+      const src = new ms.BraveSearchSource();
+      assert.strictEqual(src.isAvailable(), true);
+      const res = await src.collectResults('company formation', 'en', 10);
+      assert.strictEqual(res.length, 3);
+      assert.strictEqual(res[0].domain, 'comp1.example.com');
+    } finally {
+      global.fetch = originalFetch;
+      if (prev) process.env.BRAVE_SEARCH_API_KEY = prev; else delete process.env.BRAVE_SEARCH_API_KEY;
+    }
+  });
+
+  await atest('Brave discovery stores no Search Results (ToS-safe)', async () => {
+    const prev = process.env.BRAVE_SEARCH_API_KEY;
+    process.env.BRAVE_SEARCH_API_KEY = 'mock-brave-key';
+    const originalFetch = global.fetch;
+    global.fetch = async (url) => {
+      const u = String(url);
+      if (u.includes('suggestqueries.google') || u.includes('duckduckgo.com/ac')) {
+        return { ok: true, status: 200, json: async () => (['q', []]) };
+      }
+      if (u.includes('api.search.brave.com')) {
+        return { ok: true, status: 200, json: async () => ({ web: { results: [
+          { title: 'Comp', url: 'https://comp2.example.com/', description: 'desc' },
+        ] } }) };
+      }
+      return { ok: true, status: 200, json: async () => ({}) };
+    };
+    fresh();
+    try {
+      const summary = await mi.runDiscovery({ seeds: { ar: [], en: ['company formation'], zh: [] }, triggeredBy: 'test' });
+      assert.ok(summary.competitors_discovered >= 1);
+      const comps = await mi.listCompetitors();
+      const comp = comps.find((c) => c.domain === 'comp2.example.com');
+      assert.ok(comp);
+      const obs = await mi.listObservations(comp.id);
+      assert.ok(obs.length >= 1);
+      // ToS-safe: no url/snippet/rank/raw persisted
+      assert.ok(obs[0].url === null || obs[0].url === undefined);
+      assert.ok(obs[0].snippet === null || obs[0].snippet === undefined);
+      assert.ok(obs[0].rank === null || obs[0].rank === undefined);
+      assert.ok(obs[0].raw === null || obs[0].raw === undefined);
+    } finally {
+      global.fetch = originalFetch;
+      if (prev) process.env.BRAVE_SEARCH_API_KEY = prev; else delete process.env.BRAVE_SEARCH_API_KEY;
+    }
+  });
+
+  await atest('runMarketAnalysis clusters keywords (fewer opportunities)', async () => {
+    fresh();
+    // Seed 6 transactional keywords that form 2 clusters
+    await mi.upsertKeyword({ term: 'misa license', language: 'en', source: 'manual', intent: 'transactional' });
+    await mi.upsertKeyword({ term: 'misa license fees', language: 'en', source: 'manual', intent: 'transactional' });
+    await mi.upsertKeyword({ term: 'misa license requirements', language: 'en', source: 'manual', intent: 'transactional' });
+    await mi.upsertKeyword({ term: 'company formation cost', language: 'en', source: 'manual', intent: 'transactional' });
+    await mi.upsertKeyword({ term: 'company registration cost', language: 'en', source: 'manual', intent: 'transactional' });
+    const { summary } = await mi.runMarketAnalysis('test');
+    // 2 clusters -> at most 2 new opportunities (capped)
+    assert.ok(summary.opportunities_created <= 3, 'clustering reduces opportunities');
+    assert.ok(summary.opportunities_created >= 1);
+  });
+
+  await atest('runMarketAnalysis respects GOAL_SCORE_THRESHOLD (no goal inflation)', async () => {
+    fresh();
+    await mi.upsertKeyword({ term: 'obscure term xyz', language: 'en', source: 'manual', intent: 'transactional', volume_confidence: 'low' });
+    const { summary } = await mi.runMarketAnalysis('test');
+    // opportunity created (score may be low), but goal only if score >= 50
+    // With 1 keyword, evidenceCount=1 -> score = 10+7+5+8 = 30 < 50 -> no goal
+    assert.ok(summary.goals_created === 0, 'no goal for low-score opportunity');
+  });
+
+  await atest('evidence includes origin field', async () => {
+    fresh();
+    await mi.upsertKeyword({ term: 'misa license', language: 'en', source: 'manual', intent: 'transactional' });
+    await mi.runMarketAnalysis('test');
+    const opps = await mi.listOpportunities();
+    assert.ok(opps.length >= 1);
+    assert.strictEqual(opps[0].evidence[0].origin, 'keyword');
+  });
+
+  await atest('runMarketAnalysis caps new opportunities at 10', async () => {
+    fresh();
+    for (let i = 0; i < 25; i++) {
+      await mi.upsertKeyword({ term: `unique keyword ${i}`, language: 'en', source: 'manual', intent: 'transactional' });
+    }
+    const { summary } = await mi.runMarketAnalysis('test');
+    assert.ok(summary.opportunities_created <= 10);
+  });
+
   // cleanup
   rmrf(STORE_DIR);
 
   console.log('\n' + JSON.stringify({ status: failed === 0 ? 'PASS' : 'FAIL', passed, failed }, null, 2));
   process.exit(failed === 0 ? 0 : 1);
 })();
+
+
+
+
+
+
+

@@ -1,105 +1,137 @@
-import type { Language } from './market-intelligence';
+﻿import type { Language } from './market-intelligence';
+import { DuckDuckGoHtmlSource } from './open-search-sources';
 
-export interface SuggestionResult {
-  term: string;
-  source: string;
-}
-
-export interface SearchResult {
-  domain: string;
-  title: string;
-  snippet: string;
-  url: string;
-  rank: number;
-  source: string;
-}
+export interface SuggestionResult { term: string; language: Language; source: string; }
+export interface SearchResult { domain: string; title: string; snippet: string; url: string; rank: number; source: string; }
 
 export interface SearchSource {
   id: string;
   free: boolean;
   requiresKey: string | null;
   supportedLanguages: Language[];
+  deprecated?: boolean;
   collectSuggestions(query: string, language: Language): Promise<SuggestionResult[]>;
   collectResults?(query: string, language: Language, limit: number): Promise<SearchResult[]>;
 }
 
-function safeJson(text: string): any {
-  try { return JSON.parse(text); } catch { return null; }
-}
-
-// Google Suggest (free, no key). Unofficial endpoint; light use only.
 export class GoogleSuggestSource implements SearchSource {
   id = 'google-suggest';
   free = true;
   requiresKey = null;
   supportedLanguages: Language[] = ['ar', 'en', 'zh'];
-
   async collectSuggestions(query: string, language: Language): Promise<SuggestionResult[]> {
-    const hl = language === 'zh' ? 'zh-CN' : language === 'ar' ? 'ar' : 'en';
-    const url = `https://suggestqueries.google.com/complete/search?client=firefox&q=${encodeURIComponent(query)}&hl=${hl}`;
+    const lang = language === 'ar' ? 'ar' : language === 'zh' ? 'zh-CN' : 'en';
+    const url = `https://suggestqueries.google.com/complete/search?client=firefox&q=${encodeURIComponent(query)}&hl=${lang}`;
     try {
       const res = await fetch(url, { cache: 'no-store' });
       if (!res.ok) return [];
       const data = await res.json();
-      const terms: string[] = Array.isArray(data) && Array.isArray(data[1]) ? data[1] : [];
-      return terms.map((t) => ({ term: String(t), source: this.id }));
-    } catch {
-      return [];
-    }
+      const suggestions = Array.isArray(data?.[1]) ? data[1] : [];
+      return suggestions.map((s: string) => ({ term: s, language, source: this.id }));
+    } catch { return []; }
   }
 }
 
-// DuckDuckGo autocomplete (free, no key).
 export class DuckDuckGoSuggestSource implements SearchSource {
   id = 'duckduckgo-suggest';
   free = true;
   requiresKey = null;
   supportedLanguages: Language[] = ['ar', 'en', 'zh'];
-
   async collectSuggestions(query: string, language: Language): Promise<SuggestionResult[]> {
-    const kl = language === 'ar' ? 'xa-ar' : language === 'zh' ? 'cn-zh' : 'us-en';
-    const url = `https://duckduckgo.com/ac/?q=${encodeURIComponent(query)}&kl=${kl}`;
+    const url = `https://duckduckgo.com/ac/?q=${encodeURIComponent(query)}&type=list`;
     try {
       const res = await fetch(url, { cache: 'no-store' });
       if (!res.ok) return [];
       const data = await res.json();
-      if (!Array.isArray(data)) return [];
-      return data.map((d: any) => ({ term: String(d.phrase || d), source: this.id }));
-    } catch {
-      return [];
-    }
+      const suggestions = Array.isArray(data?.[1]) ? data[1] : [];
+      return suggestions.map((s: string) => ({ term: s, language, source: this.id }));
+    } catch { return []; }
   }
 }
 
-// Bing Web Search (key-gated; free tier available but requires approval/key).
+export class BraveSearchSource implements SearchSource {
+  id = 'brave-search';
+  free = false;
+  requiresKey = 'BRAVE_SEARCH_API_KEY';
+  supportedLanguages: Language[] = ['ar', 'en', 'zh'];
+  private key(): string | null { return (process.env.BRAVE_SEARCH_API_KEY || '').trim() || null; }
+  isAvailable(): boolean { return !!this.key(); }
+  async collectSuggestions(_query: string, _language: Language): Promise<SuggestionResult[]> { return []; }
+  async collectResults(query: string, language: Language, limit: number): Promise<SearchResult[]> {
+    const key = this.key();
+    if (!key) return [];
+    const searchLang = language === 'ar' ? 'ar' : language === 'zh' ? 'zh-hans' : 'en';
+    const country = language === 'ar' ? 'SA' : language === 'zh' ? 'CN' : 'US';
+    const url = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&search_lang=${searchLang}&country=${country}&count=${Math.min(limit, 20)}`;
+    try {
+      const res = await fetch(url, { cache: 'no-store', headers: { 'X-Subscription-Token': key, 'Accept': 'application/json' } });
+      if (!res.ok) return [];
+      const data = await res.json();
+      const webPages = data?.web?.results || [];
+      const results: SearchResult[] = [];
+      const seen = new Set<string>();
+      webPages.forEach((p: any, i: number) => {
+        let domain = '';
+        try { domain = new URL(p.url).hostname.replace(/^www\./, ''); } catch { domain = ''; }
+        if (!domain || seen.has(domain)) return;
+        seen.add(domain);
+        results.push({ domain, title: p.title || '', snippet: p.description || '', url: p.url, rank: i + 1, source: this.id });
+      });
+      return results;
+    } catch { return []; }
+  }
+}
+
+export class TavilySearchSource implements SearchSource {
+  id = 'tavily-search';
+  free = false;
+  requiresKey = 'TAVILY_API_KEY';
+  supportedLanguages: Language[] = ['ar', 'en', 'zh'];
+  deprecated = false;
+  private key(): string | null { return (process.env.TAVILY_API_KEY || '').trim() || null; }
+  isAvailable(): boolean { return !!this.key(); }
+  async collectSuggestions(_query: string, _language: Language): Promise<SuggestionResult[]> { return []; }
+  async collectResults(query: string, language: Language, limit: number): Promise<SearchResult[]> {
+    const key = this.key();
+    if (!key) return [];
+    try {
+      const res = await fetch('https://api.tavily.com/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+        body: JSON.stringify({ query, search_depth: 'basic', max_results: Math.min(limit, 10) }),
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      const results: SearchResult[] = [];
+      const seen = new Set<string>();
+      (data?.results || []).forEach((p: any, i: number) => {
+        let domain = '';
+        try { domain = new URL(p.url).hostname.replace(/^www\./, ''); } catch { domain = ''; }
+        if (!domain || seen.has(domain)) return;
+        seen.add(domain);
+        results.push({ domain, title: p.title || '', snippet: p.content || '', url: p.url, rank: i + 1, source: this.id });
+      });
+      return results;
+    } catch { return []; }
+  }
+}
+
+// Deprecated: Bing Search API retired Aug 11, 2025. Kept for existing key holders only.
 export class BingSearchSource implements SearchSource {
   id = 'bing-web-search';
   free = false;
   requiresKey = 'BING_SEARCH_API_KEY';
+  deprecated = true;
   supportedLanguages: Language[] = ['ar', 'en', 'zh'];
-
-  private key(): string | null {
-    return (process.env.BING_SEARCH_API_KEY || '').trim() || null;
-  }
-
-  isAvailable(): boolean {
-    return !!this.key();
-  }
-
-  async collectSuggestions(_query: string, _language: Language): Promise<SuggestionResult[]> {
-    return [];
-  }
-
+  private key(): string | null { return (process.env.BING_SEARCH_API_KEY || '').trim() || null; }
+  isAvailable(): boolean { return !!this.key(); }
+  async collectSuggestions(_query: string, _language: Language): Promise<SuggestionResult[]> { return []; }
   async collectResults(query: string, language: Language, limit: number): Promise<SearchResult[]> {
     const key = this.key();
     if (!key) return [];
-    const mkt = language === 'ar' ? 'ar-SA' : language === 'zh' ? 'zh-CN' : 'en-US';
-    const url = `https://api.bing.microsoft.com/v7.0/search?q=${encodeURIComponent(query)}&mkt=${mkt}&count=${limit}`;
+    const url = `https://api.bing.microsoft.com/v7.0/search?q=${encodeURIComponent(query)}&count=${Math.min(limit, 20)}&mkt=${language === 'ar' ? 'ar-SA' : language === 'zh' ? 'zh-CN' : 'en-US'}`;
     try {
-      const res = await fetch(url, {
-        cache: 'no-store',
-        headers: { 'Ocp-Apim-Subscription-Key': key },
-      });
+      const res = await fetch(url, { cache: 'no-store', headers: { 'Ocp-Apim-Subscription-Key': key } });
       if (!res.ok) return [];
       const data = await res.json();
       const webPages = data?.webPages?.value || [];
@@ -110,24 +142,21 @@ export class BingSearchSource implements SearchSource {
         try { domain = new URL(p.url).hostname.replace(/^www\./, ''); } catch { domain = ''; }
         if (!domain || seen.has(domain)) return;
         seen.add(domain);
-        results.push({
-          domain,
-          title: p.name || '',
-          snippet: p.snippet || '',
-          url: p.url,
-          rank: i + 1,
-          source: this.id,
-        });
+        results.push({ domain, title: p.title || '', snippet: p.snippet || '', url: p.url, rank: i + 1, source: this.id });
       });
       return results;
-    } catch {
-      return [];
-    }
+    } catch { return []; }
   }
 }
 
 export function defaultSources(): SearchSource[] {
   const sources: SearchSource[] = [new GoogleSuggestSource(), new DuckDuckGoSuggestSource()];
+  // Open (keyless) search source - default path for competitor discovery
+  sources.push(new DuckDuckGoHtmlSource());
+  const brave = new BraveSearchSource();
+  if (brave.isAvailable()) sources.push(brave);
+  const tavily = new TavilySearchSource();
+  if (tavily.isAvailable()) sources.push(tavily);
   const bing = new BingSearchSource();
   if (bing.isAvailable()) sources.push(bing);
   return sources;
@@ -141,3 +170,5 @@ export function availableSources(): { id: string; free: boolean; requiresKey: st
     available: s.requiresKey ? !!(process.env[s.requiresKey] || '').trim() : true,
   }));
 }
+
+
