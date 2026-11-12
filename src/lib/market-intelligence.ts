@@ -29,7 +29,7 @@ export type Priority = 'critical' | 'high' | 'medium' | 'low';
 export type OpportunityStatus = 'new' | 'triaged' | 'planned' | 'done' | 'rejected';
 export type Confidence = 'high' | 'medium' | 'low';
 export type GoalStatus = 'open' | 'in_progress' | 'done' | 'cancelled';
-export type RunType = 'radar' | 'keyword_collection' | 'gap_analysis' | 'goal_generation' | 'full';
+export type RunType = 'radar' | 'discovery' | 'keyword_collection' | 'gap_analysis' | 'goal_generation' | 'full';
 export type RunStatus = 'running' | 'success' | 'failed' | 'partial';
 export type TriggeredBy = 'manual' | 'cron' | 'github_actions' | 'admin';
 
@@ -1367,6 +1367,7 @@ export async function runRadar(config?: Partial<DiscoveryConfig>): Promise<{
 export function listAvailableSources() {
   return availableSources();
 }
+
 
 
 

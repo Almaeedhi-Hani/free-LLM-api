@@ -1,10 +1,8 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'crypto';
-import { runDiscovery, listAvailableSources } from '@/lib/market-intelligence';
+import { runDiscovery, listAvailableSources, startRun, finishRun, listRuns } from '@/lib/market-intelligence';
 
 export const dynamic = 'force-dynamic';
-
-let running = false;
 
 function authorized(req: NextRequest): boolean {
   const provided = (req.headers.get('x-admin-secret') || '').trim();
@@ -26,11 +24,19 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   if (!authorized(req)) return NextResponse.json({ status: 'unauthorized' }, { status: 401 });
-  if (running) {
-    return NextResponse.json({ status: 'busy', message: 'Discovery already running' }, { status: 429 });
-  }
-  running = true;
+  // DB-based lock (works across Render instances)
   try {
+    const recentRuns = await listRuns(5);
+    const isRunning = recentRuns.some((r: any) => r.run_type === 'discovery' && r.status === 'running');
+    if (isRunning) {
+      return NextResponse.json({ status: 'busy', message: 'Discovery already running' }, { status: 429 });
+    }
+  } catch { /* ignore lock check errors */ }
+
+  let runId: string | null = null;
+  try {
+    const run = await startRun('discovery', 'admin');
+    runId = run.id;
     const body = await req.json().catch(() => ({}));
     const maxCompetitors = Math.min(Number(body?.max_competitors) || 10, 20);
     const summary = await runDiscovery({
@@ -39,18 +45,20 @@ export async function POST(req: NextRequest) {
       triggeredBy: 'admin',
     });
     if (!summary.success) {
+      if (runId) await finishRun(runId, 'failed', summary as any, 'Discovery did not find competitors or encountered errors');
       return NextResponse.json(
         { ok: false, status: 'failed', summary, message: 'Discovery did not find competitors or encountered errors' },
         { status: 500 }
       );
     }
+    if (runId) await finishRun(runId, 'success', summary as any);
     return NextResponse.json({ ok: true, status: 'success', summary });
   } catch (e) {
+    if (runId) await finishRun(runId, 'failed', undefined, e instanceof Error ? e.message : String(e));
     return NextResponse.json(
       { ok: false, status: 'error', message: e instanceof Error ? e.message : String(e) },
       { status: 500 }
     );
-  } finally {
-    running = false;
   }
 }
+
