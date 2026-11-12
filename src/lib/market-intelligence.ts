@@ -1231,6 +1231,8 @@ export interface DiscoverySummary {
   keywords_upserted: number;
   competitors_discovered: number;
   observations_recorded: number;
+  unique_domains: number;
+  success: boolean;
   errors: string[];
 }
 
@@ -1253,10 +1255,13 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
     keywords_upserted: 0,
     competitors_discovered: 0,
     observations_recorded: 0,
+    unique_domains: 0,
+    success: false,
     errors: [],
   };
 
   const collectedTerms = new Set<string>();
+  const discoveredDomains = new Set<string>();
 
   // 1) Keyword/question discovery via suggest sources
   for (const source of sources) {
@@ -1313,7 +1318,8 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
                 source: 'search',
                 notes: `Discovered via ${source.id} for query "${seed}"`,
               });
-              summary.competitors_discovered += 1;
+               discoveredDomains.add(r.domain);
+               summary.competitors_discovered += 1;
               await recordObservation({
                 competitor_id: comp.id,
                 language: lang,
@@ -1334,6 +1340,8 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
     }
   }
 
+  summary.unique_domains = discoveredDomains.size;
+  summary.success = summary.competitors_discovered > 0;
   return summary;
 }
 
@@ -1359,4 +1367,7 @@ export async function runRadar(config?: Partial<DiscoveryConfig>): Promise<{
 export function listAvailableSources() {
   return availableSources();
 }
+
+
+
 
