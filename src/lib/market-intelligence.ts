@@ -421,10 +421,15 @@ async function sbFetch(pathname: string, init?: RequestInit): Promise<Response> 
   const cfg = getSupabaseCredentials();
   if (!cfg) throw new StorageUnavailableError('Supabase is not configured');
 
+  // 25s timeout to stay under Render's 30s limit
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 25_000);
+
   try {
     return await fetch(`${cfg.url}/rest/v1/${pathname}`, {
       ...init,
       cache: 'no-store',
+      signal: controller.signal,
       headers: {
         apikey: cfg.key,
         Authorization: `Bearer ${cfg.key}`,
@@ -434,6 +439,8 @@ async function sbFetch(pathname: string, init?: RequestInit): Promise<Response> 
     });
   } catch (e) {
     throw asStorageError('Supabase request failed', e);
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
