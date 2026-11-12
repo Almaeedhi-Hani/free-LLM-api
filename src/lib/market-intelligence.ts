@@ -1234,7 +1234,7 @@ export interface DiscoverySummary {
   observations_recorded: number;
   unique_domains: number;
   success: boolean;
-  search_diagnostics: { source_id: string; language: string; results_parsed: number; results_accepted: number; failure_reason: string; }[];
+  search_diagnostics: { source_id: string; language: string; http_status: number; duration_ms: number; response_received: boolean; results_parsed: number; results_accepted: number; blocked_detected: boolean; failure_reason: string; }[];
   errors: string[];
 }
 
@@ -1315,9 +1315,11 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
     for (const lang of ['ar', 'en', 'zh'] as Language[]) {
       const seedList = seeds[lang] || [];
       for (const seed of seedList.slice(0, 3)) {
-        const diag = { source_id: source.id, language: lang, results_parsed: 0, results_accepted: 0, failure_reason: '' };
+        const diag = { source_id: source.id, language: lang, http_status: 0, duration_ms: 0, response_received: false, results_parsed: 0, results_accepted: 0, blocked_detected: false, failure_reason: '' };
         try {
           const results = await source.collectResults!(seed, lang, maxComp);
+           const srcDiag = (source as any).lastDiagnostic;
+           if (srcDiag) { diag.http_status = srcDiag.http_status; diag.duration_ms = srcDiag.duration_ms; diag.response_received = srcDiag.response_received; diag.blocked_detected = srcDiag.blocked_detected; if (srcDiag.failure_reason) diag.failure_reason = srcDiag.failure_reason; }
           diag.results_parsed = results.length;
           for (const r of results) {
             if (discoveredDomains.size >= maxComp) break;

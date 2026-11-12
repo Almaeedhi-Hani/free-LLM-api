@@ -34,7 +34,7 @@ function isIrrelevant(domain: string): boolean {
 function extractDomain(url: string): string {
   try {
     return new URL(url).hostname.replace(/^www\./, '');
-  } catch {
+  } catch (e) { console.warn('[duckduckgo-html] fetch error:', e instanceof Error ? e.message : String(e));
     return '';
   }
 }
@@ -44,9 +44,10 @@ async function fetchHtml(url: string): Promise<string | null> {
     const res = await fetch(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
     });
+    console.log('[duckduckgo-html] HTTP', res.status, 'bodyLen:', (await res.clone().text()).length);
     if (!res.ok) return null;
     return await res.text();
-  } catch {
+  } catch (e) { console.warn('[duckduckgo-html] fetch error:', e instanceof Error ? e.message : String(e));
     return null;
   }
 }
@@ -61,9 +62,10 @@ async function postHtml(url: string, body: string): Promise<string | null> {
       },
       body,
     });
+    console.log('[duckduckgo-html] HTTP', res.status, 'bodyLen:', (await res.clone().text()).length);
     if (!res.ok) return null;
     return await res.text();
-  } catch {
+  } catch (e) { console.warn('[duckduckgo-html] fetch error:', e instanceof Error ? e.message : String(e));
     return null;
   }
 }
@@ -72,7 +74,7 @@ function unwrapDuckDuckGoUrl(url: string): string {
   if (url.includes('uddg=')) {
     try {
       return decodeURIComponent(url.split('uddg=')[1].split('&')[0]);
-    } catch {
+  } catch (e) { console.warn('[duckduckgo-html] fetch error:', e instanceof Error ? e.message : String(e));
       return url;
     }
   }
