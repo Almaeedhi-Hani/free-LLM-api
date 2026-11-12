@@ -479,7 +479,7 @@ export default function AdminDashboard() {
                   </div>
                   <div className="mb-4 flex items-center gap-3">
                     <button className="btn-primary" disabled={saving} onClick={async () => {
-                      if (!confirm('\u062A\u0634\u063A\u064A\u0644 \u0627\u0643\u062A\u0634\u0627\u0641 \u0627\u0644\u0645\u0646\u0627\u0641\u0633\u064A\u0646 (DuckDuckGo) \u0645\u0631\u0629 \u0648\u0627\u062D\u062F\u0629\u061F')) return;
+                      if (!confirm('تشغيل اكتشاف المنافسين (DuckDuckGo) مرة واحدة؟')) return;
                       setSaving(true); setError('');
                       try {
                         const d = await marketFetch('/api/admin/market/discovery', { method: 'POST', body: JSON.stringify({ max_competitors: 10 }) });
@@ -487,7 +487,7 @@ export default function AdminDashboard() {
                         await fetchCompetitors();
                       } catch (e: any) { setError(e.message); }
                       finally { setSaving(false); }
-                    }}>\u062A\u0634\u063A\u064A\u0644 \u0627\u0643\u062A\u0634\u0627\u0641 \u0627\u0644\u0645\u0646\u0627\u0641\u0633\u064A\u0646</button>
+                    }}>تشغيل اكتشاف المنافسين</button>
                     <span className="text-sm text-slate-500">DuckDuckGo HTML (بدون مفتاح API)</span>
                   </div>
                   <div className="overflow-x-auto">

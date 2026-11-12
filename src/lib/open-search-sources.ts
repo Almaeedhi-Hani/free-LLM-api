@@ -122,9 +122,40 @@ export class DuckDuckGoHtmlSource implements SearchSource {
   async collectResults(query: string, language: Language, limit: number): Promise<SearchResult[]> {
     const langParam = language === 'ar' ? 'ar' : language === 'zh' ? 'zh' : 'en';
     const body = `q=${encodeURIComponent(query)}&kl=${langParam}`;
-    const html = await postHtml('https://html.duckduckgo.com/html/', body);
-    if (!html) return [];
-    return parseDuckDuckGoHtml(html).slice(0, limit);
+    const t0 = Date.now();
+    let html: string | null = null;
+    let status = 0;
+    let error = '';
+    try {
+      const res = await fetch('https://html.duckduckgo.com/html/', {
+        method: 'POST',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body,
+      });
+      status = res.status;
+      html = await res.text();
+    } catch (e) {
+      error = e instanceof Error ? e.message : String(e);
+    }
+    const dt = Date.now() - t0;
+    if (error) {
+      console.warn('[duckduckgo-html] fetch error:', error, 'duration:', dt + 'ms');
+      return [];
+    }
+    if (!html || status !== 200) {
+      console.warn('[duckduckgo-html] HTTP', status, 'duration:', dt + 'ms', 'bodyLen:', html?.length || 0);
+      return [];
+    }
+    const parsed = parseDuckDuckGoHtml(html);
+    console.log('[duckduckgo-html] status:', status, 'duration:', dt + 'ms', 'links:', parsed.length, 'lang:', langParam);
+    if (parsed.length === 0) {
+      const blocked = /captcha|verify|blocked|robot/i.test(html);
+      console.warn('[duckduckgo-html] 0 results. blocked:', blocked, 'bodyLen:', html.length);
+    }
+    return parsed.slice(0, limit);
   }
 }
 
