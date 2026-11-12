@@ -116,6 +116,7 @@ export class DuckDuckGoHtmlSource implements SearchSource {
   requiresKey = null;
   supportedLanguages: Language[] = ['ar', 'en', 'zh'];
   deprecated = false;
+  lastDiagnostic: { http_status: number; duration_ms: number; response_received: boolean; results_parsed: number; blocked_detected: boolean; failure_reason: string; } = { http_status: 0, duration_ms: 0, response_received: false, results_parsed: 0, blocked_detected: false, failure_reason: '' };
 
   async collectSuggestions(): Promise<{ term: string; language: Language; source: string }[]> {
     return [];
@@ -144,17 +145,20 @@ export class DuckDuckGoHtmlSource implements SearchSource {
     }
     const dt = Date.now() - t0;
     if (error) {
+      this.lastDiagnostic = { http_status: 0, duration_ms: dt, response_received: false, results_parsed: 0, blocked_detected: false, failure_reason: 'fetch error: ' + error };
       console.warn('[duckduckgo-html] fetch error:', error, 'duration:', dt + 'ms');
       return [];
     }
     if (!html || status !== 200) {
+      this.lastDiagnostic = { http_status: status, duration_ms: dt, response_received: !!html, results_parsed: 0, blocked_detected: false, failure_reason: 'HTTP ' + status };
       console.warn('[duckduckgo-html] HTTP', status, 'duration:', dt + 'ms', 'bodyLen:', html?.length || 0);
       return [];
     }
     const parsed = parseDuckDuckGoHtml(html);
+    const blocked = parsed.length === 0 && /captcha|verify|blocked|robot/i.test(html);
+    this.lastDiagnostic = { http_status: status, duration_ms: dt, response_received: true, results_parsed: parsed.length, blocked_detected: blocked, failure_reason: parsed.length === 0 ? (blocked ? 'blocked/captcha' : 'parser returned 0') : '' };
     console.log('[duckduckgo-html] status:', status, 'duration:', dt + 'ms', 'links:', parsed.length, 'lang:', langParam);
     if (parsed.length === 0) {
-      const blocked = /captcha|verify|blocked|robot/i.test(html);
       console.warn('[duckduckgo-html] 0 results. blocked:', blocked, 'bodyLen:', html.length);
     }
     return parsed.slice(0, limit);
