@@ -118,7 +118,7 @@ export default async function HomePage() {
             <p>{t.a}</p>
           </details>
           {lang === "ar" &&
-            content.faqs.map((f, i) => (
+            content.faqs.filter(f => !/^STORAGE_TEST_/i.test(f.q)).map((f, i) => (
               <details key={`${f.q}-${i}`}>
                 <summary>{f.q}</summary>
                 <p>{f.a}</p>
