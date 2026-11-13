@@ -1,7 +1,9 @@
 name: GEO Intelligence Analysis
 
 on:
-  workflow_dispatch:  # Manual only during testing
+  schedule:
+    - cron: '0 2 * * 0'  # Sunday 02:00 UTC = 05:00 Saudi
+  workflow_dispatch:  # Manual trigger
 
 permissions:
   contents: read
