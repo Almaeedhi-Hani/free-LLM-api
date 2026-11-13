@@ -1,13 +1,63 @@
-import { getLocale } from "@/lib/site-language";
+import { pageMetadata, siteUrl } from "@/lib/site-seo";
+import { getLocale, localizedPath } from "@/lib/site-language";
 import { copy, services } from "@/lib/service-catalog";
 import { getContent } from "@/lib/content-store";
+export const generateMetadata = () => pageMetadata();
 export default async function HomePage() {
   const lang = getLocale();
   const content = await getContent();
   const t = copy[lang];
   const serviceList = services;
+  const faqItems = [
+    { q: t.q, a: t.a },
+    ...(lang === "ar"
+      ? content.faqs.filter((f) => !/^STORAGE_TEST_/i.test(f.q))
+      : []),
+  ];
+  const schema = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": siteUrl + "/#website",
+        name: t.brand,
+        url: siteUrl,
+        inLanguage: ["ar", "en", "zh-Hans"],
+      },
+      {
+        "@type": "CollectionPage",
+        url: siteUrl + localizedPath(lang),
+        name: t.brand,
+        description: t.intro,
+        inLanguage: lang,
+        mainEntity: {
+          "@type": "ItemList",
+          itemListElement: serviceList.map((s, i) => ({
+            "@type": "ListItem",
+            position: i + 1,
+            name: s.title[lang],
+            url: siteUrl + localizedPath(lang, `/services/${s.slug}`),
+          })),
+        },
+      },
+      {
+        "@type": "FAQPage",
+        mainEntity: faqItems.map((f) => ({
+          "@type": "Question",
+          name: f.q,
+          acceptedAnswer: { "@type": "Answer", text: f.a },
+        })),
+      },
+    ],
+  };
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(schema).replace(/</g, "\\u003c"),
+        }}
+      />
       <section className="hero">
         <div className="hero-copy">
           <p className="eyebrow">
@@ -15,6 +65,13 @@ export default async function HomePage() {
             {t.eyebrow}
           </p>
           <h1>
+            <small className="hero-topic">
+              {lang === "ar"
+                ? "تأسيس الشركات وخدمات المستثمرين في السعودية"
+                : lang === "zh"
+                  ? "沙特公司设立与投资者服务"
+                  : "Company formation & investor services in Saudi Arabia"}
+            </small>
             {t.hero.split("\n").map((line, i) => (
               <span key={line} className={i ? "hero-accent" : ""}>
                 {line}
@@ -70,7 +127,7 @@ export default async function HomePage() {
             <a
               className="service-card"
               key={s.slug}
-              href={`/services/${s.slug}`}
+              href={localizedPath(lang, `/services/${s.slug}`)}
             >
               <div className="card-top">
                 <span>0{i + 1}</span>
@@ -118,12 +175,14 @@ export default async function HomePage() {
             <p>{t.a}</p>
           </details>
           {lang === "ar" &&
-            content.faqs.map((f, i) => (
-              <details key={`${f.q}-${i}`}>
-                <summary>{f.q}</summary>
-                <p>{f.a}</p>
-              </details>
-            ))}
+            content.faqs
+              .filter((f) => !/^STORAGE_TEST_/i.test(f.q))
+              .map((f, i) => (
+                <details key={`${f.q}-${i}`}>
+                  <summary>{f.q}</summary>
+                  <p>{f.a}</p>
+                </details>
+              ))}
         </div>
         <aside className="source-panel">
           <span className="source-mark">↗</span>

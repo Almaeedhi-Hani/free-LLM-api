@@ -46,6 +46,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: userAgents.map((userAgent) => ({
       userAgent,
       allow: '/',
+      disallow: ['/admin/', '/api/admin/', '/api/geo/', '/api/cron'],
     })),
     sitemap: `${baseUrl}/sitemap.xml`,
   };

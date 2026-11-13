@@ -1,7 +1,8 @@
-import { getLocale } from "@/lib/site-language";
+import { getLocale, localizedPath } from "@/lib/site-language";
 import { copy, services } from "@/lib/service-catalog";
 import { getContent } from "@/lib/content-store";
 import { guides, guideLabels } from "@/lib/service-guides";
+import { siteUrl } from "@/lib/site-seo";
 export async function ServicePage({ slug }: { slug: string }) {
   const lang = getLocale();
   const content = await getContent();
@@ -13,11 +14,43 @@ export async function ServicePage({ slug }: { slug: string }) {
   const labels = guideLabels[lang];
   const schema = {
     "@context": "https://schema.org",
-    "@type": "WebPage",
-    name: s.title[lang],
-    description: s.summary[lang],
-    inLanguage: lang,
-    citation: s.source,
+    "@graph": [
+      {
+        "@type": "WebPage",
+        "@id": siteUrl + localizedPath(lang, `/services/${slug}`),
+        name: s.title[lang],
+        description: s.summary[lang],
+        inLanguage: lang,
+        citation: [s.source, ...guide.references.map((r) => r.url)],
+      },
+      {
+        "@type": "FAQPage",
+        mainEntity: [
+          {
+            "@type": "Question",
+            name: guide.q[lang],
+            acceptedAnswer: { "@type": "Answer", text: guide.a[lang] },
+          },
+        ],
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: t.brand,
+            item: siteUrl + localizedPath(lang),
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: s.title[lang],
+            item: siteUrl + localizedPath(lang, `/services/${slug}`),
+          },
+        ],
+      },
+    ],
   };
   return (
     <article className="service-detail section-wrap">
@@ -27,11 +60,11 @@ export async function ServicePage({ slug }: { slug: string }) {
           __html: JSON.stringify(schema).replace(/</g, "\\u003c"),
         }}
       />
-      <a className="breadcrumb" href="/#services">
+      <a className="breadcrumb" href={localizedPath(lang) + "#services"}>
         {t.back} / {s.authority}
       </a>
       <p className="eyebrow">{s.authority} · SAUDI ARABIA</p>
-      <h1>{s.title[lang]}</h1>
+      <h1>{s.title[lang]} {lang === 'ar' ? 'في السعودية' : lang === 'en' ? 'in Saudi Arabia' : '｜沙特阿拉伯'}</h1>
       <p className="detail-lead">{s.summary[lang]}</p>
       <div className="detail-columns">
         <section>

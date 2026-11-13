@@ -2,7 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { getContent } from "@/lib/content-store";
-import { getLocale } from "@/lib/site-language";
+import { getLocale, localizedPath } from "@/lib/site-language";
 import { copy, services } from "@/lib/service-catalog";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -46,7 +46,7 @@ export default async function RootLayout({
         </a>
         <header className="site-header">
           <div className="header-inner">
-            <a href="/" className="wordmark">
+            <a href={localizedPath(lang)} className="wordmark">
               <span className="brand-symbol" aria-hidden="true">
                 ↗
               </span>
@@ -56,23 +56,23 @@ export default async function RootLayout({
               </span>
             </a>
             <nav className="desktop-nav" aria-label={t.nav}>
-              <a href="/#services">{t.nav}</a>
-              <a href="/#journey">{t.journey}</a>
-              <a href="/#sources">{t.sources}</a>
+              <a href={localizedPath(lang) + "#services"}>{t.nav}</a>
+              <a href={localizedPath(lang) + "#journey"}>{t.journey}</a>
+              <a href={localizedPath(lang) + "#sources"}>{t.sources}</a>
             </nav>
             <LanguageSwitcher locale={lang} />
           </div>
           <nav className="mobile-nav">
-            <a href="/#services">{t.nav}</a>
-            <a href="/#journey">{t.journey}</a>
-            <a href="/#contact">{t.contact}</a>
+            <a href={localizedPath(lang) + "#services"}>{t.nav}</a>
+            <a href={localizedPath(lang) + "#journey"}>{t.journey}</a>
+            <a href={localizedPath(lang) + "#contact"}>{t.contact}</a>
           </nav>
         </header>
         <main id="main">{children}</main>
         <footer className="site-footer">
           <div className="footer-top">
             <div>
-              <a className="footer-brand" href="/">
+              <a className="footer-brand" href={localizedPath(lang)}>
                 {t.brand} <span>↗</span>
               </a>
               <p>{t.tagline}</p>
@@ -80,7 +80,10 @@ export default async function RootLayout({
             <div>
               <h2>{t.nav}</h2>
               {serviceList.map((s) => (
-                <a key={s.slug} href={`/services/${s.slug}`}>
+                <a
+                  key={s.slug}
+                  href={localizedPath(lang, `/services/${s.slug}`)}
+                >
                   {s.title[lang]}
                 </a>
               ))}

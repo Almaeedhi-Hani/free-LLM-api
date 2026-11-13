@@ -37,3 +37,11 @@ This release changes the public design and service copy. AI ingestion, analysis,
 - Browser checks: Arabic / English / Chinese switching and language direction; service navigation; desktop and 390px mobile presentation; no horizontal overflow in tested views.
 - Dynamic content read paths remain getContent() and the existing fields; no database migration, account change, publication-mode change or schedule change is included.
 - Admin defects observed during the initial audit (including /admin/geo returning 404) are not fixed in this design-and-content release, following the user's final scope restriction.
+
+## Search and AI discovery update
+
+The follow-up presentation release adds independent /en and /zh URLs for all seven public pages, localized canonical and reciprocal hreflang metadata, unique titles/descriptions, Open Graph metadata, visible topic wording in the home H1, and page-matched FAQ/Breadcrumb JSON-LD. The sitemap contains 21 public URLs. Admin pages are noindex and administrative endpoints are excluded from robots crawling; crawler exclusions do not replace authentication.
+
+The smoke checker validates all 21 pages, metadata, heading counts, JSON-LD parsing and sitemap entries. These changes improve crawlability and clarity; no search ranking or AI citation position is guaranteed. No keyword stuffing or hidden search-only copy is added.
+
+Guidance: https://developers.google.com/search/docs/appearance/ai-features and https://developers.google.com/search/docs/specialty/international/localized-versions

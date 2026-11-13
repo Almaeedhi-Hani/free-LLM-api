@@ -986,3 +986,12 @@ p {
 .guide-budget p {
   margin-bottom: 0;
 }
+.hero h1 .hero-topic {
+  display: block;
+  font-size: 12px;
+  line-height: 1.8;
+  letter-spacing: 0;
+  color: #63785e;
+  margin-bottom: 18px;
+  font-weight: 500;
+}
