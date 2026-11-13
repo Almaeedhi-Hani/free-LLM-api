@@ -9,7 +9,7 @@ export async function freellmChat(messages: ChatMessage[], model?: string): Prom
   const key = process.env.FREELLMAPI_API_KEY || '';
   if (!base || !key) return { error: 'FREELLMAPI_BASE_URL or FREELLMAPI_API_KEY not configured' };
   if (process.env.FREELLMAPI_ENABLED !== 'true') return { error: 'FREELLMAPI_ENABLED is false' };
-  const chosenModel = model || process.env.FREELLMAPI_MODEL || 'free-router';
+  const chosenModel = model || process.env.FREELLMAPI_MODEL || 'fusion';
   try {
     const res = await fetch(`${base}/chat/completions`, {
       method: 'POST',

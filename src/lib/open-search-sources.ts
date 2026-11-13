@@ -110,6 +110,21 @@ function parseDuckDuckGoHtml(html: string): SearchResult[] {
   return results;
 }
 
+// Rate limiting for DuckDuckGo - enforce minimum delay between requests
+let lastDuckDuckGoRequest = 0;
+const MIN_DELAY_MS = parseInt(process.env.DUCKDUCKGO_MIN_DELAY_MS || '5000', 10);
+
+async function enforceDuckDuckGoRateLimit(): Promise<void> {
+  const now = Date.now();
+  const timeSinceLast = now - lastDuckDuckGoRequest;
+  if (timeSinceLast < MIN_DELAY_MS) {
+    const wait = MIN_DELAY_MS - timeSinceLast;
+    console.log(`[duckduckgo-html] Rate limit: waiting ${wait}ms before next request`);
+    await new Promise(resolve => setTimeout(resolve, wait));
+  }
+  lastDuckDuckGoRequest = Date.now();
+}
+
 export class DuckDuckGoHtmlSource implements SearchSource {
   id = 'duckduckgo-html';
   free = true;
@@ -123,7 +138,11 @@ export class DuckDuckGoHtmlSource implements SearchSource {
   }
 
   async collectResults(query: string, language: Language, limit: number): Promise<SearchResult[]> {
-    const langParam = language === 'ar' ? 'ar' : language === 'zh' ? 'zh' : 'en';
+    // Enforce rate limit before making request
+    await enforceDuckDuckGoRateLimit();
+    
+    // DuckDuckGo HTML uses specific locale codes: ar, us-en, cn-zh
+    const langParam = language === 'ar' ? 'ar' : language === 'zh' ? 'cn-zh' : 'us-en';
     const body = `q=${encodeURIComponent(query)}&kl=${langParam}`;
     const t0 = Date.now();
     let html: string | null = null;

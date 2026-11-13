@@ -107,6 +107,9 @@ New tabs: Competitors, Keywords, Opportunities, Goals, Analysis Runs.
 - Tests: 37 total (added source failure, repetition, limits, empty-data, idempotency, Bing mock + evidence).
 - No fabricated competitors/volumes; Bing requires BING_SEARCH_API_KEY (optional, free tier requires approval).
 
+## 11.6 Phase 2C — Competitor discovery (design)
+See `PHASE2C_COMPETITOR_DISCOVERY.md` for provider comparison, cost analysis, competitor extraction design, origin tracking, keyword clustering, and approval requirements.
+
 ## 12. Next steps (require approval)
 1. Review migration 003 and verification SQL.
 2. Apply migration 003 to Supabase (preflight first).
