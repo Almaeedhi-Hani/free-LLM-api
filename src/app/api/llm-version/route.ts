@@ -22,7 +22,7 @@ export async function GET() {
     "## Editorial information (Arabic)",
     content.goldenParagraph,
     'Keywords: ' + content.keywords.join(', '),
-    ...content.faqs.map((f) => `Q: ${f.q}\nA: ${f.a}`),
+    ...content.faqs.filter(f => !/^STORAGE_TEST_/i.test(f.q)).map((f) => `Q: ${f.q}\nA: ${f.a}`),
     `Last editorial update: ${content.updatedAt}`,
   ].join("\n\n");
   return new NextResponse(text, {
