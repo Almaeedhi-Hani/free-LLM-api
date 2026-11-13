@@ -1,0 +1,82 @@
+name: Isolated OpenCode Skills Integration Test
+on:
+  push:
+    branches:
+      - test/opencode-skills-isolated-20261114
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test-skill-load:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      OPENCODE_DISABLE_AUTOUPDATE: "true"
+      OPENCODE_MODEL: opencode/deepseek-v4.1-flash-free
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Verify isolated mode and skill files
+        run: |
+          test -f AGENTS.md
+          for skill in competitor-intelligence evidence-verification geo-ai-visibility; do
+            test -f ".opencode/skills/$skill/SKILL.md"
+          done
+          echo "Verified 3 skills and AGENTS.md on isolated branch"
+      - name: Install OpenCode
+        run: curl -fsSL https://opencode.ai/v2/install | bash
+      - name: Execute isolated skill invocation and assert evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .opencode-work
+          cat > .opencode-work/prompt.txt <<'EOF'
+          This is a read-only integration test in a sandbox. Do not search the web, modify files, access any secrets, contact any APIs, or run project code.
+          First, use the skill tool to load EACH of these exact skills:
+          competitor-intelligence
+          evidence-verification
+          geo-ai-visibility
+          Then confirm you followed AGENTS.md guidance: claims need verifiable sources and Saudi licensing approvals cannot be guaranteed.
+          Answer with a compact JSON object containing the 3 skill IDs and rules followed; do not invent evidence.
+          EOF
+          set +e
+          (cd .opencode-work && /home/runner/.opencode/bin/opencode run --standalone --archived --format json --model "$OPENCODE_MODEL" --file prompt.txt "Use the attached prompt. Load each named skill with the skill tool and return JSON only.") > .opencode-work/events.jsonl 2> .opencode-work/stderr.txt
+          EXIT_CODE=$?
+          set -e
+          echo "OpenCode process exit code: $EXIT_CODE"
+          if [ "$EXIT_CODE" -ne 0 ]; then
+            echo "OpenCode failed; error prefix:"
+            head -c 800 .opencode-work/stderr.txt
+            exit 1
+          fi
+          node <<'NODE'
+          const fs=require('fs');
+          const lines=fs.readFileSync('.opencode-work/events.jsonl','utf8').split(/\r?\n/).filter(Boolean);
+          const needed=['competitor-intelligence','evidence-verification','geo-ai-visibility'];
+          const invocations=[];
+          let responseText='';
+          const eventTypes={};
+          for(const line of lines){
+            let evt;try{evt=JSON.parse(line);}catch{continue;}
+            eventTypes[evt.type]=(eventTypes[evt.type]||0)+1;
+            const p=evt.part||{};
+            if(evt.type==='text'&&p.text) responseText+=p.text;
+            if(p.type==='tool'||evt.type==='tool'){
+              const tool=String(p.tool||evt.tool||'');
+              if(tool==='skill'){
+                const input=p.state?.input||p.input||{};
+                invocations.push(String(input.name||input.skill||input.skill_name||''));
+              }
+            }
+          }
+          const loaded=needed.filter(id=>invocations.includes(id));
+          const rulesAck=/source|evidence|مصدر|دليل/i.test(responseText)&&/licens|approv|ترخيص|موافقة/i.test(responseText);
+          console.log(JSON.stringify({eventCount:lines.length,eventTypes,requested:needed,skillInvocations:invocations,loaded,rulesAcknowledged:rulesAck,outputPreview:responseText.slice(0,350)},null,2));
+          if(loaded.length!==needed.length){console.error('FAIL: Required skill tool invocations not proven');process.exitCode=1;}
+          if(!rulesAck){console.error('FAIL: AGENTS.md rule acknowledgment not proven');process.exitCode=1;}
+          NODE
+      - name: Test safety summary
+        if: always()
+        run: echo "No production endpoint, database, deployment, write token, or repository write used."
