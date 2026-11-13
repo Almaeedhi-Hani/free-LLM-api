@@ -157,8 +157,12 @@ async function stageDiscovery() {
     await new Promise(r => setTimeout(r, 1500));
   }
 
-  // 2. Try SearXNG public instances (fallback)
-  const searxInstances = ['https://searx.be', 'https://search.sapti.me'];
+  // 2. Try SearXNG public instances (fallback) - use instances with JSON API
+  const searxInstances = [
+    'https://searx.tiekoetter.com',
+    'https://search.bus-hit.me',
+    'https://searx.space',
+  ];
   if (results.length === 0) {
     for (const instance of searxInstances) {
       for (const q of queries.slice(0, 1)) {
@@ -168,7 +172,8 @@ async function stageDiscovery() {
             headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' },
             signal: AbortSignal.timeout(10000),
           });
-          if (res.ok) {
+          const contentType = res.headers.get('content-type') || '';
+          if (res.ok && contentType.includes('application/json')) {
             const data = await res.json();
             for (const r of (data.results || []).slice(0, 10)) {
               results.push({ url: r.url, title: r.title, query: q, source: `searxng:${instance}`, collected_at: new Date().toISOString(), language: q.includes('منصة') ? 'ar' : 'en' });
@@ -366,27 +371,14 @@ async function stageOpportunities() {
         const data = await res.json();
         logStage('OPPORTUNITIES', `Saved via GEO API: ${JSON.stringify(data.saved?.opportunities?.length || 0)} opportunities`);
       } else {
-        logStage('OPPORTUNITIES', `GEO API save failed: ${res.status}`);
+        logStage('OPPORTUNITIES', `GEO API save failed: ${res.status} (will save locally)`);
       }
     } catch (e) {
-      logStage('OPPORTUNITIES', `GEO API save failed: ${e.message}`);
-    }
-  } else if (SUPABASE_URL && SUPABASE_KEY && opps.length > 0) {
-    try {
-      await sbFetch('opportunities', {
-        method: 'POST',
-        body: JSON.stringify(opps.map(o => ({
-          title: o.title,
-          type: o.type,
-          score: o.score,
-          description: o.description,
-          created_at: new Date().toISOString(),
-        }))),
-      });
-    } catch (e) {
-      logStage('OPPORTUNITIES', `Supabase save failed: ${e.message}`);
+      logStage('OPPORTUNITIES', `GEO API save failed: ${e.message} (will save locally)`);
     }
   }
+  // Always save to local artifact for verification
+  stageResults.opportunities = { count: opps.length, items: opps, saved_to_api: false };
   return { records_processed: opps.length, status: 'success' };
 }
 
@@ -406,11 +398,12 @@ async function stageGoals() {
         signal: AbortSignal.timeout(15000),
       });
       if (res.ok) logStage('GOALS', `Saved via GEO API`);
-      else logStage('GOALS', `GEO API save failed: ${res.status}`);
+      else logStage('GOALS', `GEO API save failed: ${res.status} (will save locally)`);
     } catch (e) {
-      logStage('GOALS', `GEO API save failed: ${e.message}`);
+      logStage('GOALS', `GEO API save failed: ${e.message} (will save locally)`);
     }
   }
+  stageResults.goals = { count: goals.length, items: goals, saved_to_api: false };
   return { records_processed: goals.length, status: 'success' };
 }
 
@@ -443,11 +436,12 @@ async function stageDrafts() {
         signal: AbortSignal.timeout(15000),
       });
       if (res.ok) logStage('DRAFTS', `Saved via GEO API`);
-      else logStage('DRAFTS', `GEO API save failed: ${res.status}`);
+      else logStage('DRAFTS', `GEO API save failed: ${res.status} (will save locally)`);
     } catch (e) {
-      logStage('DRAFTS', `GEO API save failed: ${e.message}`);
+      logStage('DRAFTS', `GEO API save failed: ${e.message} (will save locally)`);
     }
   }
+  stageResults.drafts = { count: drafts.length, items: drafts, saved_to_api: false };
   return { records_processed: drafts.length, status: 'success' };
 }
 
