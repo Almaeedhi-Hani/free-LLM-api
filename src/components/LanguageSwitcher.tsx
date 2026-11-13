@@ -1,13 +1,19 @@
-import React from 'react';
-
-export const LanguageSwitcher = () => {
+"use client";
+import { usePathname } from "next/navigation";
+export function LanguageSwitcher({ locale = "ar" }: { locale?: string }) {
+  const pathname = usePathname();
   return (
-    <div className="flex items-center space-x-2 text-sm font-medium text-slate-600">
-      <button className="hover:text-gold-600">AR</button>
-      <span className="text-slate-300">|</span>
-      <button className="hover:text-gold-600">EN</button>
-      <span className="text-slate-300">|</span>
-      <button className="hover:text-gold-600">ZH</button>
+    <div className="language-switch" aria-label="Language">
+      {["ar", "en", "zh"].map((lang) => (
+        <a
+          key={lang}
+          lang={lang}
+          aria-current={locale === lang ? "true" : undefined}
+          href={`/api/language?lang=${lang}&returnTo=${encodeURIComponent(pathname)}`}
+        >
+          {lang === "zh" ? "中文" : lang.toUpperCase()}
+        </a>
+      ))}
     </div>
   );
-};
+}
