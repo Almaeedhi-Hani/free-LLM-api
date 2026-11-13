@@ -43,11 +43,13 @@ function validateDraft(d: any): boolean {
 
 function isArabicTextValid(text: string): boolean {
   if (!text || typeof text !== 'string') return false;
-  // Check for common mojibake patterns
-  if (text.includes('�') || /[�]/u.test(text)) return false;
-  // Check for valid Arabic or Latin characters
-  return /^[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\w\s\d\-.,;:()!?/\\"'<>]+$/u.test(text) ||
-         /^[\x20-\x7E\s]+$/.test(text); // Allow pure ASCII
+  // Check for common mojibake patterns (replacement character)
+  if (text.includes('\uFFFD') || /\uFFFD/.test(text)) return false;
+  // Check for valid Arabic or Latin characters (using es2018+ unicode property escapes not available)
+  // Fallback: allow Arabic ranges + ASCII printable + common punctuation
+  const arabicAndAsciiRegex = /^[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFFa-zA-Z0-9\s\-.,;:()!?/\\"'<>]+$/;
+  const asciiOnlyRegex = /^[\x20-\x7E\s]+$/;
+  return arabicAndAsciiRegex.test(text) || asciiOnlyRegex.test(text);
 }
 
 export async function POST(req: NextRequest) {
