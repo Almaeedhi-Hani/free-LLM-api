@@ -239,15 +239,36 @@ async function stageEvidence() {
     }
     logStage('EVIDENCE', `Using ${evidenceItems.length} discovery results as evidence`);
   }
-  // Try Supabase
-  if (SUPABASE_URL && SUPABASE_KEY) {
+  // Try GEO API (limited-scope, server-side) first
+  const GEO_API_URL = process.env.GEO_API_URL || process.env.SITE_URL;
+  const GEO_API_KEY = process.env.GEO_API_KEY;
+  if (GEO_API_URL && GEO_API_KEY) {
+    try {
+      const res = await fetch(`${GEO_API_URL}/api/geo/data`, {
+        headers: { 'x-geo-api-key': GEO_API_KEY },
+        signal: AbortSignal.timeout(15000),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.competitors) evidenceItems.push(...data.competitors.map((c, i) => ({ id: `comp_${c.id || i}`, type: 'competitor', source: 'supabase', name: c.name || c.domain, domain: c.domain, language: c.language || 'ar' })));
+        if (data.observations) evidenceItems.push(...data.observations.map((o, i) => ({ id: `obs_${o.id || i}`, type: 'observation', source: 'supabase', name: o.title || o.content?.substring(0, 50), language: o.language || 'ar' })));
+        if (data.keywords) evidenceItems.push(...data.keywords.map((k, i) => ({ id: `kw_${k.id || i}`, type: 'keyword', source: 'supabase', name: k.keyword || k.term, language: k.language || 'ar' })));
+        logStage('EVIDENCE', `Loaded from GEO API: ${data.counts?.competitors || 0} comps, ${data.counts?.observations || 0} obs, ${data.counts?.keywords || 0} kws`);
+      }
+    } catch (e) {
+      logStage('EVIDENCE', `GEO API fetch failed: ${e.message}`);
+    }
+  }
+
+  // Try direct Supabase (if service key available, local dev only)
+  if (SUPABASE_URL && SUPABASE_KEY && evidenceItems.length === 0) {
     try {
       const comps = await sbFetch('competitors?select=*');
-      if (comps) evidenceItems.push(...comps.map((c, i) => ({ id: `comp_${c.id || i}`, type: 'competitor', source: 'supabase', ...c })));
+      if (comps) evidenceItems.push(...comps.map((c, i) => ({ id: `comp_${c.id || i}`, type: 'competitor', source: 'supabase', name: c.name || c.domain, domain: c.domain, language: c.language || 'ar' })));
       const obs = await sbFetch('competitor_observations?select=*');
-      if (obs) evidenceItems.push(...obs.map((o, i) => ({ id: `obs_${o.id || i}`, type: 'observation', source: 'supabase', ...o })));
+      if (obs) evidenceItems.push(...obs.map((o, i) => ({ id: `obs_${o.id || i}`, type: 'observation', source: 'supabase', name: o.title || o.content?.substring(0, 50), language: o.language || 'ar' })));
       const kws = await sbFetch('keywords?select=*');
-      if (kws) evidenceItems.push(...kws.map((k, i) => ({ id: `kw_${k.id || i}`, type: 'keyword', source: 'supabase', ...k })));
+      if (kws) evidenceItems.push(...kws.map((k, i) => ({ id: `kw_${k.id || i}`, type: 'keyword', source: 'supabase', name: k.keyword || k.term, language: k.language || 'ar' })));
     } catch (e) {
       logStage('EVIDENCE', `Supabase fetch failed: ${e.message}`);
     }
@@ -330,8 +351,27 @@ async function stageOpportunities() {
   const opps = stageResults.geo_analysis?.opportunities || [];
   logStage('OPPORTUNITIES', `Saving ${opps.length} opportunities`);
   stageResults.opportunities = { count: opps.length, items: opps };
-  // Save to Supabase if configured
-  if (SUPABASE_URL && SUPABASE_KEY && opps.length > 0) {
+  // Save via GEO API (limited-scope) if configured
+  const GEO_API_URL2 = process.env.GEO_API_URL || process.env.SITE_URL;
+  const GEO_API_KEY2 = process.env.GEO_API_KEY;
+  if (GEO_API_URL2 && GEO_API_KEY2 && opps.length > 0) {
+    try {
+      const res = await fetch(`${GEO_API_URL2}/api/geo/results`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-geo-api-key': GEO_API_KEY2 },
+        body: JSON.stringify({ opportunities: opps, goals: [], drafts: [] }),
+        signal: AbortSignal.timeout(15000),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        logStage('OPPORTUNITIES', `Saved via GEO API: ${JSON.stringify(data.saved?.opportunities?.length || 0)} opportunities`);
+      } else {
+        logStage('OPPORTUNITIES', `GEO API save failed: ${res.status}`);
+      }
+    } catch (e) {
+      logStage('OPPORTUNITIES', `GEO API save failed: ${e.message}`);
+    }
+  } else if (SUPABASE_URL && SUPABASE_KEY && opps.length > 0) {
     try {
       await sbFetch('opportunities', {
         method: 'POST',
@@ -355,18 +395,20 @@ async function stageGoals() {
   const goals = stageResults.geo_analysis?.goals || [];
   logStage('GOALS', `Saving ${goals.length} goals`);
   stageResults.goals = { count: goals.length, items: goals };
-  if (SUPABASE_URL && SUPABASE_KEY && goals.length > 0) {
+  const GEO_API_URL3 = process.env.GEO_API_URL || process.env.SITE_URL;
+  const GEO_API_KEY3 = process.env.GEO_API_KEY;
+  if (GEO_API_URL3 && GEO_API_KEY3 && goals.length > 0) {
     try {
-      await sbFetch('agent_goals', {
+      const res = await fetch(`${GEO_API_URL3}/api/geo/results`, {
         method: 'POST',
-        body: JSON.stringify(goals.map(g => ({
-          title: g.title,
-          priority: g.priority,
-          created_at: new Date().toISOString(),
-        }))),
+        headers: { 'Content-Type': 'application/json', 'x-geo-api-key': GEO_API_KEY3 },
+        body: JSON.stringify({ opportunities: [], goals: goals, drafts: [] }),
+        signal: AbortSignal.timeout(15000),
       });
+      if (res.ok) logStage('GOALS', `Saved via GEO API`);
+      else logStage('GOALS', `GEO API save failed: ${res.status}`);
     } catch (e) {
-      logStage('GOALS', `Supabase save failed: ${e.message}`);
+      logStage('GOALS', `GEO API save failed: ${e.message}`);
     }
   }
   return { records_processed: goals.length, status: 'success' };
@@ -390,20 +432,20 @@ async function stageDrafts() {
   }
   logStage('DRAFTS', `Saving ${drafts.length} drafts (${drafts.filter(d => d.risk_level === 'high').length} high risk)`);
   stageResults.drafts = { count: drafts.length, items: drafts };
-  if (SUPABASE_URL && SUPABASE_KEY && drafts.length > 0) {
+  const GEO_API_URL4 = process.env.GEO_API_URL || process.env.SITE_URL;
+  const GEO_API_KEY4 = process.env.GEO_API_KEY;
+  if (GEO_API_URL4 && GEO_API_KEY4 && drafts.length > 0) {
     try {
-      await sbFetch('content_drafts', {
+      const res = await fetch(`${GEO_API_URL4}/api/geo/results`, {
         method: 'POST',
-        body: JSON.stringify(drafts.map(d => ({
-          question: d.q,
-          answer: d.a,
-          risk_level: d.risk_level,
-          status: 'pending_review',
-          created_at: new Date().toISOString(),
-        }))),
+        headers: { 'Content-Type': 'application/json', 'x-geo-api-key': GEO_API_KEY4 },
+        body: JSON.stringify({ opportunities: [], goals: [], drafts: drafts }),
+        signal: AbortSignal.timeout(15000),
       });
+      if (res.ok) logStage('DRAFTS', `Saved via GEO API`);
+      else logStage('DRAFTS', `GEO API save failed: ${res.status}`);
     } catch (e) {
-      logStage('DRAFTS', `Supabase save failed: ${e.message}`);
+      logStage('DRAFTS', `GEO API save failed: ${e.message}`);
     }
   }
   return { records_processed: drafts.length, status: 'success' };

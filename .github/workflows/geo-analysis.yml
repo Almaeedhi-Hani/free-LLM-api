@@ -30,8 +30,8 @@ jobs:
 
       - name: Run GEO Analysis
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GEO_API_URL: ${{ secrets.GEO_API_URL }}
+          GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
           OPENCODE_MODEL: opencode/deepseek-v4.1-flash-free
           OPENCODE_BIN: /home/runner/.opencode/bin/opencode
         run: |
