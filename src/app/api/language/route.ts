@@ -8,9 +8,13 @@ export function GET(req: NextRequest) {
       : "/";
   // Keep redirects relative so the cookie remains on the original host,
   // including reverse proxies and localhost previews.
+  const localized =
+    lang === "en" || lang === "zh"
+      ? `/${lang}${safePath === "/" ? "" : safePath}`
+      : safePath;
   const response = new NextResponse(null, {
     status: 303,
-    headers: { Location: safePath },
+    headers: { Location: localized },
   });
   response.cookies.set(
     "site-language",
