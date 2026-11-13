@@ -63,11 +63,14 @@ jobs:
             eventTypes[evt.type]=(eventTypes[evt.type]||0)+1;
             const p=evt.part||{};
             if(evt.type==='text'&&p.text) responseText+=p.text;
-            if(p.type==='tool'||evt.type==='tool'){
-              const tool=String(p.tool||evt.tool||'');
+            if(p.type==='tool'||evt.type==='tool'||evt.type==='tool_use'){
+              const tool=String(p.tool||evt.tool||p.name||'');
               if(tool==='skill'){
-                const input=p.state?.input||p.input||{};
-                invocations.push(String(input.name||input.skill||input.skill_name||''));
+                const input=p.state?.input||p.input||evt.input||{};
+                const serialized=JSON.stringify(input);
+                const matched=needed.filter(id=>serialized.includes(id));
+                invocations.push(...matched);
+                console.log(JSON.stringify({tool:'skill',inputShape:Object.keys(input),matched,toolState:p.state?.status||null}));
               }
             }
           }
