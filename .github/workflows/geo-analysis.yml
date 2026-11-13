@@ -1,0 +1,48 @@
+name: GEO Intelligence Analysis
+
+on:
+  schedule:
+    - cron: '0 2 * * 0'  # Sunday 02:00 UTC = 05:00 Saudi
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: geo-analysis
+  cancel-in-progress: false
+
+jobs:
+  geo-analysis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install OpenCode
+        run: |
+          curl -fsSL https://opencode.ai/v2/install | bash
+
+      - name: Run GEO Analysis
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OPENCODE_MODEL: opencode/deepseek-v4.1-flash-free
+          OPENCODE_BIN: /home/runner/.opencode/bin/opencode
+        run: |
+          node scripts/opencode-geo-analysis.js --full-pipeline
+
+      - name: Upload Sanitized Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: geo-analysis-report
+          path: market-intel/geo-persisted-results.json
+          retention-days: 30
