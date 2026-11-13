@@ -37,12 +37,18 @@ function runOpenCode(prompt, model) {
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
+      // Sanitized env: exclude secrets from OpenCode process
+      const safeEnv = { ...process.env };
+      delete safeEnv.SUPABASE_SERVICE_ROLE_KEY;
+      delete safeEnv.SUPABASE_URL;
+      delete safeEnv.ADMIN_TOKEN;
+      delete safeEnv.CRON_SECRET;
       const output = execSync(cmd, {
         timeout: 180000,
         encoding: 'utf-8',
         maxBuffer: 20 * 1024 * 1024,
         cwd: workDir,
-        env: { ...process.env },
+        env: safeEnv,
       });
       // Parse JSON events
       const lines = output.trim().split('\n');
