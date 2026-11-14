@@ -12,8 +12,9 @@ const OC_BIN = process.env.OPENCODE_BIN ||
   (process.platform === 'win32'
     ? 'C:\\Users\\hp\\AppData\\Local\\Programs\\ai.opencode.desktop\\resources\\opencode-cli.exe'
     : (process.env.HOME + '/.opencode/bin/opencode'));
-const MODEL = process.env.OPENCODE_MODEL || 'opencode/deepseek-v4.1-flash-free';
+const MODEL = process.env.OPENCODE_MODEL || 'opencode/beam-free';
 const FALLBACK_MODELS = [
+  'opencode/beam-free',
   'opencode/deepseek-v4.1-flash-free',
   'opencode/flint-40b-free',
   'opencode/glm-5.3-flash-free',
