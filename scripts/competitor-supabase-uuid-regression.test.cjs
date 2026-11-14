@@ -6,7 +6,7 @@ process.env.NODE_ENV='test';
 const seen=[];let competitor=null;
 global.fetch=async(url,opts={})=>{
  const u=new URL(url);seen.push({method:opts.method||'GET',path:u.pathname,search:u.search});
- if(u.searchParams.has('id') && !/^[0-9a-f]{8}-/.test(u.searchParams.get('id')||'')){
+ if(u.searchParams.has('id') && !/^[0-9a-f]{8}-/.test((u.searchParams.get('id')||'').replace(/^eq\\./,''))){
   return{ok:false,status:400,text:async()=>JSON.stringify({code:'22P02',message:'invalid uuid'})};
  }
  if(opts.method==='POST'&&u.pathname.endsWith('/competitors')){
