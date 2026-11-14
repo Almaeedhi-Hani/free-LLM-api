@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { CookieConsent } from "@/components/CookieConsent";
 import { getContent } from "@/lib/content-store";
 import { getLocale, localizedPath } from "@/lib/site-language";
 import { copy, services } from "@/lib/service-catalog";
@@ -22,6 +23,7 @@ export default async function RootLayout({
   const t = copy[lang];
   const content = await getContent();
   const { contact } = content;
+  const verification = content.searchIntegrations?.googleVerification || "9DD9bimLxrjoQrAMYZB4Icwz_0lnfnb2idwXBqqBK4w";
   const serviceList = services;
   return (
     <html
@@ -29,6 +31,7 @@ export default async function RootLayout({
       dir={lang === "ar" ? "rtl" : "ltr"}
     >
       <head>
+        {verification && <meta name="google-site-verification" content={verification} />}
         <link
           rel="alternate"
           type="text/plain"
@@ -110,6 +113,7 @@ export default async function RootLayout({
             <span>{t.foot}</span>
           </div>
         </footer>
+        <CookieConsent locale={lang} policy={content.cookiePolicy} />
       </body>
     </html>
   );

@@ -1,0 +1,35 @@
+name: Review branch build and cookie checks
+on:
+  push:
+    branches: [feature/seo-ai-visibility-review]
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: TypeScript check
+        run: npx tsc --noEmit
+      - name: Production build
+        run: npm run build
+      - name: Cookie and locale source checks
+        run: |
+          node - <<'NODE'
+          const fs=require('fs'),assert=require('assert');
+          const ui=fs.readFileSync('src/components/CookieConsent.tsx','utf8');
+          const admin=fs.readFileSync('src/components/CookiePolicyAdmin.tsx','utf8');
+          const middleware=fs.readFileSync('src/middleware.ts','utf8');
+          const layout=fs.readFileSync('src/app/layout.tsx','utf8');
+          for(const lang of ['ar','en','zh']) assert(ui.includes(lang+':{'),'Missing locale '+lang);
+          for(const key of ['analyticsAvailable','marketingAvailable','consentDays']) assert(ui.includes(key)&&admin.includes(key));
+          assert(ui.includes('writeConsent(')&&ui.includes('readConsent('));
+          assert(layout.includes('<CookieConsent locale={lang} policy={content.cookiePolicy} />'));
+          assert(middleware.includes('accept-language')&&middleware.includes('site-language'));
+          console.log('Static cookie and language wiring checks passed (not browser E2E).');
+          NODE
