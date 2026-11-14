@@ -276,7 +276,7 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-slate-50" dir="rtl">
       <div className="flex">
-        <aside className={`fixed inset-y-0 right-0 z-40 w-64 bg-navy-950 text-white transform transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'} lg:translate-x-0 lg:static`}>
+        <aside className={`fixed inset-y-0 right-0 z-40 w-64 h-screen flex flex-col bg-navy-950 text-white transform transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'} lg:translate-x-0 lg:static`}>
           <div className="p-5 border-b border-navy-800">
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-gold-500 shadow-gold-glow" />
@@ -284,7 +284,7 @@ export default function AdminDashboard() {
             </div>
             <p className="text-xs text-slate-400 mt-1">GEO Intelligence</p>
           </div>
-          <nav className="p-3 space-y-1">
+          <nav className="flex-1 overflow-y-auto p-3 space-y-1" aria-label="أقسام لوحة التحكم">
             {TABS.map((t) => (
               <button
                 key={t.key}
@@ -296,7 +296,7 @@ export default function AdminDashboard() {
               </button>
             ))}
           </nav>
-          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-navy-800">
+          <div className="shrink-0 p-4 border-t border-navy-800">
             <button onClick={logout} className="w-full text-sm text-slate-300 hover:text-white">تسجيل الخروج</button>
           </div>
         </aside>
@@ -373,6 +373,7 @@ export default function AdminDashboard() {
                   <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="البريد الإلكتروني" value={contactForm.email} onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })} />
                 </div>
                 <button onClick={saveContact} className="btn-primary mt-4" disabled={saving}>حفظ التواصل</button>
+                <p className="text-xs text-slate-500 mt-2">أدخل رابط WhatsApp كاملاً بصيغة https://wa.me/966... حتى يعمل زر التواصل في الموقع.</p>
               </section>
             )}
 
@@ -483,7 +484,8 @@ export default function AdminDashboard() {
                 <h2 className="text-xl font-bold mb-4">الإعدادات</h2>
                 <p className="text-slate-600 text-sm mb-2">الفقرة الذهبية (للقراءة هنا؛ يحدّثها الوكيل):</p>
                 <p className="text-slate-700 bg-slate-50 rounded-lg p-4">{content.goldenParagraph}</p>
-                <p className="text-xs text-slate-400 mt-4">آخر تحديث: {content.updatedAt}</p>
+                <p className="text-xs text-slate-500 mt-4">آخر تحديث: {content.updatedAt ? new Date(content.updatedAt).toLocaleString('ar-SA') : '—'}</p>
+                <div className="mt-6 border-t border-slate-200 pt-4"><h3 className="font-bold mb-3">إدارة النظام</h3><p className="text-sm text-slate-600 mb-3">تُحدّث إعدادات مفاتيح API من Render، وتُدار جدولة الوكيل من GitHub Actions. لا تُعرض القيم السرية في اللوحة.</p><div className="flex flex-wrap gap-2"><button className="btn-secondary text-xs" onClick={()=>setTab('agent')}>مصادر البحث والوكيل</button><button className="btn-secondary text-xs" onClick={()=>setTab('contact')}>معلومات التواصل</button><button className="btn-secondary text-xs" onClick={()=>setTab('reviews')}>مسودات الموافقة</button><button className="btn-secondary text-xs" disabled={marketLoading||saving} onClick={refreshAll}>تحديث جميع البيانات</button></div></div>
               </section>
             )}
 
