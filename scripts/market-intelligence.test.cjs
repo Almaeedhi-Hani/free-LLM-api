@@ -225,7 +225,7 @@ async function atest(name, fn) {
     const runs = await mi.listRuns();
     assert.ok(runs.length >= 1);
     const found = runs.find((r) => r.id === run.id);
-    assert.strictEqual(found.status, discovery.success ? 'success' : 'partial');
+    assert.strictEqual(found.status, 'success');
     assert.deepStrictEqual(found.summary, { ok: true });
   });
 
