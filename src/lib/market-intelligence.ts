@@ -1315,13 +1315,17 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
     }
   }
 
-  // 2) Competitor discovery via search sources (key-gated)
+  // 2) Search-provider discovery: hard per-run budget, graceful fallback on provider blocks.
+  let attempts = 0;
+  const maxSearchAttempts = 6;
   for (const source of sources) {
     if (!source.collectResults) continue;
     if (source.requiresKey && !(process.env[source.requiresKey] || '').trim()) continue;
     for (const lang of ['ar', 'en', 'zh'] as Language[]) {
       const seedList = seeds[lang] || [];
-      for (const seed of seedList.slice(0, 3)) {
+      for (const seed of seedList.slice(0, 1)) {
+        if (attempts >= maxSearchAttempts) break;
+        attempts++;
         const diag = { source_id: source.id, language: lang, http_status: 0, duration_ms: 0, response_received: false, results_parsed: 0, results_accepted: 0, blocked_detected: false, failure_reason: '' };
         try {
           const results = await source.collectResults!(seed, lang, maxComp);
@@ -1371,7 +1375,6 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
     }
   }
 
-  summary.search_diagnostics = searchDiagnostics;
   summary.search_diagnostics = searchDiagnostics;
   summary.unique_domains = discoveredDomains.size;
   summary.success = summary.competitors_discovered > 0;
