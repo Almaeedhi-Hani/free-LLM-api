@@ -10,7 +10,7 @@
   body:JSON.stringify({
    objective:'Find companies offering Saudi Arabian foreign investor company formation or MISA investment license advisory services, with official company website links.',
    search_queries:['Saudi company formation foreign investors','MISA license business setup services'],
-   mode:'basic',
+   mode:'turbo',
    advanced_settings:{max_results:5,excerpt_settings:{max_chars_per_result:350}}
   }),
   signal:AbortSignal.timeout(18000)
