@@ -2,7 +2,7 @@
 // Bounded, read-only search capability probe; NO production writes, secrets, or publishing.
 const fs=require('node:fs'),cp=require('node:child_process'),path=require('node:path');
 const dir=path.resolve('.search-probe');fs.mkdirSync(dir,{recursive:true});
-const report={checked_at:new Date().toISOString(),model:'opencode/beam-free',status:'unverified',
+const report={checked_at:new Date().toISOString(),model:'opencode/beam-free',provider:'exa',status:'unverified',
  tool_used:false,websearch_completed:false,source_links:[],error:null};
 const input=[
 'Read-only diagnostic run. You MUST use the websearch tool exactly once to search:',
@@ -12,16 +12,23 @@ const input=[
 'Return a short JSON answer including source URLs, if search succeeded.'
 ].join('\n');
 fs.writeFileSync(path.join(dir,'websearch-prompt.txt'),input);
+fs.writeFileSync(path.join(dir,'opencode.jsonc'),JSON.stringify({
+ $schema:'https://opencode.ai/config.json',
+ websearch:{provider:'exa'},
+ permissions:[{action:'websearch',resource:'*',effect:'allow'}]
+},null,2));
 const bin=process.env.OPENCODE_BIN||'/home/runner/.opencode/bin/opencode';
 try{
- const filteredEnv=Object.fromEntries(Object.entries(process.env).filter(([k])=>!/(KEY|SECRET|TOKEN|PASSWORD|SERVICE_ROLE)/i.test(k)));
+ const filteredEnv={...process.env};
+ for(const secret of ['SUPABASE_SERVICE_ROLE_KEY','GEO_API_KEY','ADMIN_SECRET','CRON_SECRET','REVALIDATION_SECRET'])delete filteredEnv[secret];
+ filteredEnv.CI='true';
  const output=cp.execFileSync(bin,['run','--standalone','--archived','--format','json','--model','opencode/beam-free','--file','websearch-prompt.txt','Use the attached instructions.'],{
-  cwd:dir,env:filteredEnv,encoding:'utf8',timeout:85000,maxBuffer:5*1024*1024
+  cwd:dir,env:filteredEnv,encoding:'utf8',timeout:85000,maxBuffer:5*1024*1024,stdio:['ignore','pipe','pipe']
  });
  for(const line of output.split(/\r?\n/)){
   let e;try{e=JSON.parse(line)}catch{continue}
   const p=e.part||{};
-  if((e.type==='tool_use'||e.type==='tool')&&String(p.tool||e.tool)==='websearch'){
+  if((e.type==='tool_use'||e.type==='tool'||p.type==='tool')&&String(p.tool||e.tool)==='websearch'){
    report.tool_used=true;
    if(p.state?.status==='completed'){
     report.websearch_completed=true;
@@ -35,7 +42,9 @@ try{
   report.tool_used?'tool_called_without_confirmed_results':'provider_unavailable_or_tool_not_called';
 }catch(e){
  report.status='model_or_provider_error';
- report.error=(e?.name||'Error')+': '+String(e?.message||'').slice(0,180);
+ const stderr=String(e?.stderr||'').replace(/(sk-[A-Za-z0-9_-]{10,}|Bearer\\s+[^\\s]+)/g,'[REDACTED]');
+ report.error=(e?.name||'Error')+': '+String(e?.message||'').slice(0,140);
+ report.stderr_excerpt=stderr.slice(-1200);
 }
 fs.writeFileSync(path.join(dir,'opencode-websearch-report.json'),JSON.stringify(report,null,2));
 console.log('OPENCODE_SEARCH_DIAGNOSTIC',JSON.stringify(report));
