@@ -177,6 +177,15 @@ export default function AdminDashboard() {
   const fetchGoals = async () => { try { const d = await marketFetch('/api/admin/market/goals'); setGoals(d.goals || []); } catch (e: any) { setError(e.message); } };
   const fetchRuns = async () => { try { const d = await marketFetch('/api/admin/market/runs'); setRuns(d.runs || []); } catch (e: any) { setError(e.message); } };
   const fetchMarketSources=async()=>{try{const d=await marketFetch('/api/admin/market/discovery');setMarketSources(d.sources||[]);}catch(e:any){setError(e.message);}};
+  // Mutation flows must not report success if the subsequent read fails.
+  const refreshMarketCollection = async (collection: 'competitors'|'keywords'|'opportunities'|'goals'|'runs') => {
+    const data = await marketFetch('/api/admin/market/' + collection);
+    if (collection === 'competitors') setCompetitors(data.competitors || []);
+    else if (collection === 'keywords') setKeywords(data.keywords || []);
+    else if (collection === 'opportunities') setOpportunities(data.opportunities || []);
+    else if (collection === 'goals') setGoals(data.goals || []);
+    else setRuns(data.runs || []);
+  };
   const refreshMarket=async()=>{
     setMarketLoading(true);setError('');
     try{const [a,b,c,d,e]=await Promise.all(['competitors','keywords','opportunities','goals','runs'].map(v=>marketFetch('/api/admin/market/'+v)));
@@ -600,7 +609,7 @@ export default function AdminDashboard() {
                       try {
                         await marketFetch('/api/admin/market/competitors', { method: 'POST', body: JSON.stringify({ name: newCompetitor.name, domain: newCompetitor.domain, languages: newCompetitor.languages.split(',').map((s) => s.trim()).filter(Boolean), source: newCompetitor.source }) });
                         setNewCompetitor({ name: '', domain: '', languages: 'ar,en', source: 'manual' });
-                        await fetchCompetitors();setNotice('اكتمل تحديث المنافسين');
+                        await refreshMarketCollection('competitors');setNotice('اكتمل تحديث المنافسين');
                       } catch (e: any) { setError(e.message); }
                       finally { setSaving(false); }
                     }}>إضافة</button>
@@ -618,7 +627,7 @@ export default function AdminDashboard() {
                         setSaving(true);setError('');
                         try {
                           await marketFetch('/api/admin/market/competitors',{method:'PATCH',body:JSON.stringify({id:editingCompetitor.id,name:editingCompetitor.name.trim(),domain:editingCompetitor.domain.trim(),languages:editingCompetitor.languages.split(',').map(v=>v.trim()).filter(Boolean)})});
-                          setEditingCompetitor(null);await fetchCompetitors();setNotice('تم حفظ بيانات المنافس.');
+                          setEditingCompetitor(null);await refreshMarketCollection('competitors');setNotice('تم حفظ بيانات المنافس.');
                         } catch(err:any){setError(err.message||'فشل تعديل المنافس.');} finally{setSaving(false);}
                       }}>حفظ التعديل</button>
                       <button className="btn-secondary text-xs" disabled={saving} onClick={()=>setEditingCompetitor(null)}>إلغاء</button>
@@ -631,7 +640,7 @@ export default function AdminDashboard() {
                       try {
                         const d = await marketFetch('/api/admin/market/discovery', { method: 'POST', body: JSON.stringify({ max_competitors: 10 }) });
                         setNotice('اكتمل الاكتشاف: ' + (d.summary?.competitors_discovered ?? 0) + ' منافسين، ' + (d.summary?.keywords_upserted ?? 0) + ' كلمات، ' + (d.summary?.errors?.length ?? 0) + ' أخطاء.');
-                        await fetchCompetitors();
+                        await refreshMarketCollection('competitors');
                       } catch (e: any) { setError(e.message); }
                       finally { setSaving(false); }
                     }}>تشغيل اكتشاف المنافسين</button>
@@ -650,7 +659,7 @@ export default function AdminDashboard() {
                             <td className="text-xs text-slate-400">{c.last_seen_at ? new Date(c.last_seen_at).toLocaleDateString('ar-SA') : '—'}</td>
                             <td><div className="flex flex-wrap gap-2 items-center"><button className="text-blue-700 text-xs underline" disabled={saving} onClick={()=>setEditingCompetitor({id:c.id,name:c.name,domain:c.domain,languages:(c.languages||[]).join(',')})}>تعديل البيانات</button><select aria-label={'حالة '+c.name} className="border border-slate-300 rounded px-2 py-1 text-xs" disabled={saving} value={c.status} onChange={async(e)=>{
                               const status=e.target.value;if(status==='disqualified'&&!window.confirm('هل تريد استبعاد هذا المنافس؟'))return;
-                              setSaving(true);setError('');try{await marketFetch('/api/admin/market/competitors',{method:'PATCH',body:JSON.stringify({id:c.id,status})});await fetchCompetitors();setNotice('تم تحديث حالة المنافس');}
+                              setSaving(true);setError('');try{await marketFetch('/api/admin/market/competitors',{method:'PATCH',body:JSON.stringify({id:c.id,status})});await refreshMarketCollection('competitors');setNotice('تم تحديث حالة المنافس');}
                               catch(err:any){setError(err.message);}finally{setSaving(false);}
                             }}><option value="active">نشط</option><option value="inactive">غير نشط</option><option value="disqualified">مستبعد</option></select></div></td>
                           </tr>
@@ -682,7 +691,7 @@ export default function AdminDashboard() {
                         const lang=keywordLanguage;
                         await marketFetch('/api/admin/market/keywords', { method: 'POST', body: JSON.stringify({ term: newMarketKeyword.trim(), language: lang, source: 'manual' }) });
                         setNewMarketKeyword('');setNotice('أُضيفت الكلمة المفتاحية');
-                        await fetchKeywords();
+                        await refreshMarketCollection('keywords');
                       } catch (e: any) { setError(e.message); }
                       finally { setSaving(false); }
                     }}>إضافة</button>
@@ -700,7 +709,7 @@ export default function AdminDashboard() {
                       <button className="btn-primary text-xs" disabled={saving} onClick={async()=>{
                         if(!editingMarketKeyword.term.trim()){setError('مصطلح البحث مطلوب.');return;}
                         setSaving(true);setError('');
-                        try{await marketFetch('/api/admin/market/keywords',{method:'PATCH',body:JSON.stringify(editingMarketKeyword)});setEditingMarketKeyword(null);await fetchKeywords();setNotice('تم حفظ تعديل كلمة البحث.');}
+                        try{await marketFetch('/api/admin/market/keywords',{method:'PATCH',body:JSON.stringify(editingMarketKeyword)});setEditingMarketKeyword(null);await refreshMarketCollection('keywords');setNotice('تم حفظ تعديل كلمة البحث.');}
                         catch(e:any){setError(e.message||'فشل تعديل الكلمة.');}finally{setSaving(false);}
                       }}>حفظ التعديل</button>
                       <button className="btn-secondary text-xs" onClick={()=>setEditingMarketKeyword(null)} disabled={saving}>إلغاء</button>
@@ -721,7 +730,7 @@ export default function AdminDashboard() {
                               <button className="text-blue-700 text-xs underline disabled:opacity-50" disabled={saving} onClick={()=>setEditingMarketKeyword({id:k.id,term:k.term,language:k.language,intent:k.intent,cluster:k.cluster||''})}>تعديل</button>
                               <button className="text-red-700 text-xs hover:underline disabled:opacity-50" disabled={saving} onClick={async()=>{
                               if(!window.confirm('حذف الكلمة المفتاحية: '+k.term+'؟'))return;
-                              setSaving(true);setError('');try{await marketFetch('/api/admin/market/keywords',{method:'DELETE',body:JSON.stringify({id:k.id})});await fetchKeywords();setNotice('حُذفت الكلمة المفتاحية');}
+                              setSaving(true);setError('');try{await marketFetch('/api/admin/market/keywords',{method:'DELETE',body:JSON.stringify({id:k.id})});await refreshMarketCollection('keywords');setNotice('حُذفت الكلمة المفتاحية');}
                               catch(err:any){setError(err.message);}finally{setSaving(false);}
                             }}>حذف</button></div></td>
                           </tr>
@@ -743,14 +752,14 @@ export default function AdminDashboard() {
                       <button className="btn-primary text-xs" disabled={saving} onClick={async () => {
                         if(!window.confirm('بدء تحليل السوق وحفظ النتائج؟'))return;
                         setSaving(true);
-                         setError('');try { await marketFetch('/api/admin/market/analyze', { method: 'POST', body: JSON.stringify({ triggered_by: 'admin' }) }); await fetchOpportunities(); await fetchGoals(); await fetchRuns();setNotice('اكتمل تحليل السوق'); }
+                         setError('');try { await marketFetch('/api/admin/market/analyze', { method: 'POST', body: JSON.stringify({ triggered_by: 'admin' }) }); await refreshMarketCollection('opportunities'); await refreshMarketCollection('goals'); await refreshMarketCollection('runs');setNotice('اكتمل تحليل السوق'); }
                         catch (e: any) { setError(e.message); }
                         finally { setSaving(false); }
                       }}>تشغيل التحليل</button>
                       <button className="btn-secondary text-xs" disabled={saving} onClick={async () => {
                         if(!window.confirm('تشغيل الرادار وجمع بيانات بحث خارجية وحفظها؟'))return;
                         setSaving(true);
-                         setError('');try { await marketFetch('/api/admin/market/radar', { method: 'POST', body: JSON.stringify({ triggered_by: 'admin' }) }); await fetchOpportunities(); await fetchGoals(); await fetchKeywords(); await fetchCompetitors(); await fetchRuns();setNotice('اكتمل تشغيل الرادار'); }
+                         setError('');try { await marketFetch('/api/admin/market/radar', { method: 'POST', body: JSON.stringify({ triggered_by: 'admin' }) }); await refreshMarketCollection('opportunities'); await refreshMarketCollection('goals'); await refreshMarketCollection('keywords'); await refreshMarketCollection('competitors'); await refreshMarketCollection('runs');setNotice('اكتمل تشغيل الرادار'); }
                         catch (e: any) { setError(e.message); }
                         finally { setSaving(false); }
                       }}>تشغيل الرادار</button>
@@ -767,7 +776,7 @@ export default function AdminDashboard() {
                     <div className="flex gap-2 mt-3"><button className="btn-primary text-xs" disabled={saving} onClick={async()=>{
                       if(!editingOpportunity.title.trim()){setError('عنوان الفرصة مطلوب.');return;}
                       setSaving(true);setError('');
-                      try{await marketFetch('/api/admin/market/opportunities',{method:'PATCH',body:JSON.stringify({...editingOpportunity,title:editingOpportunity.title.trim()})});setEditingOpportunity(null);await fetchOpportunities();setNotice('تم حفظ تعديل الفرصة.');}
+                      try{await marketFetch('/api/admin/market/opportunities',{method:'PATCH',body:JSON.stringify({...editingOpportunity,title:editingOpportunity.title.trim()})});setEditingOpportunity(null);await refreshMarketCollection('opportunities');setNotice('تم حفظ تعديل الفرصة.');}
                       catch(e:any){setError(e.message||'تعذر حفظ الفرصة.');}finally{setSaving(false);}
                     }}>حفظ التعديل</button><button className="btn-secondary text-xs" disabled={saving} onClick={()=>setEditingOpportunity(null)}>إلغاء</button></div>
                   </section>}
@@ -785,7 +794,7 @@ export default function AdminDashboard() {
                             <td><div className="flex flex-wrap gap-2 items-center">
                               <button className="text-xs text-blue-700 underline" disabled={saving} onClick={()=>setEditingOpportunity({id:o.id,title:o.title,priority:o.priority})}>تعديل</button>
                               <select disabled={saving} className="border border-slate-300 rounded text-xs" value={o.status} onChange={async (e) => {
-                                setSaving(true);setError('');try { await marketFetch('/api/admin/market/opportunities', { method: 'PATCH', body: JSON.stringify({ id: o.id, status: e.target.value }) }); await fetchOpportunities();setNotice('تم تحديث حالة الفرصة'); }
+                                setSaving(true);setError('');try { await marketFetch('/api/admin/market/opportunities', { method: 'PATCH', body: JSON.stringify({ id: o.id, status: e.target.value }) }); await refreshMarketCollection('opportunities');setNotice('تم تحديث حالة الفرصة'); }
                                 catch (err: any) { setError(err.message); }finally{setSaving(false);}
                               }}>
                                 <option value="new">جديد</option><option value="triaged">فرز</option><option value="planned">مخطط</option><option value="done">منجز</option><option value="rejected">مرفوض</option>
@@ -819,7 +828,7 @@ export default function AdminDashboard() {
                     setSaving(true);setError('');
                     try{
                       await marketFetch('/api/admin/market/goals',{method:'POST',body:JSON.stringify({title:newGoal.title.trim(),description:newGoal.description.trim(),priority:newGoal.priority,evidence:[],success_metrics:[],confidence:'low'})});
-                      setNewGoal({title:'',description:'',priority:'medium'});await fetchGoals();setNotice('أُضيف الهدف بنجاح. أضف مؤشرات قياس قبل التنفيذ.');
+                      setNewGoal({title:'',description:'',priority:'medium'});await refreshMarketCollection('goals');setNotice('أُضيف الهدف بنجاح. أضف مؤشرات قياس قبل التنفيذ.');
                     }catch(e:any){setError(e.message||'تعذرت إضافة الهدف.');}finally{setSaving(false);}
                   }}>إضافة هدف</button>
                   {editingGoal && <section className="mb-4 bg-blue-50 border border-blue-200 p-4 rounded-xl">
@@ -834,7 +843,7 @@ export default function AdminDashboard() {
                     <div className="flex gap-2 mt-3"><button className="btn-primary text-xs" disabled={saving} onClick={async()=>{
                       if(!editingGoal.title.trim()){setError('عنوان الهدف مطلوب.');return;}
                       setSaving(true);setError('');
-                      try{await marketFetch('/api/admin/market/goals',{method:'PATCH',body:JSON.stringify({...editingGoal,title:editingGoal.title.trim()})});setEditingGoal(null);await fetchGoals();setNotice('حُفظ تعديل الهدف.');}
+                      try{await marketFetch('/api/admin/market/goals',{method:'PATCH',body:JSON.stringify({...editingGoal,title:editingGoal.title.trim()})});setEditingGoal(null);await refreshMarketCollection('goals');setNotice('حُفظ تعديل الهدف.');}
                       catch(e:any){setError(e.message||'تعذر حفظ الهدف.');}finally{setSaving(false);}
                     }}>حفظ التعديل</button><button className="btn-secondary text-xs" disabled={saving} onClick={()=>setEditingGoal(null)}>إلغاء</button></div>
                   </section>}
@@ -852,7 +861,7 @@ export default function AdminDashboard() {
                             <td><div className="flex gap-2 flex-wrap items-center">
                               <button className="text-xs text-blue-700 underline" disabled={saving} onClick={()=>setEditingGoal({id:g.id,title:g.title,description:g.description||'',priority:g.priority})}>تعديل</button>
                               <select disabled={saving} className="border border-slate-300 rounded text-xs" value={g.status} onChange={async (e) => {
-                                setSaving(true);setError('');try { await marketFetch('/api/admin/market/goals', { method: 'PATCH', body: JSON.stringify({ id: g.id, status: e.target.value }) }); await fetchGoals();setNotice('تم تحديث حالة الهدف'); }
+                                setSaving(true);setError('');try { await marketFetch('/api/admin/market/goals', { method: 'PATCH', body: JSON.stringify({ id: g.id, status: e.target.value }) }); await refreshMarketCollection('goals');setNotice('تم تحديث حالة الهدف'); }
                                 catch (err: any) { setError(err.message); }finally{setSaving(false);}
                               }}>
                                 <option value="open">مفتوح</option><option value="in_progress">قيد التنفيذ</option><option value="done">منجز</option><option value="cancelled">ملغى</option>
