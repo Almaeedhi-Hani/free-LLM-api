@@ -22,7 +22,7 @@ try{
  const filteredEnv={...process.env};
  for(const secret of ['SUPABASE_SERVICE_ROLE_KEY','GEO_API_KEY','ADMIN_SECRET','CRON_SECRET','REVALIDATION_SECRET'])delete filteredEnv[secret];
  filteredEnv.CI='true';
- const output=cp.execFileSync(bin,['run','--standalone','--archived','--format','json','--model','opencode/beam-free','--file','websearch-prompt.txt','Use the attached instructions.'],{
+ const output=cp.execFileSync(bin,['run','--standalone','--archived','--format','json','--model','opencode/beam-free','--file',path.join(dir,'websearch-prompt.txt'),'Use the attached instructions.'],{
   cwd:dir,env:filteredEnv,encoding:'utf8',timeout:85000,maxBuffer:5*1024*1024,stdio:['ignore','pipe','pipe']
  });
  for(const line of output.split(/\r?\n/)){
