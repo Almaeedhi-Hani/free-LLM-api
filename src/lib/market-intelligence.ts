@@ -8,6 +8,7 @@ import {
   resolveStorageMode,
 } from './storage-mode';
 import { defaultSources, availableSources } from './market-sources';
+import { isRelevantInvestorService } from './open-search-sources';
 import type { SuggestionResult, SearchResult } from './market-sources';
 
 // ---------------------------------------------------------------------------
@@ -495,14 +496,19 @@ export async function getCompetitor(idOrDomain: string): Promise<Competitor | nu
   const key = idOrDomain.trim();
   if (!key) return null;
   if (isSupabase()) {
-    // Try by id first, then domain.
-    let res = await sbFetch(`competitors?id=eq.${encodeURIComponent(key)}&select=*&limit=1`);
-    let rows = await sbJson<Competitor[]>(res, 'getCompetitor');
-    if (!rows.length) {
-      res = await sbFetch(`competitors?domain=eq.${encodeURIComponent(normalizeDomain(key))}&select=*&limit=1`);
-      rows = await sbJson<Competitor[]>(res, 'getCompetitor');
+    // UUID columns must never receive a hostname: Postgres rejects that with 22P02.
+    // Domain and ID lookups are independent and must use their correct column types.
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (uuidPattern.test(key)) {
+      const byId = await sbFetch(`competitors?id=eq.${encodeURIComponent(key)}&select=*&limit=1`);
+      const rows = await sbJson<Competitor[]>(byId, 'getCompetitor');
+      if (rows.length) return rows[0];
     }
-    return rows.length ? rows[0] : null;
+    const normalized = normalizeDomain(key);
+    if (!normalized) return null;
+    const byDomain = await sbFetch(`competitors?domain=eq.${encodeURIComponent(normalized)}&select=*&limit=1`);
+    const rows = await sbJson<Competitor[]>(byDomain, 'getCompetitor');
+    return rows[0] || null;
   }
   const rows = readFile<Competitor>('competitors.json');
   return (
@@ -1315,13 +1321,17 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
     }
   }
 
-  // 2) Competitor discovery via search sources (key-gated)
+  // 2) Search-provider discovery: hard per-run budget, graceful fallback on provider blocks.
+  let attempts = 0;
+  const maxSearchAttempts = 6;
   for (const source of sources) {
     if (!source.collectResults) continue;
     if (source.requiresKey && !(process.env[source.requiresKey] || '').trim()) continue;
     for (const lang of ['ar', 'en', 'zh'] as Language[]) {
       const seedList = seeds[lang] || [];
-      for (const seed of seedList.slice(0, 3)) {
+      for (const seed of seedList.slice(0, 1)) {
+        if (attempts >= maxSearchAttempts) break;
+        attempts++;
         const diag = { source_id: source.id, language: lang, http_status: 0, duration_ms: 0, response_received: false, results_parsed: 0, results_accepted: 0, blocked_detected: false, failure_reason: '' };
         try {
           const results = await source.collectResults!(seed, lang, maxComp);
@@ -1332,6 +1342,7 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
             if (discoveredDomains.size >= maxComp) break;
             if (!r.domain) continue;
             if (isExcludedDomain(r.domain)) continue;
+            if (!isRelevantInvestorService(r.title || '', r.snippet || '')) continue;
             try {
               const comp = await upsertCompetitor({
                 name: r.title || r.domain,
@@ -1372,7 +1383,6 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
   }
 
   summary.search_diagnostics = searchDiagnostics;
-  summary.search_diagnostics = searchDiagnostics;
   summary.unique_domains = discoveredDomains.size;
   summary.success = summary.competitors_discovered > 0;
   return summary;
@@ -1388,7 +1398,7 @@ export async function runRadar(config?: Partial<DiscoveryConfig>): Promise<{
     const discovery = await runDiscovery(config);
     const analysis = await runMarketAnalysis(config?.triggeredBy || 'manual');
     const summary = { discovery, analysis: analysis.summary };
-    await finishRun(run.id, 'success', summary);
+    await finishRun(run.id, discovery.success ? 'success' : 'partial', summary);
     return { run_id: run.id, discovery, analysis };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

@@ -124,86 +124,22 @@ function logStage(name, msg) {
 }
 
 async function stageDiscovery() {
-  logStage('DISCOVERY', 'Starting competitor discovery...');
-  const queries = [
-    'Saudi investor services platform',
-    'منصة خدمات المستثمرين Saudi',
-    'investor services Saudi Arabia fintech',
-  ];
-  const results = [];
-  const sources = [];
-
-  // 1. Try DuckDuckGo
-  for (const q of queries) {
-    try {
-      const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}`;
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'Mozilla/5.0' },
-        body: `q=${encodeURIComponent(q)}`,
-        signal: AbortSignal.timeout(10000),
-      });
-      if (res.ok) {
-        const html = await res.text();
-        const linkRegex = /<a[^>]*class="result__a"[^>]*href="([^"]*)"[^>]*>([^<]*)<\/a>/g;
-        let match;
-        while ((match = linkRegex.exec(html)) !== null) {
-          results.push({ url: match[1], title: match[2].trim(), query: q, source: 'duckduckgo', collected_at: new Date().toISOString(), language: q.includes('منصة') ? 'ar' : 'en' });
-        }
-        sources.push('duckduckgo');
-      }
-    } catch (e) {
-      logStage('DISCOVERY', `DuckDuckGo failed for "${q}": ${e.message}`);
-    }
-    await new Promise(r => setTimeout(r, 1500));
-  }
-
-  // 2. Try SearXNG public instances (fallback) - use instances with JSON API
-  const searxInstances = [
-    'https://searx.tiekoetter.com',
-    'https://search.bus-hit.me',
-    'https://searx.space',
-  ];
-  if (results.length === 0) {
-    for (const instance of searxInstances) {
-      for (const q of queries.slice(0, 1)) {
-        try {
-          const url = `${instance}/search?q=${encodeURIComponent(q)}&format=json`;
-          const res = await fetch(url, {
-            headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' },
-            signal: AbortSignal.timeout(10000),
-          });
-          const contentType = res.headers.get('content-type') || '';
-          if (res.ok && contentType.includes('application/json')) {
-            const data = await res.json();
-            for (const r of (data.results || []).slice(0, 10)) {
-              results.push({ url: r.url, title: r.title, query: q, source: `searxng:${instance}`, collected_at: new Date().toISOString(), language: q.includes('منصة') ? 'ar' : 'en' });
-            }
-            sources.push(`searxng:${instance}`);
-            break;
-          }
-        } catch (e) {
-          logStage('DISCOVERY', `SearXNG ${instance} failed: ${e.message}`);
-        }
-      }
-      if (results.length > 0) break;
-    }
-  }
-
-  // 3. Official Saudi sources (always available)
-  const officialSources = [
-    { url: 'https://misa.gov.sa', title: 'MISA - Ministry of Investment', source: 'official', language: 'ar' },
-    { url: 'https://sdaia.gov.sa', title: 'SDAIA - Data & AI Authority', source: 'official', language: 'ar' },
-  ];
-  for (const src of officialSources) {
-    results.push({ ...src, query: 'official_source', collected_at: new Date().toISOString() });
-  }
-  sources.push('official');
-
-  logStage('DISCOVERY', `Found ${results.length} results from: ${sources.join(', ')}`);
-  stageResults.discovery = { count: results.length, results: results.slice(0, 30), sources };
-  const status = results.length > officialSources.length ? 'success' : (results.length > 0 ? 'partial' : 'failed');
-  return { records_processed: results.length, status };
+  logStage('DISCOVERY', 'Collecting sourced market evidence (Google Suggest + RSS)...');
+  const { collect } = require('./geo-discovery-sources.cjs');
+  const result = await collect();
+  const results = result.competitors;
+  const sources = [...new Set(result.diagnostics.filter(d => d.count > 0).map(d => d.source))];
+  stageResults.discovery = {
+    count: results.length, results, sources,
+    suggestions: result.suggestions,
+    diagnostics: result.diagnostics,
+    note: 'Google Suggest provides keyword ideas, not search ranking. Competitor links are candidates, not verified rankings.'
+  };
+  logStage('DISCOVERY', 'Market sources: ' + JSON.stringify({
+    candidates: results.length, keywords: result.suggestions.length,
+    sources, status: result.status
+  }));
+  return { records_processed: results.length, status: result.status };
 }
 
 async function stageEvidence() {
@@ -230,21 +166,24 @@ async function stageEvidence() {
     }
   }
 
-  // Fallback: use discovery results as evidence if no DB/local data
-  if (evidenceItems.length === 0 && stageResults.discovery?.results?.length > 0) {
-    for (const r of stageResults.discovery.results) {
-      evidenceItems.push({
-        id: `disc_${evidenceItems.length}`,
-        type: 'discovery',
-        source: r.source || 'search',
-        name: r.title,
-        url: r.url,
-        language: r.language || 'en',
-        collected_at: r.collected_at,
-      });
-    }
-    logStage('EVIDENCE', `Using ${evidenceItems.length} discovery results as evidence`);
+  // Fresh, read-only discovery evidence. Suggestions are search ideas, not verified
+  // competitors, search-volume statistics, or citations by an AI engine.
+  for (const r of (stageResults.discovery?.results || [])) {
+    evidenceItems.push({
+      id: `disc_${evidenceItems.length}`,
+      type: 'competitor_candidate', source: r.source || 'search',
+      name: r.title, url: r.url, language: r.language || 'en',
+      collected_at: r.collected_at,
+    });
   }
+  for (const r of (stageResults.discovery?.suggestions || [])) {
+    evidenceItems.push({
+      id: `suggest_${evidenceItems.length}`,
+      type: 'keyword_suggestion', source: r.source,
+      name: r.term, language: r.language, collected_at: r.collected_at,
+    });
+  }
+  logStage('EVIDENCE', `Added fresh discovery evidence: ${(stageResults.discovery?.results || []).length} website candidates, ${(stageResults.discovery?.suggestions || []).length} Google suggestions`);
   // Try GEO API (limited-scope, server-side) first
   const GEO_API_URL = process.env.GEO_API_URL || process.env.SITE_URL;
   const GEO_API_KEY = process.env.GEO_API_KEY;
@@ -287,6 +226,8 @@ async function stageEvidence() {
     domain: e.domain || '',
     source: e.source || 'unknown',
     language: e.language || 'ar',
+    url: e.url || null,
+    observed_at: e.collected_at || e.observed_at || null,
   }));
   logStage('EVIDENCE', `Built bundle: ${evidenceItems.length} items`);
   stageResults.evidence = { total: evidenceItems.length, items: evidenceItems.slice(0, 30) };
