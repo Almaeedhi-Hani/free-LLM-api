@@ -1,3 +1,4 @@
+import ArrowUpRight from "@/components/ArrowUpRight";
 import { pageMetadata, siteUrl } from "@/lib/site-seo";
 import { getLocale, localizedPath } from "@/lib/site-language";
 import { copy, services } from "@/lib/service-catalog";
@@ -82,7 +83,7 @@ export default async function HomePage() {
           <div className="hero-actions">
             <a className="action-primary" href="#services">
               {t.explore}
-              <span>↗</span>
+              <span><ArrowUpRight /></span>
             </a>
             <a className="action-text" href="#contact">
               {t.contact} <span>←</span>
@@ -156,7 +157,7 @@ export default async function HomePage() {
             <a className="entry-route-card" key={route.num} href={localizedPath(lang, `/services/${route.slug}`)}>
               <div className="entry-route-meta"><span>{route.num}</span><span>{route.tag[lang]}</span></div>
               <div className="entry-route-content"><h3>{route.title[lang]}</h3><p>{route.desc[lang]}</p></div>
-              <span className="entry-route-link">{t.detail} <span aria-hidden="true">↗</span></span>
+              <span className="entry-route-link">{t.detail} <span aria-hidden="true"><ArrowUpRight /></span></span>
             </a>
           ))}
         </div>
@@ -169,7 +170,7 @@ export default async function HomePage() {
           </div>
           <div className="editorial-promise-copy">
             <p>{lang === "ar" ? "لا نفترض أن كل نشاط متاح للتملك الكامل، أو أن جميع الطلبات تتبع المدة نفسها. نوضح ما يمكن التحقق منه، وما يحتاج مراجعة لدى الجهة المختصة، وما يعتمد على ظروف ملفك." : lang === "zh" ? "我们不会假设所有行业都允许外资全资持有，也不会承诺统一审批时限。我们区分可核实的信息、主管部门的要求和个案情况。" : "We do not assume every sector allows full foreign ownership or that every application follows the same timeline. We distinguish verifiable guidance from regulator-specific and case-specific decisions."}</p>
-            <a href="#sources">{t.sources} <span aria-hidden="true">↗</span></a>
+            <a href="#sources">{t.sources} <span aria-hidden="true"><ArrowUpRight /></span></a>
           </div>
         </div>
       </section>
@@ -190,7 +191,7 @@ export default async function HomePage() {
             >
               <div className="card-top">
                 <span>0{i + 1}</span>
-                <span className="card-arrow">↗</span>
+                <span className="card-arrow"><ArrowUpRight /></span>
               </div>
               <div className="service-icon" aria-hidden="true">
                 {["◈", "▤", "▥", "⌘", "◇", "◉"][i]}
@@ -244,7 +245,7 @@ export default async function HomePage() {
               ))}
         </div>
         <aside className="source-panel">
-          <span className="source-mark">↗</span>
+          <span className="source-mark"><ArrowUpRight /></span>
           <h3>{t.sources}</h3>
           <p>{t.sourceNote}</p>
           {services.map((s) => (
@@ -255,7 +256,7 @@ export default async function HomePage() {
               rel="noopener noreferrer"
             >
               {s.authority}
-              <span>↗</span>
+              <span><ArrowUpRight /></span>
             </a>
           ))}
           <small>{t.verified}</small>
@@ -280,7 +281,7 @@ export default async function HomePage() {
             target="_blank"
             rel="noopener noreferrer"
           >
-            WhatsApp <span>↗</span>
+            WhatsApp <span><ArrowUpRight /></span>
           </a>
           <a href={`tel:${content.contact.phone}`}>
             {t.call} <bdi>{content.contact.phoneDisplay}</bdi>
