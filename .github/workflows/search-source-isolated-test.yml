@@ -22,11 +22,33 @@ jobs:
           node scripts/search-source.test.cjs
       - name: Bounded live search connectivity test
         run: node scripts/search-source-live-probe.cjs
+      - name: Probe Google Suggest directly (one query, read-only)
+        run: |
+          node - <<'NODE'
+          (async () => {
+            const u='https://suggestqueries.google.com/complete/search?client=firefox&hl=ar&q='+encodeURIComponent('تأسيس شركة في السعودية');
+            try {
+              const r=await fetch(u,{signal:AbortSignal.timeout(6000)});
+              const body=r.ok?await r.json():null;
+              const terms=Array.isArray(body?.[1])?body[1].filter(x=>typeof x==='string'):[];
+              console.log('GOOGLE_SUGGEST_DIAGNOSTIC',JSON.stringify({status:r.status,terms:terms.length,examples:terms.slice(0,4)}));
+            }catch(e){console.log('GOOGLE_SUGGEST_DIAGNOSTIC',JSON.stringify({status:'unavailable',reason:e.name||'network_error'}));}
+          })();
+          NODE
+      - name: Install OpenCode
+        run: curl -fsSL https://opencode.ai/v2/install | bash
+      - name: Probe Beam websearch tool (read-only, 1 query)
+        env:
+          OPENCODE_DISABLE_AUTOUPDATE: "true"
+          OPENCODE_BIN: /home/runner/.opencode/bin/opencode
+        run: node scripts/opencode-websearch-probe.cjs
       - name: Upload search diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: search-source-report
-          path: .search-probe/report.json
+          path: |
+            .search-probe/report.json
+            .search-probe/opencode-websearch-report.json
           if-no-files-found: warn
           retention-days: 7
