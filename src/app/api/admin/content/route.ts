@@ -50,10 +50,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ status: 'error', message: 'Invalid content patch' }, { status: 400 });
     }
     const { expectedUpdatedAt, ...patch } = body as Record<string, unknown>;
-    if (typeof expectedUpdatedAt !== 'string' || !expectedUpdatedAt) {
-      return NextResponse.json({ status: 'error', message: 'expectedUpdatedAt is required' }, { status: 400 });
+    if (expectedUpdatedAt !== undefined && (typeof expectedUpdatedAt !== 'string' || !expectedUpdatedAt)) {
+      return NextResponse.json({ status: 'error', message: 'Invalid expectedUpdatedAt' }, { status: 400 });
     }
-    const updated = await setContent(patch as Parameters<typeof setContent>[0], { replaceArrays: true, expectedUpdatedAt });
+    // Versioned dashboard requests can replace arrays safely; existing agent/API
+    // callers without the revision retain additive merge semantics.
+    const isVersioned = typeof expectedUpdatedAt === 'string';
+    const updated = await setContent(
+      patch as Parameters<typeof setContent>[0],
+      isVersioned ? { replaceArrays: true, expectedUpdatedAt: expectedUpdatedAt as string } : {}
+    );
     return NextResponse.json({ status: 'updated', content: updated });
   } catch (e) {
     return errorResponse(e);
