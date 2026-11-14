@@ -1,5 +1,5 @@
 ﻿import type { Language } from './market-intelligence';
-import { DuckDuckGoHtmlSource } from './open-search-sources';
+import { DuckDuckGoHtmlSource, BingRssSearchSource } from './open-search-sources';
 
 export interface SuggestionResult { term: string; language: Language; source: string; }
 export interface SearchResult { domain: string; title: string; snippet: string; url: string; rank: number; source: string; }
@@ -152,6 +152,7 @@ export class BingSearchSource implements SearchSource {
 export function defaultSources(): SearchSource[] {
   const sources: SearchSource[] = [new GoogleSuggestSource(), new DuckDuckGoSuggestSource()];
   // Open (keyless) search source - default path for competitor discovery
+  sources.push(new BingRssSearchSource());
   sources.push(new DuckDuckGoHtmlSource());
   const brave = new BraveSearchSource();
   if (brave.isAvailable()) sources.push(brave);
