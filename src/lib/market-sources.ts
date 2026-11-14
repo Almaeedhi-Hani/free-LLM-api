@@ -159,12 +159,12 @@ export class MultiProviderSearchSource implements SearchSource {
   lastDiagnostic = {http_status: 0, duration_ms: 0, response_received: false,
     results_parsed: 0, blocked_detected: false, failure_reason: ''};
   isAvailable(): boolean {
-    const adapter = require('./provider-search.cjs');
+    const adapter = require(process.cwd() + '/src/lib/provider-search.cjs');
     return adapter.configured().length > 0;
   }
   async collectSuggestions(): Promise<SuggestionResult[]> {return [];}
   async collectResults(query: string, language: Language, limit: number): Promise<SearchResult[]> {
-    const adapter = require('./provider-search.cjs');
+    const adapter = require(process.cwd() + '/src/lib/provider-search.cjs');
     const started = Date.now();
     const out = await adapter.search({queries:[{query,language}],maxCalls:2,maxResults:Math.min(limit,8)});
     this.lastDiagnostic = {
