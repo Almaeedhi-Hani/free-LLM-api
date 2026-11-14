@@ -18,7 +18,7 @@ export function isRelevantInvestorService(title:string,snippet:string):boolean {
 }
 export function parseDuckDuckGoHtml(html:string,limit=10):SearchResult[]{
  const result:SearchResult[]=[],seen=new Set<string>();
- for(const m of html.matchAll(/<a\b([^>]*class=["'][^"']*result__a[^"']*["'][^>]*)>([\s\S]*?)<\/a>/gi)){
+ for(const m of Array.from(html.matchAll(/<a\b([^>]*class=["'][^"']*result__a[^"']*["'][^>]*)>([\s\S]*?)<\/a>/gi))){
   const href=m[1].match(/href=["']([^"']+)["']/i), d=href&&dest(href[1]);if(!d||seen.has(d.domain))continue;
   const title=clean(m[2]);if(!title||!isRelevantInvestorService(title,''))continue;seen.add(d.domain);
   result.push({...d,title,snippet:'',rank:result.length+1,source:'duckduckgo-html'});if(result.length>=limit)break;
@@ -27,7 +27,7 @@ export function parseDuckDuckGoHtml(html:string,limit=10):SearchResult[]{
 export function parseBingRss(xml:string,limit=10):SearchResult[]{
  if(!/<rss\b/i.test(xml)||!/<channel\b/i.test(xml))return [];
  const results:SearchResult[]=[],seen=new Set<string>();
- for(const m of xml.matchAll(/<item\b[^>]*>([\s\S]*?)<\/item>/gi)){
+ for(const m of Array.from(xml.matchAll(/<item\b[^>]*>([\s\S]*?)<\/item>/gi))){
   const field=(tag:string)=>m[1].match(new RegExp('<'+tag+'(?:\\s[^>]*)?>([\\s\\S]*?)<\\/'+tag+'>','i'))?.[1]||'';
   const d=dest(field('link'));if(!d||seen.has(d.domain))continue;const title=clean(field('title'));const snippet=clean(field('description'));if(!title||!isRelevantInvestorService(title,snippet))continue;seen.add(d.domain);
   results.push({...d,title,snippet:clean(field('description')).slice(0,500),rank:results.length+1,source:'bing-rss'});if(results.length>=limit)break;
