@@ -1,0 +1,32 @@
+name: Search Source Reliability Test
+on:
+  push:
+    branches:
+      - fix/search-source-reliability-20261114
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - name: Compile and test search sources
+        run: |
+          ./node_modules/.bin/tsc src/lib/storage-mode.ts src/lib/market-intelligence.ts src/lib/market-sources.ts src/lib/open-search-sources.ts --outDir .market-test-build --module commonjs --target es2020 --lib es2020,dom --moduleResolution node --esModuleInterop --skipLibCheck --strict --types node
+          node scripts/search-source.test.cjs
+      - name: Bounded live search connectivity test
+        run: node scripts/search-source-live-probe.cjs
+      - name: Upload search diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: search-source-report
+          path: .search-probe/report.json
+          if-no-files-found: warn
+          retention-days: 7
