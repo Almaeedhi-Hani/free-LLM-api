@@ -34,6 +34,10 @@ jobs:
         env:
           GEO_API_URL: ${{ secrets.GEO_API_URL }}
           GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
+          EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          PARALLEL_API_KEY: ${{ secrets.PARALLEL_API_KEY }}
+          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
           OPENCODE_MODEL: opencode/beam-free
           OPENCODE_BIN: /home/runner/.opencode/bin/opencode
         run: |

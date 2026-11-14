@@ -1,5 +1,5 @@
 ﻿import type { Language } from './market-intelligence';
-import { DuckDuckGoHtmlSource } from './open-search-sources';
+import { DuckDuckGoHtmlSource, BingRssSearchSource } from './open-search-sources';
 
 export interface SuggestionResult { term: string; language: Language; source: string; }
 export interface SearchResult { domain: string; title: string; snippet: string; url: string; rank: number; source: string; }
@@ -23,7 +23,7 @@ export class GoogleSuggestSource implements SearchSource {
     const lang = language === 'ar' ? 'ar' : language === 'zh' ? 'zh-CN' : 'en';
     const url = `https://suggestqueries.google.com/complete/search?client=firefox&q=${encodeURIComponent(query)}&hl=${lang}`;
     try {
-      const res = await fetch(url, { cache: 'no-store' });
+      const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(6000) });
       if (!res.ok) return [];
       const data = await res.json();
       const suggestions = Array.isArray(data?.[1]) ? data[1] : [];
@@ -149,26 +149,67 @@ export class BingSearchSource implements SearchSource {
   }
 }
 
+// Uses the same credential-gated search engine as OpenCode and respects a bounded
+// 2-call budget per language. Source evidence is a candidate, not a Google ranking.
+export class MultiProviderSearchSource implements SearchSource {
+  id = 'multi-provider-search';
+  free = false;
+  requiresKey = null;
+  supportedLanguages: Language[] = ['ar', 'en', 'zh'];
+  lastDiagnostic = {http_status: 0, duration_ms: 0, response_received: false,
+    results_parsed: 0, blocked_detected: false, failure_reason: ''};
+  isAvailable(): boolean {
+    const adapter = require(process.cwd() + '/src/lib/provider-search.cjs');
+    return adapter.configured().length > 0;
+  }
+  async collectSuggestions(): Promise<SuggestionResult[]> {return [];}
+  async collectResults(query: string, language: Language, limit: number): Promise<SearchResult[]> {
+    const adapter = require(process.cwd() + '/src/lib/provider-search.cjs');
+    const started = Date.now();
+    const out = await adapter.search({queries:[{query,language}],maxCalls:2,maxResults:Math.min(limit,8)});
+    this.lastDiagnostic = {
+      http_status: out.results.length ? 200 : 0,
+      duration_ms: Date.now()-started, response_received:out.diagnostics.some((d: {http_status:number})=>d.http_status>0),
+      results_parsed:out.results.length,blocked_detected:false,
+      failure_reason:out.results.length?'':out.diagnostics.map((d: {status:string})=>d.status).join(',')||'no_configured_providers'
+    };
+    return out.results.map((r: SearchResult, i: number)=>({
+      domain:r.domain,url:r.url,title:r.title,snippet:r.snippet,source:r.source,
+      // This is an internal display order, not the Google SERP rank.
+      rank:i+1
+    }));
+  }
+}
+
 export function defaultSources(): SearchSource[] {
-  const sources: SearchSource[] = [new GoogleSuggestSource(), new DuckDuckGoSuggestSource()];
-  // Open (keyless) search source - default path for competitor discovery
-  sources.push(new DuckDuckGoHtmlSource());
-  const brave = new BraveSearchSource();
-  if (brave.isAvailable()) sources.push(brave);
-  const tavily = new TavilySearchSource();
-  if (tavily.isAvailable()) sources.push(tavily);
-  const bing = new BingSearchSource();
-  if (bing.isAvailable()) sources.push(bing);
+  const sources:SearchSource[]=[new GoogleSuggestSource()];
+  const multi=new MultiProviderSearchSource();
+  if(multi.isAvailable()) {
+    // Use the integrated providers first; do not spend additional calls on
+    // a second set of independent providers during the same discovery cycle.
+    sources.push(multi);
+  } else {
+    const brave=new BraveSearchSource();
+    const tavily=new TavilySearchSource();
+    if(brave.isAvailable())sources.push(brave);
+    if(tavily.isAvailable())sources.push(tavily);
+    sources.push(new BingRssSearchSource());
+    // DuckDuckGo frequently returns HTTP 202/captcha; no default retries.
+  }
   return sources;
 }
 
 export function availableSources(): { id: string; free: boolean; requiresKey: string | null; available: boolean }[] {
-  return defaultSources().map((s) => ({
-    id: s.id,
-    free: s.free,
-    requiresKey: s.requiresKey,
-    available: s.requiresKey ? !!(process.env[s.requiresKey] || '').trim() : true,
-  }));
+  const apiProviders = [
+    {id:'exa',key:'EXA_API_KEY'},
+    {id:'tavily',key:'TAVILY_API_KEY'},
+    {id:'parallel',key:'PARALLEL_API_KEY'},
+    {id:'firecrawl',key:'FIRECRAWL_API_KEY'}
+  ];
+  return [
+    ...apiProviders.map(p=>({id:p.id,free:false,requiresKey:p.key,
+      available:!!String(process.env[p.key]||'').trim()})),
+    {id:'google-suggest',free:true,requiresKey:null,available:true},
+    {id:'bing-rss',free:true,requiresKey:null,available:!apiProviders.some(p=>!!String(process.env[p.key]||'').trim())}
+  ];
 }
-
-
