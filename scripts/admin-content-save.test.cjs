@@ -1,0 +1,28 @@
+'use strict';
+const assert=require('node:assert/strict'),path=require('node:path'),os=require('node:os'),fs=require('node:fs');
+const temp=fs.mkdtempSync(path.join(os.tmpdir(),'admin-content-regression-'));
+process.env.NODE_ENV='test';
+process.env.CONTENT_STORE_PATH=path.join(temp,'content.json');
+delete process.env.SUPABASE_URL;
+delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+(async()=>{
+ const store=require(path.join(process.cwd(),'.geo-test-build/content-store.js'));
+ const original=await store.getContent();
+ const first=await store.setContent({faqs:[{q:'Test question',a:'Original answer'}],keywords:['test-keyword'],drafts:[{q:'Pending question',a:'Pending answer',status:'pending',createdAt:'2026-11-14'}]}, {replaceArrays:true,expectedUpdatedAt:original.updatedAt});
+ assert.equal(first.faqs.length,1);
+ assert.equal(first.keywords.length,1);
+ const second=await store.setContent({faqs:[{q:'Test question',a:'Edited answer'}],keywords:[],drafts:[{q:'Pending question',a:'Pending answer',status:'approved',createdAt:'2026-11-14'}]}, {replaceArrays:true,expectedUpdatedAt:first.updatedAt});
+ assert.equal(second.faqs[0].a,'Edited answer');
+ assert.equal(second.keywords.length,0);
+ assert.equal(second.drafts[0].status,'approved');
+ console.log('PASS content editing, deletion, and draft approval persist');
+ const third=await store.setContent({faqs:[]}, {replaceArrays:true,expectedUpdatedAt:second.updatedAt});
+ assert.equal(third.faqs.length,0);
+ const after=await store.getContent();assert.equal(after.faqs.length,0);
+ console.log('PASS deleted FAQ stays deleted after reload');
+ await assert.rejects(()=>store.setContent({keywords:['stale']},{replaceArrays:true,expectedUpdatedAt:first.updatedAt}),e=>e.code==='STORAGE_CONFLICT');
+ console.log('PASS stale tab refuses to overwrite current content');
+ await store.setContent({keywords:['agent-keyword']});
+ const agent=await store.getContent();assert.equal(agent.keywords.includes('agent-keyword'),true);
+ console.log('PASS legacy agent additive writes remain supported');
+})().catch(e=>{console.error(e);process.exitCode=1}).finally(()=>fs.rmSync(temp,{recursive:true,force:true}));

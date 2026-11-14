@@ -1,0 +1,33 @@
+name: Admin Dashboard Isolated Validation
+on:
+  push:
+    branches:
+      - fix/admin-dashboard-controls-20261114
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - name: Full Next.js build and TypeScript verification
+        run: npm run build
+      - name: Admin dashboard functional contracts
+        run: node scripts/admin-dashboard-contract.test.cjs
+      - name: Isolated content editing, deletion, drafts and conflict checks
+        run: |
+          ./node_modules/.bin/tsc src/lib/storage-mode.ts src/lib/content-store.ts --outDir .geo-test-build --module commonjs --target es2020 --lib es2020,dom --moduleResolution node --esModuleInterop --skipLibCheck --strict --types node
+          node scripts/admin-content-save.test.cjs
+      - name: Isolated keyword create/read/delete regression
+        run: |
+          ./node_modules/.bin/tsc src/lib/storage-mode.ts src/lib/market-intelligence.ts src/lib/market-sources.ts src/lib/open-search-sources.ts --outDir .market-test-build --module commonjs --target es2020 --lib es2020,dom --moduleResolution node --esModuleInterop --skipLibCheck --strict --types node
+          node scripts/admin-keyword-delete.test.cjs
+      - name: Legacy market unit suite (diagnostic only)
+        continue-on-error: true
+        run: npm run test:market

@@ -41,6 +41,10 @@ export default function AdminDashboard() {
   const [newFaq, setNewFaq] = useState({ q: '', a: '' });
   const [editingFaq, setEditingFaq] = useState<{ index: number; q: string; a: string } | null>(null);
   const [newKeyword, setNewKeyword] = useState('');
+  const [newMarketKeyword,setNewMarketKeyword]=useState('');
+  const [competitorSearch,setCompetitorSearch]=useState('');
+  const [keywordSearch,setKeywordSearch]=useState('');
+  const [competitorFilter,setCompetitorFilter]=useState('all');
   const [goldenDraft, setGoldenDraft] = useState('');
   const [contactForm, setContactForm] = useState({ phone: '', phoneDisplay: '', whatsapp: '', email: '' });
   const [saving, setSaving] = useState(false);
@@ -53,6 +57,10 @@ export default function AdminDashboard() {
   const [lastUpdated, setLastUpdated] = useState<string>('');
   const [evidenceData, setEvidenceData] = useState<any>(null);
   const [evidenceLoading, setEvidenceLoading] = useState(false);
+  const [marketLoading,setMarketLoading]=useState(false);
+  const [marketSources,setMarketSources]=useState<any[]>([]);
+  const [keywordLanguage,setKeywordLanguage]=useState<'ar'|'en'|'zh'>('ar');
+  const [notice,setNotice]=useState('');
 
   useEffect(() => {
     const saved = sessionStorage.getItem('admin_secret');
@@ -102,6 +110,15 @@ export default function AdminDashboard() {
   const fetchOpportunities = async () => { try { const d = await marketFetch('/api/admin/market/opportunities'); setOpportunities(d.opportunities || []); } catch (e: any) { setError(e.message); } };
   const fetchGoals = async () => { try { const d = await marketFetch('/api/admin/market/goals'); setGoals(d.goals || []); } catch (e: any) { setError(e.message); } };
   const fetchRuns = async () => { try { const d = await marketFetch('/api/admin/market/runs'); setRuns(d.runs || []); } catch (e: any) { setError(e.message); } };
+  const fetchMarketSources=async()=>{try{const d=await marketFetch('/api/admin/market/discovery');setMarketSources(d.sources||[]);}catch(e:any){setError(e.message);}};
+  const refreshMarket=async()=>{
+    setMarketLoading(true);setError('');
+    try{const [a,b,c,d,e]=await Promise.all(['competitors','keywords','opportunities','goals','runs'].map(v=>marketFetch('/api/admin/market/'+v)));
+      setCompetitors(a.competitors||[]);setKeywords(b.keywords||[]);setOpportunities(c.opportunities||[]);setGoals(d.goals||[]);setRuns(e.runs||[]);
+      setLastUpdated(new Date().toLocaleString('ar-SA'));
+    }catch(e:any){setError(e.message||'فشل تحميل بيانات السوق');}finally{setMarketLoading(false);}
+  };
+  const refreshAll=async()=>{await Promise.all([fetchContent(),refreshMarket()]);};
 
   const fetchEvidence = async () => {
     setEvidenceLoading(true);
@@ -117,7 +134,9 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (!authed || !secret) return;
-    if (tab === 'competitors') fetchCompetitors();
+    if (tab === 'home') refreshMarket();
+    else if (tab === 'agent') {fetchRuns();fetchMarketSources();}
+    else if (tab === 'competitors') {fetchCompetitors();fetchMarketSources();}
     else if (tab === 'keywords') fetchKeywords();
     else if (tab === 'opportunities') fetchOpportunities();
     else if (tab === 'goals') fetchGoals();
@@ -126,18 +145,23 @@ export default function AdminDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, authed, secret]);
 
-  const login = () => {
-    if (!secret.trim()) { setError('المفتاح السري مطلوب'); return; }
-    sessionStorage.setItem('admin_secret', secret.trim());
-    setAuthed(true);
-    setError('');
+  const login=async()=>{
+    const key=secret.trim();if(!key){setError('المفتاح السري مطلوب');return;}
+    setSaving(true);setError('');
+    try{const response=await fetch('/api/admin/content',{headers:{'x-admin-secret':key}});
+      if(!response.ok)throw new Error(response.status===401?'المفتاح السري غير صحيح':`تعذر تسجيل الدخول (${response.status})`);
+      const data=await response.json();setSecret(key);setContent(data);
+      if(data.contact)setContactForm(data.contact);setGoldenDraft(data.goldenParagraph||'');
+      sessionStorage.setItem('admin_secret',key);setAuthed(true);
+    }catch(e:any){setError(e.message||'فشل تسجيل الدخول');}finally{setSaving(false);}
   };
 
   const logout = () => {
     sessionStorage.removeItem('admin_secret');
     setAuthed(false);
     setSecret('');
-    setContent(null);
+    setContent(null);setCompetitors([]);setKeywords([]);setOpportunities([]);setGoals([]);setRuns([]);
+    setNotice('');setError('');
   };
 
   const save = async (patch: any) => {
@@ -146,7 +170,7 @@ export default function AdminDashboard() {
       const r = await fetch('/api/admin/content', {
         method: 'POST',
         headers: { 'x-admin-secret': secret, 'Content-Type': 'application/json' },
-        body: JSON.stringify(patch),
+        body: JSON.stringify({ ...patch, expectedUpdatedAt: content?.updatedAt }),
       });
       let d: any = {};
       try { d = await r.json(); } catch { d = {}; }
@@ -164,59 +188,61 @@ export default function AdminDashboard() {
       if (d.content?.contact) setContactForm(d.content.contact);
       if (d.content?.goldenParagraph !== undefined) setGoldenDraft(d.content.goldenParagraph);
       setLastUpdated(new Date().toLocaleString('ar-SA'));
+      setNotice('تم حفظ التغييرات بنجاح');
       setError('');
+      return true;
     } catch (e: any) {
       setError(e.message || 'فشل الحفظ');
+      return false;
     } finally {
       setSaving(false);
     }
   };
 
   const approveDraft = (idx: number) => {
-    if (!content) return;
+    if (!content || saving || !window.confirm('اعتماد هذه المسودة ونشرها في محتوى الموقع؟')) return;
     const drafts = [...content.drafts];
-    const draft = drafts[idx];
-    draft.status = 'approved';
-    const faqs = [...content.faqs, { q: draft.q, a: draft.a }];
+    const draft = {...drafts[idx],status:'approved'};
+    drafts[idx]=draft;
+    const faqs = [...content.faqs.filter((f:any)=>f.q!==draft.q),{q:draft.q,a:draft.a}];
     save({ faqs, drafts });
   };
 
   const rejectDraft = (idx: number) => {
-    if (!content) return;
+    if (!content || saving || !window.confirm('هل تريد رفض هذه المسودة؟')) return;
     const drafts = [...content.drafts];
-    drafts[idx].status = 'rejected';
+    drafts[idx] = {...drafts[idx],status:'rejected'};
     save({ drafts });
   };
 
   const addFaq = () => {
-    if (!newFaq.q || !newFaq.a) return;
+    if (!newFaq.q.trim() || !newFaq.a.trim() || saving) return;
     const faqs = [...(content?.faqs || []), newFaq];
-    save({ faqs });
-    setNewFaq({ q: '', a: '' });
+    void save({ faqs }).then(ok=>{if(ok)setNewFaq({q:'',a:''});});
   };
 
   const updateFaq = () => {
-    if (!editingFaq) return;
+    if (!editingFaq || saving) return;
     const faqs = [...(content?.faqs || [])];
     faqs[editingFaq.index] = { q: editingFaq.q, a: editingFaq.a };
-    save({ faqs });
-    setEditingFaq(null);
+    void save({ faqs }).then(ok=>{if(ok)setEditingFaq(null);});
   };
 
   const deleteFaq = (idx: number) => {
+    if(saving||!window.confirm('هل تريد حذف هذا السؤال؟'))return;
     const faqs = [...(content?.faqs || [])];
     faqs.splice(idx, 1);
     save({ faqs });
   };
 
   const addKeyword = () => {
-    if (!newKeyword.trim()) return;
+    if (!newKeyword.trim()||saving)return;
     const keywords = [...(content?.keywords || []), newKeyword.trim()];
-    save({ keywords });
-    setNewKeyword('');
+    void save({ keywords }).then(ok=>{if(ok)setNewKeyword('');});
   };
 
   const deleteKeyword = (idx: number) => {
+    if(saving)return;
     const keywords = [...(content?.keywords || [])];
     keywords.splice(idx, 1);
     save({ keywords });
@@ -233,14 +259,14 @@ export default function AdminDashboard() {
           <p className="text-slate-600 mb-4 text-sm">أدخل المفتاح السري للمتابعة.</p>
           <input type="password" value={secret} onChange={(e) => setSecret(e.target.value)} placeholder="المفتاح السري" className="w-full border border-slate-300 rounded-lg px-4 py-2 mb-4" />
           {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
-          <button onClick={login} className="btn-primary w-full">فتح</button>
+          <button onClick={login} disabled={saving} className="btn-primary w-full">{saving?'جارٍ التحقق...':'فتح'}</button>
         </div>
       </div>
     );
   }
 
   if (!content) {
-    return <div className="min-h-screen flex items-center justify-center text-slate-500" dir="rtl">جاري التحميل...</div>;
+    return <div className="min-h-screen flex flex-col gap-3 items-center justify-center text-slate-600" dir="rtl"><p>{error||'جاري التحميل...'}</p><button className="btn-secondary" onClick={fetchContent}>إعادة المحاولة</button><button className="text-sm underline" onClick={logout}>تسجيل الخروج</button></div>;
   }
 
   const pendingDrafts = (content.drafts || []).filter((d: any) => d.status === 'pending').length;
@@ -250,7 +276,7 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-slate-50" dir="rtl">
       <div className="flex">
-        <aside className={`fixed inset-y-0 right-0 z-40 w-64 bg-navy-950 text-white transform transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'} lg:translate-x-0 lg:static`}>
+        <aside className={`fixed inset-y-0 right-0 z-40 w-64 h-screen flex flex-col bg-navy-950 text-white transform transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'} lg:translate-x-0 lg:static`}>
           <div className="p-5 border-b border-navy-800">
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-gold-500 shadow-gold-glow" />
@@ -258,7 +284,7 @@ export default function AdminDashboard() {
             </div>
             <p className="text-xs text-slate-400 mt-1">GEO Intelligence</p>
           </div>
-          <nav className="p-3 space-y-1">
+          <nav className="flex-1 overflow-y-auto p-3 space-y-1" aria-label="أقسام لوحة التحكم">
             {TABS.map((t) => (
               <button
                 key={t.key}
@@ -270,7 +296,7 @@ export default function AdminDashboard() {
               </button>
             ))}
           </nav>
-          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-navy-800">
+          <div className="shrink-0 p-4 border-t border-navy-800">
             <button onClick={logout} className="w-full text-sm text-slate-300 hover:text-white">تسجيل الخروج</button>
           </div>
         </aside>
@@ -287,13 +313,14 @@ export default function AdminDashboard() {
               <div className="flex items-center gap-3 text-xs text-slate-500">
                 {saving && <span className="text-gold-600">جاري الحفظ...</span>}
                 <span>آخر تحديث: {lastUpdated || '—'}</span>
-                <button onClick={fetchContent} className="btn-secondary text-xs">تحديث</button>
+                <button onClick={refreshAll} className="btn-secondary text-xs" disabled={marketLoading||saving}>{marketLoading?'جارٍ التحديث...':'تحديث الكل'}</button>
               </div>
             </div>
           </header>
 
           <main className="p-4 sm:p-6 max-w-7xl mx-auto">
-            {error && <p className="text-red-600 mb-4 text-sm">{error}</p>}
+            {error && <div role="alert" className="rounded-lg bg-red-50 border border-red-200 p-3 text-red-700 mb-4 text-sm">{error}</div>}
+            {notice && <div role="status" className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-emerald-800 mb-4 text-sm flex justify-between gap-3"><span>{notice}</span><button onClick={()=>setNotice('')} aria-label="إغلاق التنبيه">✕</button></div>}
 
             {tab === 'home' && (
               <div className="space-y-6">
@@ -324,7 +351,7 @@ export default function AdminDashboard() {
                     <p className="text-sm">الحالة: <span className="font-bold text-emerald-700">{content.agent?.status || 'idle'}</span></p>
                     <p className="text-sm">آخر تشغيل: {content.agent?.lastRun || '—'}</p>
                     <p className="text-sm">النتيجة: {content.agent?.lastResult || '—'}</p>
-                    <p className="text-xs text-slate-400 mt-2">الجدولة اليومية معطّلة (workflow_dispatch فقط).</p>
+                    <p className="text-xs text-slate-400 mt-2">تُدار الجدولة من GitHub Actions. حالة هذه البطاقة لا تؤكد التشغيل التلقائي.</p>
                   </div>
                   <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
                     <h2 className="text-lg font-bold mb-2">ملخص الأدلة</h2>
@@ -346,6 +373,7 @@ export default function AdminDashboard() {
                   <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="البريد الإلكتروني" value={contactForm.email} onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })} />
                 </div>
                 <button onClick={saveContact} className="btn-primary mt-4" disabled={saving}>حفظ التواصل</button>
+                <p className="text-xs text-slate-500 mt-2">أدخل رابط WhatsApp كاملاً بصيغة https://wa.me/966... حتى يعمل زر التواصل في الموقع.</p>
               </section>
             )}
 
@@ -424,7 +452,8 @@ export default function AdminDashboard() {
                     <p className="text-slate-700 text-sm">{content.agent?.lastResult || '—'}</p>
                   </div>
                 </div>
-                <p className="text-xs text-slate-400 mt-4">الوكيل يعمل عبر GitHub Actions (يومياً 02:00 UTC) وRender cron. المحتوى عالي الخطورة → مسودات (بانتظار الموافقة).</p>
+                <p className="text-xs text-slate-500 mt-4">تُدار أوقات تشغيل الوكيل من GitHub Actions. المحتوى عالي الخطورة يحتاج إلى مراجعة بشرية.</p>
+                <div className="mt-5 rounded-xl border border-slate-200 p-4"><h3 className="font-bold mb-3">مصادر البحث في Render</h3><div className="grid grid-cols-2 sm:grid-cols-4 gap-2">{marketSources.filter((s:any)=>['exa','tavily','parallel','firecrawl'].includes(s.id)).map((s:any)=><div key={s.id} className="rounded-lg bg-slate-50 p-3 text-sm"><p className="font-medium">{s.id}</p><p className={s.available?'text-emerald-700':'text-amber-700'}>{s.available?'المفتاح موجود':'غير مهيأ'}</p></div>)}</div><p className="text-xs text-slate-500 mt-2">وجود المفتاح لا يضمن نجاح الاتصال؛ راجع اختبارات الاتصال المنفصلة.</p><button className="btn-secondary text-xs mt-3" onClick={fetchMarketSources}>تحديث المصادر</button></div>
               </section>
             )}
 
@@ -455,7 +484,8 @@ export default function AdminDashboard() {
                 <h2 className="text-xl font-bold mb-4">الإعدادات</h2>
                 <p className="text-slate-600 text-sm mb-2">الفقرة الذهبية (للقراءة هنا؛ يحدّثها الوكيل):</p>
                 <p className="text-slate-700 bg-slate-50 rounded-lg p-4">{content.goldenParagraph}</p>
-                <p className="text-xs text-slate-400 mt-4">آخر تحديث: {content.updatedAt}</p>
+                <p className="text-xs text-slate-500 mt-4">آخر تحديث: {content.updatedAt ? new Date(content.updatedAt).toLocaleString('ar-SA') : '—'}</p>
+                <div className="mt-6 border-t border-slate-200 pt-4"><h3 className="font-bold mb-3">إدارة النظام</h3><p className="text-sm text-slate-600 mb-3">تُحدّث إعدادات مفاتيح API من Render، وتُدار جدولة الوكيل من GitHub Actions. لا تُعرض القيم السرية في اللوحة.</p><div className="flex flex-wrap gap-2"><button className="btn-secondary text-xs" onClick={()=>setTab('agent')}>مصادر البحث والوكيل</button><button className="btn-secondary text-xs" onClick={()=>setTab('contact')}>معلومات التواصل</button><button className="btn-secondary text-xs" onClick={()=>setTab('reviews')}>مسودات الموافقة</button><button className="btn-secondary text-xs" disabled={marketLoading||saving} onClick={refreshAll}>تحديث جميع البيانات</button></div></div>
               </section>
             )}
 
@@ -463,47 +493,54 @@ export default function AdminDashboard() {
               <div className="space-y-6">
                 <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
                   <h2 className="text-xl font-bold mb-4">المنافسون</h2>
+                  <div className="flex flex-wrap items-center gap-2 mb-4"><input className="border border-slate-300 rounded-lg px-3 py-2 flex-1 min-w-[170px]" value={competitorSearch} onChange={e=>setCompetitorSearch(e.target.value)} placeholder="بحث بالاسم أو النطاق" aria-label="بحث المنافسين"/><select value={competitorFilter} onChange={e=>setCompetitorFilter(e.target.value)} aria-label="حالة المنافس" className="border border-slate-300 rounded-lg px-3 py-2"><option value="all">كل الحالات</option><option value="active">نشط</option><option value="inactive">غير نشط</option><option value="disqualified">مستبعد</option></select></div>
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-4">
                     <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="الاسم" value={newCompetitor.name} onChange={(e) => setNewCompetitor({ ...newCompetitor, name: e.target.value })} />
                     <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="النطاق" value={newCompetitor.domain} onChange={(e) => setNewCompetitor({ ...newCompetitor, domain: e.target.value })} />
                     <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="اللغات (ar,en,zh)" value={newCompetitor.languages} onChange={(e) => setNewCompetitor({ ...newCompetitor, languages: e.target.value })} />
                     <button className="btn-primary" disabled={saving} onClick={async () => {
+                      if(!newCompetitor.name.trim()||!newCompetitor.domain.trim()){setError('أدخل اسم المنافس والنطاق');return;}
                       setSaving(true);
                       try {
                         await marketFetch('/api/admin/market/competitors', { method: 'POST', body: JSON.stringify({ name: newCompetitor.name, domain: newCompetitor.domain, languages: newCompetitor.languages.split(',').map((s) => s.trim()).filter(Boolean), source: newCompetitor.source }) });
                         setNewCompetitor({ name: '', domain: '', languages: 'ar,en', source: 'manual' });
-                        await fetchCompetitors();
+                        await fetchCompetitors();setNotice('اكتمل تحديث المنافسين');
                       } catch (e: any) { setError(e.message); }
                       finally { setSaving(false); }
                     }}>إضافة</button>
                   </div>
                   <div className="mb-4 flex items-center gap-3">
                     <button className="btn-primary" disabled={saving} onClick={async () => {
-                      if (!confirm('تشغيل اكتشاف المنافسين (DuckDuckGo) مرة واحدة؟')) return;
+                      if (!confirm('بدء بحث محدود عبر مزودي البحث المهيئين وحفظ النتائج في قاعدة البيانات؟')) return;
                       setSaving(true); setError('');
                       try {
                         const d = await marketFetch('/api/admin/market/discovery', { method: 'POST', body: JSON.stringify({ max_competitors: 10 }) });
-                        alert('Discovery: ' + (d.status || 'done') + ' — competitors: ' + (d.summary?.competitors_discovered ?? 0) + ', unique: ' + (d.summary?.unique_domains ?? 0) + ', errors: ' + (d.summary?.errors?.length ?? 0));
+                        setNotice('اكتمل الاكتشاف: ' + (d.summary?.competitors_discovered ?? 0) + ' منافسين، ' + (d.summary?.keywords_upserted ?? 0) + ' كلمات، ' + (d.summary?.errors?.length ?? 0) + ' أخطاء.');
                         await fetchCompetitors();
                       } catch (e: any) { setError(e.message); }
                       finally { setSaving(false); }
                     }}>تشغيل اكتشاف المنافسين</button>
-                    <span className="text-sm text-slate-500">DuckDuckGo HTML (بدون مفتاح API)</span>
+                    <span className="text-sm text-slate-500">Exa وTavily وParallel وFirecrawl، ضمن حدود الاستهلاك.</span>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
-                      <thead><tr className="text-right border-b"><th className="py-2">الاسم</th><th>النطاق</th><th>الحالة</th><th>اللغات</th><th>آخر رصد</th></tr></thead>
+                      <thead><tr className="text-right border-b"><th className="py-2">الاسم</th><th>النطاق</th><th>الحالة</th><th>اللغات</th><th>آخر رصد</th><th>إجراء</th></tr></thead>
                       <tbody>
-                        {competitors.map((c: any) => (
+                        {competitors.filter((c:any)=>(competitorFilter==='all'||c.status===competitorFilter)&&(!competitorSearch.trim()||((c.name||'')+' '+(c.domain||'')).toLowerCase().includes(competitorSearch.trim().toLowerCase()))).map((c:any) => (
                           <tr key={c.id} className="border-b">
                             <td className="py-2">{c.name}</td>
                             <td dir="ltr" className="text-left">{c.domain}</td>
                             <td>{c.status}</td>
                             <td>{(c.languages || []).join(', ')}</td>
-                            <td className="text-xs text-slate-400">{c.last_seen_at || '—'}</td>
+                            <td className="text-xs text-slate-400">{c.last_seen_at ? new Date(c.last_seen_at).toLocaleDateString('ar-SA') : '—'}</td>
+                            <td><select aria-label={'حالة '+c.name} className="border border-slate-300 rounded px-2 py-1 text-xs" disabled={saving} value={c.status} onChange={async(e)=>{
+                              const status=e.target.value;if(status==='disqualified'&&!window.confirm('هل تريد استبعاد هذا المنافس؟'))return;
+                              setSaving(true);setError('');try{await marketFetch('/api/admin/market/competitors',{method:'PATCH',body:JSON.stringify({id:c.id,status})});await fetchCompetitors();setNotice('تم تحديث حالة المنافس');}
+                              catch(err:any){setError(err.message);}finally{setSaving(false);}
+                            }}><option value="active">نشط</option><option value="inactive">غير نشط</option><option value="disqualified">مستبعد</option></select></td>
                           </tr>
                         ))}
-                        {competitors.length === 0 && <tr><td colSpan={5} className="py-4 text-slate-400 text-center">لا يوجد منافسون بعد. (اكتشاف المنافسين يتطلب DuckDuckGo (بدون مفتاح))</td></tr>}
+                        {competitors.length === 0 && <tr><td colSpan={6} className="py-4 text-slate-400 text-center">لا يوجد منافسون بعد. شغّل الاكتشاف لجلب مرشحين فعليين.</td></tr>}
                       </tbody>
                     </table>
                   </div>
@@ -515,19 +552,20 @@ export default function AdminDashboard() {
               <div className="space-y-6">
                 <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
                   <h2 className="text-xl font-bold mb-4">الكلمات المفتاحية</h2>
+                  <input className="border border-slate-300 rounded-lg px-3 py-2 w-full mb-3" value={keywordSearch} onChange={e=>setKeywordSearch(e.target.value)} placeholder="تصفية الكلمات أو اللغات" aria-label="تصفية الكلمات المفتاحية"/>
                   <p className="text-xs text-slate-400 mb-3">الأحجام تُخزّن فقط عند توفر مصدر موثوق. لا يتم اختلاق أي بيانات.</p>
                   <div className="flex gap-2 mb-4 flex-wrap">
-                    <input className="border border-slate-300 rounded-lg px-4 py-2 flex-1" placeholder="المصطلح" value={newKeyword} onChange={(e) => setNewKeyword(e.target.value)} />
-                    <select className="border border-slate-300 rounded-lg px-4 py-2" defaultValue="ar" id="kw-lang">
+                    <input className="border border-slate-300 rounded-lg px-4 py-2 flex-1" placeholder="المصطلح" value={newMarketKeyword} onChange={(e) => setNewMarketKeyword(e.target.value)} />
+                    <select className="border border-slate-300 rounded-lg px-4 py-2" value={keywordLanguage} onChange={e=>setKeywordLanguage(e.target.value as 'ar'|'en'|'zh')} aria-label="لغة الكلمة المفتاحية">
                       <option value="ar">ar</option><option value="en">en</option><option value="zh">zh</option>
                     </select>
                     <button className="btn-primary" disabled={saving} onClick={async () => {
-                      if (!newKeyword.trim()) return;
-                      setSaving(true);
+                      if (!newMarketKeyword.trim()) {setError('أدخل كلمة مفتاحية');return;}
+                      setSaving(true);setError('');
                       try {
-                        const lang = (document.getElementById('kw-lang') as HTMLSelectElement)?.value || 'ar';
-                        await marketFetch('/api/admin/market/keywords', { method: 'POST', body: JSON.stringify({ term: newKeyword.trim(), language: lang, source: 'manual' }) });
-                        setNewKeyword('');
+                        const lang=keywordLanguage;
+                        await marketFetch('/api/admin/market/keywords', { method: 'POST', body: JSON.stringify({ term: newMarketKeyword.trim(), language: lang, source: 'manual' }) });
+                        setNewMarketKeyword('');setNotice('أُضيفت الكلمة المفتاحية');
                         await fetchKeywords();
                       } catch (e: any) { setError(e.message); }
                       finally { setSaving(false); }
@@ -535,18 +573,23 @@ export default function AdminDashboard() {
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
-                      <thead><tr className="text-right border-b"><th className="py-2">المصطلح</th><th>اللغة</th><th>النية</th><th>الحجم</th><th>المصدر</th></tr></thead>
+                      <thead><tr className="text-right border-b"><th className="py-2">المصطلح</th><th>اللغة</th><th>النية</th><th>الحجم</th><th>المصدر</th><th>الإجراء</th></tr></thead>
                       <tbody>
-                        {keywords.map((k: any) => (
+                        {keywords.filter((k:any)=>!keywordSearch.trim()||((k.term||'')+' '+(k.language||'')).toLowerCase().includes(keywordSearch.trim().toLowerCase())).map((k:any) => (
                           <tr key={k.id} className="border-b">
                             <td className="py-2">{k.term}</td>
                             <td>{k.language}</td>
                             <td>{k.intent}</td>
                             <td>{k.search_volume ?? '—'}</td>
                             <td className="text-xs text-slate-400">{k.source} ({k.volume_confidence})</td>
+                            <td><button className="text-red-700 text-xs hover:underline disabled:opacity-50" disabled={saving} onClick={async()=>{
+                              if(!window.confirm('حذف الكلمة المفتاحية: '+k.term+'؟'))return;
+                              setSaving(true);setError('');try{await marketFetch('/api/admin/market/keywords',{method:'DELETE',body:JSON.stringify({id:k.id})});await fetchKeywords();setNotice('حُذفت الكلمة المفتاحية');}
+                              catch(err:any){setError(err.message);}finally{setSaving(false);}
+                            }}>حذف</button></td>
                           </tr>
                         ))}
-                        {keywords.length === 0 && <tr><td colSpan={5} className="py-4 text-slate-400 text-center">لا توجد كلمات بعد.</td></tr>}
+                        {keywords.length === 0 && <tr><td colSpan={6} className="py-4 text-slate-400 text-center">لا توجد كلمات بعد.</td></tr>}
                       </tbody>
                     </table>
                   </div>
@@ -562,13 +605,15 @@ export default function AdminDashboard() {
                     <div className="flex gap-2">
                       <button className="btn-primary text-xs" disabled={saving} onClick={async () => {
                         setSaving(true);
-                        try { await marketFetch('/api/admin/market/analyze', { method: 'POST', body: JSON.stringify({ triggered_by: 'admin' }) }); await fetchOpportunities(); await fetchGoals(); await fetchRuns(); }
+                        if(!window.confirm('بدء تحليل السوق وحفظ النتائج؟'))return;
+                         setError('');try { await marketFetch('/api/admin/market/analyze', { method: 'POST', body: JSON.stringify({ triggered_by: 'admin' }) }); await fetchOpportunities(); await fetchGoals(); await fetchRuns(); }
                         catch (e: any) { setError(e.message); }
                         finally { setSaving(false); }
                       }}>تشغيل التحليل</button>
                       <button className="btn-secondary text-xs" disabled={saving} onClick={async () => {
                         setSaving(true);
-                        try { await marketFetch('/api/admin/market/radar', { method: 'POST', body: JSON.stringify({ triggered_by: 'admin' }) }); await fetchOpportunities(); await fetchGoals(); await fetchKeywords(); await fetchCompetitors(); await fetchRuns(); }
+                        if(!window.confirm('تشغيل الرادار وجمع بيانات بحث خارجية وحفظها؟'))return;
+                         setError('');try { await marketFetch('/api/admin/market/radar', { method: 'POST', body: JSON.stringify({ triggered_by: 'admin' }) }); await fetchOpportunities(); await fetchGoals(); await fetchKeywords(); await fetchCompetitors(); await fetchRuns(); }
                         catch (e: any) { setError(e.message); }
                         finally { setSaving(false); }
                       }}>تشغيل الرادار</button>
@@ -586,7 +631,7 @@ export default function AdminDashboard() {
                             <td>{o.score}</td>
                             <td>{o.status}</td>
                             <td>
-                              <select className="border border-slate-300 rounded text-xs" value={o.status} onChange={async (e) => {
+                              <select disabled={saving} className="border border-slate-300 rounded text-xs" value={o.status} onChange={async (e) => {
                                 try { await marketFetch('/api/admin/market/opportunities', { method: 'PATCH', body: JSON.stringify({ id: o.id, status: e.target.value }) }); await fetchOpportunities(); }
                                 catch (err: any) { setError(err.message); }
                               }}>
@@ -599,7 +644,7 @@ export default function AdminDashboard() {
                       </tbody>
                     </table>
                   </div>
-                  <p className="text-xs text-slate-400 mt-3">ملاحظة: 27 فرصة حالية مستنتجة من الكلمات (keyword_gap). opportunitie типа content_gap (فجوة تنافسية) تتطلب منافسين (0 حالياً).</p>
+                  <p className="text-xs text-slate-500 mt-3">الفرص المعروضة تعتمد على البيانات المحفوظة. تحقق من الأدلة قبل اتخاذ أي إجراء.</p>
                 </section>
               </div>
             )}
@@ -620,7 +665,7 @@ export default function AdminDashboard() {
                             <td>{g.confidence}</td>
                             <td className="text-xs">{(g.success_metrics || []).map((m: any) => m.metric).join(', ')}</td>
                             <td>
-                              <select className="border border-slate-300 rounded text-xs" value={g.status} onChange={async (e) => {
+                              <select disabled={saving} className="border border-slate-300 rounded text-xs" value={g.status} onChange={async (e) => {
                                 try { await marketFetch('/api/admin/market/goals', { method: 'PATCH', body: JSON.stringify({ id: g.id, status: e.target.value }) }); await fetchGoals(); }
                                 catch (err: any) { setError(err.message); }
                               }}>
@@ -680,8 +725,8 @@ export default function AdminDashboard() {
                         <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">الأهداف</p><p className="text-xl font-bold">{evidenceData.goals.length}</p></div>
                       </div>
                       <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm">
-                        <p className="font-semibold text-amber-800">ملاحظة: 0 منافسين = 0 ملاحظات (competitor observations).</p>
-                        <p className="text-amber-700 mt-1">الفرص (27) مستنتجة من الكلمات (keyword_gap)، وليس من تحليل منافسين (content_gap). opportunitie типа content_gap تتطلب منافسين (DuckDuckGo (بدون مفتاح) غير مُفعل).</p>
+                        <p className="font-semibold text-amber-800">ملاحظة: نتيجة البحث هي مرشح وتحتاج إلى مراجعة أدلتها.</p>
+                        <p className="text-amber-700 mt-1">المنافسون: {evidenceData.competitors.length}، الكلمات: {evidenceData.keywords.length}، الفرص: {evidenceData.opportunities.length}. لا تُعتمد النتائج دون مصادر قابلة للتحقق.</p>
                       </div>
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm">

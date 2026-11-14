@@ -1,0 +1,21 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+const target=path.join(process.cwd(),'.market-admin-keyword-test');
+process.env.NODE_ENV='test';
+process.env.MARKET_INTEL_PATH=target;
+delete process.env.SUPABASE_URL;
+delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+fs.rmSync(target,{recursive:true,force:true});fs.mkdirSync(target,{recursive:true});
+(async()=>{
+ const store=require(path.join(process.cwd(),'.market-test-build/market-intelligence.js'));
+ const keyword=await store.upsertKeyword({term:'Test market keyword deletion',language:'en',source:'manual'});
+ assert.ok(keyword.id);
+ let listed=await store.listKeywords();
+ assert.equal(listed.filter(k=>k.id===keyword.id).length,1);
+ assert.equal(await store.deleteKeyword(keyword.id),true);
+ listed=await store.listKeywords();
+ assert.equal(listed.some(k=>k.id===keyword.id),false);
+ assert.equal(await store.deleteKeyword(keyword.id),false);
+ await assert.rejects(()=>store.deleteKeyword('not-a-uuid'),/valid keyword ID/);
+ console.log('PASS keyword create/read/delete/read with idempotency and UUID validation');
+})().catch(e=>{console.error(e);process.exitCode=1}).finally(()=>fs.rmSync(target,{recursive:true,force:true}));

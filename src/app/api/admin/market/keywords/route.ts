@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'crypto';
-import { listKeywords, upsertKeyword } from '@/lib/market-intelligence';
+import { listKeywords, upsertKeyword, deleteKeyword } from '@/lib/market-intelligence';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,5 +35,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ keyword });
   } catch (e) {
     return NextResponse.json({ status: 'error', message: e instanceof Error ? e.message : String(e) }, { status: 400 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  if (!authorized(req)) return NextResponse.json({ status: 'unauthorized' }, { status: 401 });
+  try {
+    const body = await req.json();
+    const id = typeof body?.id === 'string' ? body.id.trim() : '';
+    if (!id) return NextResponse.json({ status: 'error', message: 'Keyword ID is required' }, { status: 400 });
+    const removed = await deleteKeyword(id);
+    if (!removed) return NextResponse.json({ status: 'not_found' }, { status: 404 });
+    return NextResponse.json({ deleted: true });
+  } catch (e) {
+    return NextResponse.json({ status: 'error', message: e instanceof Error ? e.message : 'Delete failed' }, { status: 400 });
   }
 }

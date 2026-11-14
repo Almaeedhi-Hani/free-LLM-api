@@ -65,7 +65,8 @@ const DEFAULT_CONTENT: SiteContent = {
     status: 'idle',
     lastResult: '',
   },
-  updatedAt: new Date().toISOString(),
+  // Stable sentinel avoids version mismatch when GET and POST use separate Next.js route bundles.
+  updatedAt: '1970-01-01T00:00:00.000Z',
 };
 
 function storePath(): string {
@@ -153,26 +154,39 @@ export async function getContent(): Promise<SiteContent> {
   }
 }
 
-function buildNext(current: SiteContent, patch: Partial<SiteContent>): SiteContent {
+export interface ContentWriteOptions {
+  /** Admin dashboard replaces explicitly submitted arrays, enabling real delete/edit. */
+  replaceArrays?: boolean;
+  /** Optimistic locking token from the last data GET; reject stale admin edits. */
+  expectedUpdatedAt?: string;
+}
+
+function buildNext(current: SiteContent, patch: Partial<SiteContent>, options: ContentWriteOptions = {}): SiteContent {
   const next: SiteContent = {
     ...current,
     ...patch,
     contact: { ...current.contact, ...patch.contact },
     agent: { ...current.agent, ...patch.agent },
-    updatedAt: new Date().toISOString(),
+    updatedAt: new Date(Math.max(Date.now(), (Date.parse(current.updatedAt) || 0) + 1)).toISOString(),
   };
-  if (patch.faqs) {
-    const map = new Map(current.faqs.map((f) => [f.q, f]));
-    for (const f of patch.faqs) if (!map.has(f.q)) map.set(f.q, f);
-    next.faqs = Array.from(map.values());
-  }
-  if (patch.keywords) {
-    next.keywords = Array.from(new Set([...current.keywords, ...patch.keywords]));
-  }
-  if (patch.drafts) {
-    const map = new Map(current.drafts.map((d) => [d.q, d]));
-    for (const d of patch.drafts) if (!map.has(d.q)) map.set(d.q, d);
-    next.drafts = Array.from(map.values());
+  if (options.replaceArrays) {
+    // Dashboard sends the complete array: removal and editing must be authoritative.
+    if (patch.faqs) next.faqs = patch.faqs;
+    if (patch.keywords) next.keywords = Array.from(new Set(patch.keywords));
+    if (patch.drafts) next.drafts = patch.drafts;
+  } else {
+    // Preserve append/merge semantics for existing automated-agent writes.
+    if (patch.faqs) {
+      const map = new Map(current.faqs.map((f) => [f.q, f]));
+      for (const f of patch.faqs) map.set(f.q, f);
+      next.faqs = Array.from(map.values());
+    }
+    if (patch.keywords) next.keywords = Array.from(new Set([...current.keywords, ...patch.keywords]));
+    if (patch.drafts) {
+      const map = new Map(current.drafts.map((d) => [d.q, d]));
+      for (const d of patch.drafts) map.set(d.q, d);
+      next.drafts = Array.from(map.values());
+    }
   }
   return next;
 }
@@ -186,7 +200,7 @@ function writeLocalContent(data: SiteContent): SiteContent {
   return data;
 }
 
-export async function setContent(patch: Partial<SiteContent>): Promise<SiteContent> {
+export async function setContent(patch: Partial<SiteContent>, options: ContentWriteOptions = {}): Promise<SiteContent> {
   const mode = resolveStorageMode();
 
   if (mode === 'file') {
@@ -194,14 +208,16 @@ export async function setContent(patch: Partial<SiteContent>): Promise<SiteConte
     // both read the same snapshot and the last writer silently loses data.
     return withLock(async () => {
       const current = await getContent();
-      return writeLocalContent(buildNext(current, patch));
+      if (options.expectedUpdatedAt && options.expectedUpdatedAt !== current.updatedAt) throw new StorageConflictError();
+      return writeLocalContent(buildNext(current, patch, options));
     });
   }
 
   const cfg = supabaseConfig();
   for (let attempt = 0; attempt < 3; attempt++) {
     const current = await supabaseGet(cfg);
-    const next = buildNext(current, patch);
+    if (options.expectedUpdatedAt && options.expectedUpdatedAt !== current.updatedAt) throw new StorageConflictError();
+    const next = buildNext(current, patch, options);
     const ok = await supabaseSet(cfg, next, current.updatedAt);
     if (ok) return next;
   }

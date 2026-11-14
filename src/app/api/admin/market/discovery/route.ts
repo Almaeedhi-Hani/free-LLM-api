@@ -31,18 +31,20 @@ export async function POST(req: NextRequest) {
     if (isRunning) {
       return NextResponse.json({ status: 'busy', message: 'Discovery already running' }, { status: 429 });
     }
-  } catch { /* ignore lock check errors */ }
+  } catch (e) {
+    return NextResponse.json({ status: 'error', message: 'Cannot verify existing discovery runs.' }, { status: 503 });
+  }
 
   let runId: string | null = null;
   try {
     const run = await startRun('radar', 'admin');
     runId = run.id;
     const body = await req.json().catch(() => ({}));
-    const maxCompetitors = Math.min(Number(body?.max_competitors) || 10, 20);
+    const requested = Number(body?.max_competitors);
+    const maxCompetitors = Number.isFinite(requested) ? Math.max(1, Math.min(Math.trunc(requested), 20)) : 10;
     const summary = await runDiscovery({
       maxCompetitors,
       maxSuggestionsPerSeed: 5,
-      allowedSourceIds: ['duckduckgo-html'],
       triggeredBy: 'admin',
     });
     const hasErrors = (summary.errors?.length || 0) > 0;
