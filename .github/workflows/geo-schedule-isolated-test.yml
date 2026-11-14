@@ -1,0 +1,30 @@
+name: GEO Schedule Policy — Isolated CI
+on:
+  push:
+    branches:
+      - test/geo-schedule-safety-20261114
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  schedule-policy-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout sandbox branch
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Safety checks with no credentials and no external APIs
+        run: |
+          test -f AGENTS.md
+          node --test scripts/geo-schedule-policy.test.cjs
+      - name: Verify no live cron in isolated test workflow
+        run: |
+          if grep -E '^[[:space:]]+- cron:' .github/workflows/geo-schedule-isolated-test.yml; then
+            echo "Test workflow must never have a schedule"
+            exit 1
+          fi
+          echo "Isolated read-only CI: no API keys, no prod database, no publication"
