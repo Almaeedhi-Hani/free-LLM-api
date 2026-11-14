@@ -94,6 +94,7 @@ export default function AdminDashboard() {
   const [editingOpportunity,setEditingOpportunity] = useState<{id:string;title:string;priority:string}|null>(null);
   const [keywordLanguage,setKeywordLanguage]=useState<'ar'|'en'|'zh'>('ar');
   const [notice,setNotice]=useState('');
+  const [restoringSession, setRestoringSession] = useState(true);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -105,11 +106,32 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => {
-    const saved = sessionStorage.getItem('admin_secret');
-    if (saved) {
-      setSecret(saved);
-      setAuthed(true);
-    }
+    let active = true;
+    const restore = async () => {
+      const saved = sessionStorage.getItem('admin_secret');
+      if (!saved) { if (active) setRestoringSession(false); return; }
+      try {
+        const response = await fetch('/api/admin/content', {
+          headers: { 'x-admin-secret': saved },
+          cache: 'no-store',
+        });
+        if (!response.ok) throw new Error('Session expired');
+        const data = await response.json();
+        if (!active) return;
+        setSecret(saved);
+        setContent(data);
+        if (data.contact) setContactForm(data.contact);
+        setGoldenDraft(data.goldenParagraph || '');
+        setAuthed(true);
+      } catch {
+        sessionStorage.removeItem('admin_secret');
+        if (active) { setAuthed(false); setSecret(''); }
+      } finally {
+        if (active) setRestoringSession(false);
+      }
+    };
+    void restore();
+    return () => { active = false; };
   }, []);
 
   const fetchContent = async () => {
@@ -307,6 +329,10 @@ export default function AdminDashboard() {
     setError('');
     void save({contact: Object.fromEntries(Object.entries(contactForm).map(([key,value])=>[key,value.trim()]))});
   };
+
+  if (restoringSession) {
+    return <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-600" dir="rtl" role="status">جارٍ التحقق من جلسة الإدارة...</div>;
+  }
 
   if (!authed) {
     return (
