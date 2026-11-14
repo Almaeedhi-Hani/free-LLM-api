@@ -1,0 +1,47 @@
+name: Admin Dashboard Real Browser Controls Test
+on:
+  push:
+    branches:
+      - fix/admin-dashboard-controls-20261114
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser-controls:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - name: Install headless Chromium for isolated UI test
+        run: |
+          npm install --no-save playwright@1.57.0
+          npx playwright install --with-deps chromium
+      - name: Start isolated dashboard (local files only, no production database)
+        env:
+          ADMIN_SECRET: local-dashboard-e2e-secret
+          CONTENT_STORE_PATH: ${{ runner.temp }}/dashboard-e2e-content.json
+          MARKET_INTEL_PATH: ${{ runner.temp }}/dashboard-e2e-market
+        run: |
+          mkdir -p "$MARKET_INTEL_PATH"
+          nohup npm run dev -- --hostname 127.0.0.1 --port 3100 >"${{ runner.temp }}/admin-dev.log" 2>&1 &
+          for i in $(seq 1 35); do
+            if curl -sSf http://127.0.0.1:3100/admin/dashboard > /dev/null; then exit 0; fi
+            sleep 2
+          done
+          tail -100 "${{ runner.temp }}/admin-dev.log"
+          exit 1
+      - name: Click actual admin buttons in Chromium
+        env:
+          E2E_ADMIN_SECRET: local-dashboard-e2e-secret
+        run: node scripts/admin-dashboard-browser-e2e.cjs
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: dashboard-browser-failure-screenshot
+          path: /tmp/admin-dashboard-browser-e2e-failure.png
+          if-no-files-found: ignore
+          retention-days: 7
