@@ -14,6 +14,7 @@ export default function VisibilityDashboard({secret}:{secret:string}){
  const [gscConnected,setGscConnected]=useState(false);
  const [querySummary,setQuerySummary]=useState<{clicks:number;impressions:number;ctr:number;position:number}|null>(null);
  const [gscProperty,setGscProperty]=useState('');
+ const [history,setHistory]=useState<{rows:Array<{metric_date:string;clicks:number;impressions:number}>;alerts:Array<{message:string}>;last_sync:string|null;message?:string}|null>(null);
  const [loading,setLoading]=useState(false);
  const [error,setError]=useState('');
  const [message,setMessage]=useState('');
@@ -39,6 +40,7 @@ export default function VisibilityDashboard({secret}:{secret:string}){
   finally{setLoading(false)}
  }
  useEffect(()=>{void load(section)},[section,secret,queryDimension,queryDays]);
+ useEffect(()=>{if(section!=='queries')return;let active=true;fetch('/api/admin/gsc-history',{headers:{'x-admin-secret':secret},cache:'no-store'}).then(r=>r.ok?r.json():null).then(d=>{if(active)setHistory(d)}).catch(()=>{if(active)setHistory(null)});return()=>{active=false}},[section,secret]);
  const filtered=rows.filter(r=>lang==='all'||r.language===lang);
  const ok=filtered.filter(r=>r.status==='ok').length;
  const issues=filtered.filter(r=>r.status==='issue').length;
@@ -87,6 +89,7 @@ export default function VisibilityDashboard({secret}:{secret:string}){
     {gscConnected&&<div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
      {([['النقرات',querySummary?.clicks.toLocaleString('ar-SA')??'0'],['مرات الظهور',querySummary?.impressions.toLocaleString('ar-SA')??'0'],['CTR',querySummary?(querySummary.ctr*100).toFixed(2)+'%':'—'],['متوسط الترتيب',querySummary?querySummary.position.toFixed(1):'—']] as const).map(([label,value])=><div key={label} className="rounded-lg bg-slate-50 p-3"><span className="text-xs text-slate-600">{label}</span><strong className="block text-xl">{value}</strong></div>)}
     </div>}
+    {history&&<div className="rounded-lg border border-slate-200 p-3 space-y-2"><h4 className="font-semibold">المراقبة اليومية المحفوظة</h4><p className="text-xs text-slate-500">آخر مزامنة: {history.last_sync?new Date(history.last_sync).toLocaleString('ar-SA'):'لم تبدأ بعد'}</p>{history.message&&<p className="text-sm">{history.message}</p>}{history.alerts.map((a,i)=><p key={i} role="alert" className="text-amber-800">{a.message}</p>)}{history.rows.length>0&&<div className="overflow-x-auto"><table className="w-full text-sm text-right"><thead><tr><th>اليوم</th><th>النقرات</th><th>الظهور</th></tr></thead><tbody>{history.rows.slice(0,14).map(r=><tr key={r.metric_date}><td>{r.metric_date}</td><td>{r.clicks}</td><td>{r.impressions}</td></tr>)}</tbody></table></div>}</div>}
     {gscConnected&&queryRows.length===0&&<p role="status" className="rounded-lg bg-blue-50 p-3 text-blue-900">الاتصال ناجح، لكن Google لا يعرض بيانات لهذا التصنيف والفترة حتى الآن. هذا طبيعي للمواقع الجديدة.</p>}
    </div>}
    {section==='queries'&&queryRows.length>0&&<div className="overflow-x-auto"><p className="text-xs text-slate-500 mb-2">المصدر: Google Search Console — الفترة: {queryPeriod}</p><table className="w-full text-sm text-right"><thead><tr className="border-b"><th className="p-2">{({query:'الاستعلام',page:'الصفحة',country:'البلد',device:'الجهاز'} as const)[queryDimension]}</th><th className="p-2">النقرات</th><th className="p-2">الظهور</th><th className="p-2">CTR</th><th className="p-2">متوسط الموضع</th></tr></thead><tbody>{queryRows.map((q,i)=><tr key={q.query+'-'+i} className="border-b"><td className="p-2">{q.query}</td><td className="p-2">{q.clicks}</td><td className="p-2">{q.impressions}</td><td className="p-2">{(q.ctr*100).toFixed(2)}%</td><td className="p-2">{q.position.toFixed(1)}</td></tr>)}</tbody></table></div>}
