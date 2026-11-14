@@ -496,14 +496,19 @@ export async function getCompetitor(idOrDomain: string): Promise<Competitor | nu
   const key = idOrDomain.trim();
   if (!key) return null;
   if (isSupabase()) {
-    // Try by id first, then domain.
-    let res = await sbFetch(`competitors?id=eq.${encodeURIComponent(key)}&select=*&limit=1`);
-    let rows = await sbJson<Competitor[]>(res, 'getCompetitor');
-    if (!rows.length) {
-      res = await sbFetch(`competitors?domain=eq.${encodeURIComponent(normalizeDomain(key))}&select=*&limit=1`);
-      rows = await sbJson<Competitor[]>(res, 'getCompetitor');
+    // UUID columns must never receive a hostname: Postgres rejects that with 22P02.
+    // Domain and ID lookups are independent and must use their correct column types.
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (uuidPattern.test(key)) {
+      const byId = await sbFetch(`competitors?id=eq.${encodeURIComponent(key)}&select=*&limit=1`);
+      const rows = await sbJson<Competitor[]>(byId, 'getCompetitor');
+      if (rows.length) return rows[0];
     }
-    return rows.length ? rows[0] : null;
+    const normalized = normalizeDomain(key);
+    if (!normalized) return null;
+    const byDomain = await sbFetch(`competitors?domain=eq.${encodeURIComponent(normalized)}&select=*&limit=1`);
+    const rows = await sbJson<Competitor[]>(byDomain, 'getCompetitor');
+    return rows[0] || null;
   }
   const rows = readFile<Competitor>('competitors.json');
   return (
