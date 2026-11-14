@@ -26,6 +26,7 @@ jobs:
           node --check scripts/geo-discovery-sources.cjs
           node --check scripts/opencode-geo-analysis.js
           node scripts/provider-search.test.cjs
+          node scripts/competitor-supabase-uuid-regression.test.cjs
           node scripts/geo-discovery-sources.test.cjs
       - name: Verify full Next.js production build
         run: npm run build
