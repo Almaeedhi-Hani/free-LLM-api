@@ -1,3 +1,4 @@
+import ArrowUpRight from "@/components/ArrowUpRight";
 import { getLocale, localizedPath } from "@/lib/site-language";
 import { copy, services } from "@/lib/service-catalog";
 import { getContent } from "@/lib/content-store";
@@ -119,7 +120,7 @@ export async function ServicePage({ slug }: { slug: string }) {
           <h2>{t.sources}</h2>
           <p>{t.sourceNote}</p>
           <a href={s.source} target="_blank" rel="noopener noreferrer">
-            {s.authority} ↗
+            {s.authority} <ArrowUpRight />
           </a>
           {guide.references.map((ref) => (
             <a
@@ -128,7 +129,7 @@ export async function ServicePage({ slug }: { slug: string }) {
               target="_blank"
               rel="noopener noreferrer"
             >
-              {ref.label} ↗
+              {ref.label} <ArrowUpRight />
             </a>
           ))}
           <small>{t.verified}</small>
@@ -138,7 +139,7 @@ export async function ServicePage({ slug }: { slug: string }) {
             target="_blank"
             rel="noopener noreferrer"
           >
-            {t.contact} ↗
+            {t.contact} <ArrowUpRight />
           </a>
         </aside>
       </div>
@@ -150,7 +151,7 @@ export async function ServicePage({ slug }: { slug: string }) {
             <a key={item.slug} href={localizedPath(lang, `/services/${item.slug}`)}>
               <span>{item.authority}</span>
               <strong>{item.title[lang]}</strong>
-              <small>{lang === "ar" ? "عرض الدليل" : lang === "zh" ? "查看指南" : "View guide"} ↗</small>
+              <small>{lang === "ar" ? "عرض الدليل" : lang === "zh" ? "查看指南" : "View guide"} <ArrowUpRight /></small>
             </a>
           ))}
         </div>
@@ -161,7 +162,7 @@ export async function ServicePage({ slug }: { slug: string }) {
           <h2>{lang === "ar" ? "حوّل الأسئلة إلى خطة واضحة." : lang === "zh" ? "将问题转化为清晰的计划。" : "Turn questions into a clear plan."}</h2>
           <p>{lang === "ar" ? "شاركنا نشاطك وجنسية المستثمر والمرحلة الحالية لتحديد نقاط التحقق قبل بدء الإجراءات." : lang === "zh" ? "提供业务活动、投资者国籍及当前阶段，明确申请前需核实的事项。" : "Share your activity, investor nationality and current stage to identify the checks needed before you proceed."}</p>
         </div>
-        <a className="action-primary" href={contact.whatsapp} target="_blank" rel="noopener noreferrer">{t.contact} ↗</a>
+        <a className="action-primary" href={contact.whatsapp} target="_blank" rel="noopener noreferrer">{t.contact} <ArrowUpRight /></a>
       </div>
     </article>
   );
