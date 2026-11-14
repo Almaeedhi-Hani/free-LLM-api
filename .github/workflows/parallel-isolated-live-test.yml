@@ -1,8 +1,5 @@
 name: Parallel — Isolated Live Probe
 on:
-  push:
-    branches:
-      - fix/search-source-reliability-20261114
   workflow_dispatch:
 permissions:
   contents: read
