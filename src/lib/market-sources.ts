@@ -151,15 +151,15 @@ export class BingSearchSource implements SearchSource {
 
 export function defaultSources(): SearchSource[] {
   const sources: SearchSource[] = [new GoogleSuggestSource(), new DuckDuckGoSuggestSource()];
-  // Open (keyless) search source - default path for competitor discovery
+  // Authenticated API sources, when explicitly configured, are more dependable.
+  // Never route through retired Bing Web Search API.
+  const brave = new BraveSearchSource();
+  const tavily = new TavilySearchSource();
+  if (brave.isAvailable()) sources.push(brave);
+  if (tavily.isAvailable()) sources.push(tavily);
+  // Best-effort fallback: blocked/irrelevant SERPs are NOT treated as results.
   sources.push(new BingRssSearchSource());
   sources.push(new DuckDuckGoHtmlSource());
-  const brave = new BraveSearchSource();
-  if (brave.isAvailable()) sources.push(brave);
-  const tavily = new TavilySearchSource();
-  if (tavily.isAvailable()) sources.push(tavily);
-  const bing = new BingSearchSource();
-  if (bing.isAvailable()) sources.push(bing);
   return sources;
 }
 
