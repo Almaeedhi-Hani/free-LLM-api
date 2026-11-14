@@ -810,6 +810,27 @@ export async function listKeywords(filters?: {
   return rows.sort((a, b) => b.last_seen_at.localeCompare(a.last_seen_at));
 }
 
+/** Permanently remove a manually managed keyword; scoped by UUID to prevent mass deletion. */
+export async function deleteKeyword(id: string): Promise<boolean> {
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!uuid.test(id)) throw new Error('A valid keyword ID is required');
+  if (isSupabase()) {
+    const response = await sbFetch(`keywords?id=eq.${encodeURIComponent(id)}&select=id`, {
+      method: 'DELETE',
+      headers: { Prefer: 'return=representation' },
+    });
+    const deleted = await sbJson<Array<{ id: string }>>(response, 'deleteKeyword');
+    return deleted.some((row) => row.id === id);
+  }
+  return withFileLock(() => {
+    const rows = readFile<Keyword>('keywords.json');
+    const filtered = rows.filter((row) => row.id !== id);
+    if (filtered.length === rows.length) return false;
+    writeFile('keywords.json', filtered);
+    return true;
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Opportunities
 // ---------------------------------------------------------------------------
