@@ -61,7 +61,7 @@ export async function PATCH(req: NextRequest) {
     const { term, language, intent, cluster } = body;
     if (typeof term !== 'string' || !['ar','en','zh'].includes(language) || typeof intent !== 'string')
       return NextResponse.json({ message: 'Valid keyword, language and intent are required' }, { status: 400 });
-    const keyword = await updateKeyword(id, {term, language, intent, cluster});
+    const keyword = await updateKeyword(id, {term, language, intent: intent as Parameters<typeof updateKeyword>[1]['intent'], cluster});
     if (!keyword) return NextResponse.json({ status: 'not_found' }, { status: 404 });
     return NextResponse.json({keyword});
   } catch (e) {
