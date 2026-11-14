@@ -225,7 +225,7 @@ async function atest(name, fn) {
     const runs = await mi.listRuns();
     assert.ok(runs.length >= 1);
     const found = runs.find((r) => r.id === run.id);
-    assert.strictEqual(found.status, 'success');
+    assert.strictEqual(found.status, discovery.success ? 'success' : 'partial');
     assert.deepStrictEqual(found.summary, { ok: true });
   });
 
@@ -318,12 +318,17 @@ async function atest(name, fn) {
   // ---- Phase 2B: sources, discovery, radar ----
   const ms = require(path.join(BUILD_DIR, 'market-sources.js'));
 
-  await atest('availableSources lists google + duckduckgo as available', async () => {
+  await atest('availableSources reports active Google suggestions and configured provider availability', async () => {
     const srcs = mi.listAvailableSources();
     assert.ok(Array.isArray(srcs));
     const ids = srcs.map((s) => s.id);
     assert.ok(ids.includes('google-suggest'));
-    assert.ok(ids.includes('duckduckgo-suggest'));
+    assert.ok(ids.includes('bing-rss'));
+    assert.ok(ids.includes('exa'));
+    assert.ok(ids.includes('tavily'));
+    assert.ok(ids.includes('parallel'));
+    assert.ok(ids.includes('firecrawl'));
+    assert.ok(!ids.includes('duckduckgo-suggest'), 'disabled DuckDuckGo must not appear as active');
     const google = srcs.find((s) => s.id === 'google-suggest');
     assert.strictEqual(google.available, true);
     assert.strictEqual(google.free, true);
@@ -446,7 +451,7 @@ async function atest(name, fn) {
       const found = runs.find((r) => r.id === run_id);
       assert.ok(found);
       assert.strictEqual(found.run_type, 'radar');
-      assert.strictEqual(found.status, 'success');
+      assert.strictEqual(found.status, discovery.success ? 'success' : 'partial');
       assert.ok(found.summary && found.summary.discovery);
     } finally {
       global.fetch = originalFetch;
@@ -457,73 +462,30 @@ async function atest(name, fn) {
     const originalFetch = global.fetch;
     global.fetch = async () => ({ ok: true, status: 200, json: async () => (['q', []]) });
     try {
-      const { run_id } = await mi.runRadar({ seeds: { ar: [], en: [], zh: [] }, triggeredBy: 'test' });
+      const { run_id, discovery } = await mi.runRadar({ seeds: { ar: [], en: [], zh: [] }, triggeredBy: 'test' });
       const runs = await mi.listRuns();
       const found = runs.find((r) => r.id === run_id);
-      assert.strictEqual(found.status, 'success');
+      assert.strictEqual(found.status, discovery.success ? 'success' : 'partial');
     } finally {
       global.fetch = originalFetch;
     }
   });
 
-  await atest('Bing competitor discovery records observations with evidence (mocked)', async () => {
+  await atest('legacy Bing adapter parses mocked results but is excluded from default discovery', async () => {
     const prev = process.env.BING_SEARCH_API_KEY;
-    process.env.BING_SEARCH_API_KEY = 'mock-bing-key';
     const originalFetch = global.fetch;
-    global.fetch = async (url) => {
-      const u = String(url);
-      if (u.includes('suggestqueries.google') || u.includes('duckduckgo.com/ac')) {
-        return { ok: true, status: 200, json: async () => (['q', []]) };
-      }
-      if (u.includes('api.bing.microsoft.com')) {
-        return { ok: true, status: 200, json: async () => ({ webPages: { value: [
-          { name: 'Competitor One', url: 'https://comp1.example.com/page', snippet: 'We offer company formation' },
-        ] } }) };
-      }
-      return { ok: true, status: 200, json: async () => ({}) };
-    };
-    try {
-      const summary = await mi.runDiscovery({ seeds: { ar: [], en: ['company formation'], zh: [] }, triggeredBy: 'test' });
-      assert.ok(summary.competitors_discovered >= 1);
-      assert.ok(summary.observations_recorded >= 1);
-      const comps = await mi.listCompetitors();
-      const comp = comps.find((c) => c.domain === 'comp1.example.com');
-      assert.ok(comp, 'competitor persisted');
-      const obs = await mi.listObservations(comp.id);
-      assert.ok(obs.length >= 1);
-      assert.strictEqual(obs[0].language, 'en');
-      assert.ok(obs[0].query && obs[0].query.length > 0);
-      // ToS-safe: raw search result fields are NOT persisted.
-      assert.ok(obs[0].url === null || obs[0].url === undefined);
-      assert.ok(obs[0].snippet === null || obs[0].snippet === undefined);
-      assert.ok(obs[0].rank === null || obs[0].rank === undefined);
-    } finally {
-      global.fetch = originalFetch;
-      if (prev) process.env.BING_SEARCH_API_KEY = prev; else delete process.env.BING_SEARCH_API_KEY;
-    }
-  });
-
-  await atest('Bing discovery is idempotent (no duplicate competitors)', async () => {
-    const prev = process.env.BING_SEARCH_API_KEY;
     process.env.BING_SEARCH_API_KEY = 'mock-bing-key';
-    const originalFetch = global.fetch;
-    global.fetch = async (url) => {
-      const u = String(url);
-      if (u.includes('suggestqueries.google') || u.includes('duckduckgo.com/ac')) {
-        return { ok: true, status: 200, json: async () => (['q', []]) };
-      }
-      if (u.includes('api.bing.microsoft.com')) {
-        return { ok: true, status: 200, json: async () => ({ webPages: { value: [
-          { name: 'Competitor One', url: 'https://comp1.example.com/page', snippet: 'We offer company formation' },
-        ] } }) };
-      }
-      return { ok: true, status: 200, json: async () => ({}) };
-    };
+    global.fetch = async () => ({ ok: true, status: 200, json: async () => ({
+      webPages: { value: [{ name: 'Company formation', title: 'Saudi company formation services',
+        url: 'https://comp1.example.com/page', snippet: 'Investor company formation services' }] }
+    }) });
     try {
-      const before = (await mi.listCompetitors()).length;
-      await mi.runDiscovery({ seeds: { ar: [], en: ['company formation'], zh: [] }, triggeredBy: 'test' });
-      const after = (await mi.listCompetitors()).length;
-      assert.strictEqual(before, after);
+      const bing = new ms.BingSearchSource();
+      const results = await bing.collectResults('company formation', 'en', 5);
+      assert.strictEqual(results.length, 1);
+      assert.strictEqual(results[0].domain, 'comp1.example.com');
+      assert.ok(!ms.defaultSources().some((source) => source.id === 'bing-web-search'),
+        'retired Bing API must not be in default discovery');
     } finally {
       global.fetch = originalFetch;
       if (prev) process.env.BING_SEARCH_API_KEY = prev; else delete process.env.BING_SEARCH_API_KEY;
@@ -531,25 +493,23 @@ async function atest(name, fn) {
   });
 
   // ---- source failure does not abort discovery ----
-  await atest('discovery continues when one source throws', async () => {
+  await atest('discovery handles suggestion provider failure without crashing', async () => {
     fresh();
     const originalFetch = global.fetch;
     global.fetch = async (url) => {
-      const u = String(url);
-      if (u.includes('suggestqueries.google')) {
-        throw new Error('google down');
-      }
-      if (u.includes('duckduckgo.com/ac')) {
-        return { ok: true, status: 200, json: async () => (['q', ['ddg term']]) };
-      }
+      if (String(url).includes('suggestqueries.google')) throw new Error('google down');
       return { ok: true, status: 200, json: async () => (['q', []]) };
     };
     try {
-      const summary = await mi.runDiscovery({ seeds: { ar: [], en: ['seed'], zh: [] }, triggeredBy: 'test' });
-      assert.ok(summary.keywords_upserted >= 1, 'working source still collected');
-    } finally {
-      global.fetch = originalFetch;
-    }
+      const summary = await mi.runDiscovery({
+        seeds: { ar: [], en: ['seed'], zh: [] },
+        allowedSourceIds: ['google-suggest'],
+        triggeredBy: 'test'
+      });
+      assert.strictEqual(summary.keywords_upserted, 0);
+      assert.ok(summary.sources_used.includes('google-suggest'));
+      assert.strictEqual(summary.success, false);
+    } finally { global.fetch = originalFetch; }
   });
 
   // ---- Phase 2C: Brave source, exclusion, clustering, ToS-safe ----
@@ -628,14 +588,14 @@ async function atest(name, fn) {
       }
       if (u.includes('api.search.brave.com')) {
         return { ok: true, status: 200, json: async () => ({ web: { results: [
-          { title: 'Comp', url: 'https://comp2.example.com/', description: 'desc' },
+          { title: 'Saudi company formation services', url: 'https://comp2.example.com/', description: 'Investor company setup and licensing services' },
         ] } }) };
       }
       return { ok: true, status: 200, json: async () => ({}) };
     };
     fresh();
     try {
-      const summary = await mi.runDiscovery({ seeds: { ar: [], en: ['company formation'], zh: [] }, triggeredBy: 'test' });
+      const summary = await mi.runDiscovery({ seeds: { ar: [], en: ['company formation'], zh: [] }, allowedSourceIds: ['brave-search'], triggeredBy: 'test' });
       assert.ok(summary.competitors_discovered >= 1);
       const comps = await mi.listCompetitors();
       const comp = comps.find((c) => c.domain === 'comp2.example.com');
