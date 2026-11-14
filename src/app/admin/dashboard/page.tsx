@@ -381,22 +381,22 @@ export default function AdminDashboard() {
                   ))}
                 </div>
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                  <h2 className="text-lg font-bold mb-2">الفقرة الذهبية</h2>
+                  <div className="flex flex-wrap justify-between gap-2 items-center mb-2"><h2 className="text-lg font-bold">الفقرة التعريفية الرئيسية</h2><button className="text-sm text-blue-700 underline" onClick={()=>setTab('content')}>تعديل المحتوى</button></div>
                   <p className="text-slate-700 text-sm line-clamp-4">{content.goldenParagraph}</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                    <h2 className="text-lg font-bold mb-2">حالة الوكيل</h2>
+                    <div className="flex justify-between gap-2 items-center mb-2"><h2 className="text-lg font-bold">حالة وكيل GEO</h2><button onClick={()=>setTab('agent')} className="text-sm text-blue-700 underline">عرض التفاصيل</button></div>
                     <p className="text-sm">الحالة: <span className="font-bold text-emerald-700">{readable(content.agent?.status || 'idle')}</span></p>
                     <p className="text-sm">آخر تشغيل: {content.agent?.lastRun || '—'}</p>
                     <p className="text-sm">النتيجة: {content.agent?.lastResult || '—'}</p>
                     <p className="text-xs text-slate-400 mt-2">تُدار الجدولة من GitHub Actions. حالة هذه البطاقة لا تؤكد التشغيل التلقائي.</p>
                   </div>
                   <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                    <h2 className="text-lg font-bold mb-2">ملخص الأدلة</h2>
+                    <h2 className="text-lg font-bold mb-2">ملخص بيانات السوق</h2>
                     <p className="text-sm">المنافسون: {competitors.length} (لا توجد بيانات competitor-backed opportunities بدون منافسين).</p>
                     <p className="text-sm">الكلمات: {keywords.length}. فرص مستنتجة من الكلمات: {keywordDerivedOpps}.</p>
-                    <p className="text-sm">آخر خطأ: {runs.find((r) => r.status === 'failed')?.error || 'لا يوجد'}</p>
+                    <p className="text-sm">آخر خطأ مسجل: {runs.find((r) => r.status === 'failed')?.error || 'لا توجد أخطاء مسجلة'}</p>
                   </div>
                 </div>
               </div>
@@ -520,7 +520,7 @@ export default function AdminDashboard() {
 
             {tab === 'settings' && (
               <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                <h2 className="text-xl font-bold mb-4">الإعدادات</h2>
+                <h2 className="text-xl font-bold mb-2">إعدادات وإدارة النظام</h2><p className="text-sm text-slate-500 mb-4">إعدادات عامة وروابط الإدارة. تُحفظ الأسرار في Render ولا تُعرض هنا.</p>
                 <p className="text-slate-600 text-sm mb-2">الفقرة الذهبية (للقراءة هنا؛ يحدّثها الوكيل):</p>
                 <p className="text-slate-700 bg-slate-50 rounded-lg p-4">{content.goldenParagraph}</p>
                 <p className="text-xs text-slate-500 mt-4">آخر تحديث: {content.updatedAt ? new Date(content.updatedAt).toLocaleString('ar-SA') : '—'}</p>
@@ -531,7 +531,7 @@ export default function AdminDashboard() {
             {tab === 'competitors' && (
               <div className="space-y-6">
                 <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                  <h2 className="text-xl font-bold mb-4">المنافسون</h2>
+                  <h2 className="text-xl font-bold mb-2">دليل المنافسين</h2><p className="text-sm text-slate-500 mb-4">يمكن إضافة المنافسين وتعديلهم أو استبعادهم. يبقى سجل الأدلة محفوظًا عند الاستبعاد.</p>
                   <div className="flex flex-wrap items-center gap-2 mb-4"><input className="border border-slate-300 rounded-lg px-3 py-2 flex-1 min-w-[170px]" value={competitorSearch} onChange={e=>setCompetitorSearch(e.target.value)} placeholder="بحث بالاسم أو النطاق" aria-label="بحث المنافسين"/><select value={competitorFilter} onChange={e=>setCompetitorFilter(e.target.value)} aria-label="حالة المنافس" className="border border-slate-300 rounded-lg px-3 py-2"><option value="all">كل الحالات</option><option value="active">نشط</option><option value="inactive">غير نشط</option><option value="disqualified">مستبعد</option></select></div>
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-4">
                     <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="اسم المنافس" aria-label="اسم المنافس" value={newCompetitor.name} onChange={(e) => setNewCompetitor({ ...newCompetitor, name: e.target.value })} />
@@ -814,7 +814,7 @@ export default function AdminDashboard() {
             {tab === 'runs' && (
               <div className="space-y-6">
                 <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                  <h2 className="text-xl font-bold mb-4">سجل التحليلات</h2>
+                  <h2 className="text-xl font-bold mb-2">سجل تشغيل عمليات GEO</h2><p className="text-sm text-slate-500 mb-4">سجل تدقيق للتشغيل والأخطاء. يُحتفظ به لضمان تتبع القرارات.</p>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead><tr className="text-right border-b"><th className="py-2">النوع</th><th>الحالة</th><th>البداية</th><th>النهاية</th><th>المُشغّل</th></tr></thead>
@@ -840,7 +840,7 @@ export default function AdminDashboard() {
               <div className="space-y-6">
                 <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
                   <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold">الأدلة والقرارات</h2>
+                    <h2 className="text-xl font-bold">الأدلة ومصادر فرص السوق</h2>
                     <button className="btn-secondary text-xs" disabled={evidenceLoading} onClick={fetchEvidence}>{evidenceLoading ? 'جاري التحميل...' : 'تحديث'}</button>
                   </div>
                   {!evidenceData && !evidenceLoading && <p className="text-slate-400 text-sm">اضغط تحديث لتحميل الأدلة.</p>}
