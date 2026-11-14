@@ -1,0 +1,44 @@
+name: GEO Four-Provider Integration (Isolated)
+on:
+  push:
+    branches:
+      - fix/search-source-reliability-20261114
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: geo-four-provider-integration
+  cancel-in-progress: false
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - name: Validate TypeScript and provider routing fixtures
+        run: |
+          ./node_modules/.bin/tsc src/lib/storage-mode.ts src/lib/market-intelligence.ts src/lib/market-sources.ts src/lib/open-search-sources.ts --outDir .market-test-build --module commonjs --target es2020 --lib es2020,dom --moduleResolution node --esModuleInterop --skipLibCheck --strict --types node
+          node --check src/lib/provider-search.cjs
+          node --check scripts/geo-discovery-sources.cjs
+          node --check scripts/opencode-geo-analysis.js
+          node scripts/provider-search.test.cjs
+          node scripts/geo-discovery-sources.test.cjs
+      - name: Run real four-provider fallback engine (3 calls maximum)
+        env:
+          EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          PARALLEL_API_KEY: ${{ secrets.PARALLEL_API_KEY }}
+          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+        run: node scripts/provider-search-integration-live.cjs
+      - name: Upload read-only diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: provider-integration-results
+          path: .search-probe/provider-integration.json
+          retention-days: 7
+          if-no-files-found: warn
