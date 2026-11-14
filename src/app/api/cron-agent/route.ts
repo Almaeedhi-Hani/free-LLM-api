@@ -1,17 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContent, setContent } from '@/lib/content-store';
 
-/**
- * AI Dynamic Optimization Agent
- *
- * This route is designed to be triggered by an external cron job (e.g., Vercel Cron)
- * every 24 hours. It executes the following pipeline:
- *
- *  1. Query AI search engines (Perplexity API / OpenAI) for target investment questions.
- *  2. Parse the response; if our site isn't top-ranked, extract the competitor's answer.
- *  3. Use GPT-4o to rewrite our "Golden Paragraph" and FAQ entries to fill knowledge gaps.
- *  4. Fire Google Indexing API and Bing IndexNow webhooks for immediate reindexing.
- */
+/** Legacy GEO recommendation endpoint. Authenticated, time-gated, review-only. */
+
+import { isAuthorizedCron, isCronRunWindow, hasExistingDraft } from '@/lib/cron-agent-guards';
 
 const TARGET_QUESTIONS = [
   'كيف يمكن للمستثمر الأجنبي تأسيس شركة في السعودية؟',
@@ -19,7 +11,6 @@ const TARGET_QUESTIONS = [
   'كم تكلفة تأسيس شركة LLC في المملكة العربية السعودية؟'
 ];
 
-const SITE_URL = process.env.SITE_URL || 'https://free-llm-api-1-didl.onrender.com';
 const OUR_ANSWER_MARKER = 'investinsaudi-services.sa';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -107,77 +98,17 @@ async function rewriteWithGPT4o(
   }
 }
 
-async function triggerGoogleIndexing(url: string): Promise<void> {
-  const serviceAccount = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-  if (!serviceAccount) {
-    console.log('Google Indexing API: no service account configured, skipping.');
-    return;
-  }
-
-  try {
-    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-        assertion: serviceAccount,
-      }),
-    });
-
-    if (!tokenResponse.ok) return;
-    const { access_token } = await tokenResponse.json();
-
-    await fetch('https://indexing.googleapis.com/v3/urlNotifications:publish', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${access_token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ url, type: 'URL_UPDATED' }),
-    });
-  } catch (error) {
-    console.error('Google Indexing API error:', error);
-  }
-}
-
-async function triggerIndexNow(url: string): Promise<void> {
-  const key = process.env.INDEXNOW_KEY;
-  if (!key) return;
-
-  try {
-    await fetch('https://api.indexnow.org/indexnow', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        host: 'investinsaudi-services.sa',
-        key,
-        keyLocation: `https://investinsaudi-services.sa/${key}.txt`,
-        urlList: [url],
-      }),
-    });
-  } catch (error) {
-    console.error('IndexNow error:', error);
-  }
-}
-
 export async function GET(req: NextRequest) {
-  // Boost window: every 2h for 3 days starting 2026-11-09 (Mecca time), then daily 02:00 Mecca only.
-  const now = new Date();
-  const boostStart = new Date('2026-11-09T00:00:00+03:00');
-  const boostEnd = new Date(boostStart.getTime() + 3 * 24 * 60 * 60 * 1000);
-  const inBoost = now >= boostStart && now < boostEnd;
-  const mecca = new Date(now.getTime() + 3 * 60 * 60 * 1000);
-  const isDailySafe = mecca.getUTCHours() === 2 && mecca.getUTCMinutes() < 10;
-  if (!inBoost && !isDailySafe) {
-    return NextResponse.json({ status: 'skipped', note: 'Outside boost window; daily safe run only.' });
-  }
+  // Authenticate before exposing scheduling details or accessing any state.
   const auth = req.headers.get('authorization');
   const expected = process.env.CRON_SECRET;
-
-  if (!expected || auth !== `Bearer ${expected}`) {
+  if (!isAuthorizedCron(auth, expected)) {
     return NextResponse.json({ status: 'unauthorized' }, { status: 401 });
   }
-
+  // Daily run window: 02:00–02:09 Saudi time (UTC+3).
+  if (!isCronRunWindow(new Date())) {
+    return NextResponse.json({ status: 'skipped', note: 'Outside daily cron run window.' });
+  }
   const results: Array<{ question: string; improved: boolean; note?: string }> = [];
 
   const existing = await getContent();
@@ -195,27 +126,17 @@ export async function GET(req: NextRequest) {
       const rewritten = await rewriteWithGPT4o(topAnswer, '');
       const highRisk = /MISA|license|رسوم|cost|ملكية|ownership|SAMA|KYC|إقامة|residency|CMA/i.test(question);
       if (rewritten) {
-        if (highRisk) {
-          // Guardrail: high-risk info goes to draft for human approval
-          const content = await getContent();
-          await setContent({
-            drafts: [
-              ...content.drafts,
-              { q: question, a: rewritten, createdAt: new Date().toISOString(), status: 'pending' },
-            ],
-          });
-          results.push({ question, improved: false, note: 'High-risk content saved as draft (pending approval).' });
-        } else {
-          // Low-risk: auto-publish (keywords/titles)
-          await setContent({
-            goldenParagraph: rewritten,
-            faqs: [{ q: question, a: topAnswer.slice(0, 500) }],
-            keywords: ['invest Saudi', 'MISA license', 'Saudi company formation'],
-          });
-          await triggerGoogleIndexing(SITE_URL);
-          await triggerIndexNow(SITE_URL);
-          results.push({ question, improved: true });
+        // All generated recommendations require explicit human review.
+        // No direct publication or indexing from this legacy cron endpoint.
+        const content = await getContent();
+        if (!hasExistingDraft(content.drafts, question)) {
+          await setContent({ drafts: [...content.drafts, {
+            q: question, a: rewritten, createdAt: new Date().toISOString(), status: 'pending',
+          }] });
         }
+        results.push({ question, improved: false, note: highRisk
+          ? 'High-risk recommendation queued for approval.'
+          : 'Recommendation queued for approval; auto-publishing disabled.' });
       } else {
         results.push({ question, improved: false });
       }

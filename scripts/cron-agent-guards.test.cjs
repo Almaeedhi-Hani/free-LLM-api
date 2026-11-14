@@ -1,0 +1,15 @@
+const assert = require('node:assert/strict');
+const { isAuthorizedCron, isCronRunWindow, hasExistingDraft } = require('../.cron-test-build/cron-agent-guards.js');
+assert.equal(isAuthorizedCron(null, 'secret'), false);
+assert.equal(isAuthorizedCron('Bearer secret', undefined), false);
+assert.equal(isAuthorizedCron('Bearer wrong', 'secret'), false);
+assert.equal(isAuthorizedCron('Bearer secret', 'secret'), true);
+assert.equal(isCronRunWindow(new Date('2026-11-15T22:59:00Z')), false);
+assert.equal(isCronRunWindow(new Date('2026-11-15T23:00:00Z')), true);
+assert.equal(isCronRunWindow(new Date('2026-11-15T23:09:59Z')), true);
+assert.equal(isCronRunWindow(new Date('2026-11-15T23:10:00Z')), false);
+assert.equal(hasExistingDraft([{q:'x',status:'pending'}], 'x'), true);
+assert.equal(hasExistingDraft([{q:'x',status:'rejected'}], 'x'), true);
+assert.equal(hasExistingDraft([{q:'x',status:'approved'}], 'x'), true);
+assert.equal(hasExistingDraft([{q:'x',status:'pending'}], 'y'), false);
+console.log('CRON_AGENT_GUARDS_PASSED');

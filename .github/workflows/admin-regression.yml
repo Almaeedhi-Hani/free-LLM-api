@@ -36,5 +36,7 @@ jobs:
         run: npm run test:agent
       - name: Content storage tests
         run: npm run test:storage
+      - name: Cron guard tests
+        run: npx tsc src/lib/cron-agent-guards.ts --outDir .cron-test-build --module commonjs --target es2020 --skipLibCheck --types node && node scripts/cron-agent-guards.test.cjs
       - name: Production build
         run: npm run build
