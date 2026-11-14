@@ -10,10 +10,13 @@ const secret=process.env.E2E_ADMIN_SECRET;
  page.on('dialog',async dialog=>{await dialog.accept()});
  const go=async tab=>page.locator('aside nav button').filter({hasText:tab}).first().click();
  try{
-  await page.goto(base+'/admin/dashboard',{waitUntil:'domcontentloaded'});
+  await page.goto(base+'/admin/dashboard',{waitUntil:'networkidle'});
+  await page.waitForTimeout(850);
+  const invalid=await page.request.get(base+'/api/admin/content',{headers:{'x-admin-secret':'incorrect-key'}});
+  console.log('LOCAL_ADMIN_AUTH_NEGATIVE',invalid.status());
   await page.getByPlaceholder('المفتاح السري').fill('incorrect-key');
   await page.getByRole('button',{name:'فتح'}).click();
-  await page.getByText('المفتاح السري غير صحيح').waitFor();
+  await page.getByText('المفتاح السري غير صحيح').waitFor({timeout:12000}).catch(async e=>{console.error('LOGIN_DOM',JSON.stringify((await page.locator('body').innerText()).slice(0,550)));throw e});
   await page.getByPlaceholder('المفتاح السري').fill(secret);
   await page.getByRole('button',{name:'فتح'}).click();
   await page.getByRole('heading',{name:'الفقرة الذهبية'}).first().waitFor();
