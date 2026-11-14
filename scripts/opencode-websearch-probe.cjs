@@ -45,6 +45,9 @@ try{
  const stderr=String(e?.stderr||'').replace(/(sk-[A-Za-z0-9_-]{10,}|Bearer\\s+[^\\s]+)/g,'[REDACTED]');
  report.error=(e?.name||'Error')+': '+String(e?.message||'').slice(0,140);
  report.stderr_excerpt=stderr.slice(-1200);
+ const stdout=String(e?.stdout||'');
+ report.stdout_excerpt=stdout.slice(-2800).replace(/(sk-[A-Za-z0-9_-]{10,}|Bearer\\s+[^\\s]+)/g,'[REDACTED]');
+ report.process_exit_code=e?.status ?? null;
 }
 fs.writeFileSync(path.join(dir,'opencode-websearch-report.json'),JSON.stringify(report,null,2));
 console.log('OPENCODE_SEARCH_DIAGNOSTIC',JSON.stringify(report));
