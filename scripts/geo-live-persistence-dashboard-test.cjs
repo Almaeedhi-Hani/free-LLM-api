@@ -37,7 +37,7 @@ async function go(){
   const c={name:candidate.title.slice(0,140),domain:candidate.domain,languages:['en'],source:'search',
    market:'saudi-company-formation',notes:'UNVERIFIED LIVE SEARCH CANDIDATE - human review required. Provider: '+candidate.source+'; Evidence URL: '+candidate.url};
   const saved=await api('/api/admin/market/competitors',{method:'POST',body:JSON.stringify(c)});
-  log('save_competitor',saved.ok?'passed':'failed',{http_status:saved.status,domain:candidate.domain});
+  log('save_competitor',saved.ok?'passed':'failed',{http_status:saved.status,domain:candidate.domain,server_error:String(saved.body?.message||saved.body?.error||saved.body?.status||'unknown').slice(0,220)});
   if(!saved.ok){report.result='failed';return}
  }
  if(keyword&&!previousKeywords.some(x=>x.term===keyword&&x.language==='ar')){
