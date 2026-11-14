@@ -1,0 +1,24 @@
+name: Admin Dashboard Isolated Validation
+on:
+  push:
+    branches:
+      - fix/admin-dashboard-controls-20261114
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - name: Full Next.js build and TypeScript verification
+        run: npm run build
+      - name: Market storage and UI contract checks
+        run: |
+          npm run test:market
+          node scripts/admin-dashboard-contract.test.cjs
