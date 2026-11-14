@@ -96,6 +96,15 @@ export default function AdminDashboard() {
   const [notice,setNotice]=useState('');
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('gsc') === 'connected') {
+      setTab('visibility');
+      setNotice('تم استلام تفويض Google. افتح الكلمات والاستعلامات للتحقق من البيانات الفعلية.');
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  }, []);
+
+  useEffect(() => {
     const saved = sessionStorage.getItem('admin_secret');
     if (saved) {
       setSecret(saved);
