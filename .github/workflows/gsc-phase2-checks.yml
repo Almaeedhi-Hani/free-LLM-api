@@ -1,7 +1,7 @@
 name: GSC Phase 2 checks
 on:
   push:
-    branches: [feature/gsc-performance-phase2]
+    branches: [feature/gsc-performance-phase2, feature/gsc-daily-monitoring]
   workflow_dispatch:
 jobs:
   verify:
