@@ -65,7 +65,8 @@ const DEFAULT_CONTENT: SiteContent = {
     status: 'idle',
     lastResult: '',
   },
-  updatedAt: new Date().toISOString(),
+  // Stable sentinel avoids version mismatch when GET and POST use separate Next.js route bundles.
+  updatedAt: '1970-01-01T00:00:00.000Z',
 };
 
 function storePath(): string {
