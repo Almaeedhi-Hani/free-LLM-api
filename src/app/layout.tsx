@@ -23,6 +23,7 @@ export default async function RootLayout({
   const t = copy[lang];
   const content = await getContent();
   const { contact } = content;
+  const verification = content.searchIntegrations?.googleVerification || "";
   const serviceList = services;
   return (
     <html
@@ -30,6 +31,7 @@ export default async function RootLayout({
       dir={lang === "ar" ? "rtl" : "ltr"}
     >
       <head>
+        {verification && <meta name="google-site-verification" content={verification} />}
         <link
           rel="alternate"
           type="text/plain"
