@@ -1029,3 +1029,115 @@ p {
  .editorial-promise-inner{padding-top:70px;padding-bottom:70px}
 }
 @media(prefers-reduced-motion:reduce){.entry-route-card{transition:none}.entry-route-card:hover{transform:none}}
+
+
+/* Service guide editorial system — shared across all six service pages. */
+.service-editorial{max-width:1260px}
+.service-editorial>.breadcrumb{display:inline-block;margin-bottom:32px}
+.service-editorial>h1{max-width:1000px;letter-spacing:-.035em}
+.service-editorial>.detail-lead{max-width:820px;font-size:clamp(16px,1.5vw,20px);line-height:2}
+.service-quick-nav{display:flex;flex-wrap:wrap;gap:8px;padding:24px 0;margin:40px 0 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.service-quick-nav a{padding:10px 16px;border:1px solid #d8ded5;border-radius:100px;font-size:12px;transition:background .2s}
+.service-quick-nav a:hover,.service-quick-nav a:focus-visible{background:#e4e9df}
+.service-context-band{display:grid;grid-template-columns:minmax(130px,.3fr) 1fr;gap:30px;background:#e9ede5;padding:30px 36px;margin:24px 0 55px}
+.service-context-band span{font-size:11px;letter-spacing:.06em;font-weight:700}
+.service-context-band p{font-size:14px;line-height:2;margin:0;max-width:780px}
+.service-editorial .detail-columns>section>h2{scroll-margin-top:140px}
+.service-reference-panel{scroll-margin-top:140px}
+.service-editorial .guide-budget{scroll-margin-top:140px}
+.service-next-step{display:flex;align-items:end;justify-content:space-between;gap:45px;background:#173e38;color:#f7f5eb;padding:clamp(28px,5vw,70px);margin-top:80px}
+.service-next-step>div{max-width:650px}
+.service-next-step span{font-size:11px;letter-spacing:.1em}
+.service-next-step h2{font-size:clamp(27px,3.5vw,46px);line-height:1.45;font-weight:500;margin:16px 0}
+.service-next-step p{font-size:14px;line-height:2;color:#d8e2d8;margin:0}
+.service-next-step .action-primary{background:#f7f5eb;color:#173e38;white-space:nowrap;flex-shrink:0}
+.service-next-step .action-primary:hover{background:#dbe6d9}
+@media(max-width:700px){.service-context-band{grid-template-columns:1fr;gap:8px;padding:22px}.service-next-step{flex-direction:column;align-items:stretch;gap:26px;margin-top:50px}.service-next-step .action-primary{white-space:normal}.service-quick-nav{gap:6px}.service-quick-nav a{padding:8px 12px}}
+
+/* Original decision-support content for the six service guides. */
+.service-decision-checklist{scroll-margin-top:145px;background:#eef1e9;border:1px solid #dce4d8;padding:clamp(22px,3vw,38px);margin:42px 0}
+.service-decision-checklist h2{font-size:clamp(22px,2.6vw,32px);line-height:1.5;margin:12px 0 22px}
+.service-decision-checklist ol{list-style:none;margin:0;padding:0}
+.service-decision-checklist li{display:grid;grid-template-columns:34px 1fr;gap:14px;padding:17px 0;border-top:1px solid #d1dbcf}
+.service-decision-checklist li span{font-size:12px;color:#6b8778;font-weight:700}
+.service-decision-checklist li p{margin:0;line-height:1.9;font-size:14px}
+.service-decision-disclaimer{font-size:11px;line-height:1.8;color:#667a70;margin:20px 0 0}
+
+/* Stage 4: cohesive accessible visual tokens and responsive interaction. */
+:root{
+  --brand-deep:#123b35;
+  --brand-hover:#24584d;
+  --surface-warm:#f8f7f2;
+  --surface-soft:#eef1e9;
+  --accent-brass:#8b6c3b;
+  --focus-visible:#81521c;
+  --content-max:1300px;
+}
+.site-header,.site-footer,.service-editorial,.section-wrap{min-width:0}
+.hero-copy,.hero-art,.service-card,.detail-columns>section,.detail-columns>aside{min-width:0}
+.hero h1,.service-detail h1,.service-card h3,.service-next-step h2{overflow-wrap:break-word}
+.hero h1,.service-detail h1{letter-spacing:normal}
+:where(.site-header,.hero,.section-wrap,.service-detail,.site-footer) a:focus-visible,
+:where(.site-header,.hero,.section-wrap,.service-detail,.site-footer) button:focus-visible{
+  outline:3px solid var(--focus-visible);
+  outline-offset:4px;
+}
+.action-primary,.service-quick-nav a,.language-switch a,.card-link{
+  min-height:44px;
+}
+.action-primary{align-items:center;line-height:1.5}
+.language-switch a{display:inline-flex;align-items:center;justify-content:center;min-width:40px}
+.service-quick-nav a{display:inline-flex;align-items:center}
+.service-card:focus-within{background:var(--surface-soft);outline:2px solid var(--brand-deep);outline-offset:-2px}
+.service-card a:focus-visible{outline-offset:5px}
+.source-panel>a:not(.action-primary){overflow-wrap:anywhere;gap:16px;min-height:44px;align-items:center}
+.service-decision-checklist li p{color:var(--brand-deep)}
+.service-decision-disclaimer{color:#425c50}
+.service-context-band p{color:#263f35}
+.service-next-step .action-primary{justify-content:center}
+[dir="rtl"] .service-next-step,[dir="rtl"] .service-context-band{text-align:start}
+[dir="ltr"] .service-next-step,[dir="ltr"] .service-context-band{text-align:start}
+@media (max-width:1000px){
+  .header-inner{flex-wrap:wrap}
+  .desktop-nav{gap:clamp(10px,1.3vw,20px)}
+  .service-editorial .detail-columns{gap:clamp(24px,4vw,50px)}
+}
+@media (max-width:700px){
+  .hero h1{font-size:clamp(32px,9vw,44px);line-height:1.35}
+  .service-detail h1{font-size:clamp(30px,8vw,38px)}
+  .hero-actions{gap:14px}
+  .hero-actions .action-primary{width:100%;justify-content:center}
+  .hero-art{min-height:clamp(270px,75vw,380px)}
+  .service-grid{grid-template-columns:1fr}
+  .service-card{padding:26px 22px}
+  .service-card h3{font-size:20px}
+  .service-card p{font-size:13px}
+  .mobile-nav{gap:8px;flex-wrap:wrap}
+  .mobile-nav a{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:8px 10px}
+  .service-quick-nav{margin-top:26px}
+  .service-quick-nav a{font-size:13px}
+  .service-next-step .action-primary{width:100%}
+  .footer-top{grid-template-columns:1fr}
+  .footer-top>div:first-child{grid-column:auto}
+}
+@media (max-width:360px){
+  .wordmark{font-size:14px}
+  .header-inner{gap:8px}
+  .language-switch a{min-width:36px;padding:6px}
+  .service-context-band{padding:18px}
+}
+@media (prefers-contrast:more){
+  :root{--muted:#3c5348;--line:#879c8b}
+  .service-quick-nav a,.service-card{border-color:#829989}
+}
+
+/* Stage 5: contextual internal navigation, without introducing duplicate content. */
+.service-related{margin:64px 0 0}
+.service-related h2{font-size:clamp(23px,2.6vw,34px);font-weight:500;margin:12px 0 28px}
+.service-related-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.service-related-grid a{display:flex;flex-direction:column;align-items:flex-start;gap:15px;min-width:0;padding:25px;background:#eef1e9;border:1px solid #d5ded2;transition:background .2s;min-height:180px}
+.service-related-grid a:hover,.service-related-grid a:focus-visible{background:#dfe8d9}
+.service-related-grid span{font-size:10px;letter-spacing:.04em;color:#536c5b}
+.service-related-grid strong{font-size:17px;line-height:1.6;font-weight:500}
+.service-related-grid small{font-size:12px;margin-top:auto}
+@media(max-width:700px){.service-related-grid{grid-template-columns:1fr}.service-related-grid a{min-height:130px}.service-related{margin-top:42px}}

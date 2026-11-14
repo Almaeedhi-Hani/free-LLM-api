@@ -299,3 +299,40 @@ export const guides: Record<
     ],
   },
 };
+
+/**
+ * Original editorial decision prompts. These are planning questions, not
+ * regulatory requirements or assertions about approval eligibility.
+ */
+export const decisionPrompts: Record<string, Text[]> = {
+  "misa-license": [
+    { ar: "هل نشاطك المقترح مصنف بدقة، وهل راجعت إن كان يخضع لموافقة قطاعية إضافية؟", en: "Have you classified the proposed activity accurately and checked whether sector approval is also needed?", zh: "是否准确界定拟开展的业务，并核实是否需要额外行业批准？" },
+    { ar: "هل صفة المستثمر وهيكل الملكية والمستندات متسقة مع مسار التقديم المختار؟", en: "Do the investor category, ownership structure and documents match the intended application route?", zh: "投资者类别、股权结构及材料是否符合拟选申请途径？" },
+    { ar: "هل ميزانيتك تفصل التسجيل عن التأسيس والتراخيص الأخرى؟", en: "Does your budget separate registration from incorporation and other licences?", zh: "预算是否区分投资登记、公司设立及其他许可费用？" }
+  ],
+  "company-formation": [
+    { ar: "ما الشكل القانوني الأنسب لطبيعة الشركاء والإدارة وخطة النمو؟", en: "Which legal form best fits the shareholders, management and growth plan?", zh: "哪种法律形式最符合股东、管理与增长计划？" },
+    { ar: "هل راجعت المتطلبات التي تستمر بعد صدور السجل التجاري؟", en: "Have you identified the obligations that continue after commercial registration?", zh: "是否明确取得商业注册后仍需履行的义务？" },
+    { ar: "هل عرض التكلفة يفصل الرسوم الحكومية عن رأس المال والخدمات المهنية؟", en: "Does the quote separate government charges, capital and professional fees?", zh: "报价是否分别列出政府收费、资本金及专业服务费？" }
+  ],
+  "corporate-banking": [
+    { ar: "هل تتطابق أسماء الملاك والمفوّضين ونشاط الشركة في جميع المستندات؟", en: "Are owners, signatories and company activities consistent across documents?", zh: "所有文件中的股东、签字人与业务信息是否一致？" },
+    { ar: "هل حددت المستفيد الحقيقي ومصدر الأموال والتعاملات المتوقعة؟", en: "Have you documented beneficial ownership, source of funds and expected transactions?", zh: "是否准备实际受益人、资金来源及预期交易资料？" },
+    { ar: "هل تحققت من شروط البنك للحضور والتحقق والرسوم دون افتراض قبول الطلب؟", en: "Have you checked bank-specific attendance, verification and fees without assuming approval?", zh: "是否核实银行的到场、核验及费用要求，而不预设审批结果？" }
+  ],
+  "contract-drafting": [
+    { ar: "هل صلاحيات التوقيع والالتزامات ومواعيد الدفع محددة دون غموض؟", en: "Are signing powers, obligations and payment triggers clearly defined?", zh: "签署权限、义务及付款条件是否明确？" },
+    { ar: "كيف سيتعامل العقد مع التغييرات والخلافات والإنهاء؟", en: "How will the contract address changes, disputes and termination?", zh: "合同如何处理变更、争议与终止？" },
+    { ar: "هل حددت نطاق المراجعة القانونية والترجمة والتوثيق مع مختص مؤهل؟", en: "Have you agreed on legal review, translation and authentication scope with a qualified professional?", zh: "是否与合格专业人士明确法律审核、翻译与认证范围？" }
+  ],
+  "premium-residency": [
+    { ar: "أي منتج إقامة تنطبق عليه ظروفك، وما المستندات الخاصة به؟", en: "Which residency product fits your circumstances and what evidence does it require?", zh: "哪类居留产品适合您的情况，需要哪些证明？" },
+    { ar: "هل فرّقت بين المقابل المالي للمنتج ومتطلبات الاستثمار أو التوظيف؟", en: "Have you distinguished the product fee from investment or employment conditions?", zh: "是否区分产品费用与投资或雇佣条件？" },
+    { ar: "هل تحققت من الشروط الحالية لدى المركز قبل الالتزام المالي؟", en: "Have you verified current terms with the Center before committing funds?", zh: "是否在作出财务承诺前向居留中心核实最新条件？" }
+  ],
+  "investment-funds": [
+    { ar: "هل حددت نوع الصندوق وطريقة الطرح وفئة المستثمرين المستهدفين؟", en: "Have you defined the fund type, offering route and target investor category?", zh: "是否明确基金类型、发行方式及目标投资者类别？" },
+    { ar: "من الجهة المرخصة التي ستتولى الإدارة، وما مسؤوليات الحفظ والامتثال؟", en: "Which authorised institution will manage the fund, custody and compliance responsibilities?", zh: "哪家持牌机构负责基金管理、托管及合规？" },
+    { ar: "هل فصلت تكاليف الهيكلة عن المصروفات التشغيلية والالتزامات التنظيمية؟", en: "Have you separated structuring costs from operating and regulatory expenses?", zh: "是否区分架构成本、运营费用及监管支出？" }
+  ]
+};
