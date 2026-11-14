@@ -497,11 +497,12 @@ export default function AdminDashboard() {
                     <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="النطاق" value={newCompetitor.domain} onChange={(e) => setNewCompetitor({ ...newCompetitor, domain: e.target.value })} />
                     <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="اللغات (ar,en,zh)" value={newCompetitor.languages} onChange={(e) => setNewCompetitor({ ...newCompetitor, languages: e.target.value })} />
                     <button className="btn-primary" disabled={saving} onClick={async () => {
+                      if(!newCompetitor.name.trim()||!newCompetitor.domain.trim()){setError('أدخل اسم المنافس والنطاق');return;}
                       setSaving(true);
                       try {
                         await marketFetch('/api/admin/market/competitors', { method: 'POST', body: JSON.stringify({ name: newCompetitor.name, domain: newCompetitor.domain, languages: newCompetitor.languages.split(',').map((s) => s.trim()).filter(Boolean), source: newCompetitor.source }) });
                         setNewCompetitor({ name: '', domain: '', languages: 'ar,en', source: 'manual' });
-                        await fetchCompetitors();
+                        await fetchCompetitors();setNotice('اكتمل تحديث المنافسين');
                       } catch (e: any) { setError(e.message); }
                       finally { setSaving(false); }
                     }}>إضافة</button>
@@ -562,7 +563,7 @@ export default function AdminDashboard() {
                       try {
                         const lang=keywordLanguage;
                         await marketFetch('/api/admin/market/keywords', { method: 'POST', body: JSON.stringify({ term: newMarketKeyword.trim(), language: lang, source: 'manual' }) });
-                        setNewKeyword('');
+                        setNewMarketKeyword('');setNotice('أُضيفت الكلمة المفتاحية');
                         await fetchKeywords();
                       } catch (e: any) { setError(e.message); }
                       finally { setSaving(false); }
@@ -570,7 +571,7 @@ export default function AdminDashboard() {
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
-                      <thead><tr className="text-right border-b"><th className="py-2">المصطلح</th><th>اللغة</th><th>النية</th><th>الحجم</th><th>المصدر</th></tr></thead>
+                      <thead><tr className="text-right border-b"><th className="py-2">المصطلح</th><th>اللغة</th><th>النية</th><th>الحجم</th><th>المصدر</th><th>الإجراء</th></tr></thead>
                       <tbody>
                         {keywords.filter((k:any)=>!keywordSearch.trim()||((k.term||'')+' '+(k.language||'')).toLowerCase().includes(keywordSearch.trim().toLowerCase())).map((k:any) => (
                           <tr key={k.id} className="border-b">
@@ -579,9 +580,14 @@ export default function AdminDashboard() {
                             <td>{k.intent}</td>
                             <td>{k.search_volume ?? '—'}</td>
                             <td className="text-xs text-slate-400">{k.source} ({k.volume_confidence})</td>
+                            <td><button className="text-red-700 text-xs hover:underline disabled:opacity-50" disabled={saving} onClick={async()=>{
+                              if(!window.confirm('حذف الكلمة المفتاحية: '+k.term+'؟'))return;
+                              setSaving(true);setError('');try{await marketFetch('/api/admin/market/keywords',{method:'DELETE',body:JSON.stringify({id:k.id})});await fetchKeywords();setNotice('حُذفت الكلمة المفتاحية');}
+                              catch(err:any){setError(err.message);}finally{setSaving(false);}
+                            }}>حذف</button></td>
                           </tr>
                         ))}
-                        {keywords.length === 0 && <tr><td colSpan={5} className="py-4 text-slate-400 text-center">لا توجد كلمات بعد.</td></tr>}
+                        {keywords.length === 0 && <tr><td colSpan={6} className="py-4 text-slate-400 text-center">لا توجد كلمات بعد.</td></tr>}
                       </tbody>
                     </table>
                   </div>
