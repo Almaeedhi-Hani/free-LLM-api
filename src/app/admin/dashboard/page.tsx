@@ -94,6 +94,8 @@ export default function AdminDashboard() {
   const [editingOpportunity,setEditingOpportunity] = useState<{id:string;title:string;priority:string}|null>(null);
   const [keywordLanguage,setKeywordLanguage]=useState<'ar'|'en'|'zh'>('ar');
   const [notice,setNotice]=useState('');
+  const [refreshingAll,setRefreshingAll]=useState(false);
+  const [visibilityRefreshKey,setVisibilityRefreshKey]=useState(0);
   const [restoringSession, setRestoringSession] = useState(true);
 
   useEffect(() => {
@@ -182,7 +184,18 @@ export default function AdminDashboard() {
       setLastUpdated(new Date().toLocaleString('ar-SA'));
     }catch(e:any){setError(e.message||'فشل تحميل بيانات السوق');}finally{setMarketLoading(false);}
   };
-  const refreshAll=async()=>{await Promise.all([fetchContent(),refreshMarket()]);};
+  const refreshAll=async()=>{
+    if (refreshingAll || saving) return;
+    setRefreshingAll(true);
+    setError('');
+    setNotice('');
+    try {
+      await Promise.all([fetchContent(), refreshMarket(), ...(tab === 'evidence' ? [fetchEvidence()] : []), ...(tab === 'agent' || tab === 'competitors' ? [fetchMarketSources()] : [])]);
+      if (tab === 'visibility') setVisibilityRefreshKey(key => key + 1);
+    } finally {
+      setRefreshingAll(false);
+    }
+  };
 
   const fetchEvidence = async () => {
     setEvidenceLoading(true);
@@ -396,7 +409,7 @@ export default function AdminDashboard() {
               <div className="flex items-center gap-3 text-xs text-slate-500">
                 {saving && <span className="text-gold-600">جاري الحفظ...</span>}
                 <span>آخر مزامنة: {lastUpdated || 'غير متوفر'}</span>
-                <button onClick={refreshAll} className="btn-secondary text-xs" disabled={marketLoading||saving}>{marketLoading?'جارٍ التحديث...':'تحديث البيانات'}</button>
+                <button onClick={refreshAll} className="btn-secondary text-xs" disabled={marketLoading||refreshingAll||saving}>{refreshingAll||marketLoading?'جارٍ التحديث...':'تحديث البيانات'}</button>
               </div>
             </div>
           </header>
@@ -568,7 +581,7 @@ export default function AdminDashboard() {
                 <p className="text-slate-600 text-sm mb-2">الفقرة الذهبية (للقراءة هنا؛ يحدّثها الوكيل):</p>
                 <p className="text-slate-700 bg-slate-50 rounded-lg p-4">{content.goldenParagraph}</p>
                 <p className="text-xs text-slate-500 mt-4">آخر تحديث: {content.updatedAt ? new Date(content.updatedAt).toLocaleString('ar-SA') : '—'}</p>
-                <div className="mt-6 border-t border-slate-200 pt-4"><h3 className="font-bold mb-3">إدارة النظام</h3><p className="text-sm text-slate-600 mb-3">تُحدّث إعدادات مفاتيح API من Render، وتُدار جدولة الوكيل من GitHub Actions. لا تُعرض القيم السرية في اللوحة.</p><div className="flex flex-wrap gap-2"><button className="btn-secondary text-xs" onClick={()=>setTab('agent')}>مصادر البحث والوكيل</button><button className="btn-secondary text-xs" onClick={()=>setTab('contact')}>معلومات التواصل</button><button className="btn-secondary text-xs" onClick={()=>setTab('reviews')}>مسودات الموافقة</button><button className="btn-secondary text-xs" disabled={marketLoading||saving} onClick={refreshAll}>تحديث جميع البيانات</button></div></div>
+                <div className="mt-6 border-t border-slate-200 pt-4"><h3 className="font-bold mb-3">إدارة النظام</h3><p className="text-sm text-slate-600 mb-3">تُحدّث إعدادات مفاتيح API من Render، وتُدار جدولة الوكيل من GitHub Actions. لا تُعرض القيم السرية في اللوحة.</p><div className="flex flex-wrap gap-2"><button className="btn-secondary text-xs" onClick={()=>setTab('agent')}>مصادر البحث والوكيل</button><button className="btn-secondary text-xs" onClick={()=>setTab('contact')}>معلومات التواصل</button><button className="btn-secondary text-xs" onClick={()=>setTab('reviews')}>مسودات الموافقة</button><button className="btn-secondary text-xs" disabled={marketLoading||refreshingAll||saving} onClick={refreshAll}>تحديث جميع البيانات</button></div></div>
               </section>
             )}
 
@@ -855,7 +868,7 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {tab === 'visibility' && <VisibilityDashboard secret={secret} />}
+            {tab === 'visibility' && <VisibilityDashboard key={visibilityRefreshKey} secret={secret} />}
             {tab === 'cookies' && <CookiePolicyAdmin policy={content?.cookiePolicy} saving={saving} onSave={async cookiePolicy => save({cookiePolicy})} />}
             {tab === 'integrations' && <SearchIntegrationsAdmin settings={content?.searchIntegrations} saving={saving} onSave={async searchIntegrations => save({searchIntegrations})} />}
 
