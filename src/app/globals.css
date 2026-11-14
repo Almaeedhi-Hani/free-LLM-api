@@ -1027,3 +1027,50 @@ p {
 .service-decision-checklist li span{font-size:12px;color:#6b8778;font-weight:700}
 .service-decision-checklist li p{margin:0;line-height:1.9;font-size:14px}
 .service-decision-disclaimer{font-size:11px;line-height:1.8;color:#667a70;margin:20px 0 0}
+
+/* Phase 4 — cohesive public-site design tokens and interaction language.
+   Scoped to the public shell so admin dashboard controls retain their styling. */
+:root {
+  --experience-forest:#173e38;
+  --experience-forest-hover:#265b50;
+  --experience-cream:#f8f7f2;
+  --experience-sage:#dfe7da;
+  --experience-line:#dce1d8;
+  --experience-gold:#a98d5b;
+  --experience-radius:5px;
+  --experience-content:1300px;
+}
+.site-header,.site-footer,.hero,.section-wrap,.contact-band,.service-detail{font-synthesis:none}
+.site-header{box-shadow:0 4px 25px rgba(18,59,53,.025)}
+.site-header .desktop-nav a,.mobile-nav a,.site-footer a{transition:color .2s ease}
+.site-header .desktop-nav a:hover,.mobile-nav a:hover,.site-footer a:hover{color:#846738}
+.site-header .desktop-nav a:focus-visible,.mobile-nav a:focus-visible,.language-switch a:focus-visible{outline:2px solid var(--experience-gold);outline-offset:5px}
+.site-header .language-switch a{min-height:30px;display:inline-flex;align-items:center;justify-content:center}
+.hero h1,.section-heading h2,.service-detail h1,.entry-intro h2,.editorial-promise h2{overflow-wrap:break-word;text-wrap:balance}
+.hero-intro,.section-heading>p,.service-card p,.detail-lead{overflow-wrap:anywhere}
+.action-primary,.service-card,.entry-route-card,.service-quick-nav a{transition-property:background-color,color,border-color,transform,box-shadow;transition-duration:.24s;transition-timing-function:ease}
+.action-primary:focus-visible,.service-card:focus-visible,.entry-route-card:focus-visible,.service-quick-nav a:focus-visible{outline:3px solid var(--experience-gold);outline-offset:4px}
+.action-primary{min-height:48px}
+.service-card:focus-visible{background:#eef0e6}
+.sources-section summary:focus-visible{outline:2px solid var(--experience-gold);outline-offset:5px}
+.service-detail .detail-step{align-items:flex-start}
+.service-detail .detail-step>span{min-width:42px}
+.service-detail .source-panel a{overflow-wrap:anywhere}
+.site-footer a{line-height:1.7}
+@media(max-width:700px){
+ .header-inner{flex-wrap:wrap}
+ .mobile-nav{gap:8px;overflow-x:auto;scrollbar-width:thin;justify-content:space-around}
+ .mobile-nav a{min-height:40px;display:inline-flex;align-items:center;justify-content:center;padding-inline:8px;white-space:nowrap}
+ .hero h1{font-size:clamp(32px,9vw,44px);letter-spacing:-.035em}
+ .service-grid{grid-template-columns:1fr}
+ .service-card{min-height:210px}
+ .service-card p{font-size:13px}
+ .section-heading h2,.sources-section h2{font-size:clamp(26px,7vw,34px)}
+ .service-detail h1{font-size:clamp(30px,8vw,42px)}
+ .footer-top{grid-template-columns:1fr}
+ .footer-top>div:first-child{grid-column:auto}
+ .contact-band{margin-inline:5%}
+}
+@media(prefers-reduced-motion:reduce){
+ .action-primary,.service-card,.entry-route-card,.service-quick-nav a{transition:none}
+}

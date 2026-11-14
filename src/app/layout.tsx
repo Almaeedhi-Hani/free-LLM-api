@@ -65,7 +65,7 @@ export default async function RootLayout({
             </nav>
             <LanguageSwitcher locale={lang} />
           </div>
-          <nav className="mobile-nav">
+          <nav className="mobile-nav" aria-label={lang === "ar" ? "التنقل على الجوال" : lang === "zh" ? "移动导航" : "Mobile navigation"}>
             <a href={localizedPath(lang) + "#services"}>{t.nav}</a>
             <a href={localizedPath(lang) + "#journey"}>{t.journey}</a>
             <a href={localizedPath(lang) + "#contact"}>{t.contact}</a>
