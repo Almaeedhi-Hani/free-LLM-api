@@ -58,7 +58,7 @@ export async function GET(req:NextRequest) {
     const encryptedCookie=req.cookies.get('gsc_refresh')?.value;
     if(encryptedCookie&&process.env.ADMIN_SECRET){try{const raw=Buffer.from(encryptedCookie,'base64url');const key=createHash('sha256').update(process.env.ADMIN_SECRET).digest();const decipher=createDecipheriv('aes-256-gcm',key,raw.subarray(0,12));decipher.setAuthTag(raw.subarray(12,28));refreshToken=Buffer.concat([decipher.update(raw.subarray(28)),decipher.final()]).toString('utf8');}catch{return NextResponse.json({connected:false,source:'google_search_console',message:'جلسة Google غير صالحة. أعد ربط الحساب.',rows:[]},{status:401});}}
     const property=process.env.GSC_PROPERTY_URL || 'https://free-llm-api-1-didl.onrender.com/';
-    if(!clientId||!clientSecret||!refreshToken) return NextResponse.json({connected:false,source:'google_search_console',message:'يلزم إعداد GSC_CLIENT_ID وGSC_CLIENT_SECRET وGSC_REFRESH_TOKEN في بيئة الخادم.',rows:[]});
+    if(!clientId||!clientSecret||!refreshToken) return NextResponse.json({connected:false,source:'google_search_console',message:'يلزم إعداد GSC_CLIENT_ID وGSC_CLIENT_SECRET، ثم ربط Google من لوحة الإدارة أو إعداد GSC_REFRESH_TOKEN في بيئة الخادم.',rows:[]});
     try {
       const tokenResponse=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({client_id:clientId,client_secret:clientSecret,refresh_token:refreshToken,grant_type:'refresh_token'}),cache:'no-store'});
       if(!tokenResponse.ok) return NextResponse.json({connected:false,source:'google_search_console',message:'فشل تجديد تفويض Google. تحقق من الصلاحيات والاعتماد.',rows:[]},{status:502});
