@@ -20,6 +20,10 @@ jobs:
         run: npm run build
       - name: Admin dashboard functional contracts
         run: node scripts/admin-dashboard-contract.test.cjs
+      - name: Isolated keyword create/read/delete regression
+        run: |
+          ./node_modules/.bin/tsc src/lib/storage-mode.ts src/lib/market-intelligence.ts src/lib/market-sources.ts src/lib/open-search-sources.ts --outDir .market-test-build --module commonjs --target es2020 --lib es2020,dom --moduleResolution node --esModuleInterop --skipLibCheck --strict --types node
+          node scripts/admin-keyword-delete.test.cjs
       - name: Legacy market unit suite (diagnostic only)
         continue-on-error: true
         run: npm run test:market
