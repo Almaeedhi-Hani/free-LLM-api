@@ -995,3 +995,26 @@ p {
   margin-bottom: 18px;
   font-weight: 500;
 }
+
+/* Service guide editorial system — shared across all six service pages. */
+.service-editorial{max-width:1260px}
+.service-editorial>.breadcrumb{display:inline-block;margin-bottom:32px}
+.service-editorial>h1{max-width:1000px;letter-spacing:-.035em}
+.service-editorial>.detail-lead{max-width:820px;font-size:clamp(16px,1.5vw,20px);line-height:2}
+.service-quick-nav{display:flex;flex-wrap:wrap;gap:8px;padding:24px 0;margin:40px 0 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.service-quick-nav a{padding:10px 16px;border:1px solid #d8ded5;border-radius:100px;font-size:12px;transition:background .2s}
+.service-quick-nav a:hover,.service-quick-nav a:focus-visible{background:#e4e9df}
+.service-context-band{display:grid;grid-template-columns:minmax(130px,.3fr) 1fr;gap:30px;background:#e9ede5;padding:30px 36px;margin:24px 0 55px}
+.service-context-band span{font-size:11px;letter-spacing:.06em;font-weight:700}
+.service-context-band p{font-size:14px;line-height:2;margin:0;max-width:780px}
+.service-editorial .detail-columns>section>h2{scroll-margin-top:140px}
+.service-reference-panel{scroll-margin-top:140px}
+.service-editorial .guide-budget{scroll-margin-top:140px}
+.service-next-step{display:flex;align-items:end;justify-content:space-between;gap:45px;background:#173e38;color:#f7f5eb;padding:clamp(28px,5vw,70px);margin-top:80px}
+.service-next-step>div{max-width:650px}
+.service-next-step span{font-size:11px;letter-spacing:.1em}
+.service-next-step h2{font-size:clamp(27px,3.5vw,46px);line-height:1.45;font-weight:500;margin:16px 0}
+.service-next-step p{font-size:14px;line-height:2;color:#d8e2d8;margin:0}
+.service-next-step .action-primary{background:#f7f5eb;color:#173e38;white-space:nowrap;flex-shrink:0}
+.service-next-step .action-primary:hover{background:#dbe6d9}
+@media(max-width:700px){.service-context-band{grid-template-columns:1fr;gap:8px;padding:22px}.service-next-step{flex-direction:column;align-items:stretch;gap:26px;margin-top:50px}.service-next-step .action-primary{white-space:normal}.service-quick-nav{gap:6px}.service-quick-nav a{padding:8px 12px}}
