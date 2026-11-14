@@ -8,6 +8,7 @@ import {
   resolveStorageMode,
 } from './storage-mode';
 import { defaultSources, availableSources } from './market-sources';
+import { isRelevantInvestorService } from './open-search-sources';
 import type { SuggestionResult, SearchResult } from './market-sources';
 
 // ---------------------------------------------------------------------------
@@ -1211,7 +1212,7 @@ export async function runMarketAnalysis(triggeredBy: TriggeredBy = 'manual'): Pr
       goals_created: goalsCreated,
       limits: { max_competitors: MAX_COMPETITORS_PER_RUN, max_keywords: MAX_KEYWORDS_PER_RUN },
     };
-    await finishRun(run.id, 'success', summary);
+    await finishRun(run.id, discovery.success ? 'success' : 'partial', summary);
     return { run_id: run.id, summary };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -1336,6 +1337,7 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
             if (discoveredDomains.size >= maxComp) break;
             if (!r.domain) continue;
             if (isExcludedDomain(r.domain)) continue;
+            if (!isRelevantInvestorService(r.title || '', r.snippet || '')) continue;
             try {
               const comp = await upsertCompetitor({
                 name: r.title || r.domain,
