@@ -12,7 +12,7 @@ jobs:
     timeout-minutes: 15
     env:
       OPENCODE_DISABLE_AUTOUPDATE: "true"
-      OPENCODE_MODEL: opencode/deepseek-v4.1-flash-free
+      OPENCODE_MODEL: opencode/beam-free
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
