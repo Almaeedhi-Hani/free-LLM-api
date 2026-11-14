@@ -105,8 +105,9 @@ export async function GET(req: NextRequest) {
   if (!isAuthorizedCron(auth, expected)) {
     return NextResponse.json({ status: 'unauthorized' }, { status: 401 });
   }
-  // Daily run window: 02:00–02:09 Saudi time (UTC+3).\n  if (!isCronRunWindow(new Date())) {
-    return NextResponse.json({ status: 'skipped', note: 'Outside boost window; daily safe run only.' });
+  // Daily run window: 02:00–02:09 Saudi time (UTC+3).
+  if (!isCronRunWindow(new Date())) {
+    return NextResponse.json({ status: 'skipped', note: 'Outside daily cron run window.' });
   }
   const results: Array<{ question: string; improved: boolean; note?: string }> = [];
 
