@@ -23,11 +23,11 @@ function writeConsent(analytics:boolean,marketing:boolean,days:number){
  window.dispatchEvent(new CustomEvent("site-consent-changed",{detail:value}));
 }
 export function CookieConsent({locale="ar",policy={analyticsAvailable:true,marketingAvailable:true,consentDays:180}}:{locale?:Locale;policy?:{analyticsAvailable:boolean;marketingAvailable:boolean;consentDays:number}}){
- const [ready,setReady]=useState(false),[open,setOpen]=useState(false),[expanded,setExpanded]=useState(false);
- const [analytics,setAnalytics]=useState(false),[marketing,setMarketing]=useState(false),[notice,setNotice]=useState(false);
+ const [ready,setReady]=useState(false),[open,setOpen]=useState(false);
+ const [notice,setNotice]=useState(false);
  const t=labels[locale];
- useEffect(()=>{const existing=readConsent();if(existing){setAnalytics(existing.analytics);setMarketing(existing.marketing)}else setOpen(true);setReady(true)},[]);
- function save(a:boolean,m:boolean){writeConsent(policy.analyticsAvailable&&a,policy.marketingAvailable&&m,policy.consentDays);setAnalytics(policy.analyticsAvailable&&a);setMarketing(policy.marketingAvailable&&m);setOpen(false);setExpanded(false);setNotice(true)}
+ useEffect(()=>{const existing=readConsent();if(!existing)setOpen(true);setReady(true)},[]);
+ function save(a:boolean,m:boolean){writeConsent(policy.analyticsAvailable&&a,policy.marketingAvailable&&m,policy.consentDays);setOpen(false);setNotice(true)}
  if(!ready)return null;
  return <>
   {open&&<div className="fixed inset-x-0 bottom-0 z-50 flex justify-center p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-5" role="presentation">
@@ -37,14 +37,11 @@ export function CookieConsent({locale="ar",policy={analyticsAvailable:true,marke
     <div className="mt-3 flex flex-wrap items-center gap-2">
      <button type="button" onClick={()=>save(policy.analyticsAvailable,policy.marketingAvailable)} className="rounded-full bg-emerald-700 px-4 py-2 text-xs sm:text-sm font-semibold text-white">{t.accept}</button>
      <button type="button" onClick={()=>save(false,false)} className="rounded-full border border-slate-300 px-4 py-2 text-xs sm:text-sm font-semibold">{t.reject}</button>
-     <button type="button" onClick={()=>setExpanded(v=>!v)} className="rounded-full px-2 py-2 text-xs text-slate-600 underline underline-offset-2">{t.settings}</button>
     </div>
-    {expanded&&<div className="mt-3 space-y-3 border-t pt-3">
-     <div className="flex justify-between gap-4"><div><strong>{t.necessary}</strong><p className="text-xs text-slate-500">{t.necessaryDesc}</p></div><input type="checkbox" checked disabled aria-label={t.necessary}/></div>
-     {policy.analyticsAvailable&&<label className="flex justify-between gap-4"><span><strong>{t.analytics}</strong><span className="block text-xs text-slate-500">{t.analyticsDesc}</span></span><input type="checkbox" checked={analytics} onChange={e=>setAnalytics(e.target.checked)}/></label>}
-     {policy.marketingAvailable&&<label className="flex justify-between gap-4"><span><strong>{t.marketing}</strong><span className="block text-xs text-slate-500">{t.marketingDesc}</span></span><input type="checkbox" checked={marketing} onChange={e=>setMarketing(e.target.checked)}/></label>}
-     <button type="button" onClick={()=>save(analytics,marketing)} className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white">{t.save}</button>
-    </div>}
+    <div className="mt-3 flex items-center gap-2 border-t border-slate-100 pt-2 text-xs text-slate-600">
+     <input type="checkbox" checked disabled aria-label={t.necessary} className="h-4 w-4 accent-emerald-700"/>
+     <span><strong className="text-slate-800">{t.necessary}</strong> — {t.necessaryDesc}</span>
+    </div>
     {readConsent()&&<button type="button" onClick={()=>setOpen(false)} className="mt-4 block text-xs underline">{t.close}</button>}
    </section>
   </div>}
