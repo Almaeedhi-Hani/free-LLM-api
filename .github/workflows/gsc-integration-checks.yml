@@ -1,0 +1,38 @@
+name: Google Search Console integration checks
+on:
+  push:
+    branches: [feature/gsc-api-integration]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: TypeScript
+        run: npx tsc --noEmit
+      - name: Build
+        run: npm run build
+      - name: OAuth source security checks
+        run: |
+          node - <<'NODE'
+          const fs=require('fs'),assert=require('node:assert/strict');
+          const start=fs.readFileSync('src/app/api/admin/google/start/route.ts','utf8');
+          const callback=fs.readFileSync('src/app/api/admin/google/callback/route.ts','utf8');
+          const visibility=fs.readFileSync('src/app/api/admin/visibility/route.ts','utf8');
+          const ui=fs.readFileSync('src/components/VisibilityDashboard.tsx','utf8');
+          assert(start.includes('timingSafeEqual')&&start.includes('randomBytes(32)'));
+          assert(start.includes('webmasters.readonly')&&start.includes("httpOnly:true"));
+          assert(callback.includes('timingSafeEqual')&&callback.includes('aes-256-gcm'));
+          assert(callback.includes('gsc_oauth_state')&&callback.includes('gsc_refresh'));
+          assert(visibility.includes('createDecipheriv')&&visibility.includes('searchAnalytics/query'));
+          assert(ui.includes('connectGoogle()')&&ui.includes('queryRows.map'));
+          console.log('OAuth source checks passed; live Google and browser flows still require manual testing.');
+          NODE
