@@ -149,17 +149,53 @@ export class BingSearchSource implements SearchSource {
   }
 }
 
+// Uses the same credential-gated search engine as OpenCode and respects a bounded
+// 2-call budget per language. Source evidence is a candidate, not a Google ranking.
+export class MultiProviderSearchSource implements SearchSource {
+  id = 'multi-provider-search';
+  free = false;
+  requiresKey = null;
+  supportedLanguages: Language[] = ['ar', 'en', 'zh'];
+  lastDiagnostic = {http_status: 0, duration_ms: 0, response_received: false,
+    results_parsed: 0, blocked_detected: false, failure_reason: ''};
+  isAvailable(): boolean {
+    const adapter = require('./provider-search.cjs');
+    return adapter.configured().length > 0;
+  }
+  async collectSuggestions(): Promise<SuggestionResult[]> {return [];}
+  async collectResults(query: string, language: Language, limit: number): Promise<SearchResult[]> {
+    const adapter = require('./provider-search.cjs');
+    const started = Date.now();
+    const out = await adapter.search({queries:[{query,language}],maxCalls:2,maxResults:Math.min(limit,8)});
+    this.lastDiagnostic = {
+      http_status: out.results.length ? 200 : 0,
+      duration_ms: Date.now()-started, response_received:out.diagnostics.some((d: {http_status:number})=>d.http_status>0),
+      results_parsed:out.results.length,blocked_detected:false,
+      failure_reason:out.results.length?'':out.diagnostics.map((d: {status:string})=>d.status).join(',')||'no_configured_providers'
+    };
+    return out.results.map((r: SearchResult, i: number)=>({
+      domain:r.domain,url:r.url,title:r.title,snippet:r.snippet,source:r.source,
+      // This is an internal display order, not the Google SERP rank.
+      rank:i+1
+    }));
+  }
+}
+
 export function defaultSources(): SearchSource[] {
-  const sources: SearchSource[] = [new GoogleSuggestSource(), new DuckDuckGoSuggestSource()];
-  // Authenticated API sources, when explicitly configured, are more dependable.
-  // Never route through retired Bing Web Search API.
-  const brave = new BraveSearchSource();
-  const tavily = new TavilySearchSource();
-  if (brave.isAvailable()) sources.push(brave);
-  if (tavily.isAvailable()) sources.push(tavily);
-  // Best-effort fallback: blocked/irrelevant SERPs are NOT treated as results.
-  sources.push(new BingRssSearchSource());
-  sources.push(new DuckDuckGoHtmlSource());
+  const sources:SearchSource[]=[new GoogleSuggestSource()];
+  const multi=new MultiProviderSearchSource();
+  if(multi.isAvailable()) {
+    // Use the integrated providers first; do not spend additional calls on
+    // a second set of independent providers during the same discovery cycle.
+    sources.push(multi);
+  } else {
+    const brave=new BraveSearchSource();
+    const tavily=new TavilySearchSource();
+    if(brave.isAvailable())sources.push(brave);
+    if(tavily.isAvailable())sources.push(tavily);
+    sources.push(new BingRssSearchSource());
+    // DuckDuckGo frequently returns HTTP 202/captcha; no default retries.
+  }
   return sources;
 }
 
