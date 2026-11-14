@@ -1,0 +1,23 @@
+name: Provider Keys — Isolated Live Smoke
+on:
+  push:
+    branches:
+      - fix/search-source-reliability-20261114
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify-provider-keys:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Check three providers using isolated credentials
+        env:
+          EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+        run: node scripts/provider-keys-live-smoke.cjs
