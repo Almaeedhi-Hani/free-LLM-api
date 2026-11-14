@@ -174,6 +174,7 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+      <section className="section-wrap" style={{paddingBlock:"32px"}}><a className="action-primary" href={localizedPath(lang,"/packages")}>{lang==="ar"?"استعرض باقات التأسيس وأسعارها":lang==="zh"?"查看设立套餐和价格":"Explore formation packages and prices"} <ArrowUpRight /></a></section>
       <section id="services" className="section-wrap">
         <div className="section-heading">
           <div>
