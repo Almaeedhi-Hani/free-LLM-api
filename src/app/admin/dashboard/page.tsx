@@ -16,17 +16,36 @@ type Tab =
   | 'runs'
   | 'evidence';
 
+const LABELS: Record<string, string> = {
+  idle:'بانتظار التشغيل',running:'قيد التشغيل',success:'نجح',completed:'مكتمل',failed:'فشل',
+  pending:'بانتظار المراجعة',approved:'معتمد',rejected:'مرفوض',active:'نشط',
+  inactive:'غير نشط',disqualified:'مستبعد',new:'جديدة',triaged:'تم فرزها',
+  planned:'مخطط لها',done:'منجزة',open:'مفتوح',in_progress:'قيد التنفيذ',
+  cancelled:'ملغى',high:'عالية',medium:'متوسطة',low:'منخفضة',
+  ar:'العربية',en:'الإنجليزية',zh:'الصينية',manual:'إدخال يدوي',unknown:'غير معروف',
+  admin:'مدير النظام',cron:'تشغيل مجدول'
+};
+const readable = (value: unknown) => {
+  if (value === null || value === undefined || value === '') return 'غير متوفر';
+  const key = String(value);
+  return LABELS[key] || key.replace(/_/g,' ');
+};
+const formatDate = (value: unknown) => {
+  if (!value) return 'غير متوفر';
+  const date = new Date(String(value));
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('ar-SA');
+};
 const TABS: { key: Tab; label: string; icon: string }[] = [
-  { key: 'home', label: 'نظرة عامة', icon: '📊' },
+  { key: 'home', label: 'الرئيسية', icon: '📊' },
   { key: 'competitors', label: 'المنافسون', icon: '🏢' },
-  { key: 'keywords', label: 'الكلمات المفتاحية', icon: '🔑' },
+  { key: 'keywords', label: 'كلمات البحث السوقية', icon: '🔑' },
   { key: 'opportunities', label: 'الفرص', icon: '🎯' },
   { key: 'goals', label: 'الأهداف', icon: '✅' },
   { key: 'agent', label: 'وكيل GEO', icon: '🤖' },
-  { key: 'runs', label: 'سجل التحليلات', icon: '📜' },
-  { key: 'evidence', label: 'الأدلة والقرارات', icon: '🔍' },
-  { key: 'content', label: 'المحتوى', icon: '📝' },
-  { key: 'reviews', label: 'المراجعات', icon: '🔍' },
+  { key: 'runs', label: 'سجل التشغيل', icon: '📜' },
+  { key: 'evidence', label: 'الأدلة ومصادر النتائج', icon: '🔍' },
+  { key: 'content', label: 'محتوى الموقع', icon: '📝' },
+  { key: 'reviews', label: 'اعتماد المسودات', icon: '🔍' },
   { key: 'contact', label: 'التواصل', icon: '📞' },
   { key: 'settings', label: 'الإعدادات', icon: '⚙️' },
 ];
@@ -53,6 +72,7 @@ export default function AdminDashboard() {
   const [opportunities, setOpportunities] = useState<any[]>([]);
   const [goals, setGoals] = useState<any[]>([]);
   const [runs, setRuns] = useState<any[]>([]);
+  const [editingCompetitor, setEditingCompetitor] = useState<{ id: string; name: string; domain: string; languages: string } | null>(null);
   const [newCompetitor, setNewCompetitor] = useState({ name: '', domain: '', languages: 'ar,en', source: 'manual' });
   const [lastUpdated, setLastUpdated] = useState<string>('');
   const [evidenceData, setEvidenceData] = useState<any>(null);
@@ -166,6 +186,7 @@ export default function AdminDashboard() {
 
   const save = async (patch: any) => {
     setSaving(true);
+    setNotice('');
     try {
       const r = await fetch('/api/admin/content', {
         method: 'POST',
@@ -216,15 +237,22 @@ export default function AdminDashboard() {
   };
 
   const addFaq = () => {
-    if (!newFaq.q.trim() || !newFaq.a.trim() || saving) return;
-    const faqs = [...(content?.faqs || []), newFaq];
+    if (saving) return;
+    const q = newFaq.q.trim(), a = newFaq.a.trim();
+    if (!q || !a) { setError('أدخل السؤال والإجابة أولًا.'); return; }
+    if ((content?.faqs || []).some((f: any) => f.q.trim().toLowerCase() === q.toLowerCase())) {setError('السؤال موجود بالفعل. عدّله من القائمة.');return;}
+    setError('');
+    const faqs = [...(content?.faqs || []), {q,a}];
     void save({ faqs }).then(ok=>{if(ok)setNewFaq({q:'',a:''});});
   };
 
   const updateFaq = () => {
     if (!editingFaq || saving) return;
+    if (!editingFaq.q.trim() || !editingFaq.a.trim()) {setError('السؤال والإجابة مطلوبان.');return;}
+    if ((content?.faqs || []).some((f:any,i:number)=>i!==editingFaq.index && f.q.trim().toLowerCase()===editingFaq.q.trim().toLowerCase())) {setError('يوجد سؤال آخر بالنص نفسه.');return;}
+    setError('');
     const faqs = [...(content?.faqs || [])];
-    faqs[editingFaq.index] = { q: editingFaq.q, a: editingFaq.a };
+    faqs[editingFaq.index] = { q: editingFaq.q.trim(), a: editingFaq.a.trim() };
     void save({ faqs }).then(ok=>{if(ok)setEditingFaq(null);});
   };
 
@@ -237,19 +265,26 @@ export default function AdminDashboard() {
 
   const addKeyword = () => {
     if (!newKeyword.trim()||saving)return;
+    if ((content?.keywords || []).some((k:string)=>k.trim().toLowerCase()===newKeyword.trim().toLowerCase())) {setError('هذه الكلمة موجودة بالفعل.');return;}
+    setError('');
     const keywords = [...(content?.keywords || []), newKeyword.trim()];
     void save({ keywords }).then(ok=>{if(ok)setNewKeyword('');});
   };
 
   const deleteKeyword = (idx: number) => {
-    if(saving)return;
+    if(saving||!window.confirm('حذف هذه الكلمة من محتوى الموقع؟'))return;
     const keywords = [...(content?.keywords || [])];
     keywords.splice(idx, 1);
     save({ keywords });
   };
 
-  const saveGolden = () => save({ goldenParagraph: goldenDraft });
-  const saveContact = () => save({ contact: contactForm });
+  const saveGolden = () => {if (!goldenDraft.trim()) {setError('الفقرة الرئيسية لا يمكن أن تكون فارغة.');return;} void save({ goldenParagraph: goldenDraft.trim() });};
+  const saveContact = () => {
+    if (contactForm.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactForm.email.trim())) {setError('صيغة البريد الإلكتروني غير صحيحة.');return;}
+    if (contactForm.whatsapp && !/^https:\/\/wa\.me\/[0-9]+(?:\?.*)?$/.test(contactForm.whatsapp.trim())) {setError('رابط واتساب يجب أن يبدأ بـ https://wa.me/ متبوعًا بالرقم الدولي.');return;}
+    setError('');
+    void save({contact: Object.fromEntries(Object.entries(contactForm).map(([key,value])=>[key,value.trim()]))});
+  };
 
   if (!authed) {
     return (
@@ -259,7 +294,7 @@ export default function AdminDashboard() {
           <p className="text-slate-600 mb-4 text-sm">أدخل المفتاح السري للمتابعة.</p>
           <input type="password" value={secret} onChange={(e) => setSecret(e.target.value)} placeholder="المفتاح السري" className="w-full border border-slate-300 rounded-lg px-4 py-2 mb-4" />
           {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
-          <button onClick={login} disabled={saving} className="btn-primary w-full">{saving?'جارٍ التحقق...':'فتح'}</button>
+          <button onClick={login} disabled={saving} className="btn-primary w-full">{saving?'جارٍ التحقق...':'دخول لوحة التحكم'}</button>
         </div>
       </div>
     );
@@ -312,8 +347,8 @@ export default function AdminDashboard() {
               </div>
               <div className="flex items-center gap-3 text-xs text-slate-500">
                 {saving && <span className="text-gold-600">جاري الحفظ...</span>}
-                <span>آخر تحديث: {lastUpdated || '—'}</span>
-                <button onClick={refreshAll} className="btn-secondary text-xs" disabled={marketLoading||saving}>{marketLoading?'جارٍ التحديث...':'تحديث الكل'}</button>
+                <span>آخر مزامنة: {lastUpdated || 'غير متوفر'}</span>
+                <button onClick={refreshAll} className="btn-secondary text-xs" disabled={marketLoading||saving}>{marketLoading?'جارٍ التحديث...':'تحديث البيانات'}</button>
               </div>
             </div>
           </header>
@@ -348,7 +383,7 @@ export default function AdminDashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
                     <h2 className="text-lg font-bold mb-2">حالة الوكيل</h2>
-                    <p className="text-sm">الحالة: <span className="font-bold text-emerald-700">{content.agent?.status || 'idle'}</span></p>
+                    <p className="text-sm">الحالة: <span className="font-bold text-emerald-700">{readable(content.agent?.status || 'idle')}</span></p>
                     <p className="text-sm">آخر تشغيل: {content.agent?.lastRun || '—'}</p>
                     <p className="text-sm">النتيجة: {content.agent?.lastResult || '—'}</p>
                     <p className="text-xs text-slate-400 mt-2">تُدار الجدولة من GitHub Actions. حالة هذه البطاقة لا تؤكد التشغيل التلقائي.</p>
@@ -365,12 +400,12 @@ export default function AdminDashboard() {
 
             {tab === 'contact' && (
               <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                <h2 className="text-xl font-bold mb-4">معلومات التواصل</h2>
+                <h2 className="text-xl font-bold mb-2">بيانات التواصل للزوار</h2><p className="text-sm text-slate-500 mb-4">تُطبّق التغييرات على معلومات التواصل المعروضة في الموقع بعد الحفظ.</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="الهاتف" value={contactForm.phone} onChange={(e) => setContactForm({ ...contactForm, phone: e.target.value })} />
-                  <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="عرض الهاتف" value={contactForm.phoneDisplay} onChange={(e) => setContactForm({ ...contactForm, phoneDisplay: e.target.value })} />
-                  <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="رابط WhatsApp" value={contactForm.whatsapp} onChange={(e) => setContactForm({ ...contactForm, whatsapp: e.target.value })} />
-                  <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="البريد الإلكتروني" value={contactForm.email} onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })} />
+                  <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="رقم الهاتف المعروض للزوار" aria-label="الهاتف المعروض" value={contactForm.phoneDisplay} onChange={(e) => setContactForm({ ...contactForm, phoneDisplay: e.target.value })} />
+                  <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="https://wa.me/9665XXXXXXXX" aria-label="رابط واتساب" value={contactForm.whatsapp} onChange={(e) => setContactForm({ ...contactForm, whatsapp: e.target.value })} />
+                  <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="name@example.com" aria-label="البريد الإلكتروني" type="email" value={contactForm.email} onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })} />
                 </div>
                 <button onClick={saveContact} className="btn-primary mt-4" disabled={saving}>حفظ التواصل</button>
                 <p className="text-xs text-slate-500 mt-2">أدخل رابط WhatsApp كاملاً بصيغة https://wa.me/966... حتى يعمل زر التواصل في الموقع.</p>
@@ -385,7 +420,7 @@ export default function AdminDashboard() {
                   <button onClick={saveGolden} className="btn-primary mt-3" disabled={saving}>حفظ</button>
                 </section>
                 <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                  <h2 className="text-xl font-bold mb-2">كلمات المحتوى</h2>
+                  <h2 className="text-xl font-bold mb-2">كلمات محتوى الموقع</h2><p className="text-sm text-slate-500 mb-3">هذه قائمة خاصة بمحتوى الموقع، وليست قائمة كلمات البحث السوقية.</p>
                   <div className="flex flex-wrap gap-2 mb-4">
                     {content.keywords.map((k: string, i: number) => (
                       <span key={i} className="bg-gold-100 text-gold-800 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-2">
@@ -459,14 +494,14 @@ export default function AdminDashboard() {
 
             {tab === 'reviews' && (
               <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                <h2 className="text-xl font-bold mb-4">المسودات المعلقة (عالية الخطورة)</h2>
-                {content.drafts.length === 0 && <p className="text-slate-500 text-sm">لا توجد مسودات معلقة.</p>}
+                <h2 className="text-xl font-bold mb-2">مراجعة المسودات قبل النشر</h2><p className="text-sm text-slate-500 mb-4">اعتماد المسودة ينشر السؤال والإجابة. تحقق من صحة المعلومات أولًا.</p>
+                {pendingDrafts === 0 && <p className="text-slate-500 text-sm">لا توجد مسودات معلقة.</p>}
                 <ul className="space-y-4">
                   {content.drafts.map((d: any, i: number) => (
                     <li key={i} className="bg-amber-50 rounded-lg p-4 border border-amber-200">
                       <p className="font-semibold">{d.q}</p>
                       <p className="text-slate-700 text-sm mt-1">{d.a}</p>
-                      <p className="text-xs text-slate-400 mt-1">الحالة: {d.status} — {d.createdAt}</p>
+                      <p className="text-xs text-slate-400 mt-1">الحالة: {readable(d.status)} — {formatDate(d.createdAt)}</p>
                       {d.status === 'pending' && (
                         <div className="flex gap-2 mt-3">
                           <button onClick={() => approveDraft(i)} className="btn-primary text-xs" disabled={saving}>اعتماد ونشر</button>
@@ -495,9 +530,9 @@ export default function AdminDashboard() {
                   <h2 className="text-xl font-bold mb-4">المنافسون</h2>
                   <div className="flex flex-wrap items-center gap-2 mb-4"><input className="border border-slate-300 rounded-lg px-3 py-2 flex-1 min-w-[170px]" value={competitorSearch} onChange={e=>setCompetitorSearch(e.target.value)} placeholder="بحث بالاسم أو النطاق" aria-label="بحث المنافسين"/><select value={competitorFilter} onChange={e=>setCompetitorFilter(e.target.value)} aria-label="حالة المنافس" className="border border-slate-300 rounded-lg px-3 py-2"><option value="all">كل الحالات</option><option value="active">نشط</option><option value="inactive">غير نشط</option><option value="disqualified">مستبعد</option></select></div>
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-4">
-                    <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="الاسم" value={newCompetitor.name} onChange={(e) => setNewCompetitor({ ...newCompetitor, name: e.target.value })} />
-                    <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="النطاق" value={newCompetitor.domain} onChange={(e) => setNewCompetitor({ ...newCompetitor, domain: e.target.value })} />
-                    <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="اللغات (ar,en,zh)" value={newCompetitor.languages} onChange={(e) => setNewCompetitor({ ...newCompetitor, languages: e.target.value })} />
+                    <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="اسم المنافس" aria-label="اسم المنافس" value={newCompetitor.name} onChange={(e) => setNewCompetitor({ ...newCompetitor, name: e.target.value })} />
+                    <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="النطاق مثل example.com" aria-label="نطاق المنافس" value={newCompetitor.domain} onChange={(e) => setNewCompetitor({ ...newCompetitor, domain: e.target.value })} />
+                    <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="اللغات: ar,en,zh" aria-label="لغات المنافس" value={newCompetitor.languages} onChange={(e) => setNewCompetitor({ ...newCompetitor, languages: e.target.value })} />
                     <button className="btn-primary" disabled={saving} onClick={async () => {
                       if(!newCompetitor.name.trim()||!newCompetitor.domain.trim()){setError('أدخل اسم المنافس والنطاق');return;}
                       setSaving(true);
@@ -509,6 +544,25 @@ export default function AdminDashboard() {
                       finally { setSaving(false); }
                     }}>إضافة</button>
                   </div>
+                  {editingCompetitor && <section className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
+                    <h3 className="font-bold mb-3">تعديل بيانات المنافس</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <input aria-label="اسم المنافس المعدل" className="border rounded-lg px-3 py-2" value={editingCompetitor.name} onChange={e=>setEditingCompetitor({...editingCompetitor,name:e.target.value})}/>
+                      <input aria-label="نطاق المنافس المعدل" className="border rounded-lg px-3 py-2" value={editingCompetitor.domain} onChange={e=>setEditingCompetitor({...editingCompetitor,domain:e.target.value})}/>
+                      <input aria-label="لغات المنافس المعدلة" className="border rounded-lg px-3 py-2" value={editingCompetitor.languages} onChange={e=>setEditingCompetitor({...editingCompetitor,languages:e.target.value})}/>
+                    </div>
+                    <div className="flex gap-2 mt-3">
+                      <button className="btn-primary text-xs" disabled={saving} onClick={async()=>{
+                        if(!editingCompetitor.name.trim()||!editingCompetitor.domain.trim()){setError('اسم المنافس والنطاق مطلوبان.');return;}
+                        setSaving(true);setError('');
+                        try {
+                          await marketFetch('/api/admin/market/competitors',{method:'PATCH',body:JSON.stringify({id:editingCompetitor.id,name:editingCompetitor.name.trim(),domain:editingCompetitor.domain.trim(),languages:editingCompetitor.languages.split(',').map(v=>v.trim()).filter(Boolean)})});
+                          setEditingCompetitor(null);await fetchCompetitors();setNotice('تم حفظ بيانات المنافس.');
+                        } catch(err:any){setError(err.message||'فشل تعديل المنافس.');} finally{setSaving(false);}
+                      }}>حفظ التعديل</button>
+                      <button className="btn-secondary text-xs" disabled={saving} onClick={()=>setEditingCompetitor(null)}>إلغاء</button>
+                    </div>
+                  </section>}
                   <div className="mb-4 flex items-center gap-3">
                     <button className="btn-primary" disabled={saving} onClick={async () => {
                       if (!confirm('بدء بحث محدود عبر مزودي البحث المهيئين وحفظ النتائج في قاعدة البيانات؟')) return;
@@ -530,14 +584,14 @@ export default function AdminDashboard() {
                           <tr key={c.id} className="border-b">
                             <td className="py-2">{c.name}</td>
                             <td dir="ltr" className="text-left">{c.domain}</td>
-                            <td>{c.status}</td>
-                            <td>{(c.languages || []).join(', ')}</td>
+                            <td>{readable(c.status)}</td>
+                            <td>{(c.languages || []).map(readable).join('، ')}</td>
                             <td className="text-xs text-slate-400">{c.last_seen_at ? new Date(c.last_seen_at).toLocaleDateString('ar-SA') : '—'}</td>
-                            <td><select aria-label={'حالة '+c.name} className="border border-slate-300 rounded px-2 py-1 text-xs" disabled={saving} value={c.status} onChange={async(e)=>{
+                            <td><div className="flex flex-wrap gap-2 items-center"><button className="text-blue-700 text-xs underline" disabled={saving} onClick={()=>setEditingCompetitor({id:c.id,name:c.name,domain:c.domain,languages:(c.languages||[]).join(',')})}>تعديل البيانات</button><select aria-label={'حالة '+c.name} className="border border-slate-300 rounded px-2 py-1 text-xs" disabled={saving} value={c.status} onChange={async(e)=>{
                               const status=e.target.value;if(status==='disqualified'&&!window.confirm('هل تريد استبعاد هذا المنافس؟'))return;
                               setSaving(true);setError('');try{await marketFetch('/api/admin/market/competitors',{method:'PATCH',body:JSON.stringify({id:c.id,status})});await fetchCompetitors();setNotice('تم تحديث حالة المنافس');}
                               catch(err:any){setError(err.message);}finally{setSaving(false);}
-                            }}><option value="active">نشط</option><option value="inactive">غير نشط</option><option value="disqualified">مستبعد</option></select></td>
+                            }}><option value="active">نشط</option><option value="inactive">غير نشط</option><option value="disqualified">مستبعد</option></select></div></td>
                           </tr>
                         ))}
                         {competitors.length === 0 && <tr><td colSpan={6} className="py-4 text-slate-400 text-center">لا يوجد منافسون بعد. شغّل الاكتشاف لجلب مرشحين فعليين.</td></tr>}
@@ -551,16 +605,17 @@ export default function AdminDashboard() {
             {tab === 'keywords' && (
               <div className="space-y-6">
                 <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                  <h2 className="text-xl font-bold mb-4">الكلمات المفتاحية</h2>
+                  <h2 className="text-xl font-bold mb-2">كلمات البحث السوقية</h2><p className="text-sm text-slate-500 mb-4">تُستخدم لمراقبة السوق ولا تُنشر تلقائيًا في الموقع.</p>
                   <input className="border border-slate-300 rounded-lg px-3 py-2 w-full mb-3" value={keywordSearch} onChange={e=>setKeywordSearch(e.target.value)} placeholder="تصفية الكلمات أو اللغات" aria-label="تصفية الكلمات المفتاحية"/>
                   <p className="text-xs text-slate-400 mb-3">الأحجام تُخزّن فقط عند توفر مصدر موثوق. لا يتم اختلاق أي بيانات.</p>
                   <div className="flex gap-2 mb-4 flex-wrap">
                     <input className="border border-slate-300 rounded-lg px-4 py-2 flex-1" placeholder="المصطلح" value={newMarketKeyword} onChange={(e) => setNewMarketKeyword(e.target.value)} />
                     <select className="border border-slate-300 rounded-lg px-4 py-2" value={keywordLanguage} onChange={e=>setKeywordLanguage(e.target.value as 'ar'|'en'|'zh')} aria-label="لغة الكلمة المفتاحية">
-                      <option value="ar">ar</option><option value="en">en</option><option value="zh">zh</option>
+                      <option value="ar">العربية</option><option value="en">الإنجليزية</option><option value="zh">الصينية</option>
                     </select>
                     <button className="btn-primary" disabled={saving} onClick={async () => {
                       if (!newMarketKeyword.trim()) {setError('أدخل كلمة مفتاحية');return;}
+                      if(keywords.some((k:any)=>k.language===keywordLanguage&&k.term.trim().toLowerCase()===newMarketKeyword.trim().toLowerCase())){setError('الكلمة موجودة بالفعل لهذه اللغة.');return;}
                       setSaving(true);setError('');
                       try {
                         const lang=keywordLanguage;
@@ -578,8 +633,8 @@ export default function AdminDashboard() {
                         {keywords.filter((k:any)=>!keywordSearch.trim()||((k.term||'')+' '+(k.language||'')).toLowerCase().includes(keywordSearch.trim().toLowerCase())).map((k:any) => (
                           <tr key={k.id} className="border-b">
                             <td className="py-2">{k.term}</td>
-                            <td>{k.language}</td>
-                            <td>{k.intent}</td>
+                            <td>{readable(k.language)}</td>
+                            <td>{readable(k.intent)}</td>
                             <td>{k.search_volume ?? '—'}</td>
                             <td className="text-xs text-slate-400">{k.source} ({k.volume_confidence})</td>
                             <td><button className="text-red-700 text-xs hover:underline disabled:opacity-50" disabled={saving} onClick={async()=>{
@@ -627,9 +682,9 @@ export default function AdminDashboard() {
                           <tr key={o.id} className="border-b">
                             <td className="py-2">{o.title}</td>
                             <td>{o.type === 'content_gap' ? 'فجوة تنافسية (منافس)' : 'فجوة كلمات (مستنتجة)'}</td>
-                            <td>{o.priority}</td>
+                            <td>{readable(o.priority)}</td>
                             <td>{o.score}</td>
-                            <td>{o.status}</td>
+                            <td>{readable(o.status)}</td>
                             <td>
                               <select disabled={saving} className="border border-slate-300 rounded text-xs" value={o.status} onChange={async (e) => {
                                 setSaving(true);setError('');try { await marketFetch('/api/admin/market/opportunities', { method: 'PATCH', body: JSON.stringify({ id: o.id, status: e.target.value }) }); await fetchOpportunities();setNotice('تم تحديث حالة الفرصة'); }
@@ -660,8 +715,8 @@ export default function AdminDashboard() {
                         {goals.map((g: any) => (
                           <tr key={g.id} className="border-b">
                             <td className="py-2">{g.title}<div className="text-xs text-slate-400">{g.description}</div></td>
-                            <td>{g.priority}</td>
-                            <td>{g.status}</td>
+                            <td>{readable(g.priority)}</td>
+                            <td>{readable(g.status)}</td>
                             <td>{g.confidence}</td>
                             <td className="text-xs">{(g.success_metrics || []).map((m: any) => m.metric).join(', ')}</td>
                             <td>
@@ -693,10 +748,10 @@ export default function AdminDashboard() {
                         {runs.map((r: any) => (
                           <tr key={r.id} className="border-b">
                             <td className="py-2">{r.run_type}</td>
-                            <td>{r.status}</td>
-                            <td className="text-xs text-slate-400">{r.started_at}</td>
-                            <td className="text-xs text-slate-400">{r.finished_at || '—'}</td>
-                            <td>{r.triggered_by}</td>
+                            <td>{readable(r.status)}</td>
+                            <td className="text-xs text-slate-400">{formatDate(r.started_at)}</td>
+                            <td className="text-xs text-slate-400">{formatDate(r.finished_at)}</td>
+                            <td>{readable(r.triggered_by)}</td>
                           </tr>
                         ))}
                         {runs.length === 0 && <tr><td colSpan={5} className="py-4 text-slate-400 text-center">لا توجد سجلات بعد.</td></tr>}
