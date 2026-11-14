@@ -1,7 +1,7 @@
 import { getLocale, localizedPath } from "@/lib/site-language";
 import { copy, services } from "@/lib/service-catalog";
 import { getContent } from "@/lib/content-store";
-import { guides, guideLabels } from "@/lib/service-guides";
+import { guides, guideLabels, decisionPrompts } from "@/lib/service-guides";
 import { siteUrl } from "@/lib/site-seo";
 export async function ServicePage({ slug }: { slug: string }) {
   const lang = getLocale();
@@ -71,6 +71,7 @@ export async function ServicePage({ slug }: { slug: string }) {
         <a href="#service-insight">{labels.insight}</a>
         <a href="#service-budget">{labels.budget}</a>
         <a href="#service-question">{labels.question}</a>
+        <a href="#service-decisions">{lang === "ar" ? "أسئلة القرار" : lang === "zh" ? "决策清单" : "Decision checklist"}</a>
         <a href="#service-references">{t.sources}</a>
       </nav>
       <div className="service-context-band">
@@ -95,6 +96,12 @@ export async function ServicePage({ slug }: { slug: string }) {
             <h2 id="service-budget">{labels.budget}</h2>
             <p>{guide.budget[lang]}</p>
           </div>
+          <section id="service-decisions" className="service-decision-checklist">
+            <p className="eyebrow">{lang === "ar" ? "راجع قبل التقديم" : lang === "zh" ? "申请前核对" : "CHECK BEFORE APPLYING"}</p>
+            <h2>{lang === "ar" ? "ثلاثة أسئلة تستحق الإجابة" : lang === "zh" ? "三个值得回答的问题" : "Three questions worth answering"}</h2>
+            <ol>{decisionPrompts[slug].map((prompt, i) => <li key={i}><span>{String(i + 1).padStart(2, "0")}</span><p>{prompt[lang]}</p></li>)}</ol>
+            <p className="service-decision-disclaimer">{lang === "ar" ? "قائمة إرشادية للتحضير وليست قائمة متطلبات رسمية أو استشارة قانونية." : lang === "zh" ? "本清单仅供准备参考，不属于官方要求或法律意见。" : "Planning prompts only; not an official requirements list or legal advice."}</p>
+          </section>
           <h2 id="service-question">{labels.question}</h2>
           <h3>{guide.q[lang]}</h3>
           <p>{guide.a[lang]}</p>
