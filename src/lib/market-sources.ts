@@ -200,12 +200,16 @@ export function defaultSources(): SearchSource[] {
 }
 
 export function availableSources(): { id: string; free: boolean; requiresKey: string | null; available: boolean }[] {
-  return defaultSources().map((s) => ({
-    id: s.id,
-    free: s.free,
-    requiresKey: s.requiresKey,
-    available: s.requiresKey ? !!(process.env[s.requiresKey] || '').trim() : true,
-  }));
+  const apiProviders = [
+    {id:'exa',key:'EXA_API_KEY'},
+    {id:'tavily',key:'TAVILY_API_KEY'},
+    {id:'parallel',key:'PARALLEL_API_KEY'},
+    {id:'firecrawl',key:'FIRECRAWL_API_KEY'}
+  ];
+  return [
+    ...apiProviders.map(p=>({id:p.id,free:false,requiresKey:p.key,
+      available:!!String(process.env[p.key]||'').trim()})),
+    {id:'google-suggest',free:true,requiresKey:null,available:true},
+    {id:'bing-rss',free:true,requiresKey:null,available:!apiProviders.some(p=>!!String(process.env[p.key]||'').trim())}
+  ];
 }
-
-
