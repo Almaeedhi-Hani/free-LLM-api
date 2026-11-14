@@ -41,6 +41,10 @@ export default function AdminDashboard() {
   const [newFaq, setNewFaq] = useState({ q: '', a: '' });
   const [editingFaq, setEditingFaq] = useState<{ index: number; q: string; a: string } | null>(null);
   const [newKeyword, setNewKeyword] = useState('');
+  const [newMarketKeyword,setNewMarketKeyword]=useState('');
+  const [competitorSearch,setCompetitorSearch]=useState('');
+  const [keywordSearch,setKeywordSearch]=useState('');
+  const [competitorFilter,setCompetitorFilter]=useState('all');
   const [goldenDraft, setGoldenDraft] = useState('');
   const [contactForm, setContactForm] = useState({ phone: '', phoneDisplay: '', whatsapp: '', email: '' });
   const [saving, setSaving] = useState(false);
@@ -487,6 +491,7 @@ export default function AdminDashboard() {
               <div className="space-y-6">
                 <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
                   <h2 className="text-xl font-bold mb-4">المنافسون</h2>
+                  <div className="flex flex-wrap items-center gap-2 mb-4"><input className="border border-slate-300 rounded-lg px-3 py-2 flex-1 min-w-[170px]" value={competitorSearch} onChange={e=>setCompetitorSearch(e.target.value)} placeholder="بحث بالاسم أو النطاق" aria-label="بحث المنافسين"/><select value={competitorFilter} onChange={e=>setCompetitorFilter(e.target.value)} aria-label="حالة المنافس" className="border border-slate-300 rounded-lg px-3 py-2"><option value="all">كل الحالات</option><option value="active">نشط</option><option value="inactive">غير نشط</option><option value="disqualified">مستبعد</option></select></div>
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-4">
                     <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="الاسم" value={newCompetitor.name} onChange={(e) => setNewCompetitor({ ...newCompetitor, name: e.target.value })} />
                     <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="النطاق" value={newCompetitor.domain} onChange={(e) => setNewCompetitor({ ...newCompetitor, domain: e.target.value })} />
@@ -518,7 +523,7 @@ export default function AdminDashboard() {
                     <table className="w-full text-sm">
                       <thead><tr className="text-right border-b"><th className="py-2">الاسم</th><th>النطاق</th><th>الحالة</th><th>اللغات</th><th>آخر رصد</th><th>إجراء</th></tr></thead>
                       <tbody>
-                        {competitors.map((c: any) => (
+                        {competitors.filter((c:any)=>(competitorFilter==='all'||c.status===competitorFilter)&&(!competitorSearch.trim()||((c.name||'')+' '+(c.domain||'')).toLowerCase().includes(competitorSearch.trim().toLowerCase()))).map((c:any) => (
                           <tr key={c.id} className="border-b">
                             <td className="py-2">{c.name}</td>
                             <td dir="ltr" className="text-left">{c.domain}</td>
@@ -544,18 +549,19 @@ export default function AdminDashboard() {
               <div className="space-y-6">
                 <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
                   <h2 className="text-xl font-bold mb-4">الكلمات المفتاحية</h2>
+                  <input className="border border-slate-300 rounded-lg px-3 py-2 w-full mb-3" value={keywordSearch} onChange={e=>setKeywordSearch(e.target.value)} placeholder="تصفية الكلمات أو اللغات" aria-label="تصفية الكلمات المفتاحية"/>
                   <p className="text-xs text-slate-400 mb-3">الأحجام تُخزّن فقط عند توفر مصدر موثوق. لا يتم اختلاق أي بيانات.</p>
                   <div className="flex gap-2 mb-4 flex-wrap">
-                    <input className="border border-slate-300 rounded-lg px-4 py-2 flex-1" placeholder="المصطلح" value={newKeyword} onChange={(e) => setNewKeyword(e.target.value)} />
+                    <input className="border border-slate-300 rounded-lg px-4 py-2 flex-1" placeholder="المصطلح" value={newMarketKeyword} onChange={(e) => setNewMarketKeyword(e.target.value)} />
                     <select className="border border-slate-300 rounded-lg px-4 py-2" value={keywordLanguage} onChange={e=>setKeywordLanguage(e.target.value as 'ar'|'en'|'zh')} aria-label="لغة الكلمة المفتاحية">
                       <option value="ar">ar</option><option value="en">en</option><option value="zh">zh</option>
                     </select>
                     <button className="btn-primary" disabled={saving} onClick={async () => {
-                      if (!newKeyword.trim()) return;
-                      setSaving(true);
+                      if (!newMarketKeyword.trim()) {setError('أدخل كلمة مفتاحية');return;}
+                      setSaving(true);setError('');
                       try {
                         const lang=keywordLanguage;
-                        await marketFetch('/api/admin/market/keywords', { method: 'POST', body: JSON.stringify({ term: newKeyword.trim(), language: lang, source: 'manual' }) });
+                        await marketFetch('/api/admin/market/keywords', { method: 'POST', body: JSON.stringify({ term: newMarketKeyword.trim(), language: lang, source: 'manual' }) });
                         setNewKeyword('');
                         await fetchKeywords();
                       } catch (e: any) { setError(e.message); }
@@ -566,7 +572,7 @@ export default function AdminDashboard() {
                     <table className="w-full text-sm">
                       <thead><tr className="text-right border-b"><th className="py-2">المصطلح</th><th>اللغة</th><th>النية</th><th>الحجم</th><th>المصدر</th></tr></thead>
                       <tbody>
-                        {keywords.map((k: any) => (
+                        {keywords.filter((k:any)=>!keywordSearch.trim()||((k.term||'')+' '+(k.language||'')).toLowerCase().includes(keywordSearch.trim().toLowerCase())).map((k:any) => (
                           <tr key={k.id} className="border-b">
                             <td className="py-2">{k.term}</td>
                             <td>{k.language}</td>
