@@ -186,15 +186,17 @@ export default function AdminDashboard() {
       setLastUpdated(new Date().toLocaleString('ar-SA'));
       setNotice('تم حفظ التغييرات بنجاح');
       setError('');
+      return true;
     } catch (e: any) {
       setError(e.message || 'فشل الحفظ');
+      return false;
     } finally {
       setSaving(false);
     }
   };
 
   const approveDraft = (idx: number) => {
-    if (!content) return;
+    if (!content || saving || !window.confirm('اعتماد هذه المسودة ونشرها في محتوى الموقع؟')) return;
     const drafts = [...content.drafts];
     const draft = {...drafts[idx],status:'approved'};
     drafts[idx]=draft;
@@ -203,7 +205,7 @@ export default function AdminDashboard() {
   };
 
   const rejectDraft = (idx: number) => {
-    if (!content) return;
+    if (!content || saving || !window.confirm('هل تريد رفض هذه المسودة؟')) return;
     const drafts = [...content.drafts];
     drafts[idx] = {...drafts[idx],status:'rejected'};
     save({ drafts });
@@ -212,16 +214,14 @@ export default function AdminDashboard() {
   const addFaq = () => {
     if (!newFaq.q.trim() || !newFaq.a.trim() || saving) return;
     const faqs = [...(content?.faqs || []), newFaq];
-    save({ faqs });
-    setNewFaq({ q: '', a: '' });
+    void save({ faqs }).then(ok=>{if(ok)setNewFaq({q:'',a:''});});
   };
 
   const updateFaq = () => {
     if (!editingFaq || saving) return;
     const faqs = [...(content?.faqs || [])];
     faqs[editingFaq.index] = { q: editingFaq.q, a: editingFaq.a };
-    save({ faqs });
-    setEditingFaq(null);
+    void save({ faqs }).then(ok=>{if(ok)setEditingFaq(null);});
   };
 
   const deleteFaq = (idx: number) => {
@@ -234,8 +234,7 @@ export default function AdminDashboard() {
   const addKeyword = () => {
     if (!newKeyword.trim()||saving)return;
     const keywords = [...(content?.keywords || []), newKeyword.trim()];
-    save({ keywords });
-    setNewKeyword('');
+    void save({ keywords }).then(ok=>{if(ok)setNewKeyword('');});
   };
 
   const deleteKeyword = (idx: number) => {
@@ -592,13 +591,15 @@ export default function AdminDashboard() {
                     <div className="flex gap-2">
                       <button className="btn-primary text-xs" disabled={saving} onClick={async () => {
                         setSaving(true);
-                        try { await marketFetch('/api/admin/market/analyze', { method: 'POST', body: JSON.stringify({ triggered_by: 'admin' }) }); await fetchOpportunities(); await fetchGoals(); await fetchRuns(); }
+                        if(!window.confirm('بدء تحليل السوق وحفظ النتائج؟'))return;
+                         setError('');try { await marketFetch('/api/admin/market/analyze', { method: 'POST', body: JSON.stringify({ triggered_by: 'admin' }) }); await fetchOpportunities(); await fetchGoals(); await fetchRuns(); }
                         catch (e: any) { setError(e.message); }
                         finally { setSaving(false); }
                       }}>تشغيل التحليل</button>
                       <button className="btn-secondary text-xs" disabled={saving} onClick={async () => {
                         setSaving(true);
-                        try { await marketFetch('/api/admin/market/radar', { method: 'POST', body: JSON.stringify({ triggered_by: 'admin' }) }); await fetchOpportunities(); await fetchGoals(); await fetchKeywords(); await fetchCompetitors(); await fetchRuns(); }
+                        if(!window.confirm('تشغيل الرادار وجمع بيانات بحث خارجية وحفظها؟'))return;
+                         setError('');try { await marketFetch('/api/admin/market/radar', { method: 'POST', body: JSON.stringify({ triggered_by: 'admin' }) }); await fetchOpportunities(); await fetchGoals(); await fetchKeywords(); await fetchCompetitors(); await fetchRuns(); }
                         catch (e: any) { setError(e.message); }
                         finally { setSaving(false); }
                       }}>تشغيل الرادار</button>
@@ -616,7 +617,7 @@ export default function AdminDashboard() {
                             <td>{o.score}</td>
                             <td>{o.status}</td>
                             <td>
-                              <select className="border border-slate-300 rounded text-xs" value={o.status} onChange={async (e) => {
+                              <select disabled={saving} className="border border-slate-300 rounded text-xs" value={o.status} onChange={async (e) => {
                                 try { await marketFetch('/api/admin/market/opportunities', { method: 'PATCH', body: JSON.stringify({ id: o.id, status: e.target.value }) }); await fetchOpportunities(); }
                                 catch (err: any) { setError(err.message); }
                               }}>
@@ -650,7 +651,7 @@ export default function AdminDashboard() {
                             <td>{g.confidence}</td>
                             <td className="text-xs">{(g.success_metrics || []).map((m: any) => m.metric).join(', ')}</td>
                             <td>
-                              <select className="border border-slate-300 rounded text-xs" value={g.status} onChange={async (e) => {
+                              <select disabled={saving} className="border border-slate-300 rounded text-xs" value={g.status} onChange={async (e) => {
                                 try { await marketFetch('/api/admin/market/goals', { method: 'PATCH', body: JSON.stringify({ id: g.id, status: e.target.value }) }); await fetchGoals(); }
                                 catch (err: any) { setError(err.message); }
                               }}>
