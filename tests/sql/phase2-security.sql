@@ -1,11 +1,11 @@
-\\set ON_ERROR_STOP on
+\set ON_ERROR_STOP on
 -- Run with: psql -v ON_ERROR_STOP=1 -f tests/sql/phase2-security.sql
-\\ir fixtures/phase2-production-functions.sql
+\ir fixtures/phase2-production-functions.sql
 DO $$ BEGIN
   IF NOT has_function_privilege('anon','public.rls_auto_enable()','EXECUTE') THEN RAISE EXCEPTION 'fixture: anon expected execute'; END IF;
   IF NOT has_function_privilege('authenticated','public.rls_auto_enable()','EXECUTE') THEN RAISE EXCEPTION 'fixture: authenticated expected execute'; END IF;
 END $$;
-\\ir ../../supabase/migrations/20261115_phase2_security_hardening.sql
+\ir ../../supabase/migrations/20261115_phase2_security_hardening.sql
 DO $$ BEGIN
   IF has_function_privilege('anon','public.rls_auto_enable()','EXECUTE') THEN RAISE EXCEPTION 'anon can execute rls_auto_enable'; END IF;
   IF has_function_privilege('authenticated','public.rls_auto_enable()','EXECUTE') THEN RAISE EXCEPTION 'authenticated can execute rls_auto_enable'; END IF;
