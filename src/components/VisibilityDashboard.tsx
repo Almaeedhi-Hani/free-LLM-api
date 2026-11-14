@@ -1,11 +1,14 @@
 'use client';
 import React,{useEffect,useState} from 'react';
 type Section='pages'|'queries'|'ai'|'conversions';
+type QueryResult={query:string;clicks:number;impressions:number;ctr:number;position:number};
 type Result={url:string;language:string;checked_at:string;http_status:number|null;canonical:string|null;hreflang:{lang:string;url:string}[];errors:string[];status:string};
 const sections:[Section,string][]=[['pages','الفهرسة وصحة الصفحات'],['queries','الكلمات والاستعلامات'],['ai','اختبارات إجابات الذكاء الاصطناعي'],['conversions','الاستفسارات والتحويلات']];
 export default function VisibilityDashboard({secret}:{secret:string}){
  const [section,setSection]=useState<Section>('pages');
  const [rows,setRows]=useState<Result[]>([]);
+ const [queryRows,setQueryRows]=useState<QueryResult[]>([]);
+ const [queryPeriod,setQueryPeriod]=useState('');
  const [loading,setLoading]=useState(false);
  const [error,setError]=useState('');
  const [message,setMessage]=useState('');
@@ -16,9 +19,9 @@ export default function VisibilityDashboard({secret}:{secret:string}){
   try{
    const r=await fetch(`/api/admin/visibility?type=${type}`,{headers:{'x-admin-secret':secret},cache:'no-store'});
    const d=await r.json();
-   if(!r.ok)throw new Error(d.error||'تعذر التحميل');
-   setRows(d.results||[]);setMessage(d.message||'');setLastCheck(d.checked_at||'');
-  }catch(e){setError(e instanceof Error?e.message:'حدث خطأ');setRows([])}
+   if(!r.ok)throw new Error(d.message||d.error||'تعذر التحميل');
+   setRows(d.results||[]);setQueryRows(type==='queries'?(d.rows||[]):[]);setQueryPeriod(d.startDate&&d.endDate?d.startDate+' — '+d.endDate:'');setMessage(d.message||(type==='queries'&&d.connected?'بيانات فعلية من Google Search Console':'غير متصل'));setLastCheck(d.checked_at||'');
+  }catch(e){setError(e instanceof Error?e.message:'حدث خطأ');setRows([]);setQueryRows([])}
   finally{setLoading(false)}
  }
  useEffect(()=>{void load(section)},[section,secret]);
@@ -59,6 +62,7 @@ export default function VisibilityDashboard({secret}:{secret:string}){
   </section>:<section className="rounded-2xl border border-slate-200 bg-white p-6 space-y-3">
    <h3 className="text-lg font-bold">{sections.find(([id])=>id===section)?.[1]}</h3>
    <p className="text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">{message||'لا تتوفر بيانات مؤكدة حاليًا.'}</p>
+   {section==='queries'&&queryRows.length>0&&<div className="overflow-x-auto"><p className="text-xs text-slate-500 mb-2">المصدر: Google Search Console — الفترة: {queryPeriod}</p><table className="w-full text-sm text-right"><thead><tr className="border-b"><th className="p-2">الاستعلام</th><th className="p-2">النقرات</th><th className="p-2">الظهور</th><th className="p-2">CTR</th><th className="p-2">متوسط الموضع</th></tr></thead><tbody>{queryRows.map((q,i)=><tr key={q.query+'-'+i} className="border-b"><td className="p-2">{q.query}</td><td className="p-2">{q.clicks}</td><td className="p-2">{q.impressions}</td><td className="p-2">{(q.ctr*100).toFixed(2)}%</td><td className="p-2">{q.position.toFixed(1)}</td></tr>)}</tbody></table></div>}
    {section==='queries'&&<p className="text-sm text-slate-600">بعد تفعيل Search Console الرسمي: الاستعلام واللغة والصفحة والظهور والنقرات ومتوسط الترتيب والنية التجارية ومقارنة الفترات.</p>}
    {section==='ai'&&<p className="text-sm text-slate-600">سجل الاختبار المطلوب: السؤال، اللغة، المحرك، وقت الاختبار، الإجابة، روابط الاستشهاد، حالة التحقق، ومعرّف الدليل.</p>}
    {section==='conversions'&&<p className="text-sm text-slate-600">ستُفصل نقرات واتساب والهاتف عن إرسال النماذج وعن العملاء المحتملين المؤكدين. لا يُحسب النقر عميلًا.</p>}
