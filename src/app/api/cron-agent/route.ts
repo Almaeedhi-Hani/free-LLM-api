@@ -161,6 +161,12 @@ async function triggerIndexNow(url: string): Promise<void> {
 }
 
 export async function GET(req: NextRequest) {
+  // Authenticate before exposing scheduling details or accessing any state.
+  const auth = req.headers.get('authorization');
+  const expected = process.env.CRON_SECRET;
+  if (!expected || auth !== `Bearer ${expected}`) {
+    return NextResponse.json({ status: 'unauthorized' }, { status: 401 });
+  }
   // Boost window: every 2h for 3 days starting 2026-11-09 (Mecca time), then daily 02:00 Mecca only.
   const now = new Date();
   const boostStart = new Date('2026-11-09T00:00:00+03:00');
@@ -171,13 +177,6 @@ export async function GET(req: NextRequest) {
   if (!inBoost && !isDailySafe) {
     return NextResponse.json({ status: 'skipped', note: 'Outside boost window; daily safe run only.' });
   }
-  const auth = req.headers.get('authorization');
-  const expected = process.env.CRON_SECRET;
-
-  if (!expected || auth !== `Bearer ${expected}`) {
-    return NextResponse.json({ status: 'unauthorized' }, { status: 401 });
-  }
-
   const results: Array<{ question: string; improved: boolean; note?: string }> = [];
 
   const existing = await getContent();
@@ -195,27 +194,17 @@ export async function GET(req: NextRequest) {
       const rewritten = await rewriteWithGPT4o(topAnswer, '');
       const highRisk = /MISA|license|رسوم|cost|ملكية|ownership|SAMA|KYC|إقامة|residency|CMA/i.test(question);
       if (rewritten) {
-        if (highRisk) {
-          // Guardrail: high-risk info goes to draft for human approval
-          const content = await getContent();
-          await setContent({
-            drafts: [
-              ...content.drafts,
-              { q: question, a: rewritten, createdAt: new Date().toISOString(), status: 'pending' },
-            ],
-          });
-          results.push({ question, improved: false, note: 'High-risk content saved as draft (pending approval).' });
-        } else {
-          // Low-risk: auto-publish (keywords/titles)
-          await setContent({
-            goldenParagraph: rewritten,
-            faqs: [{ q: question, a: topAnswer.slice(0, 500) }],
-            keywords: ['invest Saudi', 'MISA license', 'Saudi company formation'],
-          });
-          await triggerGoogleIndexing(SITE_URL);
-          await triggerIndexNow(SITE_URL);
-          results.push({ question, improved: true });
+        // All generated recommendations require explicit human review.
+        // No direct publication or indexing from this legacy cron endpoint.
+        const content = await getContent();
+        if (!content.drafts.some(d => d.q === question && d.status === 'pending')) {
+          await setContent({ drafts: [...content.drafts, {
+            q: question, a: rewritten, createdAt: new Date().toISOString(), status: 'pending',
+          }] });
         }
+        results.push({ question, improved: false, note: highRisk
+          ? 'High-risk recommendation queued for approval.'
+          : 'Recommendation queued for approval; auto-publishing disabled.' });
       } else {
         results.push({ question, improved: false });
       }
