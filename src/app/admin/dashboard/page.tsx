@@ -604,16 +604,16 @@ export default function AdminDashboard() {
                     <h2 className="text-xl font-bold">الفرص</h2>
                     <div className="flex gap-2">
                       <button className="btn-primary text-xs" disabled={saving} onClick={async () => {
-                        setSaving(true);
                         if(!window.confirm('بدء تحليل السوق وحفظ النتائج؟'))return;
-                         setError('');try { await marketFetch('/api/admin/market/analyze', { method: 'POST', body: JSON.stringify({ triggered_by: 'admin' }) }); await fetchOpportunities(); await fetchGoals(); await fetchRuns(); }
+                        setSaving(true);
+                         setError('');try { await marketFetch('/api/admin/market/analyze', { method: 'POST', body: JSON.stringify({ triggered_by: 'admin' }) }); await fetchOpportunities(); await fetchGoals(); await fetchRuns();setNotice('اكتمل تحليل السوق'); }
                         catch (e: any) { setError(e.message); }
                         finally { setSaving(false); }
                       }}>تشغيل التحليل</button>
                       <button className="btn-secondary text-xs" disabled={saving} onClick={async () => {
-                        setSaving(true);
                         if(!window.confirm('تشغيل الرادار وجمع بيانات بحث خارجية وحفظها؟'))return;
-                         setError('');try { await marketFetch('/api/admin/market/radar', { method: 'POST', body: JSON.stringify({ triggered_by: 'admin' }) }); await fetchOpportunities(); await fetchGoals(); await fetchKeywords(); await fetchCompetitors(); await fetchRuns(); }
+                        setSaving(true);
+                         setError('');try { await marketFetch('/api/admin/market/radar', { method: 'POST', body: JSON.stringify({ triggered_by: 'admin' }) }); await fetchOpportunities(); await fetchGoals(); await fetchKeywords(); await fetchCompetitors(); await fetchRuns();setNotice('اكتمل تشغيل الرادار'); }
                         catch (e: any) { setError(e.message); }
                         finally { setSaving(false); }
                       }}>تشغيل الرادار</button>
@@ -632,8 +632,8 @@ export default function AdminDashboard() {
                             <td>{o.status}</td>
                             <td>
                               <select disabled={saving} className="border border-slate-300 rounded text-xs" value={o.status} onChange={async (e) => {
-                                try { await marketFetch('/api/admin/market/opportunities', { method: 'PATCH', body: JSON.stringify({ id: o.id, status: e.target.value }) }); await fetchOpportunities(); }
-                                catch (err: any) { setError(err.message); }
+                                setSaving(true);setError('');try { await marketFetch('/api/admin/market/opportunities', { method: 'PATCH', body: JSON.stringify({ id: o.id, status: e.target.value }) }); await fetchOpportunities();setNotice('تم تحديث حالة الفرصة'); }
+                                catch (err: any) { setError(err.message); }finally{setSaving(false);}
                               }}>
                                 <option value="new">جديد</option><option value="triaged">فرز</option><option value="planned">مخطط</option><option value="done">منجز</option><option value="rejected">مرفوض</option>
                               </select>
@@ -666,8 +666,8 @@ export default function AdminDashboard() {
                             <td className="text-xs">{(g.success_metrics || []).map((m: any) => m.metric).join(', ')}</td>
                             <td>
                               <select disabled={saving} className="border border-slate-300 rounded text-xs" value={g.status} onChange={async (e) => {
-                                try { await marketFetch('/api/admin/market/goals', { method: 'PATCH', body: JSON.stringify({ id: g.id, status: e.target.value }) }); await fetchGoals(); }
-                                catch (err: any) { setError(err.message); }
+                                setSaving(true);setError('');try { await marketFetch('/api/admin/market/goals', { method: 'PATCH', body: JSON.stringify({ id: g.id, status: e.target.value }) }); await fetchGoals();setNotice('تم تحديث حالة الهدف'); }
+                                catch (err: any) { setError(err.message); }finally{setSaving(false);}
                               }}>
                                 <option value="open">مفتوح</option><option value="in_progress">قيد التنفيذ</option><option value="done">منجز</option><option value="cancelled">ملغى</option>
                               </select>
