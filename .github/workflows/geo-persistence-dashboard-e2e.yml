@@ -1,0 +1,33 @@
+name: GEO Live Persistence and Dashboard E2E (One Time)
+on:
+  push:
+    branches:
+      - fix/search-source-reliability-20261114
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  persistence-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: One candidate and one keyword maximum - no auto publish
+        env:
+          EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          PARALLEL_API_KEY: ${{ secrets.PARALLEL_API_KEY }}
+          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: node scripts/geo-live-persistence-dashboard-test.cjs
+      - name: Upload sanitized readback report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: geo-persistence-dashboard-readback
+          path: .geo-persistence-test/report.json
+          retention-days: 7
+          if-no-files-found: warn
