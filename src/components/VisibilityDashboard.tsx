@@ -14,6 +14,15 @@ export default function VisibilityDashboard({secret}:{secret:string}){
  const [message,setMessage]=useState('');
  const [lang,setLang]=useState('all');
  const [lastCheck,setLastCheck]=useState('');
+ async function connectGoogle(){
+  setError('');
+  try{
+   const response=await fetch('/api/admin/google/start',{method:'POST',headers:{'x-admin-secret':secret}});
+   const data=await response.json();
+   if(!response.ok||!data.authorizationUrl)throw new Error(data.error||'تعذر بدء التفويض');
+   window.location.assign(data.authorizationUrl);
+  }catch(e){setError(e instanceof Error?e.message:'تعذر بدء التفويض')}
+ }
  async function load(type:Section){
   setLoading(true);setError('');setMessage('');
   try{
@@ -37,6 +46,7 @@ export default function VisibilityDashboard({secret}:{secret:string}){
   <nav className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2" aria-label="أقسام الظهور">
    {sections.map(([id,label])=><button key={id} onClick={()=>setSection(id)} aria-current={section===id?'page':undefined} className={`rounded-xl border p-3 text-right font-semibold ${section===id?'bg-slate-900 text-white border-slate-900':'bg-white text-slate-700 border-slate-200 hover:border-slate-400'}`}>{label}</button>)}
   </nav>
+  {section==='queries'&&<div className="rounded-xl border border-slate-200 bg-white p-4"><button className="btn-secondary" onClick={()=>void connectGoogle()}>ربط حساب Google Search Console</button><p className="mt-2 text-xs text-slate-600">ستنتقل إلى Google لمنح صلاحية القراءة فقط. التفويض محفوظ مشفرًا في متصفح الإدارة لمدة تصل إلى 30 يومًا؛ يجب الربط مجددًا عند تغيير المتصفح أو حذف الكوكيز.</p></div>}
   {error&&<p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-red-800">{error}</p>}
   {section==='pages'?<section className="rounded-2xl bg-white border border-slate-200 p-4 sm:p-6 space-y-4">
    <div className="flex flex-wrap gap-3 justify-between items-center">
