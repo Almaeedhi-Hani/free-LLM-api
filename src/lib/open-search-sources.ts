@@ -1,252 +1,50 @@
-﻿import type { Language } from './market-intelligence';
-
-export interface SearchResult {
-  domain: string;
-  title: string;
-  snippet: string;
-  url: string;
-  rank: number;
-  source: string;
+import type { Language } from './market-intelligence';
+export interface SearchResult {domain:string;title:string;snippet:string;url:string;rank:number;source:string}
+export interface SearchSource {id:string;free:boolean;requiresKey:string|null;supportedLanguages:Language[];deprecated?:boolean;collectSuggestions(q:string,l:Language):Promise<{term:string;language:Language;source:string}[]>;collectResults(q:string,l:Language,n:number):Promise<SearchResult[]>}
+type Diagnostic={http_status:number;duration_ms:number;response_received:boolean;results_parsed:number;blocked_detected:boolean;failure_reason:string};
+const blank=():Diagnostic=>({http_status:0,duration_ms:0,response_received:false,results_parsed:0,blocked_detected:false,failure_reason:''});
+const clean=(s:string)=>String(s||'').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,'$1').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
+const excluded=['google.com','bing.com','duckduckgo.com','youtube.com','linkedin.com','facebook.com','wikipedia.org','investing.com'];
+function dest(s:string):{domain:string,url:string}|null {
+ try {let u=new URL(clean(s),'https://html.duckduckgo.com');const redirect=u.searchParams.get('uddg');if(redirect&&u.hostname.endsWith('duckduckgo.com'))u=new URL(redirect);if(!['http:','https:'].includes(u.protocol)||u.username||u.password)return null;const domain=u.hostname.replace(/^www\./,'').toLowerCase();if(!domain.includes('.')||domain.endsWith('.gov.sa')||excluded.some(d=>domain===d||domain.endsWith('.'+d)))return null;u.hash='';return {domain,url:u.href};}catch{return null}
 }
-
-export interface SearchSource {
-  id: string;
-  free: boolean;
-  requiresKey: string | null;
-  supportedLanguages: Language[];
-  deprecated?: boolean;
-  collectSuggestions(query: string, language: Language): Promise<{ term: string; language: Language; source: string }[]>;
-  collectResults(query: string, language: Language, limit: number): Promise<SearchResult[]>;
+export function parseDuckDuckGoHtml(html:string,limit=10):SearchResult[]{
+ const result:SearchResult[]=[],seen=new Set<string>();
+ for(const m of html.matchAll(/<a\b([^>]*class=["'][^"']*result__a[^"']*["'][^>]*)>([\s\S]*?)<\/a>/gi)){
+  const href=m[1].match(/href=["']([^"']+)["']/i), d=href&&dest(href[1]);if(!d||seen.has(d.domain))continue;
+  const title=clean(m[2]);if(!title)continue;seen.add(d.domain);
+  result.push({...d,title,snippet:'',rank:result.length+1,source:'duckduckgo-html'});if(result.length>=limit)break;
+ }return result;
 }
-
-const IRRELEVANT_DOMAINS = new Set([
-  'finance.yahoo.com', 'investing.com', 'cnbc.com', 'bloomberg.com', 'reuters.com',
-  'linkedin.com', 'instagram.com', 'youtube.com', 'wikipedia.org', 'facebook.com',
-  'twitter.com', 'x.com', 'crunchbase.com', 'pitchbook.com', 'owler.com', 'similarweb.com',
-  'rulebook.sama.gov.sa', 'sab.com', 'gov.sa',
-]);
-
-function isIrrelevant(domain: string): boolean {
-  const d = domain.toLowerCase();
-  return IRRELEVANT_DOMAINS.has(d) || Array.from(IRRELEVANT_DOMAINS).some((id) => d.endsWith('.' + id) || d === id);
+export function parseBingRss(xml:string,limit=10):SearchResult[]{
+ if(!/<rss\b/i.test(xml)||!/<channel\b/i.test(xml))return [];
+ const results:SearchResult[]=[],seen=new Set<string>();
+ for(const m of xml.matchAll(/<item\b[^>]*>([\s\S]*?)<\/item>/gi)){
+  const field=(tag:string)=>m[1].match(new RegExp('<'+tag+'(?:\\s[^>]*)?>([\\s\\S]*?)<\\/'+tag+'>','i'))?.[1]||'';
+  const d=dest(field('link'));if(!d||seen.has(d.domain))continue;const title=clean(field('title'));if(!title)continue;seen.add(d.domain);
+  results.push({...d,title,snippet:clean(field('description')).slice(0,500),rank:results.length+1,source:'bing-rss'});if(results.length>=limit)break;
+ }return results;
 }
-
-function extractDomain(url: string): string {
-  try {
-    return new URL(url).hostname.replace(/^www\./, '');
-  } catch (e) { console.warn('[duckduckgo-html] fetch error:', e instanceof Error ? e.message : String(e));
-    return '';
-  }
+abstract class Base {
+ lastDiagnostic:Diagnostic=blank();
+ async collectSuggestions():Promise<[]> {return []}
+ protected async request(url:string,parser:(x:string,n:number)=>SearchResult[],limit:number,init:RequestInit={}):Promise<SearchResult[]>{
+  const t=Date.now();this.lastDiagnostic=blank();
+  try{
+   const res=await fetch(url,{...init,signal:AbortSignal.timeout(8000),cache:'no-store'});
+   const body=await res.text();const blocked=[202,403,429,503].includes(res.status)||/captcha|anomaly-modal|verify you are human/i.test(body.slice(0,20000));
+   const results=res.status===200&&!blocked?parser(body,Math.min(limit,20)):[];
+   this.lastDiagnostic={http_status:res.status,duration_ms:Date.now()-t,response_received:true,results_parsed:results.length,blocked_detected:blocked,failure_reason:blocked?'blocked_or_throttled':res.status!==200?'http_'+res.status:results.length===0?'no_parseable_results':''};
+   return results;
+  }catch(e){this.lastDiagnostic={...blank(),duration_ms:Date.now()-t,failure_reason:e instanceof Error&&['TimeoutError','AbortError'].includes(e.name)?'timeout':'network_error'};return []}
+ }
 }
-
-async function fetchHtml(url: string): Promise<string | null> {
-  try {
-    const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-    });
-    console.log('[duckduckgo-html] HTTP', res.status, 'bodyLen:', (await res.clone().text()).length);
-    if (!res.ok) return null;
-    return await res.text();
-  } catch (e) { console.warn('[duckduckgo-html] fetch error:', e instanceof Error ? e.message : String(e));
-    return null;
-  }
+export class BingRssSearchSource extends Base implements SearchSource {
+ id='bing-rss';free=true;requiresKey=null;supportedLanguages:Language[]=['ar','en','zh'];
+ async collectResults(q:string,l:Language,n:number){return this.request('https://www.bing.com/search?format=rss&q='+encodeURIComponent(q)+'&setlang='+(l==='zh'?'zh-CN':l==='ar'?'ar-SA':'en-US'),parseBingRss,n,{headers:{Accept:'application/rss+xml, application/xml;q=0.9'}})}
 }
-
-async function postHtml(url: string, body: string): Promise<string | null> {
-  try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body,
-    });
-    console.log('[duckduckgo-html] HTTP', res.status, 'bodyLen:', (await res.clone().text()).length);
-    if (!res.ok) return null;
-    return await res.text();
-  } catch (e) { console.warn('[duckduckgo-html] fetch error:', e instanceof Error ? e.message : String(e));
-    return null;
-  }
+export class DuckDuckGoHtmlSource extends Base implements SearchSource {
+ id='duckduckgo-html';free=true;requiresKey=null;supportedLanguages:Language[]=['ar','en','zh'];
+ async collectResults(q:string,l:Language,n:number){return this.request('https://html.duckduckgo.com/html/',parseDuckDuckGoHtml,n,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'q='+encodeURIComponent(q)+'&kl='+(l==='zh'?'cn-zh':l==='ar'?'ar':'us-en')})}
 }
-
-function unwrapDuckDuckGoUrl(url: string): string {
-  if (url.includes('uddg=')) {
-    try {
-      return decodeURIComponent(url.split('uddg=')[1].split('&')[0]);
-  } catch (e) { console.warn('[duckduckgo-html] fetch error:', e instanceof Error ? e.message : String(e));
-      return url;
-    }
-  }
-  return url;
-}
-
-function parseDuckDuckGoHtml(html: string): SearchResult[] {
-  const results: SearchResult[] = [];
-  const seen = new Set<string>();
-
-  const linkRegex = /class="result__a"[^>]*href="([^"]*)"[^>]*>([^<]*)<\/a>/g;
-  const snippetRegex = /class="result__snippet"[^>]*>([^<]*)</g;
-
-  const urls = Array.from(html.matchAll(linkRegex), (m) => m[1]);
-  const titles = Array.from(html.matchAll(linkRegex), (m) => m[2]);
-  const snippets = Array.from(html.matchAll(snippetRegex), (m) => m[1]);
-
-  const count = Math.min(urls.length, titles.length, snippets.length);
-  for (let i = 0; i < count; i++) {
-    const realUrl = unwrapDuckDuckGoUrl(urls[i]);
-    const domain = extractDomain(realUrl);
-    if (!domain || seen.has(domain) || isIrrelevant(domain)) continue;
-    seen.add(domain);
-    results.push({
-      domain,
-      title: (titles[i] || '').trim(),
-      snippet: (snippets[i] || '').trim(),
-      url: realUrl,
-      rank: results.length + 1,
-      source: 'duckduckgo-html',
-    });
-  }
-  return results;
-}
-
-// Rate limiting for DuckDuckGo - enforce minimum delay between requests
-let lastDuckDuckGoRequest = 0;
-const MIN_DELAY_MS = parseInt(process.env.DUCKDUCKGO_MIN_DELAY_MS || '5000', 10);
-
-async function enforceDuckDuckGoRateLimit(): Promise<void> {
-  const now = Date.now();
-  const timeSinceLast = now - lastDuckDuckGoRequest;
-  if (timeSinceLast < MIN_DELAY_MS) {
-    const wait = MIN_DELAY_MS - timeSinceLast;
-    console.log(`[duckduckgo-html] Rate limit: waiting ${wait}ms before next request`);
-    await new Promise(resolve => setTimeout(resolve, wait));
-  }
-  lastDuckDuckGoRequest = Date.now();
-}
-
-export class DuckDuckGoHtmlSource implements SearchSource {
-  id = 'duckduckgo-html';
-  free = true;
-  requiresKey = null;
-  supportedLanguages: Language[] = ['ar', 'en', 'zh'];
-  deprecated = false;
-  lastDiagnostic: { http_status: number; duration_ms: number; response_received: boolean; results_parsed: number; blocked_detected: boolean; failure_reason: string; } = { http_status: 0, duration_ms: 0, response_received: false, results_parsed: 0, blocked_detected: false, failure_reason: '' };
-
-  async collectSuggestions(): Promise<{ term: string; language: Language; source: string }[]> {
-    return [];
-  }
-
-  async collectResults(query: string, language: Language, limit: number): Promise<SearchResult[]> {
-    // Enforce rate limit before making request
-    await enforceDuckDuckGoRateLimit();
-    
-    // DuckDuckGo HTML uses specific locale codes: ar, us-en, cn-zh
-    const langParam = language === 'ar' ? 'ar' : language === 'zh' ? 'cn-zh' : 'us-en';
-    const body = `q=${encodeURIComponent(query)}&kl=${langParam}`;
-    const t0 = Date.now();
-    let html: string | null = null;
-    let status = 0;
-    let error = '';
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
-    try {
-      const res = await fetch('https://html.duckduckgo.com/html/', {
-        method: 'POST',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body,
-        signal: controller.signal,
-      });
-      status = res.status;
-      html = await res.text();
-    } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
-      if (e instanceof Error && e.name === 'AbortError') {
-        error = 'timeout (10s) - Render cannot reach DuckDuckGo';
-      }
-    } finally {
-      clearTimeout(timeoutId);
-    }
-    const dt = Date.now() - t0;
-    if (error) {
-      this.lastDiagnostic = { http_status: 0, duration_ms: dt, response_received: false, results_parsed: 0, blocked_detected: false, failure_reason: 'fetch error: ' + error };
-      console.warn('[duckduckgo-html] fetch error:', error, 'duration:', dt + 'ms');
-      return [];
-    }
-    if (!html || status !== 200) {
-      this.lastDiagnostic = { http_status: status, duration_ms: dt, response_received: !!html, results_parsed: 0, blocked_detected: false, failure_reason: 'HTTP ' + status };
-      console.warn('[duckduckgo-html] HTTP', status, 'duration:', dt + 'ms', 'bodyLen:', html?.length || 0);
-      return [];
-    }
-    const parsed = parseDuckDuckGoHtml(html);
-    const blocked = parsed.length === 0 && /captcha|verify|blocked|robot/i.test(html);
-    this.lastDiagnostic = { http_status: status, duration_ms: dt, response_received: true, results_parsed: parsed.length, blocked_detected: blocked, failure_reason: parsed.length === 0 ? (blocked ? 'blocked/captcha' : 'parser returned 0') : '' };
-    console.log('[duckduckgo-html] status:', status, 'duration:', dt + 'ms', 'links:', parsed.length, 'lang:', langParam);
-    if (parsed.length === 0) {
-      console.warn('[duckduckgo-html] 0 results. blocked:', blocked, 'bodyLen:', html.length);
-    }
-    return parsed.slice(0, limit);
-  }
-}
-
-// Startpage: blocked by bot verification (HTTP 303 → /user/verify) and robots.txt Disallow: /sp/
-// Marked deprecated. Not used.
-export class StartpageSource implements SearchSource {
-  id = 'startpage';
-  free = true;
-  requiresKey = null;
-  supportedLanguages: Language[] = ['ar', 'en', 'zh'];
-  deprecated = true;
-
-  async collectSuggestions(): Promise<{ term: string; language: Language; source: string }[]> {
-    return [];
-  }
-
-  async collectResults(): Promise<SearchResult[]> {
-    return [];
-  }
-}
-
-// Searx: public instances blocked by captcha/antibot or unavailable. Marked deprecated.
-export class SearxSource implements SearchSource {
-  id = 'searx';
-  free = true;
-  requiresKey = null;
-  supportedLanguages: Language[] = ['ar', 'en', 'zh'];
-  deprecated = true;
-
-  async collectSuggestions(): Promise<{ term: string; language: Language; source: string }[]> {
-    return [];
-  }
-
-  async collectResults(): Promise<SearchResult[]> {
-    return [];
-  }
-}
-
-// Public directories: official sites redirect/unreachable. Marked deprecated.
-export class PublicDirectorySource implements SearchSource {
-  id = 'public-directories';
-  free = true;
-  requiresKey = null;
-  supportedLanguages: Language[] = ['ar', 'en'];
-  deprecated = true;
-
-  async collectSuggestions(): Promise<{ term: string; language: Language; source: string }[]> {
-    return [];
-  }
-
-  async collectResults(): Promise<SearchResult[]> {
-    return [];
-  }
-}
-
-export function openSearchSources(): SearchSource[] {
-  return [
-    new DuckDuckGoHtmlSource(),
-  ];
-}
-
+export function openSearchSources():SearchSource[]{return [new BingRssSearchSource(),new DuckDuckGoHtmlSource()]}
