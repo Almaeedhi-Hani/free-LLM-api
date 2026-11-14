@@ -46,7 +46,14 @@ export async function POST(req: NextRequest) {
   }
   try {
     const body = await req.json();
-    const updated = await setContent(body);
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return NextResponse.json({ status: 'error', message: 'Invalid content patch' }, { status: 400 });
+    }
+    const { expectedUpdatedAt, ...patch } = body as Record<string, unknown>;
+    if (typeof expectedUpdatedAt !== 'string' || !expectedUpdatedAt) {
+      return NextResponse.json({ status: 'error', message: 'expectedUpdatedAt is required' }, { status: 400 });
+    }
+    const updated = await setContent(patch, { replaceArrays: true, expectedUpdatedAt });
     return NextResponse.json({ status: 'updated', content: updated });
   } catch (e) {
     return errorResponse(e);
