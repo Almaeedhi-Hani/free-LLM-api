@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import VisibilityDashboard from '@/components/VisibilityDashboard';
 import CookiePolicyAdmin from '@/components/CookiePolicyAdmin';
+import SearchIntegrationsAdmin from '@/components/SearchIntegrationsAdmin';
 
 type Tab =
   | 'home'
@@ -18,7 +19,8 @@ type Tab =
   | 'runs'
   | 'evidence'
   | 'visibility'
-  | 'cookies';
+  | 'cookies'
+  | 'integrations';
 
 const LABELS: Record<string, string> = {
   idle:'بانتظار التشغيل',running:'قيد التشغيل',success:'نجح',completed:'مكتمل',failed:'فشل',
@@ -53,6 +55,7 @@ const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'contact', label: 'التواصل', icon: '📞' },
   { key: 'visibility', label: 'SEO وظهور الذكاء الاصطناعي', icon: '📈' },
   { key: 'cookies', label: 'إدارة الكوكيز', icon: '🍪' },
+  { key: 'integrations', label: 'SEO والتكاملات', icon: '🔗' },
   { key: 'settings', label: 'الإعدادات', icon: '⚙️' },
 ];
 
@@ -819,6 +822,7 @@ export default function AdminDashboard() {
 
             {tab === 'visibility' && <VisibilityDashboard secret={secret} />}
             {tab === 'cookies' && <CookiePolicyAdmin policy={content?.cookiePolicy} saving={saving} onSave={async cookiePolicy => save({cookiePolicy})} />}
+            {tab === 'integrations' && <SearchIntegrationsAdmin settings={content?.searchIntegrations} saving={saving} onSave={async searchIntegrations => save({searchIntegrations})} />}
 
             {tab === 'runs' && (
               <div className="space-y-6">
