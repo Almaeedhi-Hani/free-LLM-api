@@ -1212,7 +1212,7 @@ export async function runMarketAnalysis(triggeredBy: TriggeredBy = 'manual'): Pr
       goals_created: goalsCreated,
       limits: { max_competitors: MAX_COMPETITORS_PER_RUN, max_keywords: MAX_KEYWORDS_PER_RUN },
     };
-    await finishRun(run.id, discovery.success ? 'success' : 'partial', summary);
+    await finishRun(run.id, 'success', summary);
     return { run_id: run.id, summary };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -1393,7 +1393,7 @@ export async function runRadar(config?: Partial<DiscoveryConfig>): Promise<{
     const discovery = await runDiscovery(config);
     const analysis = await runMarketAnalysis(config?.triggeredBy || 'manual');
     const summary = { discovery, analysis: analysis.summary };
-    await finishRun(run.id, 'success', summary);
+    await finishRun(run.id, discovery.success ? 'success' : 'partial', summary);
     return { run_id: run.id, discovery, analysis };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
