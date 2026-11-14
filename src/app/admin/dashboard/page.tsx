@@ -170,7 +170,7 @@ export default function AdminDashboard() {
       const r = await fetch('/api/admin/content', {
         method: 'POST',
         headers: { 'x-admin-secret': secret, 'Content-Type': 'application/json' },
-        body: JSON.stringify(patch),
+        body: JSON.stringify({ ...patch, expectedUpdatedAt: content?.updatedAt }),
       });
       let d: any = {};
       try { d = await r.json(); } catch { d = {}; }
