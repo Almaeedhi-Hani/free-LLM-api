@@ -1,7 +1,7 @@
 import { getLocale, localizedPath } from "@/lib/site-language";
 import { copy, services } from "@/lib/service-catalog";
 import { getContent } from "@/lib/content-store";
-import { guides, guideLabels } from "@/lib/service-guides";
+import { guides, guideLabels, decisionPrompts } from "@/lib/service-guides";
 import { siteUrl } from "@/lib/site-seo";
 export async function ServicePage({ slug }: { slug: string }) {
   const lang = getLocale();
@@ -22,6 +22,15 @@ export async function ServicePage({ slug }: { slug: string }) {
         description: s.summary[lang],
         inLanguage: lang,
         citation: [s.source, ...guide.references.map((r) => r.url)],
+      },
+      {
+        "@type": "Service",
+        "@id": siteUrl + localizedPath(lang, `/services/${slug}`) + "#service",
+        name: s.title[lang],
+        description: s.summary[lang],
+        serviceType: s.title[lang],
+        areaServed: { "@type": "Country", name: "Saudi Arabia" },
+        url: siteUrl + localizedPath(lang, `/services/${slug}`),
       },
       {
         "@type": "FAQPage",
@@ -53,7 +62,7 @@ export async function ServicePage({ slug }: { slug: string }) {
     ],
   };
   return (
-    <article className="service-detail section-wrap">
+    <article className="service-detail service-editorial section-wrap">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -66,9 +75,21 @@ export async function ServicePage({ slug }: { slug: string }) {
       <p className="eyebrow">{s.authority} · SAUDI ARABIA</p>
       <h1>{s.title[lang]} {lang === 'ar' ? 'في السعودية' : lang === 'en' ? 'in Saudi Arabia' : '｜沙特阿拉伯'}</h1>
       <p className="detail-lead">{s.summary[lang]}</p>
+      <nav className="service-quick-nav" aria-label={lang === "ar" ? "أقسام الدليل" : lang === "zh" ? "指南目录" : "Guide sections"}>
+        <a href="#service-preparation">{labels.prepare}</a>
+        <a href="#service-insight">{labels.insight}</a>
+        <a href="#service-budget">{labels.budget}</a>
+        <a href="#service-question">{labels.question}</a>
+        <a href="#service-decisions">{lang === "ar" ? "أسئلة القرار" : lang === "zh" ? "决策清单" : "Decision checklist"}</a>
+        <a href="#service-references">{t.sources}</a>
+      </nav>
+      <div className="service-context-band">
+        <span>{lang === "ar" ? "قبل البدء" : lang === "zh" ? "开始之前" : "BEFORE YOU BEGIN"}</span>
+        <p>{lang === "ar" ? "تختلف المتطلبات والمدة والتكلفة بحسب النشاط وصفة المستثمر والجهة المختصة. هذا الدليل يساعد على التحضير ولا يشكل موافقة مسبقة." : lang === "zh" ? "要求、时间和费用因业务活动、投资者身份及主管部门而异。本指南用于准备，不代表预先批准。" : "Requirements, timelines and costs vary by activity, investor profile and regulator. This guide helps you prepare; it is not an approval guarantee."}</p>
+      </div>
       <div className="detail-columns">
         <section>
-          <h2>{labels.prepare}</h2>
+          <h2 id="service-preparation">{labels.prepare}</h2>
           <p>{labels.checklist}</p>
           {guide.prepare.map((step, i) => (
             <div className="detail-step" key={i}>
@@ -78,17 +99,23 @@ export async function ServicePage({ slug }: { slug: string }) {
               </div>
             </div>
           ))}
-          <h2>{labels.insight}</h2>
+          <h2 id="service-insight">{labels.insight}</h2>
           <p>{guide.insight[lang]}</p>
           <div className="guide-budget">
-            <h2>{labels.budget}</h2>
+            <h2 id="service-budget">{labels.budget}</h2>
             <p>{guide.budget[lang]}</p>
           </div>
-          <h2>{labels.question}</h2>
+          <section id="service-decisions" className="service-decision-checklist">
+            <p className="eyebrow">{lang === "ar" ? "راجع قبل التقديم" : lang === "zh" ? "申请前核对" : "CHECK BEFORE APPLYING"}</p>
+            <h2>{lang === "ar" ? "ثلاثة أسئلة تستحق الإجابة" : lang === "zh" ? "三个值得回答的问题" : "Three questions worth answering"}</h2>
+            <ol>{decisionPrompts[slug].map((prompt, i) => <li key={i}><span>{String(i + 1).padStart(2, "0")}</span><p>{prompt[lang]}</p></li>)}</ol>
+            <p className="service-decision-disclaimer">{lang === "ar" ? "قائمة إرشادية للتحضير وليست قائمة متطلبات رسمية أو استشارة قانونية." : lang === "zh" ? "本清单仅供准备参考，不属于官方要求或法律意见。" : "Planning prompts only; not an official requirements list or legal advice."}</p>
+          </section>
+          <h2 id="service-question">{labels.question}</h2>
           <h3>{guide.q[lang]}</h3>
           <p>{guide.a[lang]}</p>
         </section>
-        <aside className="source-panel">
+        <aside id="service-references" className="source-panel service-reference-panel">
           <h2>{t.sources}</h2>
           <p>{t.sourceNote}</p>
           <a href={s.source} target="_blank" rel="noopener noreferrer">
@@ -114,6 +141,27 @@ export async function ServicePage({ slug }: { slug: string }) {
             {t.contact} ↗
           </a>
         </aside>
+      </div>
+      <section className="service-related" aria-labelledby="service-related-heading">
+        <p className="eyebrow">{lang === "ar" ? "استكشف خدماتنا" : lang === "zh" ? "探索其他服务" : "EXPLORE SERVICES"}</p>
+        <h2 id="service-related-heading">{lang === "ar" ? "خدمات مرتبطة بخطوتك التالية" : lang === "zh" ? "与下一步相关的服务" : "Related services for your next step"}</h2>
+        <div className="service-related-grid">
+          {services.filter((item) => item.slug !== slug).slice(0, 3).map((item) => (
+            <a key={item.slug} href={localizedPath(lang, `/services/${item.slug}`)}>
+              <span>{item.authority}</span>
+              <strong>{item.title[lang]}</strong>
+              <small>{lang === "ar" ? "عرض الدليل" : lang === "zh" ? "查看指南" : "View guide"} ↗</small>
+            </a>
+          ))}
+        </div>
+      </section>
+      <div className="service-next-step">
+        <div>
+          <span>{lang === "ar" ? "الخطوة التالية" : lang === "zh" ? "下一步" : "NEXT STEP"}</span>
+          <h2>{lang === "ar" ? "حوّل الأسئلة إلى خطة واضحة." : lang === "zh" ? "将问题转化为清晰的计划。" : "Turn questions into a clear plan."}</h2>
+          <p>{lang === "ar" ? "شاركنا نشاطك وجنسية المستثمر والمرحلة الحالية لتحديد نقاط التحقق قبل بدء الإجراءات." : lang === "zh" ? "提供业务活动、投资者国籍及当前阶段，明确申请前需核实的事项。" : "Share your activity, investor nationality and current stage to identify the checks needed before you proceed."}</p>
+        </div>
+        <a className="action-primary" href={contact.whatsapp} target="_blank" rel="noopener noreferrer">{t.contact} ↗</a>
       </div>
     </article>
   );
