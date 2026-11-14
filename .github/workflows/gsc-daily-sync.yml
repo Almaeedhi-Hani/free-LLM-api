@@ -1,0 +1,19 @@
+name: GSC daily metrics sync
+on:
+  schedule:
+    - cron: '20 7 * * *'
+  workflow_dispatch:
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify secrets and collect GSC metrics
+        env:
+          GSC_SYNC_URL: ${{ secrets.GSC_SYNC_URL }}
+          GSC_CRON_SECRET: ${{ secrets.GSC_CRON_SECRET }}
+        run: |
+          if [ -z "$GSC_SYNC_URL" ] || [ -z "$GSC_CRON_SECRET" ]; then
+            echo "::error::Configure GSC_SYNC_URL and GSC_CRON_SECRET in GitHub Actions secrets"
+            exit 1
+          fi
+          curl --fail-with-body --retry 2 --max-time 90 -sS -H "Authorization: Bearer $GSC_CRON_SECRET" "$GSC_SYNC_URL"
