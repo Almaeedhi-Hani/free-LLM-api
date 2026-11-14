@@ -184,6 +184,7 @@ export default function AdminDashboard() {
       if (d.content?.contact) setContactForm(d.content.contact);
       if (d.content?.goldenParagraph !== undefined) setGoldenDraft(d.content.goldenParagraph);
       setLastUpdated(new Date().toLocaleString('ar-SA'));
+      setNotice('تم حفظ التغييرات بنجاح');
       setError('');
     } catch (e: any) {
       setError(e.message || 'فشل الحفظ');
@@ -195,28 +196,28 @@ export default function AdminDashboard() {
   const approveDraft = (idx: number) => {
     if (!content) return;
     const drafts = [...content.drafts];
-    const draft = drafts[idx];
-    draft.status = 'approved';
-    const faqs = [...content.faqs, { q: draft.q, a: draft.a }];
+    const draft = {...drafts[idx],status:'approved'};
+    drafts[idx]=draft;
+    const faqs = [...content.faqs.filter((f:any)=>f.q!==draft.q),{q:draft.q,a:draft.a}];
     save({ faqs, drafts });
   };
 
   const rejectDraft = (idx: number) => {
     if (!content) return;
     const drafts = [...content.drafts];
-    drafts[idx].status = 'rejected';
+    drafts[idx] = {...drafts[idx],status:'rejected'};
     save({ drafts });
   };
 
   const addFaq = () => {
-    if (!newFaq.q || !newFaq.a) return;
+    if (!newFaq.q.trim() || !newFaq.a.trim() || saving) return;
     const faqs = [...(content?.faqs || []), newFaq];
     save({ faqs });
     setNewFaq({ q: '', a: '' });
   };
 
   const updateFaq = () => {
-    if (!editingFaq) return;
+    if (!editingFaq || saving) return;
     const faqs = [...(content?.faqs || [])];
     faqs[editingFaq.index] = { q: editingFaq.q, a: editingFaq.a };
     save({ faqs });
@@ -224,19 +225,21 @@ export default function AdminDashboard() {
   };
 
   const deleteFaq = (idx: number) => {
+    if(saving||!window.confirm('هل تريد حذف هذا السؤال؟'))return;
     const faqs = [...(content?.faqs || [])];
     faqs.splice(idx, 1);
     save({ faqs });
   };
 
   const addKeyword = () => {
-    if (!newKeyword.trim()) return;
+    if (!newKeyword.trim()||saving)return;
     const keywords = [...(content?.keywords || []), newKeyword.trim()];
     save({ keywords });
     setNewKeyword('');
   };
 
   const deleteKeyword = (idx: number) => {
+    if(saving)return;
     const keywords = [...(content?.keywords || [])];
     keywords.splice(idx, 1);
     save({ keywords });
@@ -345,7 +348,7 @@ export default function AdminDashboard() {
                     <p className="text-sm">الحالة: <span className="font-bold text-emerald-700">{content.agent?.status || 'idle'}</span></p>
                     <p className="text-sm">آخر تشغيل: {content.agent?.lastRun || '—'}</p>
                     <p className="text-sm">النتيجة: {content.agent?.lastResult || '—'}</p>
-                    <p className="text-xs text-slate-400 mt-2">الجدولة اليومية معطّلة (workflow_dispatch فقط).</p>
+                    <p className="text-xs text-slate-400 mt-2">تُدار الجدولة من GitHub Actions. حالة هذه البطاقة لا تؤكد التشغيل التلقائي.</p>
                   </div>
                   <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
                     <h2 className="text-lg font-bold mb-2">ملخص الأدلة</h2>
@@ -445,7 +448,8 @@ export default function AdminDashboard() {
                     <p className="text-slate-700 text-sm">{content.agent?.lastResult || '—'}</p>
                   </div>
                 </div>
-                <p className="text-xs text-slate-400 mt-4">الوكيل يعمل عبر GitHub Actions (يومياً 02:00 UTC) وRender cron. المحتوى عالي الخطورة → مسودات (بانتظار الموافقة).</p>
+                <p className="text-xs text-slate-500 mt-4">تُدار أوقات تشغيل الوكيل من GitHub Actions. المحتوى عالي الخطورة يحتاج إلى مراجعة بشرية.</p>
+                <div className="mt-5 rounded-xl border border-slate-200 p-4"><h3 className="font-bold mb-3">مصادر البحث في Render</h3><div className="grid grid-cols-2 sm:grid-cols-4 gap-2">{marketSources.filter((s:any)=>['exa','tavily','parallel','firecrawl'].includes(s.id)).map((s:any)=><div key={s.id} className="rounded-lg bg-slate-50 p-3 text-sm"><p className="font-medium">{s.id}</p><p className={s.available?'text-emerald-700':'text-amber-700'}>{s.available?'المفتاح موجود':'غير مهيأ'}</p></div>)}</div><p className="text-xs text-slate-500 mt-2">وجود المفتاح لا يضمن نجاح الاتصال؛ راجع اختبارات الاتصال المنفصلة.</p><button className="btn-secondary text-xs mt-3" onClick={fetchMarketSources}>تحديث المصادر</button></div>
               </section>
             )}
 
@@ -500,16 +504,16 @@ export default function AdminDashboard() {
                   </div>
                   <div className="mb-4 flex items-center gap-3">
                     <button className="btn-primary" disabled={saving} onClick={async () => {
-                      if (!confirm('تشغيل اكتشاف المنافسين (DuckDuckGo) مرة واحدة؟')) return;
+                      if (!confirm('بدء بحث محدود عبر مزودي البحث المهيئين وحفظ النتائج في قاعدة البيانات؟')) return;
                       setSaving(true); setError('');
                       try {
                         const d = await marketFetch('/api/admin/market/discovery', { method: 'POST', body: JSON.stringify({ max_competitors: 10 }) });
-                        alert('Discovery: ' + (d.status || 'done') + ' — competitors: ' + (d.summary?.competitors_discovered ?? 0) + ', unique: ' + (d.summary?.unique_domains ?? 0) + ', errors: ' + (d.summary?.errors?.length ?? 0));
+                        setNotice('اكتمل الاكتشاف: ' + (d.summary?.competitors_discovered ?? 0) + ' منافسين، ' + (d.summary?.keywords_upserted ?? 0) + ' كلمات، ' + (d.summary?.errors?.length ?? 0) + ' أخطاء.');
                         await fetchCompetitors();
                       } catch (e: any) { setError(e.message); }
                       finally { setSaving(false); }
                     }}>تشغيل اكتشاف المنافسين</button>
-                    <span className="text-sm text-slate-500">DuckDuckGo HTML (بدون مفتاح API)</span>
+                    <span className="text-sm text-slate-500">Exa وTavily وParallel وFirecrawl، ضمن حدود الاستهلاك.</span>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
@@ -524,7 +528,7 @@ export default function AdminDashboard() {
                             <td className="text-xs text-slate-400">{c.last_seen_at || '—'}</td>
                           </tr>
                         ))}
-                        {competitors.length === 0 && <tr><td colSpan={5} className="py-4 text-slate-400 text-center">لا يوجد منافسون بعد. (اكتشاف المنافسين يتطلب DuckDuckGo (بدون مفتاح))</td></tr>}
+                        {competitors.length === 0 && <tr><td colSpan={5} className="py-4 text-slate-400 text-center">لا يوجد منافسون بعد. شغّل الاكتشاف لجلب مرشحين فعليين.</td></tr>}
                       </tbody>
                     </table>
                   </div>
@@ -539,14 +543,14 @@ export default function AdminDashboard() {
                   <p className="text-xs text-slate-400 mb-3">الأحجام تُخزّن فقط عند توفر مصدر موثوق. لا يتم اختلاق أي بيانات.</p>
                   <div className="flex gap-2 mb-4 flex-wrap">
                     <input className="border border-slate-300 rounded-lg px-4 py-2 flex-1" placeholder="المصطلح" value={newKeyword} onChange={(e) => setNewKeyword(e.target.value)} />
-                    <select className="border border-slate-300 rounded-lg px-4 py-2" defaultValue="ar" id="kw-lang">
+                    <select className="border border-slate-300 rounded-lg px-4 py-2" value={keywordLanguage} onChange={e=>setKeywordLanguage(e.target.value as 'ar'|'en'|'zh')} aria-label="لغة الكلمة المفتاحية">
                       <option value="ar">ar</option><option value="en">en</option><option value="zh">zh</option>
                     </select>
                     <button className="btn-primary" disabled={saving} onClick={async () => {
                       if (!newKeyword.trim()) return;
                       setSaving(true);
                       try {
-                        const lang = (document.getElementById('kw-lang') as HTMLSelectElement)?.value || 'ar';
+                        const lang=keywordLanguage;
                         await marketFetch('/api/admin/market/keywords', { method: 'POST', body: JSON.stringify({ term: newKeyword.trim(), language: lang, source: 'manual' }) });
                         setNewKeyword('');
                         await fetchKeywords();
@@ -620,7 +624,7 @@ export default function AdminDashboard() {
                       </tbody>
                     </table>
                   </div>
-                  <p className="text-xs text-slate-400 mt-3">ملاحظة: 27 فرصة حالية مستنتجة من الكلمات (keyword_gap). opportunitie типа content_gap (فجوة تنافسية) تتطلب منافسين (0 حالياً).</p>
+                  <p className="text-xs text-slate-500 mt-3">الفرص المعروضة تعتمد على البيانات المحفوظة. تحقق من الأدلة قبل اتخاذ أي إجراء.</p>
                 </section>
               </div>
             )}
@@ -701,8 +705,8 @@ export default function AdminDashboard() {
                         <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">الأهداف</p><p className="text-xl font-bold">{evidenceData.goals.length}</p></div>
                       </div>
                       <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm">
-                        <p className="font-semibold text-amber-800">ملاحظة: 0 منافسين = 0 ملاحظات (competitor observations).</p>
-                        <p className="text-amber-700 mt-1">الفرص (27) مستنتجة من الكلمات (keyword_gap)، وليس من تحليل منافسين (content_gap). opportunitie типа content_gap تتطلب منافسين (DuckDuckGo (بدون مفتاح) غير مُفعل).</p>
+                        <p className="font-semibold text-amber-800">ملاحظة: نتيجة البحث هي مرشح وتحتاج إلى مراجعة أدلتها.</p>
+                        <p className="text-amber-700 mt-1">المنافسون: {evidenceData.competitors.length}، الكلمات: {evidenceData.keywords.length}، الفرص: {evidenceData.opportunities.length}. لا تُعتمد النتائج دون مصادر قابلة للتحقق.</p>
                       </div>
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm">
