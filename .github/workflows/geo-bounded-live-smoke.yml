@@ -1,0 +1,36 @@
+name: GEO Market + OpenCode — Bounded Live Smoke Test
+on:
+  push:
+    branches:
+      - test/geo-schedule-safety-20261114
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: geo-bounded-live-smoke
+  cancel-in-progress: false
+jobs:
+  bounded-live-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install OpenCode
+        run: curl -fsSL https://opencode.ai/v2/install | bash
+      - name: Run bounded real market discovery and 3-skill OpenCode test
+        env:
+          OPENCODE_MODEL: opencode/deepseek-v4.1-flash-free
+          OPENCODE_BIN: /home/runner/.opencode/bin/opencode
+          OPENCODE_DISABLE_AUTOUPDATE: "true"
+        run: node scripts/geo-live-smoke.cjs
+      - name: Upload sanitized results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: geo-bounded-live-smoke-report
+          path: .geo-live-smoke/report.json
+          retention-days: 7
+          if-no-files-found: warn
