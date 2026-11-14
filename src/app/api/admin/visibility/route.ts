@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { timingSafeEqual } from 'crypto';
+import { timingSafeEqual,createHash,createDecipheriv } from 'crypto';
 
 export const dynamic = 'force-dynamic';
 const BASE = (process.env.SITE_URL || 'https://free-llm-api-1-didl.onrender.com').replace(/\/$/, '');
@@ -53,7 +53,10 @@ export async function GET(req:NextRequest) {
     return NextResponse.json({source:'live_http',checked_at:new Date().toISOString(),results});
   }
   if(type === 'queries') {
-    const clientId=process.env.GSC_CLIENT_ID,clientSecret=process.env.GSC_CLIENT_SECRET,refreshToken=process.env.GSC_REFRESH_TOKEN;
+    const clientId=process.env.GSC_CLIENT_ID,clientSecret=process.env.GSC_CLIENT_SECRET;
+    let refreshToken=process.env.GSC_REFRESH_TOKEN||'';
+    const encryptedCookie=req.cookies.get('gsc_refresh')?.value;
+    if(encryptedCookie&&process.env.ADMIN_SECRET){try{const raw=Buffer.from(encryptedCookie,'base64url');const key=createHash('sha256').update(process.env.ADMIN_SECRET).digest();const decipher=createDecipheriv('aes-256-gcm',key,raw.subarray(0,12));decipher.setAuthTag(raw.subarray(12,28));refreshToken=Buffer.concat([decipher.update(raw.subarray(28)),decipher.final()]).toString('utf8');}catch{return NextResponse.json({connected:false,source:'google_search_console',message:'جلسة Google غير صالحة. أعد ربط الحساب.',rows:[]},{status:401});}}
     const property=process.env.GSC_PROPERTY_URL || 'https://free-llm-api-1-didl.onrender.com/';
     if(!clientId||!clientSecret||!refreshToken) return NextResponse.json({connected:false,source:'google_search_console',message:'يلزم إعداد GSC_CLIENT_ID وGSC_CLIENT_SECRET وGSC_REFRESH_TOKEN في بيئة الخادم.',rows:[]});
     try {
