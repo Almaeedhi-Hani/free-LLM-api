@@ -23,7 +23,7 @@ export class GoogleSuggestSource implements SearchSource {
     const lang = language === 'ar' ? 'ar' : language === 'zh' ? 'zh-CN' : 'en';
     const url = `https://suggestqueries.google.com/complete/search?client=firefox&q=${encodeURIComponent(query)}&hl=${lang}`;
     try {
-      const res = await fetch(url, { cache: 'no-store' });
+      const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(6000) });
       if (!res.ok) return [];
       const data = await res.json();
       const suggestions = Array.isArray(data?.[1]) ? data[1] : [];
