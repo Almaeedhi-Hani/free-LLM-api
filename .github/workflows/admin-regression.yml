@@ -2,9 +2,9 @@ name: Admin regression checks
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, design/service-pages-editorial, content/investor-decision-guides, design/responsive-accessibility-system, seo/service-discovery-structured-data]
   push:
-    branches: [main]
+    branches: [main, qa/investor-redesign-validation]
   workflow_dispatch:
 
 permissions:
