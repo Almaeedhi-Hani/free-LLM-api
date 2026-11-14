@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 // status and counts are logged. Never log secret keys or response bodies.
 let providerSmokeStarted = false;
 async function probeRenderProviders() {
-  const adapter = require('../../../../lib/provider-search.cjs');
+  const adapter = require('../../../lib/provider-search.cjs');
   const outcomes: Array<{provider:string;status:string;http?:number;links?:number}> = [];
   for (const provider of adapter.ORDER as string[]) {
     const key = String(process.env[adapter.KEYS[provider]] || '').trim();
