@@ -30,7 +30,6 @@ export function CookieConsent({locale="ar",policy={analyticsAvailable:true,marke
  function save(a:boolean,m:boolean){writeConsent(policy.analyticsAvailable&&a,policy.marketingAvailable&&m,policy.consentDays);setAnalytics(policy.analyticsAvailable&&a);setMarketing(policy.marketingAvailable&&m);setOpen(false);setExpanded(false);setNotice(true)}
  if(!ready)return null;
  return <>
-  {!open&&<button type="button" onClick={()=>{setNotice(false);setOpen(true);setExpanded(false)}} className="fixed bottom-3 left-3 z-40 rounded-full border border-slate-200 bg-white/95 px-3 py-1.5 text-[11px] font-medium text-slate-600 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600">{t.settings}</button>}
   {open&&<div className="fixed inset-x-0 bottom-0 z-50 flex justify-center p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-5" role="presentation">
    <section role="dialog" aria-modal="false" aria-labelledby="cookie-title" dir={locale==="ar"?"rtl":"ltr"} className="w-full max-w-3xl max-h-[70dvh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 text-slate-900 shadow-xl">
     <h2 id="cookie-title" className="text-base sm:text-lg font-bold">{t.title}</h2>
