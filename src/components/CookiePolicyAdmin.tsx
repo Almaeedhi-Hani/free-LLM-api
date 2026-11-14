@@ -2,7 +2,7 @@
 import React,{useEffect,useState} from "react";
 type Policy={analyticsAvailable:boolean;marketingAvailable:boolean;consentDays:number};
 const fallback:Policy={analyticsAvailable:true,marketingAvailable:true,consentDays:180};
-export default function CookiePolicyAdmin({policy,onSave,saving}:{policy?:Partial<Policy>;onSave:(value:Policy)=>Promise<boolean>;saving:boolean}){
+export default function CookiePolicyAdmin({policy,onSave,saving}:{policy?:Partial<Policy>;onSave:(value:Policy)=>Promise<unknown>;saving:boolean}){
  const [draft,setDraft]=useState<Policy>({...fallback,...policy});
  useEffect(()=>{setDraft({...fallback,...policy})},[policy?.analyticsAvailable,policy?.marketingAvailable,policy?.consentDays]);
  const valid=Number.isInteger(draft.consentDays)&&draft.consentDays>=1&&draft.consentDays<=365;
