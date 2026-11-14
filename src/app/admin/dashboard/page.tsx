@@ -79,6 +79,10 @@ export default function AdminDashboard() {
   const [evidenceLoading, setEvidenceLoading] = useState(false);
   const [marketLoading,setMarketLoading]=useState(false);
   const [marketSources,setMarketSources]=useState<any[]>([]);
+  const [editingMarketKeyword,setEditingMarketKeyword] = useState<{id:string;term:string;language:'ar'|'en'|'zh';intent:string;cluster:string}|null>(null);
+  const [newGoal,setNewGoal] = useState({title:'',description:'',priority:'medium'});
+  const [editingGoal,setEditingGoal] = useState<{id:string;title:string;description:string;priority:string}|null>(null);
+  const [editingOpportunity,setEditingOpportunity] = useState<{id:string;title:string;priority:string}|null>(null);
   const [keywordLanguage,setKeywordLanguage]=useState<'ar'|'en'|'zh'>('ar');
   const [notice,setNotice]=useState('');
 
@@ -626,6 +630,25 @@ export default function AdminDashboard() {
                       finally { setSaving(false); }
                     }}>إضافة</button>
                   </div>
+                  {editingMarketKeyword && <section className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
+                    <h3 className="font-bold mb-3">تعديل كلمة البحث</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <input className="border rounded-lg px-3 py-2" aria-label="تعديل مصطلح البحث" value={editingMarketKeyword.term} onChange={e=>setEditingMarketKeyword({...editingMarketKeyword,term:e.target.value})}/>
+                      <select className="border rounded-lg px-3 py-2" aria-label="تعديل لغة البحث" value={editingMarketKeyword.language} onChange={e=>setEditingMarketKeyword({...editingMarketKeyword,language:e.target.value as 'ar'|'en'|'zh'})}>
+                        <option value="ar">العربية</option><option value="en">الإنجليزية</option><option value="zh">الصينية</option>
+                      </select>
+                      <input className="border rounded-lg px-3 py-2" aria-label="مجموعة البحث" placeholder="المجموعة (اختياري)" value={editingMarketKeyword.cluster} onChange={e=>setEditingMarketKeyword({...editingMarketKeyword,cluster:e.target.value})}/>
+                    </div>
+                    <div className="flex gap-2 mt-3">
+                      <button className="btn-primary text-xs" disabled={saving} onClick={async()=>{
+                        if(!editingMarketKeyword.term.trim()){setError('مصطلح البحث مطلوب.');return;}
+                        setSaving(true);setError('');
+                        try{await marketFetch('/api/admin/market/keywords',{method:'PATCH',body:JSON.stringify(editingMarketKeyword)});setEditingMarketKeyword(null);await fetchKeywords();setNotice('تم حفظ تعديل كلمة البحث.');}
+                        catch(e:any){setError(e.message||'فشل تعديل الكلمة.');}finally{setSaving(false);}
+                      }}>حفظ التعديل</button>
+                      <button className="btn-secondary text-xs" onClick={()=>setEditingMarketKeyword(null)} disabled={saving}>إلغاء</button>
+                    </div>
+                  </section>}
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead><tr className="text-right border-b"><th className="py-2">المصطلح</th><th>اللغة</th><th>النية</th><th>الحجم</th><th>المصدر</th><th>الإجراء</th></tr></thead>
@@ -637,11 +660,13 @@ export default function AdminDashboard() {
                             <td>{readable(k.intent)}</td>
                             <td>{k.search_volume ?? '—'}</td>
                             <td className="text-xs text-slate-400">{k.source} ({k.volume_confidence})</td>
-                            <td><button className="text-red-700 text-xs hover:underline disabled:opacity-50" disabled={saving} onClick={async()=>{
+                            <td><div className="flex items-center gap-3">
+                              <button className="text-blue-700 text-xs underline disabled:opacity-50" disabled={saving} onClick={()=>setEditingMarketKeyword({id:k.id,term:k.term,language:k.language,intent:k.intent,cluster:k.cluster||''})}>تعديل</button>
+                              <button className="text-red-700 text-xs hover:underline disabled:opacity-50" disabled={saving} onClick={async()=>{
                               if(!window.confirm('حذف الكلمة المفتاحية: '+k.term+'؟'))return;
                               setSaving(true);setError('');try{await marketFetch('/api/admin/market/keywords',{method:'DELETE',body:JSON.stringify({id:k.id})});await fetchKeywords();setNotice('حُذفت الكلمة المفتاحية');}
                               catch(err:any){setError(err.message);}finally{setSaving(false);}
-                            }}>حذف</button></td>
+                            }}>حذف</button></div></td>
                           </tr>
                         ))}
                         {keywords.length === 0 && <tr><td colSpan={6} className="py-4 text-slate-400 text-center">لا توجد كلمات بعد.</td></tr>}
@@ -656,7 +681,7 @@ export default function AdminDashboard() {
               <div className="space-y-6">
                 <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
                   <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
-                    <h2 className="text-xl font-bold">الفرص</h2>
+                    <h2 className="text-xl font-bold">الفرص السوقية</h2>
                     <div className="flex gap-2">
                       <button className="btn-primary text-xs" disabled={saving} onClick={async () => {
                         if(!window.confirm('بدء تحليل السوق وحفظ النتائج؟'))return;
@@ -674,6 +699,21 @@ export default function AdminDashboard() {
                       }}>تشغيل الرادار</button>
                     </div>
                   </div>
+                  {editingOpportunity && <section className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+                    <h3 className="font-bold mb-2">تعديل الفرصة</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <input className="border rounded-lg px-3 py-2" aria-label="عنوان الفرصة المعدل" value={editingOpportunity.title} onChange={e=>setEditingOpportunity({...editingOpportunity,title:e.target.value})}/>
+                      <select className="border rounded-lg px-3 py-2" aria-label="أولوية الفرصة المعدلة" value={editingOpportunity.priority} onChange={e=>setEditingOpportunity({...editingOpportunity,priority:e.target.value})}>
+                        <option value="low">منخفضة</option><option value="medium">متوسطة</option><option value="high">عالية</option>
+                      </select>
+                    </div>
+                    <div className="flex gap-2 mt-3"><button className="btn-primary text-xs" disabled={saving} onClick={async()=>{
+                      if(!editingOpportunity.title.trim()){setError('عنوان الفرصة مطلوب.');return;}
+                      setSaving(true);setError('');
+                      try{await marketFetch('/api/admin/market/opportunities',{method:'PATCH',body:JSON.stringify({...editingOpportunity,title:editingOpportunity.title.trim()})});setEditingOpportunity(null);await fetchOpportunities();setNotice('تم حفظ تعديل الفرصة.');}
+                      catch(e:any){setError(e.message||'تعذر حفظ الفرصة.');}finally{setSaving(false);}
+                    }}>حفظ التعديل</button><button className="btn-secondary text-xs" disabled={saving} onClick={()=>setEditingOpportunity(null)}>إلغاء</button></div>
+                  </section>}
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead><tr className="text-right border-b"><th className="py-2">العنوان</th><th>النوع</th><th>الأولوية</th><th>الدرجة</th><th>الحالة</th><th>إجراء</th></tr></thead>
@@ -685,13 +725,14 @@ export default function AdminDashboard() {
                             <td>{readable(o.priority)}</td>
                             <td>{o.score}</td>
                             <td>{readable(o.status)}</td>
-                            <td>
+                            <td><div className="flex flex-wrap gap-2 items-center">
+                              <button className="text-xs text-blue-700 underline" disabled={saving} onClick={()=>setEditingOpportunity({id:o.id,title:o.title,priority:o.priority})}>تعديل</button>
                               <select disabled={saving} className="border border-slate-300 rounded text-xs" value={o.status} onChange={async (e) => {
                                 setSaving(true);setError('');try { await marketFetch('/api/admin/market/opportunities', { method: 'PATCH', body: JSON.stringify({ id: o.id, status: e.target.value }) }); await fetchOpportunities();setNotice('تم تحديث حالة الفرصة'); }
                                 catch (err: any) { setError(err.message); }finally{setSaving(false);}
                               }}>
                                 <option value="new">جديد</option><option value="triaged">فرز</option><option value="planned">مخطط</option><option value="done">منجز</option><option value="rejected">مرفوض</option>
-                              </select>
+                              </select></div>
                             </td>
                           </tr>
                         ))}
@@ -707,7 +748,39 @@ export default function AdminDashboard() {
             {tab === 'goals' && (
               <div className="space-y-6">
                 <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                  <h2 className="text-xl font-bold mb-4">أهداف الوكيل</h2>
+                  <h2 className="text-xl font-bold mb-2">أهداف الوكيل</h2>
+                  <p className="text-sm text-slate-500 mb-4">أضف هدفًا قابلاً للمتابعة. يمكن تعديله أو إغلاقه دون حذف سجل القرارات.</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
+                    <input className="border rounded-lg px-3 py-2" placeholder="عنوان الهدف" aria-label="عنوان هدف جديد" value={newGoal.title} onChange={e=>setNewGoal({...newGoal,title:e.target.value})}/>
+                    <input className="border rounded-lg px-3 py-2" placeholder="وصف الهدف أو النتيجة المطلوبة" aria-label="وصف هدف جديد" value={newGoal.description} onChange={e=>setNewGoal({...newGoal,description:e.target.value})}/>
+                    <select className="border rounded-lg px-3 py-2" aria-label="أولوية الهدف الجديد" value={newGoal.priority} onChange={e=>setNewGoal({...newGoal,priority:e.target.value})}>
+                      <option value="low">منخفضة</option><option value="medium">متوسطة</option><option value="high">عالية</option>
+                    </select>
+                  </div>
+                  <button className="btn-primary mb-4" disabled={saving} onClick={async()=>{
+                    if(!newGoal.title.trim()||!newGoal.description.trim()){setError('أدخل عنوان الهدف ووصفه.');return;}
+                    setSaving(true);setError('');
+                    try{
+                      await marketFetch('/api/admin/market/goals',{method:'POST',body:JSON.stringify({title:newGoal.title.trim(),description:newGoal.description.trim(),priority:newGoal.priority,evidence:[],success_metrics:[],confidence:'low'})});
+                      setNewGoal({title:'',description:'',priority:'medium'});await fetchGoals();setNotice('أُضيف الهدف بنجاح. أضف مؤشرات قياس قبل التنفيذ.');
+                    }catch(e:any){setError(e.message||'تعذرت إضافة الهدف.');}finally{setSaving(false);}
+                  }}>إضافة هدف</button>
+                  {editingGoal && <section className="mb-4 bg-blue-50 border border-blue-200 p-4 rounded-xl">
+                    <h3 className="font-bold mb-2">تعديل الهدف</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <input className="border rounded-lg px-3 py-2" aria-label="عنوان الهدف المعدل" value={editingGoal.title} onChange={e=>setEditingGoal({...editingGoal,title:e.target.value})}/>
+                      <input className="border rounded-lg px-3 py-2" aria-label="وصف الهدف المعدل" value={editingGoal.description} onChange={e=>setEditingGoal({...editingGoal,description:e.target.value})}/>
+                      <select className="border rounded-lg px-3 py-2" value={editingGoal.priority} aria-label="أولوية الهدف المعدلة" onChange={e=>setEditingGoal({...editingGoal,priority:e.target.value})}>
+                        <option value="low">منخفضة</option><option value="medium">متوسطة</option><option value="high">عالية</option>
+                      </select>
+                    </div>
+                    <div className="flex gap-2 mt-3"><button className="btn-primary text-xs" disabled={saving} onClick={async()=>{
+                      if(!editingGoal.title.trim()){setError('عنوان الهدف مطلوب.');return;}
+                      setSaving(true);setError('');
+                      try{await marketFetch('/api/admin/market/goals',{method:'PATCH',body:JSON.stringify({...editingGoal,title:editingGoal.title.trim()})});setEditingGoal(null);await fetchGoals();setNotice('حُفظ تعديل الهدف.');}
+                      catch(e:any){setError(e.message||'تعذر حفظ الهدف.');}finally{setSaving(false);}
+                    }}>حفظ التعديل</button><button className="btn-secondary text-xs" disabled={saving} onClick={()=>setEditingGoal(null)}>إلغاء</button></div>
+                  </section>}
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead><tr className="text-right border-b"><th className="py-2">العنوان</th><th>الأولوية</th><th>الحالة</th><th>الثقة</th><th>المؤشرات</th><th>إجراء</th></tr></thead>
@@ -719,13 +792,14 @@ export default function AdminDashboard() {
                             <td>{readable(g.status)}</td>
                             <td>{g.confidence}</td>
                             <td className="text-xs">{(g.success_metrics || []).map((m: any) => m.metric).join(', ')}</td>
-                            <td>
+                            <td><div className="flex gap-2 flex-wrap items-center">
+                              <button className="text-xs text-blue-700 underline" disabled={saving} onClick={()=>setEditingGoal({id:g.id,title:g.title,description:g.description||'',priority:g.priority})}>تعديل</button>
                               <select disabled={saving} className="border border-slate-300 rounded text-xs" value={g.status} onChange={async (e) => {
                                 setSaving(true);setError('');try { await marketFetch('/api/admin/market/goals', { method: 'PATCH', body: JSON.stringify({ id: g.id, status: e.target.value }) }); await fetchGoals();setNotice('تم تحديث حالة الهدف'); }
                                 catch (err: any) { setError(err.message); }finally{setSaving(false);}
                               }}>
                                 <option value="open">مفتوح</option><option value="in_progress">قيد التنفيذ</option><option value="done">منجز</option><option value="cancelled">ملغى</option>
-                              </select>
+                              </select></div>
                             </td>
                           </tr>
                         ))}
