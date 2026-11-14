@@ -627,7 +627,7 @@ export default function AdminDashboard() {
                         setSaving(true);setError('');
                         try {
                           await marketFetch('/api/admin/market/competitors',{method:'PATCH',body:JSON.stringify({id:editingCompetitor.id,name:editingCompetitor.name.trim(),domain:editingCompetitor.domain.trim(),languages:editingCompetitor.languages.split(',').map(v=>v.trim()).filter(Boolean)})});
-                          setEditingCompetitor(null);await refreshMarketCollection('competitors');setNotice('تم حفظ بيانات المنافس.');
+                          await refreshMarketCollection('competitors');setEditingCompetitor(null);setNotice('تم حفظ بيانات المنافس.');
                         } catch(err:any){setError(err.message||'فشل تعديل المنافس.');} finally{setSaving(false);}
                       }}>حفظ التعديل</button>
                       <button className="btn-secondary text-xs" disabled={saving} onClick={()=>setEditingCompetitor(null)}>إلغاء</button>
@@ -690,8 +690,8 @@ export default function AdminDashboard() {
                       try {
                         const lang=keywordLanguage;
                         await marketFetch('/api/admin/market/keywords', { method: 'POST', body: JSON.stringify({ term: newMarketKeyword.trim(), language: lang, source: 'manual' }) });
-                        setNewMarketKeyword('');setNotice('أُضيفت الكلمة المفتاحية');
                         await refreshMarketCollection('keywords');
+                        setNewMarketKeyword('');setNotice('أُضيفت الكلمة المفتاحية');
                       } catch (e: any) { setError(e.message); }
                       finally { setSaving(false); }
                     }}>إضافة</button>
@@ -709,7 +709,7 @@ export default function AdminDashboard() {
                       <button className="btn-primary text-xs" disabled={saving} onClick={async()=>{
                         if(!editingMarketKeyword.term.trim()){setError('مصطلح البحث مطلوب.');return;}
                         setSaving(true);setError('');
-                        try{await marketFetch('/api/admin/market/keywords',{method:'PATCH',body:JSON.stringify(editingMarketKeyword)});setEditingMarketKeyword(null);await refreshMarketCollection('keywords');setNotice('تم حفظ تعديل كلمة البحث.');}
+                        try{await marketFetch('/api/admin/market/keywords',{method:'PATCH',body:JSON.stringify(editingMarketKeyword)});await refreshMarketCollection('keywords');setEditingMarketKeyword(null);setNotice('تم حفظ تعديل كلمة البحث.');}
                         catch(e:any){setError(e.message||'فشل تعديل الكلمة.');}finally{setSaving(false);}
                       }}>حفظ التعديل</button>
                       <button className="btn-secondary text-xs" onClick={()=>setEditingMarketKeyword(null)} disabled={saving}>إلغاء</button>
@@ -776,7 +776,7 @@ export default function AdminDashboard() {
                     <div className="flex gap-2 mt-3"><button className="btn-primary text-xs" disabled={saving} onClick={async()=>{
                       if(!editingOpportunity.title.trim()){setError('عنوان الفرصة مطلوب.');return;}
                       setSaving(true);setError('');
-                      try{await marketFetch('/api/admin/market/opportunities',{method:'PATCH',body:JSON.stringify({...editingOpportunity,title:editingOpportunity.title.trim()})});setEditingOpportunity(null);await refreshMarketCollection('opportunities');setNotice('تم حفظ تعديل الفرصة.');}
+                      try{await marketFetch('/api/admin/market/opportunities',{method:'PATCH',body:JSON.stringify({...editingOpportunity,title:editingOpportunity.title.trim()})});await refreshMarketCollection('opportunities');setEditingOpportunity(null);setNotice('تم حفظ تعديل الفرصة.');}
                       catch(e:any){setError(e.message||'تعذر حفظ الفرصة.');}finally{setSaving(false);}
                     }}>حفظ التعديل</button><button className="btn-secondary text-xs" disabled={saving} onClick={()=>setEditingOpportunity(null)}>إلغاء</button></div>
                   </section>}
@@ -828,7 +828,7 @@ export default function AdminDashboard() {
                     setSaving(true);setError('');
                     try{
                       await marketFetch('/api/admin/market/goals',{method:'POST',body:JSON.stringify({title:newGoal.title.trim(),description:newGoal.description.trim(),priority:newGoal.priority,evidence:[],success_metrics:[],confidence:'low'})});
-                      setNewGoal({title:'',description:'',priority:'medium'});await refreshMarketCollection('goals');setNotice('أُضيف الهدف بنجاح. أضف مؤشرات قياس قبل التنفيذ.');
+                      await refreshMarketCollection('goals');setNewGoal({title:'',description:'',priority:'medium'});setNotice('أُضيف الهدف بنجاح. أضف مؤشرات قياس قبل التنفيذ.');
                     }catch(e:any){setError(e.message||'تعذرت إضافة الهدف.');}finally{setSaving(false);}
                   }}>إضافة هدف</button>
                   {editingGoal && <section className="mb-4 bg-blue-50 border border-blue-200 p-4 rounded-xl">
@@ -843,7 +843,7 @@ export default function AdminDashboard() {
                     <div className="flex gap-2 mt-3"><button className="btn-primary text-xs" disabled={saving} onClick={async()=>{
                       if(!editingGoal.title.trim()){setError('عنوان الهدف مطلوب.');return;}
                       setSaving(true);setError('');
-                      try{await marketFetch('/api/admin/market/goals',{method:'PATCH',body:JSON.stringify({...editingGoal,title:editingGoal.title.trim()})});setEditingGoal(null);await refreshMarketCollection('goals');setNotice('حُفظ تعديل الهدف.');}
+                      try{await marketFetch('/api/admin/market/goals',{method:'PATCH',body:JSON.stringify({...editingGoal,title:editingGoal.title.trim()})});await refreshMarketCollection('goals');setEditingGoal(null);setNotice('حُفظ تعديل الهدف.');}
                       catch(e:any){setError(e.message||'تعذر حفظ الهدف.');}finally{setSaving(false);}
                     }}>حفظ التعديل</button><button className="btn-secondary text-xs" disabled={saving} onClick={()=>setEditingGoal(null)}>إلغاء</button></div>
                   </section>}
