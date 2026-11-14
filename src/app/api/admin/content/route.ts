@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     if (typeof expectedUpdatedAt !== 'string' || !expectedUpdatedAt) {
       return NextResponse.json({ status: 'error', message: 'expectedUpdatedAt is required' }, { status: 400 });
     }
-    const updated = await setContent(patch, { replaceArrays: true, expectedUpdatedAt });
+    const updated = await setContent(patch as Parameters<typeof setContent>[0], { replaceArrays: true, expectedUpdatedAt });
     return NextResponse.json({ status: 'updated', content: updated });
   } catch (e) {
     return errorResponse(e);
