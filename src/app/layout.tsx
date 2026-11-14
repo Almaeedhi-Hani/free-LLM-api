@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { CookieConsent } from "@/components/CookieConsent";
 import { getContent } from "@/lib/content-store";
 import { getLocale, localizedPath } from "@/lib/site-language";
 import { copy, services } from "@/lib/service-catalog";
@@ -110,6 +111,7 @@ export default async function RootLayout({
             <span>{t.foot}</span>
           </div>
         </footer>
+        <CookieConsent locale={lang} />
       </body>
     </html>
   );
