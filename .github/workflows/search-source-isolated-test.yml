@@ -20,6 +20,8 @@ jobs:
         run: |
           ./node_modules/.bin/tsc src/lib/storage-mode.ts src/lib/market-intelligence.ts src/lib/market-sources.ts src/lib/open-search-sources.ts --outDir .market-test-build --module commonjs --target es2020 --lib es2020,dom --moduleResolution node --esModuleInterop --skipLibCheck --strict --types node
           node scripts/search-source.test.cjs
+          node scripts/geo-discovery-sources.test.cjs
+          node --check scripts/opencode-geo-analysis.js
       - name: Bounded live search connectivity test
         run: node scripts/search-source-live-probe.cjs
       - name: Probe Google Suggest directly (one query, read-only)
@@ -35,6 +37,8 @@ jobs:
             }catch(e){console.log('GOOGLE_SUGGEST_DIAGNOSTIC',JSON.stringify({status:'unavailable',reason:e.name||'network_error'}));}
           })();
           NODE
+      - name: Probe new integrated GEO discovery without production writes
+        run: node scripts/geo-discovery-live-probe.cjs
       - name: Install OpenCode
         run: curl -fsSL https://opencode.ai/v2/install | bash
       - name: Probe Beam websearch tool (read-only, 1 query)
@@ -50,5 +54,6 @@ jobs:
           path: |
             .search-probe/report.json
             .search-probe/opencode-websearch-report.json
+            .search-probe/geo-discovery-report.json
           if-no-files-found: warn
           retention-days: 7
