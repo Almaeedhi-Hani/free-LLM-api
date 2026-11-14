@@ -2,7 +2,7 @@
 // Bounded, read-only search capability probe; NO production writes, secrets, or publishing.
 const fs=require('node:fs'),cp=require('node:child_process'),path=require('node:path');
 const dir=path.resolve('.search-probe');fs.mkdirSync(dir,{recursive:true});
-const report={checked_at:new Date().toISOString(),model:'opencode/beam-free',provider:'exa',status:'unverified',
+const report={checked_at:new Date().toISOString(),model:'opencode/beam-free',provider:'tinyfish',status:'unverified',
  tool_used:false,websearch_completed:false,source_links:[],error:null};
 const input=[
 'Read-only diagnostic run. You MUST use the websearch tool exactly once to search:',
@@ -14,7 +14,7 @@ const input=[
 fs.writeFileSync(path.join(dir,'websearch-prompt.txt'),input);
 fs.writeFileSync(path.join(dir,'opencode.jsonc'),JSON.stringify({
  $schema:'https://opencode.ai/config.json',
- websearch:{provider:'exa'},
+ websearch:{provider:'tinyfish'},
  permissions:[{action:'websearch',resource:'*',effect:'allow'}]
 },null,2));
 const bin=process.env.OPENCODE_BIN||'/home/runner/.opencode/bin/opencode';
