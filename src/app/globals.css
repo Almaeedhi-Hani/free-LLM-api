@@ -1018,3 +1018,12 @@ p {
 .service-next-step .action-primary{background:#f7f5eb;color:#173e38;white-space:nowrap;flex-shrink:0}
 .service-next-step .action-primary:hover{background:#dbe6d9}
 @media(max-width:700px){.service-context-band{grid-template-columns:1fr;gap:8px;padding:22px}.service-next-step{flex-direction:column;align-items:stretch;gap:26px;margin-top:50px}.service-next-step .action-primary{white-space:normal}.service-quick-nav{gap:6px}.service-quick-nav a{padding:8px 12px}}
+
+/* Original decision-support content for the six service guides. */
+.service-decision-checklist{scroll-margin-top:145px;background:#eef1e9;border:1px solid #dce4d8;padding:clamp(22px,3vw,38px);margin:42px 0}
+.service-decision-checklist h2{font-size:clamp(22px,2.6vw,32px);line-height:1.5;margin:12px 0 22px}
+.service-decision-checklist ol{list-style:none;margin:0;padding:0}
+.service-decision-checklist li{display:grid;grid-template-columns:34px 1fr;gap:14px;padding:17px 0;border-top:1px solid #d1dbcf}
+.service-decision-checklist li span{font-size:12px;color:#6b8778;font-weight:700}
+.service-decision-checklist li p{margin:0;line-height:1.9;font-size:14px}
+.service-decision-disclaimer{font-size:11px;line-height:1.8;color:#667a70;margin:20px 0 0}
