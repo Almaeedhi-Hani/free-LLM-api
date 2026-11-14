@@ -50,9 +50,7 @@ export default async function RootLayout({
         <header className="site-header">
           <div className="header-inner">
             <a href={localizedPath(lang)} className="wordmark">
-              <span className="brand-symbol" aria-hidden="true">
-                ↗
-              </span>
+              
               <span>
                 {t.brand}
                 <small>SAUDI ARABIA</small>
@@ -76,7 +74,7 @@ export default async function RootLayout({
           <div className="footer-top">
             <div>
               <a className="footer-brand" href={localizedPath(lang)}>
-                {t.brand} <span>↗</span>
+                {t.brand}
               </a>
               <p>{t.tagline}</p>
             </div>
@@ -102,7 +100,7 @@ export default async function RootLayout({
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                WhatsApp ↗
+                WhatsApp
               </a>
             </div>
           </div>
