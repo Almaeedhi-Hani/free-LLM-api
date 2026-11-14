@@ -517,7 +517,7 @@ export default function AdminDashboard() {
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
-                      <thead><tr className="text-right border-b"><th className="py-2">الاسم</th><th>النطاق</th><th>الحالة</th><th>اللغات</th><th>آخر رصد</th></tr></thead>
+                      <thead><tr className="text-right border-b"><th className="py-2">الاسم</th><th>النطاق</th><th>الحالة</th><th>اللغات</th><th>آخر رصد</th><th>إجراء</th></tr></thead>
                       <tbody>
                         {competitors.map((c: any) => (
                           <tr key={c.id} className="border-b">
@@ -525,10 +525,15 @@ export default function AdminDashboard() {
                             <td dir="ltr" className="text-left">{c.domain}</td>
                             <td>{c.status}</td>
                             <td>{(c.languages || []).join(', ')}</td>
-                            <td className="text-xs text-slate-400">{c.last_seen_at || '—'}</td>
+                            <td className="text-xs text-slate-400">{c.last_seen_at ? new Date(c.last_seen_at).toLocaleDateString('ar-SA') : '—'}</td>
+                            <td><select aria-label={'حالة '+c.name} className="border border-slate-300 rounded px-2 py-1 text-xs" disabled={saving} value={c.status} onChange={async(e)=>{
+                              const status=e.target.value;if(status==='disqualified'&&!window.confirm('هل تريد استبعاد هذا المنافس؟'))return;
+                              setSaving(true);setError('');try{await marketFetch('/api/admin/market/competitors',{method:'PATCH',body:JSON.stringify({id:c.id,status})});await fetchCompetitors();setNotice('تم تحديث حالة المنافس');}
+                              catch(err:any){setError(err.message);}finally{setSaving(false);}
+                            }}><option value="active">نشط</option><option value="inactive">غير نشط</option><option value="disqualified">مستبعد</option></select></td>
                           </tr>
                         ))}
-                        {competitors.length === 0 && <tr><td colSpan={5} className="py-4 text-slate-400 text-center">لا يوجد منافسون بعد. شغّل الاكتشاف لجلب مرشحين فعليين.</td></tr>}
+                        {competitors.length === 0 && <tr><td colSpan={6} className="py-4 text-slate-400 text-center">لا يوجد منافسون بعد. شغّل الاكتشاف لجلب مرشحين فعليين.</td></tr>}
                       </tbody>
                     </table>
                   </div>
