@@ -1,0 +1,21 @@
+name: Parallel — Isolated Live Probe
+on:
+  push:
+    branches:
+      - fix/search-source-reliability-20261114
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  parallel-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Verify Parallel secret and make one cheap real search
+        env:
+          PARALLEL_API_KEY: ${{ secrets.PARALLEL_API_KEY }}
+        run: node scripts/parallel-live-smoke.cjs
