@@ -1,0 +1,26 @@
+'use strict';
+const assert=require('node:assert/strict');
+const m=require('../.market-test-build/open-search-sources.js');
+const html='<div><a class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.sa%2Fsetup"><b>Company</b> formation &amp; MISA</a></div>';
+const rss='<?xml version="1.0"?><rss version="2.0"><channel><item><title>Saudi Company &amp; Services</title><link>https://example.sa/formation</link><description>Foreign investor setup</description></item><item><title>Government</title><link>https://misa.gov.sa</link></item></channel></rss>';
+assert.equal(m.parseDuckDuckGoHtml(html).length,1);
+assert.equal(m.parseDuckDuckGoHtml(html)[0].domain,'example.sa');
+assert.equal(m.parseBingRss(rss).length,1);
+assert.equal(m.parseBingRss(rss)[0].source,'bing-rss');
+assert.equal(m.parseBingRss('<html>challenge</html>').length,0);
+console.log('PASS 5 extraction checks');
+(async()=>{const original=global.fetch;try{
+ global.fetch=async()=>({status:202,text:async()=>'<html>anomaly-modal</html>'});
+ const duck=new m.DuckDuckGoHtmlSource();
+ assert.equal((await duck.collectResults('example','en',3)).length,0);
+ assert.equal(duck.lastDiagnostic.blocked_detected,true);
+ console.log('PASS duckduckgo HTTP 202 is blocked, not a success');
+ global.fetch=async()=>({status:200,text:async()=>rss});
+ const bing=new m.BingRssSearchSource();
+ assert.equal((await bing.collectResults('setup','en',3)).length,1);
+ console.log('PASS bing RSS with mocked response');
+ global.fetch=async()=>{throw Object.assign(new Error('timeout'),{name:'TimeoutError'});};
+ assert.equal((await bing.collectResults('setup','en',3)).length,0);
+ assert.equal(bing.lastDiagnostic.failure_reason,'timeout');
+ console.log('PASS timeout reporting');
+}finally{global.fetch=original}})().catch(e=>{console.error(e);process.exitCode=1});
