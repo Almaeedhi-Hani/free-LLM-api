@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "node scripts/render-provider-startup-smoke.cjs && next start",
+    "start": "next start",
     "lint": "next lint",
     "test:storage": "tsc src/lib/storage-mode.ts src/lib/geo-store.ts src/lib/content-store.ts --outDir .geo-test-build --module commonjs --target es2020 --lib es2020,dom --moduleResolution node --esModuleInterop --skipLibCheck --strict --types node && node scripts/geo-store.test.cjs",
     "test:market": "tsc src/lib/storage-mode.ts src/lib/market-intelligence.ts src/lib/market-sources.ts --outDir .market-test-build --module commonjs --target es2020 --lib es2020,dom --moduleResolution node --esModuleInterop --skipLibCheck --strict --types node && node scripts/market-intelligence.test.cjs",
