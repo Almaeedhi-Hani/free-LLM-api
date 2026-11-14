@@ -53,6 +53,10 @@ export default function AdminDashboard() {
   const [lastUpdated, setLastUpdated] = useState<string>('');
   const [evidenceData, setEvidenceData] = useState<any>(null);
   const [evidenceLoading, setEvidenceLoading] = useState(false);
+  const [marketLoading,setMarketLoading]=useState(false);
+  const [marketSources,setMarketSources]=useState<any[]>([]);
+  const [keywordLanguage,setKeywordLanguage]=useState<'ar'|'en'|'zh'>('ar');
+  const [notice,setNotice]=useState('');
 
   useEffect(() => {
     const saved = sessionStorage.getItem('admin_secret');
@@ -102,6 +106,15 @@ export default function AdminDashboard() {
   const fetchOpportunities = async () => { try { const d = await marketFetch('/api/admin/market/opportunities'); setOpportunities(d.opportunities || []); } catch (e: any) { setError(e.message); } };
   const fetchGoals = async () => { try { const d = await marketFetch('/api/admin/market/goals'); setGoals(d.goals || []); } catch (e: any) { setError(e.message); } };
   const fetchRuns = async () => { try { const d = await marketFetch('/api/admin/market/runs'); setRuns(d.runs || []); } catch (e: any) { setError(e.message); } };
+  const fetchMarketSources=async()=>{try{const d=await marketFetch('/api/admin/market/discovery');setMarketSources(d.sources||[]);}catch(e:any){setError(e.message);}};
+  const refreshMarket=async()=>{
+    setMarketLoading(true);setError('');
+    try{const [a,b,c,d,e]=await Promise.all(['competitors','keywords','opportunities','goals','runs'].map(v=>marketFetch('/api/admin/market/'+v)));
+      setCompetitors(a.competitors||[]);setKeywords(b.keywords||[]);setOpportunities(c.opportunities||[]);setGoals(d.goals||[]);setRuns(e.runs||[]);
+      setLastUpdated(new Date().toLocaleString('ar-SA'));
+    }catch(e:any){setError(e.message||'فشل تحميل بيانات السوق');}finally{setMarketLoading(false);}
+  };
+  const refreshAll=async()=>{await Promise.all([fetchContent(),refreshMarket()]);};
 
   const fetchEvidence = async () => {
     setEvidenceLoading(true);
@@ -117,7 +130,9 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (!authed || !secret) return;
-    if (tab === 'competitors') fetchCompetitors();
+    if (tab === 'home') refreshMarket();
+    else if (tab === 'agent') {fetchRuns();fetchMarketSources();}
+    else if (tab === 'competitors') {fetchCompetitors();fetchMarketSources();}
     else if (tab === 'keywords') fetchKeywords();
     else if (tab === 'opportunities') fetchOpportunities();
     else if (tab === 'goals') fetchGoals();
@@ -126,18 +141,23 @@ export default function AdminDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, authed, secret]);
 
-  const login = () => {
-    if (!secret.trim()) { setError('المفتاح السري مطلوب'); return; }
-    sessionStorage.setItem('admin_secret', secret.trim());
-    setAuthed(true);
-    setError('');
+  const login=async()=>{
+    const key=secret.trim();if(!key){setError('المفتاح السري مطلوب');return;}
+    setSaving(true);setError('');
+    try{const response=await fetch('/api/admin/content',{headers:{'x-admin-secret':key}});
+      if(!response.ok)throw new Error(response.status===401?'المفتاح السري غير صحيح':`تعذر تسجيل الدخول (${response.status})`);
+      const data=await response.json();setSecret(key);setContent(data);
+      if(data.contact)setContactForm(data.contact);setGoldenDraft(data.goldenParagraph||'');
+      sessionStorage.setItem('admin_secret',key);setAuthed(true);
+    }catch(e:any){setError(e.message||'فشل تسجيل الدخول');}finally{setSaving(false);}
   };
 
   const logout = () => {
     sessionStorage.removeItem('admin_secret');
     setAuthed(false);
     setSecret('');
-    setContent(null);
+    setContent(null);setCompetitors([]);setKeywords([]);setOpportunities([]);setGoals([]);setRuns([]);
+    setNotice('');setError('');
   };
 
   const save = async (patch: any) => {
@@ -233,14 +253,14 @@ export default function AdminDashboard() {
           <p className="text-slate-600 mb-4 text-sm">أدخل المفتاح السري للمتابعة.</p>
           <input type="password" value={secret} onChange={(e) => setSecret(e.target.value)} placeholder="المفتاح السري" className="w-full border border-slate-300 rounded-lg px-4 py-2 mb-4" />
           {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
-          <button onClick={login} className="btn-primary w-full">فتح</button>
+          <button onClick={login} disabled={saving} className="btn-primary w-full">{saving?'جارٍ التحقق...':'فتح'}</button>
         </div>
       </div>
     );
   }
 
   if (!content) {
-    return <div className="min-h-screen flex items-center justify-center text-slate-500" dir="rtl">جاري التحميل...</div>;
+    return <div className="min-h-screen flex flex-col gap-3 items-center justify-center text-slate-600" dir="rtl"><p>{error||'جاري التحميل...'}</p><button className="btn-secondary" onClick={fetchContent}>إعادة المحاولة</button><button className="text-sm underline" onClick={logout}>تسجيل الخروج</button></div>;
   }
 
   const pendingDrafts = (content.drafts || []).filter((d: any) => d.status === 'pending').length;
@@ -287,13 +307,14 @@ export default function AdminDashboard() {
               <div className="flex items-center gap-3 text-xs text-slate-500">
                 {saving && <span className="text-gold-600">جاري الحفظ...</span>}
                 <span>آخر تحديث: {lastUpdated || '—'}</span>
-                <button onClick={fetchContent} className="btn-secondary text-xs">تحديث</button>
+                <button onClick={refreshAll} className="btn-secondary text-xs" disabled={marketLoading||saving}>{marketLoading?'جارٍ التحديث...':'تحديث الكل'}</button>
               </div>
             </div>
           </header>
 
           <main className="p-4 sm:p-6 max-w-7xl mx-auto">
-            {error && <p className="text-red-600 mb-4 text-sm">{error}</p>}
+            {error && <div role="alert" className="rounded-lg bg-red-50 border border-red-200 p-3 text-red-700 mb-4 text-sm">{error}</div>}
+            {notice && <div role="status" className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-emerald-800 mb-4 text-sm flex justify-between gap-3"><span>{notice}</span><button onClick={()=>setNotice('')} aria-label="إغلاق التنبيه">✕</button></div>}
 
             {tab === 'home' && (
               <div className="space-y-6">
