@@ -9,6 +9,11 @@ export default function VisibilityDashboard({secret}:{secret:string}){
  const [rows,setRows]=useState<Result[]>([]);
  const [queryRows,setQueryRows]=useState<QueryResult[]>([]);
  const [queryPeriod,setQueryPeriod]=useState('');
+ const [queryDimension,setQueryDimension]=useState<'query'|'page'|'country'|'device'>('query');
+ const [queryDays,setQueryDays]=useState(28);
+ const [gscConnected,setGscConnected]=useState(false);
+ const [querySummary,setQuerySummary]=useState<{clicks:number;impressions:number;ctr:number;position:number}|null>(null);
+ const [gscProperty,setGscProperty]=useState('');
  const [loading,setLoading]=useState(false);
  const [error,setError]=useState('');
  const [message,setMessage]=useState('');
@@ -26,14 +31,14 @@ export default function VisibilityDashboard({secret}:{secret:string}){
  async function load(type:Section){
   setLoading(true);setError('');setMessage('');
   try{
-   const r=await fetch(`/api/admin/visibility?type=${type}`,{headers:{'x-admin-secret':secret},cache:'no-store'});
+   const r=await fetch(`/api/admin/visibility?type=${type}${type==='queries'?`&dimension=${queryDimension}&days=${queryDays}`:''}`,{headers:{'x-admin-secret':secret},cache:'no-store'});
    const d=await r.json();
    if(!r.ok)throw new Error(d.message||d.error||'تعذر التحميل');
-   setRows(d.results||[]);setQueryRows(type==='queries'?(d.rows||[]):[]);setQueryPeriod(d.startDate&&d.endDate?d.startDate+' — '+d.endDate:'');setMessage(d.message||(type==='queries'&&d.connected?'بيانات فعلية من Google Search Console':'غير متصل'));setLastCheck(d.checked_at||'');
-  }catch(e){setError(e instanceof Error?e.message:'حدث خطأ');setRows([]);setQueryRows([])}
+   setGscConnected(type==='queries'&&d.connected===true);setQuerySummary(type==='queries'?(d.summary||null):null);setGscProperty(d.property||'');setRows(d.results||[]);setQueryRows(type==='queries'?(d.rows||[]):[]);setQueryPeriod(d.startDate&&d.endDate?d.startDate+' — '+d.endDate:'');setMessage(d.message||(type==='queries'&&d.connected?'متصل بـ Google Search Console':'غير متصل'));setLastCheck(d.checked_at||'');
+  }catch(e){setError(e instanceof Error?e.message:'حدث خطأ');setRows([]);setQueryRows([]);setGscConnected(false);setQuerySummary(null)}
   finally{setLoading(false)}
  }
- useEffect(()=>{void load(section)},[section,secret]);
+ useEffect(()=>{void load(section)},[section,secret,queryDimension,queryDays]);
  const filtered=rows.filter(r=>lang==='all'||r.language===lang);
  const ok=filtered.filter(r=>r.status==='ok').length;
  const issues=filtered.filter(r=>r.status==='issue').length;
@@ -72,8 +77,20 @@ export default function VisibilityDashboard({secret}:{secret:string}){
   </section>:<section className="rounded-2xl border border-slate-200 bg-white p-6 space-y-3">
    <h3 className="text-lg font-bold">{sections.find(([id])=>id===section)?.[1]}</h3>
    <p className="text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">{message||'لا تتوفر بيانات مؤكدة حاليًا.'}</p>
-   {section==='queries'&&queryRows.length>0&&<div className="overflow-x-auto"><p className="text-xs text-slate-500 mb-2">المصدر: Google Search Console — الفترة: {queryPeriod}</p><table className="w-full text-sm text-right"><thead><tr className="border-b"><th className="p-2">الاستعلام</th><th className="p-2">النقرات</th><th className="p-2">الظهور</th><th className="p-2">CTR</th><th className="p-2">متوسط الموضع</th></tr></thead><tbody>{queryRows.map((q,i)=><tr key={q.query+'-'+i} className="border-b"><td className="p-2">{q.query}</td><td className="p-2">{q.clicks}</td><td className="p-2">{q.impressions}</td><td className="p-2">{(q.ctr*100).toFixed(2)}%</td><td className="p-2">{q.position.toFixed(1)}</td></tr>)}</tbody></table></div>}
-   {section==='queries'&&<p className="text-sm text-slate-600">بعد تفعيل Search Console الرسمي: الاستعلام واللغة والصفحة والظهور والنقرات ومتوسط الترتيب والنية التجارية ومقارنة الفترات.</p>}
+   {section==='queries'&&<div className="space-y-3">
+    <div className="flex flex-wrap items-center gap-3 text-sm">
+     <span className={gscConnected?'text-green-700 font-semibold':'text-slate-600'}>{gscConnected?'● متصل بـ Google Search Console':'○ لم يتأكد الاتصال'}</span>
+     {gscProperty&&<span className="break-all text-xs text-slate-500" dir="ltr">{gscProperty}</span>}
+     <label>الفترة <select aria-label="فترة أداء البحث" value={queryDays} onChange={e=>setQueryDays(Number(e.target.value))} className="border rounded-lg p-2"><option value={7}>7 أيام</option><option value={28}>28 يومًا</option><option value={90}>90 يومًا</option></select></label>
+     <label>التصنيف <select aria-label="تصنيف بيانات البحث" value={queryDimension} onChange={e=>setQueryDimension(e.target.value as typeof queryDimension)} className="border rounded-lg p-2"><option value="query">الكلمات المفتاحية</option><option value="page">الصفحات</option><option value="country">البلدان</option><option value="device">الأجهزة</option></select></label>
+    </div>
+    {gscConnected&&<div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+     {([['النقرات',querySummary?.clicks.toLocaleString('ar-SA')??'0'],['مرات الظهور',querySummary?.impressions.toLocaleString('ar-SA')??'0'],['CTR',querySummary?(querySummary.ctr*100).toFixed(2)+'%':'—'],['متوسط الترتيب',querySummary?querySummary.position.toFixed(1):'—']] as const).map(([label,value])=><div key={label} className="rounded-lg bg-slate-50 p-3"><span className="text-xs text-slate-600">{label}</span><strong className="block text-xl">{value}</strong></div>)}
+    </div>}
+    {gscConnected&&queryRows.length===0&&<p role="status" className="rounded-lg bg-blue-50 p-3 text-blue-900">الاتصال ناجح، لكن Google لا يعرض بيانات لهذا التصنيف والفترة حتى الآن. هذا طبيعي للمواقع الجديدة.</p>}
+   </div>}
+   {section==='queries'&&queryRows.length>0&&<div className="overflow-x-auto"><p className="text-xs text-slate-500 mb-2">المصدر: Google Search Console — الفترة: {queryPeriod}</p><table className="w-full text-sm text-right"><thead><tr className="border-b"><th className="p-2">{({query:'الاستعلام',page:'الصفحة',country:'البلد',device:'الجهاز'} as const)[queryDimension]}</th><th className="p-2">النقرات</th><th className="p-2">الظهور</th><th className="p-2">CTR</th><th className="p-2">متوسط الموضع</th></tr></thead><tbody>{queryRows.map((q,i)=><tr key={q.query+'-'+i} className="border-b"><td className="p-2">{q.query}</td><td className="p-2">{q.clicks}</td><td className="p-2">{q.impressions}</td><td className="p-2">{(q.ctr*100).toFixed(2)}%</td><td className="p-2">{q.position.toFixed(1)}</td></tr>)}</tbody></table></div>}
+   {section==='queries'&&<p className="text-xs text-slate-500">المصدر: Google Search Console API. البيانات قد تتأخر عدة أيام. فحص HTTP لا يثبت الفهرسة؛ تقارير فهرسة Google تُراجع من Search Console.</p>}
    {section==='ai'&&<p className="text-sm text-slate-600">سجل الاختبار المطلوب: السؤال، اللغة، المحرك، وقت الاختبار، الإجابة، روابط الاستشهاد، حالة التحقق، ومعرّف الدليل.</p>}
    {section==='conversions'&&<p className="text-sm text-slate-600">ستُفصل نقرات واتساب والهاتف عن إرسال النماذج وعن العملاء المحتملين المؤكدين. لا يُحسب النقر عميلًا.</p>}
   </section>}

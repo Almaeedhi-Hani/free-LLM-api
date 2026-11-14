@@ -58,19 +58,39 @@ export async function GET(req:NextRequest) {
     const encryptedCookie=req.cookies.get('gsc_refresh')?.value;
     if(encryptedCookie&&process.env.ADMIN_SECRET){try{const raw=Buffer.from(encryptedCookie,'base64url');const key=createHash('sha256').update(process.env.ADMIN_SECRET).digest();const decipher=createDecipheriv('aes-256-gcm',key,raw.subarray(0,12));decipher.setAuthTag(raw.subarray(12,28));refreshToken=Buffer.concat([decipher.update(raw.subarray(28)),decipher.final()]).toString('utf8');}catch{return NextResponse.json({connected:false,source:'google_search_console',message:'جلسة Google غير صالحة. أعد ربط الحساب.',rows:[]},{status:401});}}
     const property=process.env.GSC_PROPERTY_URL || 'https://free-llm-api-1-didl.onrender.com/';
-    if(!clientId||!clientSecret||!refreshToken) return NextResponse.json({connected:false,source:'google_search_console',message:'يلزم إعداد GSC_CLIENT_ID وGSC_CLIENT_SECRET وGSC_REFRESH_TOKEN في بيئة الخادم.',rows:[]});
+    if(!clientId||!clientSecret||!refreshToken) return NextResponse.json({connected:false,source:'google_search_console',message:'يلزم إعداد GSC_CLIENT_ID وGSC_CLIENT_SECRET، ثم ربط Google من لوحة الإدارة أو إعداد GSC_REFRESH_TOKEN في بيئة الخادم.',rows:[]});
     try {
       const tokenResponse=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({client_id:clientId,client_secret:clientSecret,refresh_token:refreshToken,grant_type:'refresh_token'}),cache:'no-store'});
       if(!tokenResponse.ok) return NextResponse.json({connected:false,source:'google_search_console',message:'فشل تجديد تفويض Google. تحقق من الصلاحيات والاعتماد.',rows:[]},{status:502});
       const token=await tokenResponse.json() as {access_token?:string};
       if(!token.access_token) throw new Error('Missing access token');
+      const allowedDimensions=['query','page','country','device'] as const;
+      const dimensionParam=req.nextUrl.searchParams.get('dimension')||'query';
+      const dimension=allowedDimensions.find(d=>d===dimensionParam);
+      if(!dimension) return NextResponse.json({error:'unsupported_dimension'},{status:400});
+      const allowedDays=[7,28,90];
+      const requestedDays=Number(req.nextUrl.searchParams.get('days')||28);
+      if(!allowedDays.includes(requestedDays)) return NextResponse.json({error:'unsupported_period'},{status:400});
       const end=new Date();end.setUTCDate(end.getUTCDate()-3);
-      const start=new Date(end);start.setUTCDate(start.getUTCDate()-27);
+      const start=new Date(end);start.setUTCDate(start.getUTCDate()-(requestedDays-1));
       const date=(d:Date)=>d.toISOString().slice(0,10);
-      const dataResponse=await fetch('https://www.googleapis.com/webmasters/v3/sites/'+encodeURIComponent(property)+'/searchAnalytics/query',{method:'POST',headers:{Authorization:'Bearer '+token.access_token,'Content-Type':'application/json'},body:JSON.stringify({startDate:date(start),endDate:date(end),dimensions:['query'],rowLimit:100}),cache:'no-store'});
-      if(!dataResponse.ok) return NextResponse.json({connected:false,source:'google_search_console',message:'رفضت Google طلب البيانات؛ تحقق من عنوان Property وصلاحيات الحساب.',rows:[]},{status:502});
-      const data=await dataResponse.json() as {rows?:Array<{keys:string[];clicks:number;impressions:number;ctr:number;position:number}>};
-      return NextResponse.json({connected:true,source:'google_search_console',property,startDate:date(start),endDate:date(end),rows:(data.rows||[]).map(r=>({query:r.keys[0],clicks:r.clicks,impressions:r.impressions,ctr:r.ctr,position:r.position}))});
+      const endpoint='https://www.googleapis.com/webmasters/v3/sites/'+encodeURIComponent(property)+'/searchAnalytics/query';
+      const queryGoogle=async (dimensions:string[],rowLimit:number)=>{
+        const response=await fetch(endpoint,{method:'POST',headers:{Authorization:'Bearer '+token.access_token,'Content-Type':'application/json'},body:JSON.stringify({startDate:date(start),endDate:date(end),dimensions,rowLimit}),cache:'no-store'});
+        if(!response.ok) throw new Error('google_query_'+response.status);
+        return response.json() as Promise<{rows?:Array<{keys:string[];clicks:number;impressions:number;ctr:number;position:number}>}>;
+      };
+      let details:{rows?:Array<{keys:string[];clicks:number;impressions:number;ctr:number;position:number}>};
+      let totals:{rows?:Array<{keys:string[];clicks:number;impressions:number;ctr:number;position:number}>};
+      try {
+        [details,totals]=await Promise.all([queryGoogle([dimension],250),queryGoogle([],1)]);
+      } catch {
+        return NextResponse.json({connected:false,source:'google_search_console',message:'تعذر قراءة بيانات الأداء من Google. تحقق من خاصية الموقع والصلاحيات ثم حاول مجددًا.',rows:[]},{status:502});
+      }
+      const summary=totals.rows?.[0];
+      const rows=(details.rows||[]).map(r=>({query:r.keys[0],clicks:r.clicks,impressions:r.impressions,ctr:r.ctr,position:r.position}));
+      return NextResponse.json({connected:true,source:'google_search_console',property,dimension,days:requestedDays,startDate:date(start),endDate:date(end),checked_at:new Date().toISOString(),summary:summary?{clicks:summary.clicks,impressions:summary.impressions,ctr:summary.ctr,position:summary.position}:null,rows,message:rows.length?'':'الاتصال ناجح، لكن لا توجد بيانات أداء لهذه الفترة حتى الآن. قد يحتاج الموقع الجديد إلى وقت ليظهر في نتائج البحث.'});
+
     } catch {
       return NextResponse.json({connected:false,source:'google_search_console',message:'تعذر الاتصال بخدمة Google Search Console.',rows:[]},{status:502});
     }
