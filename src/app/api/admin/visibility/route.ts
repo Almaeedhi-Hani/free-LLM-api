@@ -75,11 +75,11 @@ export async function GET(req:NextRequest) {
       const start=new Date(end);start.setUTCDate(start.getUTCDate()-(requestedDays-1));
       const date=(d:Date)=>d.toISOString().slice(0,10);
       const endpoint='https://www.googleapis.com/webmasters/v3/sites/'+encodeURIComponent(property)+'/searchAnalytics/query';
-      async function queryGoogle(dimensions:string[],rowLimit:number){
+      const queryGoogle=async (dimensions:string[],rowLimit:number)=>{
         const response=await fetch(endpoint,{method:'POST',headers:{Authorization:'Bearer '+token.access_token,'Content-Type':'application/json'},body:JSON.stringify({startDate:date(start),endDate:date(end),dimensions,rowLimit}),cache:'no-store'});
         if(!response.ok) throw new Error('google_query_'+response.status);
         return response.json() as Promise<{rows?:Array<{keys:string[];clicks:number;impressions:number;ctr:number;position:number}>}>;
-      }
+      };
       let details:{rows?:Array<{keys:string[];clicks:number;impressions:number;ctr:number;position:number}>};
       let totals:{rows?:Array<{keys:string[];clicks:number;impressions:number;ctr:number;position:number}>};
       try {
