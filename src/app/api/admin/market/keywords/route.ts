@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'crypto';
-import { listKeywords, upsertKeyword, deleteKeyword } from '@/lib/market-intelligence';
+import { listKeywords, upsertKeyword, updateKeyword, deleteKeyword } from '@/lib/market-intelligence';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,5 +49,22 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ deleted: true });
   } catch (e) {
     return NextResponse.json({ status: 'error', message: e instanceof Error ? e.message : 'Delete failed' }, { status: 400 });
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  if (!authorized(req)) return NextResponse.json({ status: 'unauthorized' }, { status: 401 });
+  try {
+    const body = await req.json();
+    const id = typeof body?.id === 'string' ? body.id.trim() : '';
+    if (!id) return NextResponse.json({ message: 'Keyword ID is required' }, { status: 400 });
+    const { term, language, intent, cluster } = body;
+    if (typeof term !== 'string' || !['ar','en','zh'].includes(language) || typeof intent !== 'string')
+      return NextResponse.json({ message: 'Valid keyword, language and intent are required' }, { status: 400 });
+    const keyword = await updateKeyword(id, {term, language, intent, cluster});
+    if (!keyword) return NextResponse.json({ status: 'not_found' }, { status: 404 });
+    return NextResponse.json({keyword});
+  } catch (e) {
+    return NextResponse.json({ message: e instanceof Error ? e.message : 'Update failed' }, { status: 400 });
   }
 }
