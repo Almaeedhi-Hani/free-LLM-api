@@ -166,21 +166,24 @@ async function stageEvidence() {
     }
   }
 
-  // Fallback: use discovery results as evidence if no DB/local data
-  if (evidenceItems.length === 0 && stageResults.discovery?.results?.length > 0) {
-    for (const r of stageResults.discovery.results) {
-      evidenceItems.push({
-        id: `disc_${evidenceItems.length}`,
-        type: 'discovery',
-        source: r.source || 'search',
-        name: r.title,
-        url: r.url,
-        language: r.language || 'en',
-        collected_at: r.collected_at,
-      });
-    }
-    logStage('EVIDENCE', `Using ${evidenceItems.length} discovery results as evidence`);
+  // Fresh, read-only discovery evidence. Suggestions are search ideas, not verified
+  // competitors, search-volume statistics, or citations by an AI engine.
+  for (const r of (stageResults.discovery?.results || [])) {
+    evidenceItems.push({
+      id: `disc_${evidenceItems.length}`,
+      type: 'competitor_candidate', source: r.source || 'search',
+      name: r.title, url: r.url, language: r.language || 'en',
+      collected_at: r.collected_at,
+    });
   }
+  for (const r of (stageResults.discovery?.suggestions || [])) {
+    evidenceItems.push({
+      id: `suggest_${evidenceItems.length}`,
+      type: 'keyword_suggestion', source: r.source,
+      name: r.term, language: r.language, collected_at: r.collected_at,
+    });
+  }
+  logStage('EVIDENCE', `Added fresh discovery evidence: ${(stageResults.discovery?.results || []).length} website candidates, ${(stageResults.discovery?.suggestions || []).length} Google suggestions`);
   // Try GEO API (limited-scope, server-side) first
   const GEO_API_URL = process.env.GEO_API_URL || process.env.SITE_URL;
   const GEO_API_KEY = process.env.GEO_API_KEY;
@@ -223,6 +226,8 @@ async function stageEvidence() {
     domain: e.domain || '',
     source: e.source || 'unknown',
     language: e.language || 'ar',
+    url: e.url || null,
+    observed_at: e.collected_at || e.observed_at || null,
   }));
   logStage('EVIDENCE', `Built bundle: ${evidenceItems.length} items`);
   stageResults.evidence = { total: evidenceItems.length, items: evidenceItems.slice(0, 30) };
