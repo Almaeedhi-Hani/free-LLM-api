@@ -811,6 +811,32 @@ export async function listKeywords(filters?: {
 }
 
 /** Permanently remove a manually managed keyword; scoped by UUID to prevent mass deletion. */
+export async function updateKeyword(id: string, patch: Pick<Keyword, 'term' | 'language' | 'intent' | 'cluster'>): Promise<Keyword | null> {
+  const term = patch.term.trim();
+  if (!term) throw new Error('Keyword term cannot be empty');
+  if (!['ar', 'en', 'zh'].includes(patch.language)) throw new Error('Invalid keyword language');
+  const rows = await listKeywords();
+  if (rows.some((k) => k.id !== id && k.language === patch.language && k.term.toLocaleLowerCase() === term.toLocaleLowerCase())) {
+    throw new Error('A keyword with this term and language already exists');
+  }
+  const changes = {term, language: patch.language, intent: patch.intent, cluster: patch.cluster || null, updated_at: nowIso()};
+  if (isSupabase()) {
+    const res = await sbFetch(`keywords?id=eq.${encodeURIComponent(id)}`, {
+      method: 'PATCH', headers: {Prefer: 'return=representation'}, body: JSON.stringify(changes)
+    });
+    const updated = await sbJson<Keyword[]>(res, 'updateKeyword');
+    return updated[0] || null;
+  }
+  return withFileLock(() => {
+    const data = readFile<Keyword>('keywords.json');
+    const i = data.findIndex((k) => k.id === id);
+    if (i < 0) return null;
+    data[i] = {...data[i], ...changes} as Keyword;
+    writeFile('keywords.json', data);
+    return data[i];
+  });
+}
+
 export async function deleteKeyword(id: string): Promise<boolean> {
   const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   if (!uuid.test(id)) throw new Error('A valid keyword ID is required');
