@@ -23,7 +23,7 @@ export default async function RootLayout({
   const t = copy[lang];
   const content = await getContent();
   const { contact } = content;
-  const verification = content.searchIntegrations?.googleVerification || "";
+  const verification = content.searchIntegrations?.googleVerification || "9DD9bimLxrjoQrAMYZB4Icwz_0lnfnb2idwXBqqBK4w";
   const serviceList = services;
   return (
     <html
