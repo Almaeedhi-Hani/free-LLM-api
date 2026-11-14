@@ -39,6 +39,12 @@ export interface CookiePolicy {
   consentDays: number;
 }
 
+export interface SearchIntegrations {
+  googleVerification: string;
+  ga4MeasurementId: string;
+  gscPropertyUrl: string;
+}
+
 export interface SiteContent {
   goldenParagraph: string;
   faqs: ContentFAQ[];
@@ -47,6 +53,7 @@ export interface SiteContent {
   contact: ContactInfo;
   agent: AgentStatus;
   cookiePolicy: CookiePolicy;
+  searchIntegrations: SearchIntegrations;
   updatedAt: string;
 }
 
@@ -73,6 +80,7 @@ const DEFAULT_CONTENT: SiteContent = {
     lastResult: '',
   },
   cookiePolicy: { analyticsAvailable: true, marketingAvailable: true, consentDays: 180 },
+  searchIntegrations: { googleVerification: '', ga4MeasurementId: '', gscPropertyUrl: '' },
   // Stable sentinel avoids version mismatch when GET and POST use separate Next.js route bundles.
   updatedAt: '1970-01-01T00:00:00.000Z',
 };
@@ -121,7 +129,7 @@ async function supabaseGet(cfg: { url: string; key: string; table: string }): Pr
     throw new StorageUnavailableError('Supabase content row is missing');
   }
   const parsed = rows[0].content as Partial<SiteContent>;
-  return { ...DEFAULT_CONTENT, ...parsed, drafts: parsed.drafts ?? DEFAULT_CONTENT.drafts, contact: { ...DEFAULT_CONTENT.contact, ...parsed.contact }, agent: { ...DEFAULT_CONTENT.agent, ...parsed.agent }, cookiePolicy: { ...DEFAULT_CONTENT.cookiePolicy, ...parsed.cookiePolicy }, updatedAt: rows[0].updated_at ?? parsed.updatedAt ?? DEFAULT_CONTENT.updatedAt } as SiteContent;
+  return { ...DEFAULT_CONTENT, ...parsed, drafts: parsed.drafts ?? DEFAULT_CONTENT.drafts, contact: { ...DEFAULT_CONTENT.contact, ...parsed.contact }, agent: { ...DEFAULT_CONTENT.agent, ...parsed.agent }, cookiePolicy: { ...DEFAULT_CONTENT.cookiePolicy, ...parsed.cookiePolicy }, searchIntegrations: { ...DEFAULT_CONTENT.searchIntegrations, ...parsed.searchIntegrations }, updatedAt: rows[0].updated_at ?? parsed.updatedAt ?? DEFAULT_CONTENT.updatedAt } as SiteContent;
 }
 
 async function supabaseSet(cfg: { url: string; key: string; table: string }, next: SiteContent, expectedUpdatedAt: string): Promise<boolean> {
@@ -156,7 +164,7 @@ export async function getContent(): Promise<SiteContent> {
   try {
     const raw = fs.readFileSync(storePath(), 'utf-8');
     const parsed = JSON.parse(raw) as Partial<SiteContent>;
-    return { ...DEFAULT_CONTENT, ...parsed, drafts: parsed.drafts ?? DEFAULT_CONTENT.drafts, contact: { ...DEFAULT_CONTENT.contact, ...parsed.contact }, agent: { ...DEFAULT_CONTENT.agent, ...parsed.agent }, cookiePolicy: { ...DEFAULT_CONTENT.cookiePolicy, ...parsed.cookiePolicy } } as SiteContent;
+    return { ...DEFAULT_CONTENT, ...parsed, drafts: parsed.drafts ?? DEFAULT_CONTENT.drafts, contact: { ...DEFAULT_CONTENT.contact, ...parsed.contact }, agent: { ...DEFAULT_CONTENT.agent, ...parsed.agent }, cookiePolicy: { ...DEFAULT_CONTENT.cookiePolicy, ...parsed.cookiePolicy }, searchIntegrations: { ...DEFAULT_CONTENT.searchIntegrations, ...parsed.searchIntegrations } } as SiteContent;
   } catch {
     return DEFAULT_CONTENT;
   }
@@ -176,6 +184,7 @@ function buildNext(current: SiteContent, patch: Partial<SiteContent>, options: C
     contact: { ...current.contact, ...patch.contact },
     agent: { ...current.agent, ...patch.agent },
     cookiePolicy: { ...current.cookiePolicy, ...patch.cookiePolicy },
+    searchIntegrations: { ...current.searchIntegrations, ...patch.searchIntegrations },
     updatedAt: new Date(Math.max(Date.now(), (Date.parse(current.updatedAt) || 0) + 1)).toISOString(),
   };
   if (options.replaceArrays) {
