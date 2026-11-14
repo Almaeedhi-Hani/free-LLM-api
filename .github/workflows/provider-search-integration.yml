@@ -27,6 +27,8 @@ jobs:
           node --check scripts/opencode-geo-analysis.js
           node scripts/provider-search.test.cjs
           node scripts/geo-discovery-sources.test.cjs
+      - name: Verify full Next.js production build
+        run: npm run build
       - name: Run real four-provider fallback engine (3 calls maximum)
         env:
           EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
