@@ -1,6 +1,7 @@
 ﻿'use client';
 
 import React, { useState, useEffect } from 'react';
+import VisibilityDashboard from '@/components/VisibilityDashboard';
 
 type Tab =
   | 'home'
@@ -14,7 +15,8 @@ type Tab =
   | 'opportunities'
   | 'goals'
   | 'runs'
-  | 'evidence';
+  | 'evidence'
+  | 'visibility';
 
 const LABELS: Record<string, string> = {
   idle:'بانتظار التشغيل',running:'قيد التشغيل',success:'نجح',completed:'مكتمل',failed:'فشل',
@@ -47,6 +49,7 @@ const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'content', label: 'محتوى الموقع', icon: '📝' },
   { key: 'reviews', label: 'اعتماد المسودات', icon: '🔍' },
   { key: 'contact', label: 'التواصل', icon: '📞' },
+  { key: 'visibility', label: 'SEO وظهور الذكاء الاصطناعي', icon: '📈' },
   { key: 'settings', label: 'الإعدادات', icon: '⚙️' },
 ];
 
@@ -810,6 +813,8 @@ export default function AdminDashboard() {
                 </section>
               </div>
             )}
+
+            {tab === 'visibility' && <VisibilityDashboard secret={secret} />}
 
             {tab === 'runs' && (
               <div className="space-y-6">
