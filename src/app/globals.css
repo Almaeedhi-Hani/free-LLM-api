@@ -1095,3 +1095,14 @@ p {
   :root{--muted:#3c5348;--line:#879c8b}
   .service-quick-nav a,.service-card{border-color:#829989}
 }
+
+/* Stage 5: contextual internal navigation, without introducing duplicate content. */
+.service-related{margin:64px 0 0}
+.service-related h2{font-size:clamp(23px,2.6vw,34px);font-weight:500;margin:12px 0 28px}
+.service-related-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.service-related-grid a{display:flex;flex-direction:column;align-items:flex-start;gap:15px;min-width:0;padding:25px;background:#eef1e9;border:1px solid #d5ded2;transition:background .2s;min-height:180px}
+.service-related-grid a:hover,.service-related-grid a:focus-visible{background:#dfe8d9}
+.service-related-grid span{font-size:10px;letter-spacing:.04em;color:#536c5b}
+.service-related-grid strong{font-size:17px;line-height:1.6;font-weight:500}
+.service-related-grid small{font-size:12px;margin-top:auto}
+@media(max-width:700px){.service-related-grid{grid-template-columns:1fr}.service-related-grid a{min-height:130px}.service-related{margin-top:42px}}
