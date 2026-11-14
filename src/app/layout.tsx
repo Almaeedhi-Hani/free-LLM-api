@@ -111,7 +111,7 @@ export default async function RootLayout({
             <span>{t.foot}</span>
           </div>
         </footer>
-        <CookieConsent locale={lang} />
+        <CookieConsent locale={lang} policy={content.cookiePolicy} />
       </body>
     </html>
   );
