@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import VisibilityDashboard from '@/components/VisibilityDashboard';
+import CookiePolicyAdmin from '@/components/CookiePolicyAdmin';
 
 type Tab =
   | 'home'
@@ -16,7 +17,8 @@ type Tab =
   | 'goals'
   | 'runs'
   | 'evidence'
-  | 'visibility';
+  | 'visibility'
+  | 'cookies';
 
 const LABELS: Record<string, string> = {
   idle:'بانتظار التشغيل',running:'قيد التشغيل',success:'نجح',completed:'مكتمل',failed:'فشل',
@@ -50,6 +52,7 @@ const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'reviews', label: 'اعتماد المسودات', icon: '🔍' },
   { key: 'contact', label: 'التواصل', icon: '📞' },
   { key: 'visibility', label: 'SEO وظهور الذكاء الاصطناعي', icon: '📈' },
+  { key: 'cookies', label: 'إدارة الكوكيز', icon: '🍪' },
   { key: 'settings', label: 'الإعدادات', icon: '⚙️' },
 ];
 
@@ -815,6 +818,7 @@ export default function AdminDashboard() {
             )}
 
             {tab === 'visibility' && <VisibilityDashboard secret={secret} />}
+            {tab === 'cookies' && <CookiePolicyAdmin policy={content?.cookiePolicy} saving={saving} onSave={async cookiePolicy => save({cookiePolicy})} />}
 
             {tab === 'runs' && (
               <div className="space-y-6">
