@@ -46,15 +46,33 @@ async function collect({fetchFn=fetch}={}){
    diagnostics.push({source:'google-suggest',language:seed.language,status:r.status,count:added});
   }catch(e){diagnostics.push({source:'google-suggest',language:seed.language,status:'unavailable',reason:String(e?.name==='TimeoutError'?'timeout':e?.message||'error').slice(0,70),count:0})}
  }
- for(const seed of seeds){
-  try{
-   const url='https://www.bing.com/search?format=rss&q='+encodeURIComponent(seed.q)+'&setlang='+seed.locale;
-   const r=await fetchFn(url,{signal:AbortSignal.timeout(MAX_REQ_MS),headers:{Accept:'application/rss+xml'}});
-   if(!r.ok)throw new Error('http_'+r.status);
-   const found=parseRss(await r.text(),seed.q,seed.language,5);
-   for(const candidate of found){const domain=new URL(candidate.url).hostname;if(domains.has(domain))continue;domains.add(domain);competitors.push(candidate);}
-   diagnostics.push({source:'bing-rss',language:seed.language,status:r.status,count:found.length});
-  }catch(e){diagnostics.push({source:'bing-rss',language:seed.language,status:'unavailable',reason:String(e?.name==='TimeoutError'?'timeout':e?.message||'error').slice(0,70),count:0})}
+ // Four-provider shared engine; only one bounded search request per language by
+ // default. Fallback is automatic when a provider errors or returns no evidence.
+ const providerEngine=require('../src/lib/provider-search.cjs');
+ const queries=seeds.map(seed=>({query:seed.q,language:seed.language}));
+ if(providerEngine.configured().length){
+  const outcome=await providerEngine.search({queries,maxCalls:3,maxResults:15,fetchFn});
+  for(const hit of outcome.results){
+   if(domains.has(hit.domain))continue;domains.add(hit.domain);
+   competitors.push({...hit,source:hit.source,verification:'candidate'});
+  }
+  for(const d of outcome.diagnostics)diagnostics.push({
+   source:d.provider,language:d.language,status:d.http_status||d.status,
+   count:d.added,reason:d.status==='ok'?undefined:d.status
+  });
+ }else{
+  // The old open RSS fallback is only used when no configured API is available.
+  // It is not allowed to masquerade as a paid search result.
+  for(const seed of seeds){
+   try{
+    const url='https://www.bing.com/search?format=rss&q='+encodeURIComponent(seed.q)+'&setlang='+seed.locale;
+    const r=await fetchFn(url,{signal:AbortSignal.timeout(MAX_REQ_MS),headers:{Accept:'application/rss+xml'}});
+    if(!r.ok)throw new Error('http_'+r.status);
+    const found=parseRss(await r.text(),seed.q,seed.language,5);
+    for(const candidate of found){const domain=new URL(candidate.url).hostname;if(domains.has(domain))continue;domains.add(domain);competitors.push(candidate);}
+    diagnostics.push({source:'bing-rss',language:seed.language,status:r.status,count:found.length});
+   }catch(e){diagnostics.push({source:'bing-rss',language:seed.language,status:'unavailable',reason:String(e?.name==='TimeoutError'?'timeout':e?.message||'error').slice(0,70),count:0})}
+  }
  }
  return {competitors:competitors.slice(0,15),suggestions:suggestions.slice(0,30),diagnostics,
    status:competitors.length?'success':suggestions.length?'partial':'blocked'};
