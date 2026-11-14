@@ -50,6 +50,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ status: 'error', message: 'Invalid content patch' }, { status: 400 });
     }
     const { expectedUpdatedAt, ...patch } = body as Record<string, unknown>;
+    if (patch.searchIntegrations !== undefined) {
+      const v = patch.searchIntegrations as Record<string, unknown>;
+      if (!v || typeof v !== 'object' || Array.isArray(v) ||
+        typeof v.googleVerification !== 'string' || !/^[a-zA-Z0-9_-]{0,256}$/.test(v.googleVerification) ||
+        typeof v.ga4MeasurementId !== 'string' || !/^(|G-[A-Z0-9]{5,20})$/.test(v.ga4MeasurementId) ||
+        typeof v.gscPropertyUrl !== 'string' || v.gscPropertyUrl.length > 512 ||
+        (v.gscPropertyUrl !== '' && !/^https:\/\/[^\s]+\/$/.test(v.gscPropertyUrl) && !/^sc-domain:[a-zA-Z0-9.-]+$/.test(v.gscPropertyUrl))) {
+        return NextResponse.json({ status: 'error', message: 'Invalid search integration settings' }, { status: 400 });
+      }
+    }
     if (expectedUpdatedAt !== undefined && (typeof expectedUpdatedAt !== 'string' || !expectedUpdatedAt)) {
       return NextResponse.json({ status: 'error', message: 'Invalid expectedUpdatedAt' }, { status: 400 });
     }
