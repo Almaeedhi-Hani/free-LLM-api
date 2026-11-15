@@ -47,8 +47,8 @@ const chinese={...base,lang:'zh',
 assert.equal(validateEditorialItem(chinese).lang,'zh');
 assert.equal(approvedEditorial([validateEditorialItem(chinese)],'zh').length,0,'Chinese drafts remain unpublished');
 assert.throws(()=>validateEditorialItem({...chinese,body:'仅供参考。'}),/substantive/,'extremely short Chinese body still rejected');
-assert.throws(()=>validateEditorialItem({...chinese,sections:[{h2:'资料',body:'过短'}]}),/H2\\/H3/,'extremely short Chinese section still rejected');
-assert.throws(()=>validateEditorialItem({...chinese,lang:'en'}),/H2\\/H3/,'English retains stricter section lengths');
+assert.throws(()=>validateEditorialItem({...chinese,sections:[{h2:'资料',body:'过短'}]}),/H2\/H3/,'extremely short Chinese section still rejected');
+assert.throws(()=>validateEditorialItem({...chinese,lang:'en'}),/H2\/H3/,'English retains stricter section lengths');
 const fs=require('node:fs');
 const worker=fs.readFileSync('scripts/opencode-geo-analysis.js','utf8');
 assert(worker.includes('stageEditorialActions'),'GEO produces editorial proposals beyond FAQ');
