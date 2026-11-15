@@ -8,13 +8,29 @@ const languages=new Set(['ar','en','zh']);
 const statuses=new Set(['pending','approved','rejected']);
 const risks=new Set(['low','medium','high']);
 const safeText=(v:unknown,min:number,max:number)=>typeof v==='string'&&v.trim().length>=min&&v.length<=max&&!/[<>]/.test(v);
+/** Canonicalize known model-facing topic routes/IDs to existing service slugs.
+ * Reject unknown routes downstream: never create a new service implicitly. */
+export function canonicalServiceTarget(value:string):string {
+ if(typeof value!=='string')return value;
+ const raw=value.trim();
+ const slug=raw.startsWith('/services/')?raw.slice('/services/'.length):raw;
+ if(services.has(slug))return slug;
+ const route=topicNodeById(slug)?.route;
+ if(route?.startsWith('/services/')){
+  const resolved=route.slice('/services/'.length);
+  if(services.has(resolved))return resolved;
+ }
+ return raw;
+}
 export function safeSlug(slug:string):boolean{return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)&&slug.length<=90}
 export function approvedEditorial(items:readonly EditorialItem[]|undefined,lang:EditorialLocale,kind?:EditorialKind,target?:string):EditorialItem[]{
  return (items||[]).filter(x=>x.status==='approved'&&x.reviewedAt&&x.lang===lang&&(!kind||x.kind===kind)&&(!target||x.target===target)&&x.verified_sources?.length);
 }
 export function validateEditorialItem(item:unknown):EditorialItem {
  if(!item||typeof item!=='object'||Array.isArray(item))throw Error('Invalid editorial item');
- const e=item as EditorialItem;
+ const e={...(item as EditorialItem)};
+ if(e.kind==='service')e.target=canonicalServiceTarget(e.target);
+ if(e.related_service)e.related_service=canonicalServiceTarget(e.related_service);
  if(!safeText(e.id,8,128)||!kinds.has(e.kind)||!languages.has(e.lang)||!statuses.has(e.status)||!risks.has(e.risk_level))throw Error('Invalid editorial identity/type/language/status');
  if(!safeText(e.title,12,170)||!safeText(e.summary,30,360)||!safeText(e.body,100,10000))throw Error('Editorial content needs a substantive original title, summary and body');
  if(!Array.isArray(e.evidence_ids)||!Array.isArray(e.evidence_refs)||e.evidence_ids.length>12||e.evidence_refs.length>12)throw Error('Invalid editorial provenance');

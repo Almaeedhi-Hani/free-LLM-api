@@ -58,6 +58,10 @@ const {normalizeGeoBatch,persistGeoBatch}=require('../.geo-ingest-test-build/lib
  assert(route.includes('setContent({drafts:incoming})'));
  assert(store.includes("prior.status==='approved'||prior.status==='rejected'"),'must not requeue approved/rejected drafts');
  assert(runner.includes("process.exit(r.pipeline_ok ? 0 : 1)"),'CI job must fail on partial persistence');
+ assert(runner.includes("const replaySafe = stage==='opportunities' || stage==='editorial_actions'"),'Only deduplicated GEO stages may retry on ambiguous request failures');
+ assert(runner.includes("const maxAttempts = replaySafe ? 3 : 1"),'GEO retries must be strictly bounded');
+ assert(runner.includes("No evidence-backed editorial proposals generated; inspect model output"),'Zero editorial output must not silently pass');
+
  assert(runner.includes('output.dashboard_synced=await updateGEOAgentRun(output)'));
  console.log('PASS verified GEO persistence counts, dashboard syncing, failed writes, no nonexistent tables or silent job success');
 })().catch(e=>{console.error(e);process.exit(1)});
