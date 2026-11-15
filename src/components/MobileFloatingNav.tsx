@@ -90,6 +90,14 @@ export default function MobileFloatingNav({
           <small>{t.caption}</small>
         </span>
       </a>
+      <div className="mobile-floating-header-languages" role="group" aria-label={t.languages}>
+        {(["ar","en","zh"] as const).map(lang=><a key={lang} lang={lang}
+          href={langHref(lang)}
+          aria-current={locale===lang?"page":undefined}
+          onClick={()=>{document.cookie=`site-language=${lang}; Path=/; Max-Age=31536000; SameSite=Lax; Secure`;setOpen(false);}}>
+          {lang==="ar"?"العربية":lang==="en"?"English":"中文"}
+        </a>)}
+      </div>
       <button type="button" className="mobile-floating-menu-toggle"
         aria-label={open?t.close:t.open} aria-expanded={open} aria-controls={id}
         onClick={()=>setOpen(v=>!v)}>
@@ -109,14 +117,6 @@ export default function MobileFloatingNav({
       <a href={home+"#contact"} onClick={()=>setOpen(false)} className="mobile-floating-menu-cta">
         {t.consultation}
       </a>
-      <div className="mobile-floating-languages" aria-label={t.languages}>
-        {(["ar","en","zh"] as const).map(lang=><a key={lang} lang={lang}
-          href={langHref(lang)}
-          aria-current={locale===lang?"page":undefined}
-          onClick={()=>{document.cookie=`site-language=${lang}; Path=/; Max-Age=31536000; SameSite=Lax; Secure`;setOpen(false);}}>
-          {lang==="ar"?"العربية":lang==="en"?"English":"中文"}
-        </a>)}
-      </div>
     </nav>}
   </div>;
 }
