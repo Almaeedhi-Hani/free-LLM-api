@@ -1,6 +1,7 @@
 ﻿'use client';
 
 import EditorialReviewPanel from '@/components/EditorialReviewPanel';
+import {DataRoleLegend,DataRolePanel,DataRoleTag} from '@/components/AdminDataRoles';
 import { assessGeoDraftCopy } from "@/lib/geo-draft-quality";
 import React, { useState, useEffect } from 'react';
 import VisibilityDashboard from '@/components/VisibilityDashboard';
@@ -43,6 +44,13 @@ const formatDate = (value: unknown) => {
   if (!value) return 'غير متوفر';
   const date = new Date(String(value));
   return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('ar-SA');
+};
+// Display-only separation: the original AI answer remains unchanged in storage.
+// A generic trailing verification phrase is not a cited fact or a system-provided source.
+const splitDraftReviewText=(value:unknown)=>{
+  const answer=String(value||'');
+  const match=/(?:يجب|ينبغي)\s+التحقق\s+من\s+المصادر\s+الرسمية/i.exec(answer);
+  return match?{answer:answer.slice(0,match.index).trim(),note:answer.slice(match.index).trim()}: {answer,note:''};
 };
 const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'home', label: 'الرئيسية', icon: '📊' },
@@ -430,7 +438,8 @@ export default function AdminDashboard() {
             </div>
           </header>
 
-          <main className="p-4 sm:p-6 max-w-7xl mx-auto">
+          <main className="min-w-0 p-4 sm:p-6 max-w-7xl mx-auto">
+            <div className="mb-4"><DataRoleLegend /></div>
             {error && <div role="alert" className="rounded-lg bg-red-50 border border-red-200 p-3 text-red-700 mb-4 text-sm">{error}</div>}
             {notice && <div role="status" className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-emerald-800 mb-4 text-sm flex justify-between gap-3"><span>{notice}</span><button onClick={()=>setNotice('')} aria-label="إغلاق التنبيه">✕</button></div>}
 
@@ -570,34 +579,48 @@ export default function AdminDashboard() {
             )}
 
             {tab === 'reviews' && (
-              <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                <h2 className="text-xl font-bold mb-2">مراجعة المسودات قبل النشر</h2><p className="text-sm text-slate-500 mb-4">اعتماد المسودة ينشر السؤال والإجابة. تحقق من صحة المعلومات أولًا.</p>
-                {pendingDrafts === 0 && <p className="text-slate-500 text-sm">لا توجد مسودات معلقة.</p>}
-                <ul className="space-y-4">
-                  {content.drafts.map((d: any, i: number) => (
-                    <li key={i} className="bg-amber-50 rounded-lg p-4 border border-amber-200">
-                      <p className="font-semibold">{d.q}</p>
-                      <p className="text-slate-700 text-sm mt-1">{d.a}</p>
-                      <p className="text-xs text-slate-400 mt-1">الحالة: {readable(d.status)} — {formatDate(d.createdAt)}</p>
-                      {!assessGeoDraftCopy(d.q,d.a).publishable && <p className="text-xs text-red-700 mt-2" role="alert">محتوى غير صالح للنشر: لغة غير متسقة أو إجابة عامة. يحتاج إلى إعادة كتابة ومراجعة المصادر، ويمكن رفض المسودة.</p>}
-                      {d.risk_level === 'high' && <p className="text-xs text-amber-800 mt-2">محتوى عالي المخاطر: لا تعتمد دون مراجعة مختص والتحقق من المصدر الرسمي.</p>}
-                      <div className="mt-3 border-t border-amber-200 pt-3">
-                        <p className="text-xs font-semibold text-slate-700">مصادر الرصد المستخدمة — لم يُتحقق منها رسميًا</p>
-                        {Array.isArray(d.evidence_refs) && d.evidence_refs.length > 0 ? <ul className="mt-2 space-y-1">
-                          {d.evidence_refs.map((ref:any,i:number)=><li key={String(ref.id)+'-'+i} className="text-xs text-slate-700 break-words">
-                            {ref.url?.startsWith('https://') ? <a href={ref.url} target="_blank" rel="noopener noreferrer" className="underline text-blue-700">{ref.label}</a> : <span>{ref.label}</span>}
-                            <span className="text-slate-500"> — {ref.kind} / {ref.source}</span>
-                          </li>)}
-                        </ul> : <p className="mt-1 text-xs text-red-700">لم تُرفق بالمسودة مراجع يمكن تتبعها. يلزم التحقق من مصادر أصلية قبل النشر.</p>}
-                      </div>
-                      {d.status === 'pending' && (
-                        <div className="flex gap-2 mt-3">
-                          <button onClick={() => approveDraft(i)} className="btn-primary text-xs" disabled={saving || !assessGeoDraftCopy(d.q,d.a).publishable}>اعتماد ونشر</button>
-                          <button onClick={() => rejectDraft(i)} className="btn-secondary text-xs" disabled={saving}>رفض</button>
+              <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+                <h2 className="mb-2 text-xl font-bold">مراجعة المسودات قبل النشر</h2>
+                <p className="mb-4 text-sm text-slate-600">اعتماد المسودة ينشر السؤال والإجابة؛ ألوان الأقسام تفصل النص المولّد عن بيانات النظام وروابط المنافسين والتنبيهات.</p>
+                {pendingDrafts===0&&<p className="text-sm text-slate-600">لا توجد مسودات معلقة.</p>}
+                <ul className="space-y-5">
+                  {content.drafts.map((d: any,i: number)=>{
+                    const parts=splitDraftReviewText(d.a);
+                    return <li key={i} className="min-w-0 space-y-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-5">
+                      <DataRolePanel tone="content" title="السؤال والإجابة المقترحة للاستخدام" description="الجزء الأخضر هو المحتوى الذي أنشأه النموذج، وليس توثيقًا رسميًا.">
+                        <h3 className="mb-3 text-base font-bold text-emerald-950 break-words">{d.q}</h3>
+                        <p className="whitespace-pre-line break-words text-sm text-slate-900">{parts.answer}</p>
+                      </DataRolePanel>
+                      {parts.note&&<DataRolePanel tone="warning" title="عبارة تحقق وردت ضمن النص المولّد" description="عُزلت هذه العبارة بصريًا لأنها تنبيه للتحقق وليست معلومة توثّق الإجابة. لا يغيّر العرض النص المحفوظ تلقائيًا.">
+                        <p className="text-rose-900 font-semibold">{parts.note}</p>
+                      </DataRolePanel>}
+                      <DataRolePanel tone="system" title="بيانات المسودة من النظام" description="الحالة والتاريخ ومستوى المراجعة معلومات إدارية وليست جزءًا من الإجابة.">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <DataRoleTag tone="system">الحالة: {readable(d.status)}</DataRoleTag>
+                          <span className="text-xs text-slate-600">تاريخ الإنشاء: {formatDate(d.createdAt)}</span>
                         </div>
-                      )}
+                      </DataRolePanel>
+                      {!assessGeoDraftCopy(d.q,d.a).publishable&&<DataRolePanel tone="warning" title="تنبيه جودة آلي — ليس جزءًا من الإجابة">
+                        <p className="text-rose-900" role="alert">محتوى غير صالح للنشر: لغة غير متسقة أو إجابة عامة. يحتاج إلى إعادة كتابة ومراجعة المصادر، ويمكن رفض المسودة.</p>
+                      </DataRolePanel>}
+                      {d.risk_level==='high'&&<DataRolePanel tone="warning" title="تحذير من النظام — محتوى عالي المخاطر">
+                        <p className="text-rose-900">لا تعتمد دون مراجعة مختص والتحقق من المصدر الرسمي. هذا التنبيه ليس جزءًا من الإجابة.</p>
+                      </DataRolePanel>}
+                      <DataRolePanel tone="research" title="صفحات منافسة ونتائج بحث مرتبطة بالموضوع" description="روابط اكتشفها البحث لمقارنة التغطية والموضوعات؛ لا تثبت صحة الإجابة ولا تعني أن النموذج نقل النص من هذه المواقع.">
+                        {Array.isArray(d.evidence_refs)&&d.evidence_refs.length>0?<ul className="space-y-2">{d.evidence_refs.map((ref:any,j:number)=><li key={String(ref.id)+'-'+j} className="rounded-lg border border-blue-100 bg-white/80 p-2 break-words text-xs">
+                          {ref.url?.startsWith('https://')?<a href={ref.url} target="_blank" rel="noopener noreferrer" className="font-medium text-blue-800 underline underline-offset-2">{ref.label}</a>:<span>{ref.label}</span>}
+                          <p className="mt-1 text-blue-700">نوع الرصد: {ref.kind||'غير معروف'} · مزوّد البحث: {ref.source||'غير معروف'}</p>
+                        </li>)}</ul>:<p className="text-xs text-blue-900">لا توجد روابط رصد مسجلة لهذه المسودة.</p>}
+                      </DataRolePanel>
+                      <DataRolePanel tone="verification" title="المصادر الرسمية والتحقق قبل النشر" description="مصادر المنافسين ليست مصدرًا رسميًا. تحقّق من صحة المعلومات من الجهات المختصة قبل الاعتماد.">
+                        <p className="text-xs text-amber-950">تؤدي الموافقة إلى نشر نص المسودة المحفوظ كما هو، بما فيه أي جملة تحقق ضمن النص. راجع الإجابة وأعد صياغتها عند الحاجة قبل النشر.</p>
+                      </DataRolePanel>
+                      {d.status==='pending'&&<div className="flex flex-wrap gap-2 border-t border-slate-200 pt-3">
+                        <button onClick={()=>approveDraft(i)} className="btn-primary text-xs" disabled={saving||!assessGeoDraftCopy(d.q,d.a).publishable}>اعتماد ونشر</button>
+                        <button onClick={()=>rejectDraft(i)} className="btn-secondary text-xs" disabled={saving}>رفض</button>
+                      </div>}
                     </li>
-                  ))}
+                  })}
                 </ul>
               </section>
             )}
