@@ -3,7 +3,7 @@
 // Uses free-tier models only; rate limits and provider conditions may change.
 // Results persist to the existing authenticated GEO API; generated output is not published automatically.
 
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const {supportedSchemaSuggestions}=require('./geo-opencode-planner.cjs');
@@ -40,7 +40,7 @@ function runOpenCode(prompt, model) {
   if (!FREE_MODEL_ALLOWLIST.includes(chosenModel) || !/^[a-z0-9/:.-]+$/i.test(chosenModel))return {error:'Only an explicitly allowlisted free-tier OpenCode model is allowed for this workflow'};
   // Each attempt receives a new workspace, session DB, and short AGENTS.md.
   // No previous OpenCode transcript or session is copied into the prompt.
-  const cmd = `"${OC_BIN}" run --standalone --archived --format json --model ${chosenModel} --file prompt.txt "Follow the instructions in the attached file. Output JSON only, no markdown."`;
+  const runArgs=['run','--standalone','--archived','--format','json','--model',chosenModel,'--file','prompt.txt','Follow the instructions in the attached file. Output JSON only, no markdown.'];
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     const {workDir,runtimeEnv,cleanup}=createIsolatedGeoWorkspace(prompt);
@@ -52,7 +52,7 @@ function runOpenCode(prompt, model) {
         if(process.env[key])safeEnv[key]=process.env[key];
       }
       Object.assign(safeEnv,runtimeEnv);
-      const output = execSync(cmd, {
+      const output = execFileSync(OC_BIN,runArgs, {
         timeout: 120000,
         encoding: 'utf-8',
         maxBuffer: 20 * 1024 * 1024,
@@ -515,27 +515,14 @@ async function runFullPipeline() {
 // --- CLI ---
 const args = process.argv.slice(2);
 if (args.includes('--test')) {
-  console.log('=== OpenCode Standalone Test ===');
+  console.log('=== Isolated OpenCode Smoke Test ===');
   console.log('Model:', MODEL);
-  console.log('Binary:', OC_BIN);
-  const result = runOpenCode('Read the attached file and respond with JSON only.', null);
-  // Actually test with a simple prompt via file
-  const tmpFile = path.join(process.cwd(), '.opencode-test.txt');
-  fs.writeFileSync(tmpFile, 'Return JSON: {"status":"ok","model":"test","standalone":true}', 'utf-8');
-  const cmd = `"${OC_BIN}" run --standalone --archived --format json --model ${MODEL} --file ${tmpFile} "Respond with JSON only."`;
-  try {
-    const output = execSync(cmd, { timeout: 120000, encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 });
-    console.log('Raw output length:', output.length);
-    const lines = output.trim().split('\n');
-    let text = '';
-    for (const l of lines) { try { const e = JSON.parse(l); if (e.type === 'text') text += e.part.text; } catch {} }
-    console.log('Extracted text:', text.substring(0, 200));
-    console.log('✅ OpenCode standalone works');
-  } catch (e) {
-    console.error('❌ Test failed:', e.message);
-    process.exit(1);
-  } finally {
-    try { fs.unlinkSync(tmpFile); } catch (e) {}
+  // Exercise the SAME fresh-session, secret-free pathway as production.
+  const result = runOpenCode('Return ONLY valid JSON with status="ok" and no extra text.', MODEL);
+  if (result?.data?.status === 'ok') console.log('OpenCode isolated smoke test succeeded');
+  else {
+    console.error('OpenCode isolated smoke test failed: '+String(result.error||'unexpected output').slice(0,180));
+    process.exitCode=1;
   }
 } else if (args.includes('--full-pipeline')) {
   runFullPipeline().then(r => {
