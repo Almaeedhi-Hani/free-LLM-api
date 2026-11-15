@@ -101,6 +101,9 @@ const {normalizeGeoBatch,persistGeoBatch}=require('../.geo-ingest-test-build/lib
  try {
    assert.notEqual(first.workDir,second.workDir,'never reuse an old OpenCode session workspace');
    assert.notEqual(first.runtimeEnv.OPENCODE_DB,second.runtimeEnv.OPENCODE_DB,'session databases are unique per request');
+   assert.equal(first.runtimeEnv.HOME,first.workDir,'each OpenCode process uses isolated HOME');
+   assert(first.runtimeEnv.XDG_CONFIG_HOME.startsWith(first.workDir),'global config is not reused');
+   assert.notEqual(first.runtimeEnv.XDG_CONFIG_HOME,second.runtimeEnv.XDG_CONFIG_HOME,'each run has independent config');
    assert(first.workDir.startsWith(require('node:os').tmpdir()),'sessions are outside the repository');
    assert(fs.readFileSync(require('node:path').join(first.workDir,'AGENTS.md'),'utf8').includes('official-source evidence'),'each isolated session gets sourced research rules');
    const config=JSON.parse(fs.readFileSync(require('node:path').join(first.workDir,'opencode.json'),'utf8'));
@@ -111,6 +114,8 @@ const {normalizeGeoBatch,persistGeoBatch}=require('../.geo-ingest-test-build/lib
    assert(runner.includes("FREE_MODEL_ALLOWLIST.includes(chosenModel)"),'non-allowlisted paid models must remain blocked');
    assert(runner.includes("const {workDir,runtimeEnv,cleanup}=createIsolatedGeoWorkspace(prompt)"),'new workspace per model attempt');
    assert(runner.includes('Object.assign(safeEnv,runtimeEnv)'), 'isolate session storage from user/global history');
+   assert(runner.includes('const safeEnv={}'),'child environment is an explicit allowlist');
+   assert(!runner.includes('...process.env'),'project secrets and global OpenCode settings are never forwarded wholesale');
    assert(runner.includes('} finally {\\n      cleanup();'),'remove session data after each attempt, including errors');
    assert(runner.includes('--standalone --archived'),'no shared session service');
    assert(!runner.includes('--continue'), 'never continue a previous conversation');
