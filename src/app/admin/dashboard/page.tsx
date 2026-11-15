@@ -956,46 +956,75 @@ export default function AdminDashboard() {
             )}
 
             {tab === 'evidence' && (
-              <div className="space-y-6">
-                <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold">الأدلة ومصادر فرص السوق</h2>
-                    <button className="btn-secondary text-xs" disabled={evidenceLoading} onClick={fetchEvidence}>{evidenceLoading ? 'جاري التحميل...' : 'تحديث'}</button>
-                  </div>
-                  {!evidenceData && !evidenceLoading && <p className="text-slate-400 text-sm">اضغط تحديث لتحميل الأدلة.</p>}
-                  {evidenceLoading && <p className="text-slate-400 text-sm">جاري التحميل...</p>}
-                  {evidenceData && (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">المنافسون</p><p className="text-xl font-bold">{evidenceData.competitors.length}</p></div>
-                        <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">الكلمات</p><p className="text-xl font-bold">{evidenceData.keywords.length}</p></div>
-                        <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">الفرص</p><p className="text-xl font-bold">{evidenceData.opportunities.length}</p></div>
-                        <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">الأهداف</p><p className="text-xl font-bold">{evidenceData.goals.length}</p></div>
-                      </div>
-                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm">
-                        <p className="font-semibold text-amber-800">ملاحظة: نتيجة البحث هي مرشح وتحتاج إلى مراجعة أدلتها.</p>
-                        <p className="text-amber-700 mt-1">المنافسون: {evidenceData.competitors.length}، الكلمات: {evidenceData.keywords.length}، الفرص: {evidenceData.opportunities.length}. لا تُعتمد النتائج دون مصادر قابلة للتحقق.</p>
-                      </div>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead><tr className="text-right border-b"><th className="py-2">النوع</th><th>العنوان</th><th>المصدر</th><th>الأدلة (evidence_ids)</th></tr></thead>
-                          <tbody>
-                            {evidenceData.opportunities.map((o: any) => (
-                              <tr key={o.id} className="border-b">
-                                <td className="py-2">{o.type === 'content_gap' ? 'فجوة تنافسية' : 'فجوة كلمات'}</td>
-                                <td>{o.title}</td>
-                                <td className="text-xs text-slate-400">{o.type === 'content_gap' ? 'competitor_observation' : 'keyword'}</td>
-                                <td className="text-xs">{(o.evidence || []).map((e: any) => e.source || '').join(', ') || '—'}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+              <div className="min-w-0 space-y-6">
+                <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-6">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-xl font-bold text-navy-900">الأدلة ومصادر فرص السوق</h2>
+                      <p className="mt-1 text-xs text-slate-600">تفاصيل الرصد وتصنيفات النظام؛ لا تمثل بيانات المنافسين مراجع رسمية للتحقق من المحتوى.</p>
                     </div>
-                  )}
+                    <button className="btn-secondary text-xs" disabled={evidenceLoading} onClick={fetchEvidence}>{evidenceLoading?'جاري التحميل...':'تحديث'}</button>
+                  </div>
+                  {!evidenceData&&!evidenceLoading&&<p className="text-sm text-slate-500">اضغط تحديث لتحميل الأدلة.</p>}
+                  {evidenceLoading&&<p className="text-sm text-slate-500">جاري التحميل...</p>}
+                  {evidenceData&&<div className="min-w-0 space-y-4">
+                    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                      <div className="rounded-xl border border-blue-200 bg-blue-50 p-3"><p className="text-xs font-semibold text-blue-900">منافسون مرصودون</p><p className="text-xl font-bold text-blue-950">{evidenceData.competitors.length}</p></div>
+                      <div className="rounded-xl border border-violet-200 bg-violet-50 p-3"><p className="text-xs font-semibold text-violet-900">كلمات بحث</p><p className="text-xl font-bold text-violet-950">{evidenceData.keywords.length}</p></div>
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3"><p className="text-xs font-semibold text-emerald-900">فرص مقترحة</p><p className="text-xl font-bold text-emerald-950">{evidenceData.opportunities.length}</p></div>
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><p className="text-xs font-semibold text-slate-900">أهداف النظام</p><p className="text-xl font-bold text-slate-950">{evidenceData.goals.length}</p></div>
+                    </div>
+                    <DataRolePanel tone="verification" title="تنبيه التحقق من أدلة السوق" description="العناوين الظاهرة أدناه فرص بحث أو تحليل، وليست معلومات حكومية موثّقة ولا نتائج تصنيف مؤكدة.">
+                      <p className="text-xs text-amber-950">الفرص: {evidenceData.opportunities.length}، الكلمات: {evidenceData.keywords.length}، المنافسون: {evidenceData.competitors.length}. يجب مراجعة المصادر قبل استخدام هذه البيانات في أي محتوى منشور.</p>
+                    </DataRolePanel>
+                    <div className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-3">
+                      <div className="flex flex-wrap items-center gap-2"><DataRoleTag tone="research">الرصد من مصادر خارجية</DataRoleTag><DataRoleTag tone="system">تصنيف وبيانات النظام</DataRoleTag></div>
+                      <p className="mt-2 text-xs font-medium text-blue-950">اسحب الجدول يمينًا ويسارًا لرؤية جميع الأعمدة، ومرره لأعلى وأسفل لقراءة الصفوف. مساحة العناوين واسعة حتى لا تنضغط الكلمات على الجوال.</p>
+                    </div>
+                    <div role="region" aria-label="جدول أدلة السوق قابل للتمرير أفقيًا وعموديًا" tabIndex={0} className="max-h-[72vh] w-full min-w-0 overflow-auto overscroll-contain rounded-xl border border-slate-200 bg-white shadow-inner focus:outline-none focus:ring-2 focus:ring-blue-400">
+                      <table className="w-[1120px] min-w-[1120px] table-fixed border-collapse text-sm">
+                        <colgroup><col style={{width:'185px'}}/><col style={{width:'430px'}}/><col style={{width:'225px'}}/><col style={{width:'280px'}}/></colgroup>
+                        <thead className="sticky top-0 z-10 bg-slate-100 text-slate-900 shadow-sm">
+                          <tr className="border-b border-slate-300 text-right">
+                            <th scope="col" className="px-4 py-3 font-bold">نوع الفرصة</th>
+                            <th scope="col" className="px-4 py-3 font-bold">عنوان الفرصة المقترحة</th>
+                            <th scope="col" className="px-4 py-3 font-bold">نوع الرصد / تصنيف النظام</th>
+                            <th scope="col" className="px-4 py-3 font-bold">مراجع الأدلة المرتبطة</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {evidenceData.opportunities.map((o:any)=>(
+                            <tr key={o.id} className="align-top odd:bg-white even:bg-slate-50/80 border-b border-slate-200">
+                              <td className="px-4 py-4 whitespace-normal break-words">
+                                <DataRoleTag tone={o.type==='content_gap'?'research':'technical'}>{o.type==='content_gap'?'فجوة تنافسية':o.type==='keyword_gap'?'فجوة كلمات بحث':readable(o.type)}</DataRoleTag>
+                              </td>
+                              <td className="px-4 py-4 whitespace-normal break-words leading-7 text-slate-900">
+                                <span className="block font-medium">{o.title}</span>
+                                <span className="mt-1 block text-xs text-slate-500">مسار البحث المقترح، لا نص منشور</span>
+                              </td>
+                              <td className="px-4 py-4 whitespace-normal break-words">
+                                <DataRoleTag tone="system">{o.type==='content_gap'?'competitor_observation':o.type==='keyword_gap'?'keyword':o.type}</DataRoleTag>
+                                <p className="mt-2 text-xs text-slate-500">وسم تنظيمي آلي</p>
+                              </td>
+                              <td className="px-4 py-4 whitespace-normal break-words text-xs">
+                                {(o.evidence||[]).length>0?<ul className="space-y-2">
+                                  {o.evidence.map((e:any,j:number)=><li key={j} className="rounded-lg border border-blue-100 bg-blue-50 p-2 leading-6">
+                                    <DataRoleTag tone="research">{e.source||'مصدر غير محدد'}</DataRoleTag>
+                                    {typeof e.url==='string'&&e.url.startsWith('https://')&&<a className="mt-1 block break-all text-blue-800 underline" href={e.url} target="_blank" rel="noopener noreferrer">{e.url}</a>}
+                                  </li>)}
+                                </ul>:<span className="text-amber-800">لا توجد أدلة مرتبطة موثقة في السجل</span>}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {evidenceData.opportunities.length===0&&<p className="text-sm text-slate-500">لا توجد فرص محفوظة لعرضها في الجدول.</p>}
+                  </div>}
                 </section>
               </div>
             )}
+
           </main>
         </div>
       </div>
