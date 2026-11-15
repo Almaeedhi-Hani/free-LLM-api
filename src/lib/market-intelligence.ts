@@ -9,6 +9,7 @@ import {
 } from './storage-mode';
 import { defaultSources, availableSources } from './market-sources';
 import { isRelevantInvestorService } from './open-search-sources';
+import { RADAR_QUERIES, selectRadarQuery } from './radar-query-plan';
 import type { SuggestionResult, SearchResult } from './market-sources';
 
 // ---------------------------------------------------------------------------
@@ -1299,9 +1300,9 @@ export interface DiscoverySummary {
 }
 
 const DEFAULT_SEEDS: Record<Language, string[]> = {
-  ar: ['تأسيس شركة في السعودية', 'رخصة مستثمر أجنبي', 'MISA license'],
-  en: ['company formation Saudi Arabia', 'MISA license', 'foreign investment Saudi'],
-  zh: ['沙特公司注册', 'MISA许可证', '沙特企业银行'],
+  ar: RADAR_QUERIES.ar.map((entry) => entry.query),
+  en: RADAR_QUERIES.en.map((entry) => entry.query),
+  zh: RADAR_QUERIES.zh.map((entry) => entry.query),
 };
 
 export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<DiscoverySummary> {
@@ -1376,7 +1377,12 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
     if (source.requiresKey && !(process.env[source.requiresKey] || '').trim()) continue;
     for (const lang of ['ar', 'en', 'zh'] as Language[]) {
       const seedList = seeds[lang] || [];
-      for (const seed of seedList.slice(0, 1)) {
+      // Rotate across different investor intents rather than repeating the first seed forever.
+      // Preserve caller-provided custom seeds when configured.
+      const chosenSeed = config?.seeds
+        ? seedList[Math.floor(Date.now() / 86400000) % Math.max(seedList.length, 1)]
+        : selectRadarQuery(lang, new Date()).query;
+      for (const seed of chosenSeed ? [chosenSeed] : []) {
         if (attempts >= maxSearchAttempts) break;
         attempts++;
         const diag = { source_id: source.id, language: lang, http_status: 0, duration_ms: 0, response_received: false, results_parsed: 0, results_accepted: 0, blocked_detected: false, failure_reason: '' };
