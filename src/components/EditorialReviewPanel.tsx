@@ -1,7 +1,7 @@
 'use client';
 import React,{useState} from 'react';
 import type {EditorialItem} from '@/lib/editorial-workflow';
-import {validateEditorialItem} from '@/lib/editorial-workflow';
+import {validateEditorialItem,officialSourceCandidates} from '@/lib/editorial-workflow';
 import {topicNodeById} from '@/lib/content-tree';
 import {DataRolePanel,DataRoleTag} from '@/components/AdminDataRoles';
 const NAMES:Record<string,string>={
@@ -18,7 +18,6 @@ function linkFor(item:EditorialItem):string|undefined{
 }
 export default function EditorialReviewPanel({items,saving,onSaveItems}:{items:EditorialItem[];saving:boolean;onSaveItems:(items:EditorialItem[])=>Promise<boolean>}){
  const [editing,setEditing]=useState<{id:string;title:string;summary:string;body:string}|null>(null);
- const [sources,setSources]=useState<Record<string,string>>({});
  const [error,setError]=useState('');
  const [filter,setFilter]=useState('all');
  const visible=items.filter(x=>filter==='all'||x.status===filter);
@@ -34,11 +33,11 @@ export default function EditorialReviewPanel({items,saving,onSaveItems}:{items:E
  };
  const approve=async(item:EditorialItem)=>{
    if(item.kind==='technical_seo'||item.kind==='internal_link'){setError('المهام التقنية والروابط المقترحة تحتاج تنفيذًا واختبارًا في الكود، وليس نشرًا تلقائيًا.');return;}
-   const verified=(sources[item.id]||'').split(/[\n,]+/).map(x=>x.trim()).filter(Boolean);
-   if(!verified.length){setError('أدخل رابط مصدر واحد على الأقل راجعته فعليًا، ثم أكد صحة المعلومات.');return}
+   const verified=officialSourceCandidates(item.evidence_refs);
+   if(!verified.length){setError('لم يرصد النظام رابطًا حكوميًا رسميًا مرتبطًا بهذا المقترح. يبقى بانتظار البحث والمراجعة بدل النشر دون دليل.');return}
    const next={...item,status:'approved' as const,reviewedAt:new Date().toISOString(),updatedAt:new Date().toISOString(),verified_sources:verified};
    try{validateEditorialItem(next)}catch(e){setError(e instanceof Error?e.message:'مصادر المراجعة غير صحيحة');return}
-   if(!window.confirm('تأكيد بشري: هل راجعت المعلومات والمصادر الأصلية فعلًا وتتحمل قرار نشرها في الصفحة المحددة؟'))return;
+   if(!window.confirm('تأكيد بشري: هل فتحت روابط الجهات الحكومية المرصودة وتحققت أن المعلومات الواردة في المقترح تدعمها هذه الصفحات فعلًا؟ لا يكفي وجود الرابط وحده.'))return;
    await update(items.map(x=>x.id===item.id?next:(x.status==='approved'&&x.lang===item.lang&&x.kind===item.kind&&x.target===item.target&&x.slug===item.slug?{...x,status:'rejected' as const,updatedAt:new Date().toISOString()}:x)));
  };
  const reject=async(item:EditorialItem)=>{
@@ -95,24 +94,25 @@ export default function EditorialReviewPanel({items,saving,onSaveItems}:{items:E
       {item.risk_level==='high'&&<DataRolePanel tone="warning" title="تنبيه من النظام — ليس جزءًا من النص المرشح للنشر">
         <p className="text-xs text-rose-900">لا تعتمد المحتوى عالي المخاطر قبل مراجعة مختص والتحقق من المصادر الرسمية. هذا التنبيه من النظام ولا يدخل ضمن المحتوى المنشور.</p>
       </DataRolePanel>}
-      <DataRolePanel tone="verification" title="التحقق من المصادر الأصلية قبل النشر" description="هذه خطوة مراجعة بشرية مستقلة. روابط المنافسين أعلاه ليست بديلًا عن المصادر الرسمية.">
-        {item.status==='approved'&&item.verified_sources?.length?
-          <ul className="space-y-1">{item.verified_sources.map((url,i)=><li key={i} className="break-all text-xs">{url}</li>)}</ul>:
-          <p className="mb-2 text-xs">أدخل المصادر الرسمية أو الأصلية التي تحققت منها بنفسك قبل اعتماد المحتوى.</p>}
-      {item.status==='pending'&&<>
-        <textarea aria-label="روابط المصادر التي تحققت منها" className="w-full rounded-lg border border-amber-300 bg-white p-3 text-sm" rows={3} placeholder="روابط HTTPS للمصادر الأصلية التي راجعتها فعليًا، رابط لكل سطر" value={sources[item.id]||''} onChange={e=>setSources({...sources,[item.id]:e.target.value})}/>
-        <div className="flex flex-wrap gap-2">
-         <button className="btn-secondary text-xs" disabled={saving} onClick={()=>setEditing({id:item.id,title:item.title,summary:item.summary,body:item.body})}>تحرير المقترح</button>
-         {item.kind!=='technical_seo'&&item.kind!=='internal_link'&&<button className="btn-primary text-xs" disabled={saving} onClick={()=>void approve(item)}>اعتماد المحتوى ونشره بصفحته</button>}
-         <button className="btn-secondary text-xs" disabled={saving} onClick={()=>void reject(item)}>رفض</button>
+      {item.status==='pending'&&<div className="space-y-3 border-t border-slate-200 pt-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <DataRoleTag tone="verification">{officialSourceCandidates(item.evidence_refs).length>0?'رصد آلي لروابط جهات حكومية':'بانتظار رصد مصادر حكومية'}</DataRoleTag>
+          {officialSourceCandidates(item.evidence_refs).length===0&&<span className="text-xs text-amber-800">لا توجد روابط حكومية في أدلة البحث المحفوظة؛ الاعتماد غير متاح.</span>}
         </div>
-       </>}
-      {item.status==='approved'&&<div className="flex gap-3 flex-wrap">
-         {linkFor(item)&&<a className="text-blue-700 underline text-sm" href={linkFor(item)} target="_blank" rel="noopener noreferrer">فتح موضع النشر</a>}
-         <button className="btn-secondary text-xs" disabled={saving} onClick={()=>setEditing({id:item.id,title:item.title,summary:item.summary,body:item.body})}>إنشاء تعديل للمراجعة</button>
-         <button className="btn-secondary text-xs" disabled={saving} onClick={()=>void reject(item)}>إلغاء النشر</button>
-       </div>}
-      </DataRolePanel>
+        {officialSourceCandidates(item.evidence_refs).length>0&&<ul className="space-y-1">
+          {officialSourceCandidates(item.evidence_refs).map(url=><li key={url} className="text-xs break-all"><a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-800 underline underline-offset-2">{url}</a></li>)}
+        </ul>}
+        <div className="flex flex-wrap gap-2">
+          <button className="btn-secondary text-xs" disabled={saving} onClick={()=>setEditing({id:item.id,title:item.title,summary:item.summary,body:item.body})}>تحرير المقترح</button>
+          {item.kind!=='technical_seo'&&item.kind!=='internal_link'&&<button className="btn-primary text-xs" disabled={saving||officialSourceCandidates(item.evidence_refs).length===0} onClick={()=>void approve(item)}>اعتماد المحتوى ونشره بصفحته</button>}
+          <button className="btn-secondary text-xs" disabled={saving} onClick={()=>void reject(item)}>رفض</button>
+        </div>
+      </div>}
+      {item.status==='approved'&&<div className="flex gap-3 flex-wrap border-t border-slate-200 pt-3">
+        {linkFor(item)&&<a className="text-blue-700 underline text-sm" href={linkFor(item)} target="_blank" rel="noopener noreferrer">فتح موضع النشر</a>}
+        <button className="btn-secondary text-xs" disabled={saving} onClick={()=>setEditing({id:item.id,title:item.title,summary:item.summary,body:item.body})}>إنشاء تعديل للمراجعة</button>
+        <button className="btn-secondary text-xs" disabled={saving} onClick={()=>void reject(item)}>إلغاء النشر</button>
+      </div>}
     </>}
    </li>)}</ul>
  </section>;

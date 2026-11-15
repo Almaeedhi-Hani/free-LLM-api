@@ -47,6 +47,26 @@ const formatDate = (value: unknown) => {
 };
 // Each operator's edit belongs to one draft, not to the latest list position.
 const draftReviewKey=(d:{q?:string;createdAt?:string})=>JSON.stringify([d.q||'',d.createdAt||'']);
+// These are explanatory UI labels for suggestions, never claims of verified market facts.
+const opportunityKind=(kind:string)=>({
+  content_gap:'محتوى يحتاج تطويرًا',keyword_gap:'موضوعات بحث غير مغطاة',
+  faq_gap:'أسئلة متكررة تحتاج إجابات',service_gap:'تغطية الخدمات',
+  authority_gap:'تعزيز الثقة والمصداقية'
+} as Record<string,string>)[kind]||'فرصة مقترحة';
+const opportunityMeaning=(item:{title?:string;type?:string})=>{
+ const title=String(item.title||'');
+ if(title.includes('دلائل مخططة بدون صفحات منشورة'))
+   return 'يقترح النظام مراجعة أدلة موجودة في خطة المحتوى ولم تتحول إلى صفحات منشورة؛ لا تعني هذه الملاحظة أن هناك دليلًا على صفحة منافسة.';
+ if(item.type==='keyword_gap')return 'اقترح النظام موضوع بحث يستحق الدراسة لتحديد ما إذا كانت صفحات الموقع تغطيه.';
+ if(item.type==='faq_gap')return 'يقترح النظام إضافة أو تحسين إجابة عن سؤال قد يهم المستثمر.';
+ if(item.type==='service_gap')return 'يقترح النظام مراجعة شرح الخدمة وما إذا كان يغطي أسئلة الزائر.';
+ if(item.type==='authority_gap')return 'يقترح النظام تحسين عناصر الثقة والإسناد بالمصادر الأصلية.';
+ return 'يقترح النظام تطوير محتوى متعلق بهذا الموضوع. قوة المقترح تعتمد على الأدلة المسجلة أدناه.';
+};
+const opportunityConfidence=(v:string)=>({high:'عالية',medium:'متوسطة',low:'منخفضة'} as Record<string,string>)[v]||'غير محددة';
+const opportunityPriority=(v:string)=>({critical:'حرجة',high:'عالية',medium:'متوسطة',low:'منخفضة'} as Record<string,string>)[v]||'غير محددة';
+const observationType=(v:string)=>({competitor:'رصد صفحة منافسة',keyword:'اقتراح من بحث الكلمات',manual:'أضيف يدويًا'} as Record<string,string>)[v]||'لم يحدد نوع المصدر';
+
 const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'home', label: 'الرئيسية', icon: '📊' },
   { key: 'competitors', label: 'المنافسون', icon: '🏢' },
@@ -1002,36 +1022,44 @@ export default function AdminDashboard() {
                     </div>
                     <div role="region" aria-label="جدول أدلة السوق قابل للتمرير أفقيًا وعموديًا" tabIndex={0} className="max-h-[72vh] w-full min-w-0 overflow-auto overscroll-contain rounded-xl border border-slate-200 bg-white shadow-inner focus:outline-none focus:ring-2 focus:ring-blue-400">
                       <table className="w-[1120px] min-w-[1120px] table-fixed border-collapse text-sm">
-                        <colgroup><col style={{width:'185px'}}/><col style={{width:'430px'}}/><col style={{width:'225px'}}/><col style={{width:'280px'}}/></colgroup>
+                        <colgroup><col style={{width:'175px'}}/><col style={{width:'430px'}}/><col style={{width:'215px'}}/><col style={{width:'300px'}}/></colgroup>
                         <thead className="sticky top-0 z-10 bg-slate-100 text-slate-900 shadow-sm">
                           <tr className="border-b border-slate-300 text-right">
-                            <th scope="col" className="px-4 py-3 font-bold">نوع الفرصة</th>
-                            <th scope="col" className="px-4 py-3 font-bold">عنوان الفرصة المقترحة</th>
-                            <th scope="col" className="px-4 py-3 font-bold">نوع الرصد / تصنيف النظام</th>
-                            <th scope="col" className="px-4 py-3 font-bold">مراجع الأدلة المرتبطة</th>
+                            <th scope="col" className="px-4 py-3 font-bold">نوع الفرصة وتقييمها</th>
+                            <th scope="col" className="px-4 py-3 font-bold">ما المقصود بهذه الفرصة؟</th>
+                            <th scope="col" className="px-4 py-3 font-bold">من أين جاءت الفكرة؟</th>
+                            <th scope="col" className="px-4 py-3 font-bold">روابط ومعلومات البحث المسجلة</th>
                           </tr>
                         </thead>
                         <tbody>
                           {evidenceData.opportunities.map((o:any)=>(
                             <tr key={o.id} className="align-top odd:bg-white even:bg-slate-50/80 border-b border-slate-200">
                               <td className="px-4 py-4 whitespace-normal break-words">
-                                <DataRoleTag tone={o.type==='content_gap'?'research':'technical'}>{o.type==='content_gap'?'فجوة تنافسية':o.type==='keyword_gap'?'فجوة كلمات بحث':readable(o.type)}</DataRoleTag>
+                                <DataRoleTag tone="technical">{opportunityKind(o.type)}</DataRoleTag>
+                                <p className="mt-3 text-xs text-slate-700">الأولوية المقترحة: <strong>{opportunityPriority(o.priority)}</strong></p>
+                                <p className="mt-1 text-xs text-slate-700">درجة الثقة: <strong className={o.confidence==='low'?'text-amber-800':'text-slate-800'}>{opportunityConfidence(o.confidence)}</strong></p>
                               </td>
                               <td className="px-4 py-4 whitespace-normal break-words leading-7 text-slate-900">
-                                <span className="block font-medium">{o.title}</span>
-                                <span className="mt-1 block text-xs text-slate-500">مسار البحث المقترح، لا نص منشور</span>
+                                <span className="block font-semibold">{String(o.title||'').includes('دلائل مخططة بدون صفحات منشورة')?'أدلة مخططة لم تُنشر بعد':o.title}</span>
+                                <span className="mt-2 block text-sm text-slate-700">{opportunityMeaning(o)}</span>
                               </td>
                               <td className="px-4 py-4 whitespace-normal break-words">
-                                <DataRoleTag tone="system">{o.type==='content_gap'?'competitor_observation':o.type==='keyword_gap'?'keyword':o.type}</DataRoleTag>
-                                <p className="mt-2 text-xs text-slate-500">وسم تنظيمي آلي</p>
+                                {Array.isArray(o.evidence)&&o.evidence.length>0?
+                                  <p className="text-sm text-blue-900">بيانات رصد مسجلة. نوعها مذكور لكل نتيجة في العمود التالي.</p>:
+                                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs text-slate-700">
+                                    تحليل مقترح من النظام، دون روابط بحث مرتبطة بهذه الفرصة. لا يُنسب إلى منافس محدد.
+                                  </div>}
                               </td>
                               <td className="px-4 py-4 whitespace-normal break-words text-xs">
-                                {(o.evidence||[]).length>0?<ul className="space-y-2">
+                                {Array.isArray(o.evidence)&&o.evidence.length>0?<ul className="space-y-2">
                                   {o.evidence.map((e:any,j:number)=><li key={j} className="rounded-lg border border-blue-100 bg-blue-50 p-2 leading-6">
-                                    <DataRoleTag tone="research">{e.source||'مصدر غير محدد'}</DataRoleTag>
+                                    <DataRoleTag tone="research">{observationType(e.origin)}</DataRoleTag>
+                                    {e.source&&<span className="mt-1 block text-blue-900">سجل البحث: {e.source}</span>}
                                     {typeof e.url==='string'&&e.url.startsWith('https://')&&<a className="mt-1 block break-all text-blue-800 underline" href={e.url} target="_blank" rel="noopener noreferrer">{e.url}</a>}
+                                    {e.quote&&<span className="mt-1 block text-blue-950">{e.quote}</span>}
+                                    {!e.url&&!e.quote&&<span className="mt-1 block text-slate-600">لا يوجد رابط أو مقتطف محفوظ لهذا الرصد.</span>}
                                   </li>)}
-                                </ul>:<span className="text-amber-800">لا توجد أدلة مرتبطة موثقة في السجل</span>}
+                                </ul>:<span className="text-amber-800">لم تُسجّل مصادر بحث لهذه الفرصة. هي فكرة تحتاج إلى أدلة قبل اعتمادها.</span>}
                               </td>
                             </tr>
                           ))}
