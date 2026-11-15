@@ -15,16 +15,16 @@ function authorized(req: NextRequest) {
   const a = Buffer.from(supplied), b = Buffer.from(expected);
   return !!expected && a.length === b.length && timingSafeEqual(a,b);
 }
-function run(args: string[], cwd: string, env: NodeJS.ProcessEnv, timeoutMs: number): Promise<{output:string;code:number|null;durationMs:number}> {
+function run(args: string[], cwd: string, env: NodeJS.ProcessEnv, timeoutMs: number): Promise<{output:string;code:number|null;durationMs:number;timedOut:boolean}> {
   return new Promise((resolve,reject)=>{
     const started=Date.now();
     const child=spawn(join(process.cwd(),'.runtime-bin','opencode'),args,{cwd,env,stdio:['ignore','pipe','pipe'],shell:false});
-    let output='',done=false;
-    const timer=setTimeout(()=>{child.kill('SIGTERM');setTimeout(()=>{if(!done)child.kill('SIGKILL');},2000).unref();},timeoutMs);
+    let output='',done=false,timedOut=false;
+    const timer=setTimeout(()=>{timedOut=true;child.kill('SIGTERM');setTimeout(()=>{if(!done)child.kill('SIGKILL');},2000).unref();},timeoutMs);
     const append=(chunk:Buffer)=>{output+=(chunk.toString('utf8')).slice(0,MAX_OUTPUT-output.length);};
     child.stdout.on('data',append);child.stderr.on('data',append);
     child.on('error',(err)=>{if(done)return;done=true;clearTimeout(timer);reject(err);});
-    child.on('close',(code)=>{if(done)return;done=true;clearTimeout(timer);resolve({output,code,durationMs:Date.now()-started});});
+    child.on('close',(code)=>{if(done)return;done=true;clearTimeout(timer);resolve({output,code,durationMs:Date.now()-started,timedOut});});
   });
 }
 async function workspace() {
@@ -40,8 +40,12 @@ export async function GET(req:NextRequest){
   if(!authorized(req))return NextResponse.json({error:'Unauthorized'},{status:401});
   const {root,env}=await workspace();
   try{
-    const r=await run(['models'],root,env,20000);
-    if(r.code!==0)return NextResponse.json({error:'Model catalog unavailable',detail:r.output.slice(-1500)},{status:503});
+    const r=await run(['models'],root,env,35000);
+    if(r.code!==0){
+      const diagnostic={exitCode:r.code,timedOut:r.timedOut,durationMs:r.durationMs};
+      console.error('[OPENCODE_LAB] model catalog failed',diagnostic);
+      return NextResponse.json({error:'Model catalog unavailable',diagnostic},{status:503,headers:{'Cache-Control':'no-store'}});
+    }
     const models=Array.from(new Set(r.output.split(/\r?\n/).map(x=>x.trim()).filter(x=>/^[\w.-]+\/[\w./:-]+$/.test(x)))).sort();
     return NextResponse.json({models:models.map(id=>({id,free:isFree(id)}))},{headers:{'Cache-Control':'no-store'}});
   }catch(e){return NextResponse.json({error:'OpenCode CLI unavailable',detail:String(e).slice(0,500)},{status:503});}
