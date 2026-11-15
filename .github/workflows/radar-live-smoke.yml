@@ -28,5 +28,7 @@ jobs:
       - run: npm ci
       - name: Compile and run isolated market tests
         run: npm run test:market
+      - name: Verify credentialed provider failover with mocked API responses
+        run: node scripts/provider-search.test.cjs
       - name: Probe live public search (no DB writes, no provider secrets)
         run: node scripts/radar-live-smoke.cjs
