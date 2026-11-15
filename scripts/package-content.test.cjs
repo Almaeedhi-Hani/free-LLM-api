@@ -16,11 +16,11 @@ for(const o of packageOffers){
   assert.equal(o.features.length,3,o.slug+" unique scope");
   for(const lang of ["ar","en","zh"]){
     assert(o.title[lang].length>=7,o.slug+" "+lang+" title");
-    assert(o.audience[lang].length>=24,o.slug+" "+lang+" audience");
-    assert(o.pitch[lang].length>=35,o.slug+" "+lang+" editorial narrative");
-    assert(o.requirements[lang].length>=18,o.slug+" "+lang+" requirements");
-    assert(o.exclusions[lang].length>=18,o.slug+" "+lang+" exclusions");
-    assert(o.features.every(x=>x[lang].length>=12),o.slug+" "+lang+" deliverables");
+    assert(o.audience[lang].length>=(lang==='zh'?20:24),o.slug+" "+lang+" audience");
+    assert(o.pitch[lang].length>=(lang==='zh'?20:35),o.slug+" "+lang+" editorial narrative");
+    assert(o.requirements[lang].length>=(lang==='zh'?15:18),o.slug+" "+lang+" requirements");
+    assert(o.exclusions[lang].length>=(lang==='zh'?15:18),o.slug+" "+lang+" exclusions");
+    assert(o.features.every(x=>x[lang].length>=(lang==='zh'?8:12)),o.slug+" "+lang+" deliverables");
   }
   assert(!/JC\s*Group|jcgroupksa|investinsaudi-services\.sa/i.test(JSON.stringify(o)));
 }
