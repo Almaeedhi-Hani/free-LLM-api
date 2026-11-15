@@ -12,7 +12,7 @@
     "test:agent": "tsc src/lib/feature-flags.ts src/lib/llm-analysis.ts --outDir .geo-agent-build --module commonjs --target es2020 --lib es2020,dom --moduleResolution node --esModuleInterop --skipLibCheck --strict --types node && node scripts/geo-agent.test.cjs",
     "test:packages": "tsc src/lib/package-offers.ts --outDir .package-test-build --module commonjs --target es2020 --lib es2020,dom --moduleResolution node --esModuleInterop --skipLibCheck --strict --types node && node scripts/package-content.test.cjs",
     "test:visibility": "tsc src/lib/visibility-outcomes.ts --outDir .visibility-test-build --module commonjs --target es2020 --lib es2020,dom --moduleResolution node --esModuleInterop --skipLibCheck --strict --types node && node scripts/visibility-outcomes.test.cjs",
-    "test:geo-persist": "tsc src/lib/geo-ingest.ts --outDir .geo-ingest-test-build --module commonjs --target es2020 --lib es2020,dom --moduleResolution node --esModuleInterop --skipLibCheck --strict --types node && node scripts/geo-ingest.test.cjs"
+    "test:geo-persist": "node --check scripts/opencode-geo-analysis.js && tsc src/lib/geo-ingest.ts --outDir .geo-ingest-test-build --module commonjs --target es2020 --lib es2020,dom --moduleResolution node --esModuleInterop --skipLibCheck --strict --types node && node scripts/geo-ingest.test.cjs"
   },
   "dependencies": {
     "react": "^18.2.0",
