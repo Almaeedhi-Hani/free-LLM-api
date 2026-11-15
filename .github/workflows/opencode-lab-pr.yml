@@ -17,6 +17,14 @@ jobs:
           node-version: '20'
           cache: npm
       - run: npm ci
+      - name: Install OpenCode CLI for isolated smoke test
+        run: |
+          curl -fsSL https://opencode.ai/install | bash
+          echo "$HOME/.opencode/bin" >> "$GITHUB_PATH"
+      - name: Verify OpenCode model catalog
+        run: |
+          "$HOME/.opencode/bin/opencode" --version
+          "$HOME/.opencode/bin/opencode" models | head -n 15
       - name: TypeScript validation
         run: npx tsc --noEmit
       - name: Production build
