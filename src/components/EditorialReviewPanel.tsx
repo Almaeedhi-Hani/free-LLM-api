@@ -112,8 +112,8 @@ export default function EditorialReviewPanel({items,saving,onSaveItems}:{items:E
          <button className="btn-secondary text-xs" disabled={saving} onClick={()=>setEditing({id:item.id,title:item.title,summary:item.summary,body:item.body})}>إنشاء تعديل للمراجعة</button>
          <button className="btn-secondary text-xs" disabled={saving} onClick={()=>void reject(item)}>إلغاء النشر</button>
        </div>}
-    </>}
       </DataRolePanel>
+    </>}
    </li>)}</ul>
  </section>;
 }
