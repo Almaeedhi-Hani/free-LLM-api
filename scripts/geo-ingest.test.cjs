@@ -116,7 +116,7 @@ const {normalizeGeoBatch,persistGeoBatch}=require('../.geo-ingest-test-build/lib
    assert(runner.includes('Object.assign(safeEnv,runtimeEnv)'), 'isolate session storage from user/global history');
    assert(runner.includes('const safeEnv={}'),'child environment is an explicit allowlist');
    assert(!runner.includes('...process.env'),'project secrets and global OpenCode settings are never forwarded wholesale');
-   assert(runner.includes('} finally {\\n      cleanup();'),'remove session data after each attempt, including errors');
+   assert(runner.includes('} finally {\n      cleanup();'),'remove session data after each attempt, including errors');
    assert(runner.includes("'--standalone','--archived'"),'no shared session service');
    assert(runner.includes('execFileSync(OC_BIN,runArgs'),'spawn CLI directly without shell');
    assert(!runner.includes('execSync('),'no unsafe legacy CLI test sessions');
