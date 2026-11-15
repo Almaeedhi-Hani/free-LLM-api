@@ -4,6 +4,7 @@ import { siteUrl } from "@/lib/site-seo";
 import { packageOffers, packageDisclosure, packageUpdatedAt } from "@/lib/package-offers";
 import type { PackageLocale } from "@/lib/package-offers";
 import PackageRequest from "@/app/packages/PackageRequest";
+import { EditorialBlock } from "@/components/EditorialBlock";
 
 export default async function PackagesLanding({lang}:{lang:PackageLocale}) {
   const content = await getContent();
@@ -47,6 +48,7 @@ export default async function PackagesLanding({lang}:{lang:PackageLocale}) {
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{__html:JSON.stringify(schema).replace(/</g,"\\u003c")}}/>
       <PackageRequest lang={lang}/>
+      <EditorialBlock items={content.editorialItems} lang={lang} kind="packages" target="/packages"/>
     </>
   );
 }

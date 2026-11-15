@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContent, setContent } from '@/lib/content-store';
+import {validateEditorialBatch} from '@/lib/editorial-workflow';
 import { assessGeoDraftCopy } from "@/lib/geo-draft-quality";
 import { StorageConflictError, StorageUnavailableError } from '@/lib/storage-mode';
 
@@ -76,6 +77,20 @@ export async function POST(req: NextRequest) {
         if(before?.status==='approved')continue;
         const check=assessGeoDraftCopy(incoming.q||'',incoming.a||'');
         if(!check.publishable)return NextResponse.json({status:'error',message:'Draft cannot be approved: its language or content quality is invalid'},{status:422});
+      }
+    }
+    if(patch.editorialItems!==undefined){
+      if(!expectedUpdatedAt)return NextResponse.json({status:'error',message:'Editorial changes require a versioned admin request'},{status:400});
+      try{validateEditorialBatch(patch.editorialItems)}catch(e){return NextResponse.json({status:'error',message:e instanceof Error?e.message:'Invalid editorial content'},{status:422})}
+      const before=await getContent();
+      const previous=new Map((before.editorialItems||[]).map(x=>[x.id,x]));
+      for(const e of patch.editorialItems as Array<{id:string;status:string;title:string;summary:string;body:string}>){
+        const p=previous.get(e.id);
+        if(!p)continue;
+        if(p.status!=='approved'&&e.status==='approved' && !(e as any).reviewedAt)
+          return NextResponse.json({status:'error',message:'Approval requires explicit human review'},{status:422});
+        if(p.status==='approved'&&e.status==='approved'&&(p.title!==e.title||p.body!==e.body||p.summary!==e.summary))
+          return NextResponse.json({status:'error',message:'Published changes require review as a new pending revision'},{status:422});
       }
     }
     // Versioned dashboard requests can replace arrays safely; existing agent/API

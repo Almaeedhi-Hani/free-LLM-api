@@ -3,6 +3,7 @@ import { getContent, setContent, type ContentDraft } from "@/lib/content-store";
 import { createOpportunity, createGoal, detectLanguage } from "@/lib/market-intelligence";
 import { normalizeGeoBatch, persistGeoBatch } from "@/lib/geo-ingest";
 import { validateGeoDrafts } from "@/lib/geo-draft-quality";
+import {validateEditorialItem} from "@/lib/editorial-workflow";
 import { getSupabaseCredentials } from "@/lib/storage-mode";
 
 export const dynamic = "force-dynamic";
@@ -46,6 +47,12 @@ export async function POST(req:NextRequest) {
    // Confirm that each draft is stored, including already-reviewed duplicates.
    const count=drafts.filter(d=>after.drafts.some(s=>s.q===d.q)).length;
    return count;
+  },
+  saveEditorial:async items=>{
+   const now=new Date().toISOString();
+   const incoming=items.map(e=>validateEditorialItem({...e,status:'pending',reviewedAt:undefined,verified_sources:undefined,createdAt:now}));
+   const after=await setContent({editorialItems:incoming});
+   return incoming.filter(e=>after.editorialItems?.some(a=>a.id===e.id)).length;
   },
   saveReport:async report=>{
    await setContent({agent:{

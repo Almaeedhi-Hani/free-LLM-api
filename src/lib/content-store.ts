@@ -1,4 +1,5 @@
 import fs from 'fs';
+import { type EditorialItem } from './editorial-types';
 import path from 'path';
 import {
   StorageConflictError,
@@ -54,6 +55,7 @@ export interface SiteContent {
   faqs: ContentFAQ[];
   keywords: string[];
   drafts: ContentDraft[];
+  editorialItems: EditorialItem[];
   contact: ContactInfo;
   agent: AgentStatus;
   cookiePolicy: CookiePolicy;
@@ -72,6 +74,7 @@ const DEFAULT_CONTENT: SiteContent = {
   ],
   keywords: ['MISA', 'SAMA', 'KYC', 'RHQ', 'Premium Residency', 'CMA'],
   drafts: [],
+  editorialItems: [],
   contact: {
     phone: '+966545059528',
     phoneDisplay: '+966 54 505 9528',
@@ -133,7 +136,7 @@ async function supabaseGet(cfg: { url: string; key: string; table: string }): Pr
     throw new StorageUnavailableError('Supabase content row is missing');
   }
   const parsed = rows[0].content as Partial<SiteContent>;
-  return { ...DEFAULT_CONTENT, ...parsed, drafts: parsed.drafts ?? DEFAULT_CONTENT.drafts, contact: { ...DEFAULT_CONTENT.contact, ...parsed.contact }, agent: { ...DEFAULT_CONTENT.agent, ...parsed.agent }, cookiePolicy: { ...DEFAULT_CONTENT.cookiePolicy, ...parsed.cookiePolicy }, searchIntegrations: { ...DEFAULT_CONTENT.searchIntegrations, ...parsed.searchIntegrations }, updatedAt: rows[0].updated_at ?? parsed.updatedAt ?? DEFAULT_CONTENT.updatedAt } as SiteContent;
+  return { ...DEFAULT_CONTENT, ...parsed, drafts: parsed.drafts ?? DEFAULT_CONTENT.drafts, editorialItems:parsed.editorialItems ?? [], contact: { ...DEFAULT_CONTENT.contact, ...parsed.contact }, agent: { ...DEFAULT_CONTENT.agent, ...parsed.agent }, cookiePolicy: { ...DEFAULT_CONTENT.cookiePolicy, ...parsed.cookiePolicy }, searchIntegrations: { ...DEFAULT_CONTENT.searchIntegrations, ...parsed.searchIntegrations }, updatedAt: rows[0].updated_at ?? parsed.updatedAt ?? DEFAULT_CONTENT.updatedAt } as SiteContent;
 }
 
 async function supabaseSet(cfg: { url: string; key: string; table: string }, next: SiteContent, expectedUpdatedAt: string): Promise<boolean> {
@@ -168,7 +171,7 @@ export async function getContent(): Promise<SiteContent> {
   try {
     const raw = fs.readFileSync(storePath(), 'utf-8');
     const parsed = JSON.parse(raw) as Partial<SiteContent>;
-    return { ...DEFAULT_CONTENT, ...parsed, drafts: parsed.drafts ?? DEFAULT_CONTENT.drafts, contact: { ...DEFAULT_CONTENT.contact, ...parsed.contact }, agent: { ...DEFAULT_CONTENT.agent, ...parsed.agent }, cookiePolicy: { ...DEFAULT_CONTENT.cookiePolicy, ...parsed.cookiePolicy }, searchIntegrations: { ...DEFAULT_CONTENT.searchIntegrations, ...parsed.searchIntegrations } } as SiteContent;
+    return { ...DEFAULT_CONTENT, ...parsed, drafts: parsed.drafts ?? DEFAULT_CONTENT.drafts, editorialItems:parsed.editorialItems ?? [], contact: { ...DEFAULT_CONTENT.contact, ...parsed.contact }, agent: { ...DEFAULT_CONTENT.agent, ...parsed.agent }, cookiePolicy: { ...DEFAULT_CONTENT.cookiePolicy, ...parsed.cookiePolicy }, searchIntegrations: { ...DEFAULT_CONTENT.searchIntegrations, ...parsed.searchIntegrations } } as SiteContent;
   } catch {
     return DEFAULT_CONTENT;
   }
@@ -196,6 +199,7 @@ function buildNext(current: SiteContent, patch: Partial<SiteContent>, options: C
     if (patch.faqs) next.faqs = patch.faqs;
     if (patch.keywords) next.keywords = Array.from(new Set(patch.keywords));
     if (patch.drafts) next.drafts = patch.drafts;
+    if (patch.editorialItems) next.editorialItems = patch.editorialItems;
   } else {
     // Preserve append/merge semantics for existing automated-agent writes.
     if (patch.faqs) {
@@ -212,6 +216,15 @@ function buildNext(current: SiteContent, patch: Partial<SiteContent>, options: C
         map.set(d.q,d);
       }
       next.drafts = Array.from(map.values());
+    }
+    if(patch.editorialItems){
+      const map=new Map((current.editorialItems||[]).map(item=>[item.id,item]));
+      for(const item of patch.editorialItems){
+        const prior=map.get(item.id);
+        if(prior && (prior.status==='approved'||prior.status==='rejected'))continue;
+        map.set(item.id,item);
+      }
+      next.editorialItems=Array.from(map.values());
     }
   }
   return next;

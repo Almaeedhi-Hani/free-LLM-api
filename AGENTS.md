@@ -49,3 +49,11 @@ Return concise source-backed findings, provenance and checked_at, evidence IDs, 
 - Competitor guides, keyword suggestions, market research and URLs are unverified references, **not** official or authority-verified Saudi guidance. Label them accordingly.
 - Do not auto-publish high-risk drafts. A human reviewer must verify factual claims with current primary authority sources before approval; a source link by itself is not proof.
 - Keep UI and package price changes out of the provenance pipeline; defer dashboard auto-refresh until separately requested.
+
+## OpenCode first: topic tree, search intent, service pages and structured sources
+- The OpenCode scheduled workflow is the **primary researcher/editorial architect**. It receives the actual structured site tree (`src/data/content-tree.json`) and runs bounded separate Arabic, English and Chinese evidence reviews via `scripts/geo-opencode-planner.cjs`.
+- `.opencode/skills/content-architecture/SKILL.md` is copied to the isolated OpenCode workspace at runtime; OpenCode plans H1 proposals, real H2/H3 sections, primary and secondary target queries, source-linked facts, page placement, contextual internal links and warranted Schema. Do not accept a generic FAQ as the only website improvement.
+- Never infer a 1-million-token free quota from vendor prices per million tokens; track available free model capacity and actual usage when reported, throttle calls, and never silently switch to a paid model or API.
+- Plans and source-based text remain in human review. Do not alter approved site design, prices, live H1s, robots, legal information or production code autonomously. Change requests affecting code need CI and human signoff.
+- Only generate crawlable internal links to already-live routes (or separately approved and published guides). Use topical parent/child relationships, not arbitrary reciprocal links.
+- Schema JSON-LD must match visible content; a recommended schema type isn't evidence of a rich result, ranking or AI recommendation. Do not create invented Organization credentials/ratings/FAQ markup.

@@ -3,6 +3,8 @@ import { pageMetadata, siteUrl } from "@/lib/site-seo";
 import { getLocale, localizedPath } from "@/lib/site-language";
 import { copy, services } from "@/lib/service-catalog";
 import { getContent } from "@/lib/content-store";
+import { EditorialBlock } from "@/components/EditorialBlock";
+import { approvedEditorial } from "@/lib/editorial-workflow";
 export const generateMetadata = () => pageMetadata();
 export default async function HomePage() {
   const lang = getLocale();
@@ -187,6 +189,14 @@ export default async function HomePage() {
         </div>
       </section>
       <section className="section-wrap" style={{paddingBlock:"32px"}}><a className="action-primary" href={localizedPath(lang,"/packages")}>{lang==="ar"?"استعرض باقات التأسيس وأسعارها":lang==="zh"?"查看设立套餐和价格":"Explore formation packages and prices"} <ArrowUpRight /></a></section>
+      <EditorialBlock items={content.editorialItems} lang={lang} kind="home" target="/"/>
+      <EditorialBlock items={content.editorialItems} lang={lang} kind="trust" target="/"/>
+            {approvedEditorial(content.editorialItems,lang).some(e=>e.kind==='guide'||e.kind==='comparison')&&
+        <section className="section-wrap editorial-note">
+          <h2>{lang==='ar'?'أدلة المستثمرين المتخصصة':lang==='zh'?'投资者专题指南':'In-depth investor guides'}</h2>
+          <p>{lang==='ar'?'أدلة ومقارنات لمساعدتك على اتخاذ قرار مدروس.':lang==='zh'?'实用指南和比较，帮助您规划下一步。':'Original guides and comparisons for informed decisions.'}</p>
+          <a href={localizedPath(lang,'/insights')}>{lang==='ar'?'تصفح الأدلة':lang==='zh'?'查看指南':'Browse guides'} <ArrowUpRight /></a>
+        </section>}
       <section id="services" className="section-wrap">
         <div className="section-heading">
           <div>
