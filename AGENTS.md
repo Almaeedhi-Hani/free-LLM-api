@@ -33,3 +33,12 @@ Apply `evidence-verification` alongside other research when making factual claim
 
 ## Reporting
 Return concise source-backed findings, provenance and checked_at, evidence IDs, measured vs estimated outcomes, blocked/partial states, review gates and clear next actions. Report a successful job separately from successful discovery, persistence, indexing, citation and customer acquisition.
+
+## Four independently evidenced SEO / GEO outcomes
+- **Indexing**: prove status and canonical by URL Inspection; a deployed URL or sitemap entry is not evidence of Google indexing.
+- **Organic #1**: measure a specific unbranded buyer-intent query with language, country/city, device, exact date and *organic* result position; GSC mean position is not a verified #1 SERP snapshot.
+- **AI citation**: preserve dated prompt, AI provider, answer evidence and exact URL cited; a crawl or brand mention is not a citation.
+- **AI mention vs recommendation**: distinguish name appearance from an actual unbranded buyer-provider recommendation with rationale; citations need not imply recommendations.
+- **Qualified enquiries**: measure consented qualified enquiries or signed business separately from click events; do not store PII in observation reports.
+- Run `npm run test:visibility` for measurement definitions and follow `docs/seo-geo-evidence-playbook.md`. No targets, 47-hour deadlines, or rankings may be reported as accomplished without matched dated evidence.
+- Preserve the restored three-category package UI in any content changes. Copy and scope may improve but not the card layout without explicit owner approval.

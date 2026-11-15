@@ -29,3 +29,5 @@ content-store.json
 .claude/
 
 .package-test-build/
+
+.visibility-test-build/

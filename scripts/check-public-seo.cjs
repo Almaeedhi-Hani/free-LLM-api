@@ -79,6 +79,7 @@ const slugs = [
   assert.equal((sitemap.match(/<loc>/g) || []).length, 24);
   const robots = await (await fetch(base + "/robots.txt")).text();
   assert(robots.includes("Disallow: /admin/"));
+  assert(/User-agent:\s*OAI-SearchBot/i.test(robots),"OAI Search crawler discoverability");
   const admin = await (await fetch(base + "/admin/dashboard")).text();
   assert(/name="robots" content="noindex, nofollow"/.test(admin));
   console.log(
