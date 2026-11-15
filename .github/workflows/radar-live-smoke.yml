@@ -1,0 +1,32 @@
+name: Radar live read-only smoke
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/lib/radar-*.ts'
+      - 'src/lib/market-intelligence.ts'
+      - 'src/lib/market-sources.ts'
+      - 'src/lib/open-search-sources.ts'
+      - 'scripts/radar-*.cjs'
+      - '.github/workflows/radar-live-smoke.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  live-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CI: 'true'
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Compile and run isolated market tests
+        run: npm run test:market
+      - name: Probe live public search (no DB writes, no provider secrets)
+        run: node scripts/radar-live-smoke.cjs
