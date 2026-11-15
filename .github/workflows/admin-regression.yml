@@ -36,6 +36,8 @@ jobs:
         run: npm run test:packages
       - name: Evidence-gated organic ranking, indexing, AI visibility and conversion tests
         run: npm run test:visibility
+      - name: OpenCode multilingual topic architect and source-diversity contract
+        run: node scripts/geo-opencode-planner.test.cjs
       - name: Cross-site editorial routing, review and publication contract
         run: npm run test:editorial
       - name: GEO persistence and pipeline truthfulness tests

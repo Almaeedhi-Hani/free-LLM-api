@@ -33,6 +33,14 @@ function runOpenCode(prompt, model) {
   // Use a clean temp directory so OpenCode cannot read project files
   const workDir = path.join(process.cwd(), '.opencode-work');
   if (!fs.existsSync(workDir)) fs.mkdirSync(workDir, { recursive: true });
+  // Make the audited content-architecture skill available to this deliberately
+  // isolated OpenCode session, without exposing the project tree or secrets.
+  const skillSource=path.join(__dirname,'..','.opencode','skills','content-architecture','SKILL.md');
+  if(fs.existsSync(skillSource)){
+    const skillRoot=path.join(workDir,'.opencode','skills','content-architecture');
+    fs.mkdirSync(skillRoot,{recursive:true});
+    fs.copyFileSync(skillSource,path.join(skillRoot,'SKILL.md'));
+  }
   const tmpFile = path.join(workDir, 'prompt.txt');
   fs.writeFileSync(tmpFile, prompt, 'utf-8');
 
