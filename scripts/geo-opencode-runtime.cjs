@@ -42,6 +42,9 @@ function createIsolatedGeoWorkspace(prompt,projectRoot=path.join(__dirname,"..")
       fs.copyFileSync(skillSource,path.join(skillRoot,"SKILL.md"));
     }
     const storage=path.join(workDir,".isolated-storage");
+    // SQLite cannot open a database under a missing directory. Prepare private XDG roots.
+    for(const subdir of ["data/opencode","config","state","cache"])
+      fs.mkdirSync(path.join(storage,subdir),{recursive:true,mode:0o700});
     return {
       workDir,
       runtimeEnv:{
