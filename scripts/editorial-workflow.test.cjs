@@ -1,6 +1,6 @@
 "use strict";
 const assert=require('node:assert/strict');
-const {validateEditorialItem,validateEditorialBatch,approvedEditorial,publicGuide}=require('../.editorial-test-build/lib/editorial-workflow.js');
+const {validateEditorialItem,validateEditorialBatch,approvedEditorial,publicGuide,officialSourceCandidates}=require('../.editorial-test-build/lib/editorial-workflow.js');
 const {validateContentTree,topicRelatedLiveNodes}=require('../.editorial-test-build/lib/content-tree.js');
 const tree=validateContentTree();assert.equal(tree.nodes,18);assert.equal(tree.live,9);assert.equal(tree.planned,9);
 assert(topicRelatedLiveNodes('company-documents').some(n=>n.id==='company-formation'));
@@ -60,6 +60,21 @@ assert.throws(()=>validateEditorialItem({...zhReal,title:'简短标题'}),/subst
 assert.throws(()=>validateEditorialItem({...zhReal,h1_suggestion:'短标题'}),/H1/,'three-character H1 remains too short');
 assert.throws(()=>validateEditorialItem({...zhReal,internal_links:[{node_id:'packages',anchor:'费用'}]}),/Internal links/,'two-character anchor remains too short');
 assert.throws(()=>validateEditorialItem({...zhReal,lang:'en'}),/substantive/,'English title minimum remains unchanged');
+// Automatic candidate detection never equates competitor pages with official evidence.
+const refs=[
+ {id:'o1',label:'Saudi official portal',source:'search',kind:'official_candidate',url:'https://misa.gov.sa/en/'},
+ {id:'o2',label:'Duplicate official portal',source:'search',kind:'official_candidate',url:'https://misa.gov.sa/en/'},
+ {id:'x1',label:'Competitor',source:'exa',kind:'competitor_candidate',url:'https://example.com/saudi-startup'},
+ {id:'x2',label:'Spoofed domain',source:'search',kind:'competitor_candidate',url:'https://misa.gov.sa.evil.example/path'},
+ {id:'x3',label:'Non-government',source:'search',kind:'competitor_candidate',url:'https://cma.org.sa/'},
+ {id:'x4',label:'Bad protocol',source:'search',kind:'keyword',url:'http://misa.gov.sa/en/'},
+ {id:'x5',label:'Credentials in URL',source:'search',kind:'keyword',url:'https://user:pass@misa.gov.sa/en/'},
+ {id:'x6',label:'Unexpected port',source:'search',kind:'keyword',url:'https://misa.gov.sa:444/en/'}
+];
+assert.deepEqual(officialSourceCandidates(refs),['https://misa.gov.sa/en/']);
+assert.deepEqual(officialSourceCandidates([{id:'c',label:'Competitor page',source:'exa',kind:'competitor_candidate',url:'https://commercial.example.com'}]),[],'competitor observations do not become official');
+assert.deepEqual(officialSourceCandidates(undefined),[],'missing research evidence blocks automatic source approval');
+
 const fs=require('node:fs');
 const worker=fs.readFileSync('scripts/opencode-geo-analysis.js','utf8');
 assert(worker.includes('stageEditorialActions'),'GEO produces editorial proposals beyond FAQ');
