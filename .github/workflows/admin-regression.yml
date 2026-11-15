@@ -30,6 +30,8 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Mobile floating header interaction and design contract
+        run: node scripts/mobile-header-contract.test.cjs
       - name: Market intelligence CRUD and failure-mode tests
         run: npm run test:market
       - name: Verify original multilingual packages and pricing
