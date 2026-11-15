@@ -44,6 +44,11 @@ function runOpenCode(prompt, model) {
       delete safeEnv.SUPABASE_URL;
       delete safeEnv.ADMIN_TOKEN;
       delete safeEnv.CRON_SECRET;
+      delete safeEnv.GEO_API_KEY;
+      delete safeEnv.EXA_API_KEY;
+      delete safeEnv.TAVILY_API_KEY;
+      delete safeEnv.PARALLEL_API_KEY;
+      delete safeEnv.FIRECRAWL_API_KEY;
       const output = execSync(cmd, {
         timeout: 180000,
         encoding: 'utf-8',
@@ -299,7 +304,7 @@ async function saveGEOStage(stage, items) {
   const key = process.env.GEO_API_KEY;
   if (!base || !key) return {status:'partial',saved:0,error:'GEO remote API not configured'};
   try {
-    const res=await fetch(base.replace(/\\/$/,'')+'/api/geo/results',{
+    const res=await fetch(base.replace(/\/$/,'')+'/api/geo/results',{
       method:'POST',
       headers:{'Content-Type':'application/json','x-geo-api-key':key},
       body:JSON.stringify({[stage]:items}),
@@ -320,7 +325,7 @@ async function updateGEOAgentRun(outcome) {
   try{
     const status=Object.values(outcome.stages).every(s=>s.status==='success')?'success':'partial';
     const last_result=['discovery','evidence','geo_analysis','opportunities','goals','drafts'].map(stage=>stage+':'+(outcome.stages[stage]?.status||'not_run')).join(' | ');
-    const response=await fetch(base.replace(/\\/$/,'')+'/api/geo/results',{
+    const response=await fetch(base.replace(/\/$/,'')+'/api/geo/results',{
       method:'POST',headers:{'Content-Type':'application/json','x-geo-api-key':key},
       body:JSON.stringify({run_report:{run_at:outcome.pipeline_run,status,last_result}}),
       signal:AbortSignal.timeout(15000)
