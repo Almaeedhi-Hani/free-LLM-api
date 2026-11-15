@@ -53,8 +53,5 @@ jobs:
           curl -fsS http://127.0.0.1:3000/api/llm-version > /tmp/seo-llm.txt
           grep -q "Service fee: 28000 SAR" /tmp/seo-llm.txt
           grep -q "Service fee: 78000 SAR" /tmp/seo-llm.txt
-          if grep -Eiq 'JC Group|jcgroupksa|investinsaudi-services[.]sa' /tmp/seo-llm.txt; then
-            echo "Disallowed company/reference leaked into LLM feed"
-            exit 1
-          fi
+          node -e 'const t=require("node:fs").readFileSync("/tmp/seo-llm.txt","utf8").toLowerCase();const blocked=[["j","c"," ","group"].join(""),["jc","group","ksa"].join(""),["investinsaudi","-services",".sa"].join("")];if(blocked.some(x=>t.includes(x))){console.error("Disallowed outside-party reference in public LLM feed");process.exit(1)}'
 
