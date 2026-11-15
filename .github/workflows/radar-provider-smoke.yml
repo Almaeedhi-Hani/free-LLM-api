@@ -1,0 +1,26 @@
+name: Radar provider smoke (manual)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      NODE_ENV: test
+      EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+      TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+      PARALLEL_API_KEY: ${{ secrets.PARALLEL_API_KEY }}
+      FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Compile market utilities and run fixture checks
+        run: npm run test:market
+      - name: Run read-only bounded provider probe
+        run: node scripts/radar-provider-live-smoke.cjs
