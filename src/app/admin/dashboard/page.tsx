@@ -606,7 +606,7 @@ export default function AdminDashboard() {
                       {d.risk_level==='high'&&<DataRolePanel tone="warning" title="تحذير من النظام — محتوى عالي المخاطر">
                         <p className="text-rose-900">لا تعتمد دون مراجعة مختص والتحقق من المصدر الرسمي. هذا التنبيه ليس جزءًا من الإجابة.</p>
                       </DataRolePanel>}
-                      <DataRolePanel tone="research" title="صفحات منافسة ونتائج بحث مرتبطة بالموضوع" description="روابط اكتشفها البحث لمقارنة التغطية والموضوعات؛ لا تثبت صحة الإجابة ولا تعني أن النموذج نقل النص من هذه المواقع.">
+                      <DataRolePanel tone="research" title="مصادر الرصد المستخدمة — صفحات منافسة ونتائج بحث مرتبطة بالموضوع" description="روابط اكتشفها البحث لمقارنة التغطية والموضوعات؛ لا تثبت صحة الإجابة ولا تعني أن النموذج نقل النص من هذه المواقع.">
                         {Array.isArray(d.evidence_refs)&&d.evidence_refs.length>0?<ul className="space-y-2">{d.evidence_refs.map((ref:any,j:number)=><li key={String(ref.id)+'-'+j} className="rounded-lg border border-blue-100 bg-white/80 p-2 break-words text-xs">
                           {ref.url?.startsWith('https://')?<a href={ref.url} target="_blank" rel="noopener noreferrer" className="font-medium text-blue-800 underline underline-offset-2">{ref.label}</a>:<span>{ref.label}</span>}
                           <p className="mt-1 text-blue-700">نوع الرصد: {ref.kind||'غير معروف'} · مزوّد البحث: {ref.source||'غير معروف'}</p>
