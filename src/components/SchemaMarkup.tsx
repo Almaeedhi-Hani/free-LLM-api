@@ -1,28 +1,17 @@
-﻿import React from 'react';
+import React from "react";
+import { siteUrl } from "@/lib/site-seo";
 
-export interface FAQItem {
-  question: string;
-  answer: string;
-}
-
-export interface MultilingualText {
-  ar: string;
-  en: string;
-  zh: string;
-}
-
-export interface MultilingualFAQItem {
-  question: MultilingualText;
-  answer: MultilingualText;
-}
-
+// Only verified business facts should be supplied to these reusable schemas.
+// No invented licences, CR numbers, address, affiliates, coordinates or hours.
+export interface FAQItem { question: string; answer: string }
+export interface MultilingualText { ar: string; en: string; zh: string }
+export interface MultilingualFAQItem { question: MultilingualText; answer: MultilingualText }
 export interface MultilingualGraphSchemaProps {
   url: string;
   name: MultilingualText;
   description: MultilingualText;
   faqs: MultilingualFAQItem[];
 }
-
 export interface ServiceSchemaProps {
   name: string;
   description: string;
@@ -32,7 +21,6 @@ export interface ServiceSchemaProps {
   requirements?: string[];
   stages?: string[];
 }
-
 export interface ProfessionalServiceProps {
   name?: string;
   description?: string;
@@ -44,223 +32,74 @@ export interface ProfessionalServiceProps {
   longitude?: number;
   sameAs?: string[];
 }
+function jsonLd(payload: unknown) {
+  return { __html: JSON.stringify(payload).replace(/</g, "\\u003c") };
+}
+const organizationId = siteUrl + "/#organization";
 
 export const ProfessionalServiceSchema: React.FC<ProfessionalServiceProps> = ({
-  name = "منصة استثمر في السعودية لخدمات المستثمرين وتأسيس الشركات",
-  description = "استشارات استثمارية متخصصة وإصدار تراخيص وزارة الاستثمار (MISA) وتأسيس الشركات للأجانب والمحليين في المملكة السعودية. المقر الرئيسي: الرياض (طريق الملك فهد، العليا). الفروع: جدة، المدينة المنورة، الدمام.",
-  url = "https://investinsaudi-services.sa",
-  telephone = "+966110000000",
-  crNumber = "1010998877",
-  misaLicense = "MISA-2024-LIC-9988",
-  latitude = 24.7136,
-  longitude = 46.6753,
-  sameAs = [
-    "https://misa.gov.sa",
-    "https://mc.gov.sa",
-    "https://linkedin.com/company/investinsaudi-services",
-    "https://twitter.com/investinsaudisvc"
-  ]
+  name = "Saudi investor services",
+  description = "Independent private assistance for investors planning company formation in Saudi Arabia.",
+  url = siteUrl, telephone, crNumber, misaLicense, latitude, longitude, sameAs
 }) => {
+  const identifiers = [
+    ...(crNumber ? [{"@type":"PropertyValue",name:"Commercial registration",value:crNumber}] : []),
+    ...(misaLicense ? [{"@type":"PropertyValue",name:"Investment registration identifier",value:misaLicense}] : [])
+  ];
   const schema = {
-    "@context": "https://schema.org",
-    "@type": "ProfessionalService",
-    "name": name,
-    "description": description,
-    "url": url,
-    "telephone": telephone,
-    "identifier": [
-      {
-        "@type": "PropertyValue",
-        "name": "السجل التجاري (CR Number)",
-        "value": crNumber
-      },
-      {
-        "@type": "PropertyValue",
-        "name": "ترخيص وزارة الاستثمار (MISA License)",
-        "value": misaLicense
-      }
-    ],
-    "address": {
-      "@type": "PostalAddress",
-      "streetAddress": "طريق الملك فهد، حي العليا",
-      "addressLocality": "الرياض",
-      "addressRegion": "منطقة الرياض",
-      "postalCode": "12214",
-      "addressCountry": "SA"
-    },
-    "geo": {
-      "@type": "GeoCoordinates",
-      "latitude": latitude,
-      "longitude": longitude
-    },
-    "openingHoursSpecification": {
-      "@type": "OpeningHoursSpecification",
-      "dayOfWeek": [
-        "Sunday",
-        "Monday",
-        "Tuesday",
-        "Wednesday",
-        "Thursday"
-      ],
-      "opens": "09:00",
-      "closes": "18:00"
-    },
-    "areaServed": {
-      "@type": "Country",
-      "name": "Saudi Arabia"
-    },
-    "sameAs": sameAs,
-    "priceRange": "$$$$"
+    "@context":"https://schema.org", "@type":"ProfessionalService", "@id":organizationId,
+    name, description, url,
+    areaServed:{"@type":"Country",name:"Saudi Arabia"},
+    ...(telephone ? {telephone} : {}),
+    ...(identifiers.length ? {identifier:identifiers} : {}),
+    ...(typeof latitude==="number" && typeof longitude==="number" ? {geo:{"@type":"GeoCoordinates",latitude,longitude}} : {}),
+    ...(sameAs?.length ? {sameAs: sameAs.filter(url => /^https:\/\//i.test(url))} : {})
   };
-
-  return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
-    />
-  );
+  return <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(schema)}/>;
 };
 
 export const MultilingualGraphSchema: React.FC<MultilingualGraphSchemaProps> = ({
-  url,
-  name,
-  description,
-  faqs
+  url, name, description, faqs
 }) => {
-  const baseUrl = "https://investinsaudi-services.sa";
-
-  const graphSchema = {
-    "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "ProfessionalService",
-        "@id": baseUrl,
-        "name": "Saudi Investor Setup Services",
-        "url": baseUrl,
-        "address": {
-          "@type": "PostalAddress",
-          "streetAddress": "King Fahd Road",
-          "addressLocality": "Riyadh",
-          "addressRegion": "Riyadh Province",
-          "addressCountry": "SA"
-        },
-        "geo": {
-          "@type": "GeoCoordinates",
-          "latitude": "24.7136",
-          "longitude": "46.6753"
-        },
-        "sameAs": [
-          "https://wikidata.org",
-          "https://linkedin.com"
-        ]
-      },
-      {
-        "@type": "Service",
-        "@id": `${url}#service`,
-        "provider": {
-          "@id": baseUrl
-        },
-        "name": name,
-        "description": description,
-        "serviceType": "Legal and Business Consulting",
-        "areaServed": [
-          { "@type": "Country", "name": "US" },
-          { "@type": "Country", "name": "GB" },
-          { "@type": "Country", "name": "CN" },
-          { "@type": "Country", "name": "EG" },
-          { "@type": "Country", "name": "SA" }
-        ]
-      },
-      {
-        "@type": "FAQPage",
-        "@id": `${url}#faq`,
-        "mainEntity": faqs.map(faq => ({
-          "@type": "Question",
-          "name": faq.question.en || faq.question.ar, // Schema prefers single string or language map if supported
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": faq.answer.en || faq.answer.ar
-          }
-        }))
-      }
+  const graph = {
+    "@context":"https://schema.org",
+    "@graph":[
+      {"@type":"Organization","@id":organizationId,url:siteUrl,name:name.en || name.ar,
+       description:description.en || description.ar},
+      {"@type":"Service","@id":url+"#service",url,
+       provider:{"@id":organizationId},name:name.en || name.ar,
+       description:description.en || description.ar,
+       areaServed:{"@type":"Country",name:"Saudi Arabia"}},
+      {"@type":"FAQPage","@id":url+"#faq",
+       mainEntity:faqs.map(f=>({"@type":"Question",name:f.question.en || f.question.ar,
+         acceptedAnswer:{"@type":"Answer",text:f.answer.en || f.answer.ar}}))}
     ]
   };
-
-  return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(graphSchema) }}
-    />
-  );
+  return <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(graph)}/>;
 };
 
 export const ServiceSchema: React.FC<ServiceSchemaProps> = ({
-  name,
-  description,
-  providerName = "شركة خدمات المستثمرين المعتمدة بالسعودية",
-  areaServed = "Saudi Arabia",
-  serviceType = "Corporate & Investment Services",
-  requirements = [],
-  stages = []
+  name, description, providerName, areaServed = "Saudi Arabia",
+  serviceType = "Investor support and company formation", requirements = [], stages = []
 }) => {
   const schema = {
-    "@context": "https://schema.org",
-    "@type": "Service",
-    "name": name,
-    "serviceType": serviceType,
-    "description": description,
-    "provider": {
-      "@type": "ProfessionalService",
-      "name": providerName
-    },
-    "areaServed": {
-      "@type": "Country",
-      "name": areaServed
-    },
-    ...(requirements.length > 0 && {
-      "serviceOutput": requirements.join("، ")
-    }),
-    ...(stages.length > 0 && {
-      "hasOfferCatalog": {
-        "@type": "OfferCatalog",
-        "name": `مراحل تنفيذ ${name}`,
-        "itemListElement": stages.map((stage, idx) => ({
-          "@type": "Offer",
-          "itemOffered": {
-            "@type": "Service",
-            "name": `المرحلة ${idx + 1}: ${stage}`
-          }
-        }))
-      }
-    })
+    "@context":"https://schema.org","@type":"Service",name,description,serviceType,
+    provider:{"@id":organizationId,...(providerName?{name:providerName}:{})},
+    areaServed:{"@type":"Country",name:areaServed},
+    ...(requirements.length ? {serviceOutput:requirements.join("; ")} : {}),
+    ...(stages.length ? {hasOfferCatalog:{
+      "@type":"OfferCatalog",name:"Service stages",
+      itemListElement: stages.map((stage,i)=>({
+        "@type":"Offer",itemOffered:{"@type":"Service",name:String(i+1)+". "+stage}
+      }))
+    }} : {})
   };
-
-  return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
-    />
-  );
+  return <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(schema)}/>;
 };
 
-export const FAQSchema: React.FC<{ items: FAQItem[] }> = ({ items }) => {
-  const schema = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    "mainEntity": items.map((item) => ({
-      "@type": "Question",
-      "name": item.question,
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": item.answer
-      }
-    }))
-  };
-
-  return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
-    />
-  );
-};
+export const FAQSchema: React.FC<{items:FAQItem[]}> = ({items}) =>
+  <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd({
+    "@context":"https://schema.org","@type":"FAQPage",
+    mainEntity:items.map(item=>({"@type":"Question",name:item.question,
+      acceptedAnswer:{"@type":"Answer",text:item.answer}}))
+  })}/>;
