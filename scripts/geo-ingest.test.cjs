@@ -94,5 +94,28 @@ const {normalizeGeoBatch,persistGeoBatch}=require('../.geo-ingest-test-build/lib
  const storageResult=await storage.save('drafts',[{q:'valid'},{q:'other'}]);
  assert.equal(storageResult.saved,0);
  assert.equal(storage.calls.length,1,'no retry of non-deduplicated drafts on storage failures');
+ // Each OpenCode attempt must start with isolated storage and a disposable workspace.
+ const {createIsolatedGeoWorkspace}=require('./geo-opencode-runtime.cjs');
+ const first=createIsolatedGeoWorkspace('Public Saudi investor-services GEO research A');
+ const second=createIsolatedGeoWorkspace('Public Saudi investor-services GEO research B');
+ try {
+   assert.notEqual(first.workDir,second.workDir,'never reuse an old OpenCode session workspace');
+   assert.notEqual(first.runtimeEnv.OPENCODE_DB,second.runtimeEnv.OPENCODE_DB,'session databases are unique per request');
+   assert(first.workDir.startsWith(require('node:os').tmpdir()),'sessions are outside the repository');
+   assert(fs.readFileSync(require('node:path').join(first.workDir,'AGENTS.md'),'utf8').includes('official-source evidence'),'each isolated session gets sourced research rules');
+   const config=JSON.parse(fs.readFileSync(require('node:path').join(first.workDir,'opencode.json'),'utf8'));
+   assert.equal(config.compaction.auto,true,'context compaction enabled');
+   assert.equal(config.compaction.keep.tokens,4000,'keep summaries bounded');
+   assert.equal(fs.readFileSync(require('node:path').join(first.workDir,'prompt.txt'),'utf8'),'Public Saudi investor-services GEO research A');
+   assert(runner.includes("'opencode/big-pickle'"),'Big Pickle supported as an allowlisted free fallback');
+   assert(runner.includes("FREE_MODEL_ALLOWLIST.includes(chosenModel)"),'non-allowlisted paid models must remain blocked');
+   assert(runner.includes("const {workDir,runtimeEnv,cleanup}=createIsolatedGeoWorkspace(prompt)"),'new workspace per model attempt');
+   assert(runner.includes('Object.assign(safeEnv,runtimeEnv)'), 'isolate session storage from user/global history');
+   assert(runner.includes('} finally {\\n      cleanup();'),'remove session data after each attempt, including errors');
+   assert(runner.includes('--standalone --archived'),'no shared session service');
+   assert(!runner.includes('--continue'), 'never continue a previous conversation');
+ } finally {first.cleanup();second.cleanup();}
+ assert(!fs.existsSync(first.workDir)&&!fs.existsSync(second.workDir),'disposable session directories are removed');
+ console.log('PASS isolated OpenCode workspaces, temporary session cleanup, free Big Pickle and safe compaction');
  console.log('PASS verified GEO persistence, schema safeguards, draft quality fallback, and no ambiguous retries');
 })().catch(e=>{console.error(e);process.exit(1)});
