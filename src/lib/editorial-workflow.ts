@@ -2,6 +2,7 @@ import {topicNodeById,siteTopicPath} from './content-tree';
 /** Multiple reviewed editorial publication surfaces. Never auto-publish AI output. */
 import { type EditorialItem, type EditorialKind, type EditorialLocale, type EditorialStatus } from './editorial-types';
 export type {EditorialItem,EditorialKind,EditorialLocale,EditorialStatus,EditorialRef} from './editorial-types';
+export {officialSourceCandidates} from './official-source-candidates';
 const kinds=new Set(['home','service','packages','guide','comparison','trust','technical_seo','internal_link']);
 const services=new Set(['company-formation','misa-license','corporate-banking','contract-drafting','premium-residency','investment-funds']);
 const languages=new Set(['ar','en','zh']);
