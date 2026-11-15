@@ -4,7 +4,7 @@ export type EditorialLocale = 'ar'|'en'|'zh';
 export type EditorialStatus = 'pending'|'approved'|'rejected';
 export type EditorialRef={id:string;label:string;source:string;kind:string;url?:string;observed_at?:string};
 export type EditorialItem={
- id:string;kind:EditorialKind;lang:EditorialLocale;target:string;slug?:string;
+ id:string;kind:EditorialKind;lang:EditorialLocale;target:string;slug?:string;related_service?:string;
  title:string;summary:string;body:string;risk_level:'low'|'medium'|'high';
  status:EditorialStatus;createdAt:string;reviewedAt?:string;updatedAt?:string;
  evidence_ids:string[];evidence_refs:EditorialRef[];verified_sources?:string[];
@@ -30,6 +30,7 @@ export function validateEditorialItem(item:unknown):EditorialItem {
  else if(e.kind==='service'){if(!services.has(e.target))throw Error('Unknown service target')}
  else if(e.kind==='guide'||e.kind==='comparison'){
    if(!e.slug||!safeSlug(e.slug)||e.target!==e.slug)throw Error('Invalid guide slug');
+   if(e.related_service && !services.has(e.related_service))throw Error('Invalid related service');
  }else if(e.kind==='technical_seo'||e.kind==='internal_link'){
    if(!/^\/(?:$|packages$|services\/(?:company-formation|misa-license|corporate-banking|contract-drafting|premium-residency|investment-funds)$|insights(?:\/[a-z0-9-]+)?$)/.test(e.target))throw Error('Invalid technical/internal link target');
  }

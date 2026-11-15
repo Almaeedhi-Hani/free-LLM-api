@@ -255,7 +255,7 @@ Analyze the following evidence items and return a JSON object with:
   "opportunities": [{"title": "...", "type": "gap|content|keyword", "score": 0-100, "evidence_ids": ["..."], "description": "..."}],
   "goals": [{"title": "...", "priority": "high|medium|low", "related_opportunity": "..."}],
   "drafts": [{"q": "question", "a": "answer", "evidence_ids": ["..."], "risk_level": "low|medium|high"}],
-  "editorial_actions": [{"kind": "home|service|packages|guide|comparison|trust|technical_seo|internal_link", "lang": "ar|en|zh", "target": "/|/packages|company-formation|misa-license|corporate-banking|contract-drafting|premium-residency|investment-funds|unique-article-slug", "slug": "only-for-guide-or-comparison", "title": "specific helpful heading", "summary": "clear summary for a decision-making reader", "body": "original substantial editorial content; no invented legal or company claims", "evidence_ids": ["..."], "risk_level": "high"}]
+  "editorial_actions": [{"kind": "home|service|packages|guide|comparison|trust|technical_seo|internal_link", "lang": "ar|en|zh", "target": "/|/packages|company-formation|misa-license|corporate-banking|contract-drafting|premium-residency|investment-funds|unique-article-slug", "slug": "only-for-guide-or-comparison", "related_service": "optional relevant service slug for guide/comparison links", "title": "specific helpful heading", "summary": "clear summary for a decision-making reader", "body": "original substantial editorial content; no invented legal or company claims", "evidence_ids": ["..."], "risk_level": "high"}]
 }
 
 Evidence items:
@@ -265,6 +265,7 @@ Rules:
 - Only use evidence provided. No fabricated claims or invented requirements, fees, approvals, timelines or rankings.
 - Audience: investors evaluating Saudi company formation services; material regulatory facts require current official authority evidence and later specialist review.
 - Generate DIFFERENT website improvements, not only FAQs. Propose diverse editorial_actions rooted in actual evidence, prioritizing buyer-intent service pages, useful pricing and requirements context, original long-form guides, legitimate comparisons, internal linking/technical tasks and evidence-backed trust content. Target actual service slugs, not arbitrary routes.
+- Provide non-empty original title (at least 12 characters), summary (at least 30 characters) and substantive body (at least 100 characters) for each editorial action. Use a permitted destination. For home and trust use target "/"; packages target "/packages"; service target one of the six existing service slugs; guides and comparisons target their lowercase hyphenated unique slug. For technical_seo/internal_link use an existing local site path.
 - Do not reuse the same paragraph as a FAQ, guide and service section. Each output must have distinct purpose, user intent and source IDs.
 - Editorial actions are pending human review. Do NOT claim actual publication, first-place rankings, ownership of competitor facts or official approval. If evidence cannot support an accurate article, propose a technical_seo or research goal, not a fabricated guide.
 - Avoid unsourced trust signals: no testimonials, licenses, years of experience, client counts or external endorsements without verified proof.
@@ -401,7 +402,7 @@ async function stageEditorialActions() {
    return {id,label:String(e.name||id).slice(0,240),source:String(e.source||'unknown').slice(0,100),kind:String(e.type||'unknown').slice(0,100),...(url?{url}:{}),...(e.observed_at?{observed_at:e.observed_at}:{})};
   });
   const id='ed-'+crypto.createHash('sha256').update([item.kind,item.lang,item.target,item.title].join('|')).digest('hex').slice(0,24);
-  return {id,kind:item.kind,lang:item.lang,target:item.target,slug:item.slug,title:item.title,summary:item.summary,body:item.body,risk_level:item.risk_level==='low'||item.risk_level==='medium'?'high':item.risk_level,status:'pending',createdAt:new Date().toISOString(),evidence_ids:ids,evidence_refs:refs};
+  return {id,kind:item.kind,lang:item.lang,target:item.target,slug:item.slug,related_service:item.related_service,title:item.title,summary:item.summary,body:item.body,risk_level:item.risk_level==='low'||item.risk_level==='medium'?'high':item.risk_level,status:'pending',createdAt:new Date().toISOString(),evidence_ids:ids,evidence_refs:refs};
  });
  const saved=await saveGEOStage('editorial_actions',proposed);
  stageResults.editorial_actions={count:proposed.length,persisted:saved.saved,status:saved.status,error:saved.error||null};

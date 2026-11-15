@@ -10,8 +10,9 @@ assert.equal(approvedEditorial([approved],'ar','service','company-formation').le
 assert.equal(approvedEditorial([approved],'en').length,0,'locale isolation');
 assert.throws(()=>validateEditorialItem({...approved,target:'/admin/dashboard'}),/Unknown service/);
 assert.throws(()=>validateEditorialItem({...approved,verified_sources:['javascript:alert(1)']}),/HTTPS/);
-const guide={...approved,id:'ed-guide-1234',kind:'guide',target:'foreign-investor-preparation',slug:'foreign-investor-preparation'};
+const guide={...approved,id:'ed-guide-1234',kind:'guide',target:'foreign-investor-preparation',slug:'foreign-investor-preparation',related_service:'company-formation'};
 assert.equal(publicGuide([guide],'ar','foreign-investor-preparation').id,'ed-guide-1234');
+assert.throws(()=>validateEditorialItem({...guide,related_service:'invented-service'}),/Invalid related service/);
 assert.equal(publicGuide([guide],'zh','foreign-investor-preparation'),undefined);
 assert.throws(()=>validateEditorialItem({...approved,kind:'technical_seo',target:'/'}),/never published/);
 assert.throws(()=>validateEditorialBatch([approved,approved]),/Duplicate editorial ID/);

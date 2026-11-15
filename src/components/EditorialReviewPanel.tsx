@@ -24,9 +24,11 @@ export default function EditorialReviewPanel({items,saving,onSaveItems}:{items:E
  const update=async(next:EditorialItem[])=>{try{setError('');return await onSaveItems(next)}catch(e){setError(e instanceof Error?e.message:'تعذر حفظ التغييرات');return false}};
  const editItem=async(item:EditorialItem)=>{
    if(!editing||item.id!==editing.id)return;
-   const next={...item,title:editing.title.trim(),summary:editing.summary.trim(),body:editing.body.trim(),status:'pending' as const,reviewedAt:undefined,verified_sources:[],updatedAt:new Date().toISOString()};
+   const next={...item,id:item.status==='approved'?item.id+'-rev-'+Date.now().toString(36):item.id,title:editing.title.trim(),summary:editing.summary.trim(),body:editing.body.trim(),status:'pending' as const,reviewedAt:undefined,verified_sources:[],updatedAt:new Date().toISOString()};
    try{validateEditorialItem(next)}catch(e){setError(e instanceof Error?e.message:'المحتوى غير مكتمل');return}
-   if(await update(items.map(x=>x.id===item.id?next:x)))setEditing(null);
+   // A new review never unpublishes the old approved page before replacement approval.
+   const updated=item.status==='approved'?[...items,next]:items.map(x=>x.id===item.id?next:x);
+   if(await update(updated))setEditing(null);
  };
  const approve=async(item:EditorialItem)=>{
    if(item.kind==='technical_seo'||item.kind==='internal_link'){setError('المهام التقنية والروابط المقترحة تحتاج تنفيذًا واختبارًا في الكود، وليس نشرًا تلقائيًا.');return;}
@@ -35,7 +37,7 @@ export default function EditorialReviewPanel({items,saving,onSaveItems}:{items:E
    const next={...item,status:'approved' as const,reviewedAt:new Date().toISOString(),updatedAt:new Date().toISOString(),verified_sources:verified};
    try{validateEditorialItem(next)}catch(e){setError(e instanceof Error?e.message:'مصادر المراجعة غير صحيحة');return}
    if(!window.confirm('تأكيد بشري: هل راجعت المعلومات والمصادر الأصلية فعلًا وتتحمل قرار نشرها في الصفحة المحددة؟'))return;
-   await update(items.map(x=>x.id===item.id?next:x));
+   await update(items.map(x=>x.id===item.id?next:(x.status==='approved'&&x.lang===item.lang&&x.kind===item.kind&&x.target===item.target&&x.slug===item.slug?{...x,status:'rejected' as const,updatedAt:new Date().toISOString()}:x)));
  };
  const reject=async(item:EditorialItem)=>{
    if(!window.confirm(item.status==='approved'?'إلغاء نشر هذا المحتوى من الموقع مع إبقاء سجله؟':'رفض هذا المقترح مع الاحتفاظ به في السجل؟'))return;
