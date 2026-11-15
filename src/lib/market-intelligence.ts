@@ -1419,9 +1419,12 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
                 source: 'search',
                 notes: `Discovered via ${source.id} for query "${seed}"`,
               });
-               if (discoveredDomains.has(r.domain)) continue;
-               discoveredDomains.add(r.domain);
-               summary.competitors_discovered += 1;
+               // Count each domain once, but retain observations across languages and queries.
+               // Otherwise the competitor-angle matrix loses evidence of repeated appearances.
+               if (!discoveredDomains.has(r.domain)) {
+                 discoveredDomains.add(r.domain);
+                 summary.competitors_discovered += 1;
+               }
                diag.results_accepted += 1;
               await recordObservation({
                 competitor_id: comp.id,
