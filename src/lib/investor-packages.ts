@@ -1,9 +1,18 @@
+import { packageOffers, packageDisclosure } from "./package-offers";
+import type { PackageLocale } from "./package-offers";
 export type PackageId = "establish" | "new-entity" | "trading";
-export type PackageLocale = "ar" | "en" | "zh";
+export type { PackageLocale };
 type Localized = Record<PackageLocale,string>;
-export const investorPackages: Array<{id:PackageId;title:Localized;description:Localized;price:number;features:Localized[]}> = [
-{id:"establish",price:29000,title:{ar:"تأسيس شركة في السعودية",en:"Establish in Saudi Arabia",zh:"在沙特设立公司"},description:{ar:"للمستثمر الذي يمتلك شركة قائمة خارج السعودية.",en:"For investors with an existing business outside Saudi Arabia.",zh:"适合已在沙特境外拥有企业的投资者。"},features:[{ar:"المساعدة في إجراءات التسجيل الاستثماري",en:"Investment registration assistance",zh:"投资登记协助"},{ar:"عقد التأسيس والسجل التجاري وحجز الاسم",en:"Incorporation documents, CR and trade name",zh:"公司设立文件、商业登记及商号"},{ar:"المساعدة في المنصات الحكومية والحساب البنكي",en:"Government portals and banking assistance",zh:"政府平台及银行开户协助"},{ar:"إرشاد بشأن الإقامة ودخول السوق ودعم 90 يومًا",en:"Residency guidance, market entry and 90-day support",zh:"居留指导、市场进入及90天支持"}]},
-{id:"new-entity",price:49000,title:{ar:"تأسيس كيان سعودي جديد",en:"New Saudi Entity",zh:"设立新的沙特实体"},description:{ar:"مسار تأسيس يتضمن ترتيبات إضافية للشركة الأجنبية.",en:"Formation route with additional foreign-company arrangements.",zh:"包含额外境外公司安排的设立方案。"},features:[{ar:"جميع خدمات باقة التأسيس",en:"All establishment package services",zh:"包含基础设立套餐全部服务"},{ar:"ترتيبات شركة أجنبية جاهزة وفق الأهلية",en:"Foreign ready-made company arrangements subject to eligibility",zh:"根据资格安排现成境外公司"},{ar:"مساعدة إضافية في الاستقرار",en:"Additional relocation assistance",zh:"额外安置协助"}]},
-{id:"trading",price:89000,title:{ar:"باقة الترخيص التجاري",en:"Trading License Package",zh:"商业许可套餐"},description:{ar:"مسار الترخيص التجاري وفق النشاط والأهلية.",en:"Commercial licensing route subject to activity and eligibility.",zh:"根据业务及资格要求办理商业许可。"},features:[{ar:"جميع خدمات التأسيس الأساسية",en:"All core establishment services",zh:"包含所有基础设立服务"},{ar:"مسار الترخيص التجاري الموسع",en:"Extended commercial licensing route",zh:"扩展商业许可流程"},{ar:"ترتيبات شركات أجنبية حسب المتطلبات",en:"Foreign-company arrangements subject to requirements",zh:"根据要求安排境外公司"}]}
+/** Legacy projection from the single current offer source; do not maintain prices in two places. */
+const mapping: Array<{id:PackageId;slug:string}> = [
+  {id:"establish",slug:"services-branch"},
+  {id:"new-entity",slug:"services-scratch"},
+  {id:"trading",slug:"trading-scratch"},
 ];
-export const packagePriceNote:Localized={ar:"رسوم الباقة استرشادية لحين اعتماد العرض النهائي. الرسوم الحكومية والتكاليف الخارجية تخضع للتأكيد. الميزانية الاستثمارية منفصلة عن سعر الباقة.",en:"Package prices are indicative pending final quotation. Government and third-party fees require confirmation. Investment budget is separate.",zh:"套餐价格仅供参考，以最终报价为准。政府及第三方费用需另行确认。投资预算与套餐费用分开。"};
+export const investorPackages: Array<{id:PackageId;title:Localized;description:Localized;price:number;features:Localized[]}> =
+  mapping.map(entry=>{
+    const offer=packageOffers.find(item=>item.slug===entry.slug);
+    if(!offer)throw new Error("Missing canonical package "+entry.slug);
+    return {id:entry.id,title:offer.title,description:offer.pitch,price:offer.price,features:offer.features};
+  });
+export const packagePriceNote:Localized = packageDisclosure;
