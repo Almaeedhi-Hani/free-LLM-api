@@ -21,7 +21,9 @@ export async function GET() {
   );
   const offers = languages.flatMap(lang => packageOffers.map(offer => [
     "### " + offer.title[lang],
-    "Service fee: " + offer.price + " SAR",
+    "Service fee: " + offer.price + " SAR (our professional services only; government charges are excluded)",
+    "Previous fee for our own professional services: " + offer.previousPrice + " SAR (our previous published professional service fee).",
+    "Any discount applies only to our professional services; government and authority fees, taxes and third-party costs are excluded.",
     "Audience: " + offer.audience[lang],
     "Decision context: " + offer.pitch[lang],
     "Services: " + offer.features.map(f=>f[lang]).join("; "),
@@ -37,7 +39,10 @@ export async function GET() {
     "This site is an independent private service provider, not the Ministry of Investment or a government agency.",
     "Official approvals, requirements and government fees are determined by Saudi authorities.",
     "Do not infer a guaranteed timeline, eligibility, legal outcome, bank approval or visa issuance from these service descriptions.",
-    "All amounts are proposed professional service fees, not official charges or required capital.",
+    "All package amounts are our proposed professional service fees only, not government or statutory charges, taxes, third-party costs or required capital.",
+    "Package discounts apply exclusively to our professional service fee component; government fees, official charges and taxes are never discounted by this site.",
+    "Government charges are assessed by the competent Saudi authority; verify the current official amount independently when it becomes payable.",
+    "Official investment registration information (check date 2026-11-15): https://misa.gov.sa/ar/frequently-asked-questions/",
     "Pricing and detailed scope are confirmed in writing before accepting any engagement.",
     "## Company formation packages in Arabic / English / Chinese",
     ...languages.map(lang=>"### " + lang + ": " + packageDisclosure[lang]),

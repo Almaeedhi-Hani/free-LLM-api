@@ -54,8 +54,8 @@ export const packageOffers: PackageOffer[] = [
     "slug": "services-gcc",
     "group": "services",
     "id": "gcc",
-    "price": 18000,
-    "previousPrice": 19000,
+    "price": 17000,
+    "previousPrice": 18000,
     "title": {
       "ar": "تأسيس مشروع لمستثمر خليجي",
       "en": "GCC investor formation",
@@ -104,8 +104,8 @@ export const packageOffers: PackageOffer[] = [
     "slug": "services-premium",
     "group": "services",
     "id": "premium",
-    "price": 21000,
-    "previousPrice": 22000,
+    "price": 20000,
+    "previousPrice": 21000,
     "title": {
       "ar": "تأسيس لحامل الإقامة المميزة",
       "en": "Premium Residency holder route",
@@ -154,8 +154,8 @@ export const packageOffers: PackageOffer[] = [
     "slug": "services-branch",
     "group": "services",
     "id": "branch",
-    "price": 28000,
-    "previousPrice": 29000,
+    "price": 27000,
+    "previousPrice": 28000,
     "title": {
       "ar": "تسجيل فرع لشركة أجنبية قائمة",
       "en": "Existing foreign company branch",
@@ -204,8 +204,8 @@ export const packageOffers: PackageOffer[] = [
     "slug": "services-scratch",
     "group": "services",
     "id": "scratch",
-    "price": 48000,
-    "previousPrice": 49000,
+    "price": 47000,
+    "previousPrice": 48000,
     "title": {
       "ar": "تخطيط تأسيس كيان جديد من البداية",
       "en": "New entity planning & setup",
@@ -254,8 +254,8 @@ export const packageOffers: PackageOffer[] = [
     "slug": "trading-ready",
     "group": "trading",
     "id": "ready",
-    "price": 38000,
-    "previousPrice": 39000,
+    "price": 37000,
+    "previousPrice": 38000,
     "title": {
       "ar": "تسجيل نشاط تجاري لشركة قائمة",
       "en": "Trading registration for existing company",
@@ -304,8 +304,8 @@ export const packageOffers: PackageOffer[] = [
     "slug": "trading-add",
     "group": "trading",
     "id": "add",
-    "price": 58000,
-    "previousPrice": 59000,
+    "price": 57000,
+    "previousPrice": 58000,
     "title": {
       "ar": "توسيع الأنشطة التجارية لشركة قائمة",
       "en": "Expand existing trading activities",
@@ -354,8 +354,8 @@ export const packageOffers: PackageOffer[] = [
     "slug": "trading-scratch",
     "group": "trading",
     "id": "scratch",
-    "price": 78000,
-    "previousPrice": 79000,
+    "price": 77000,
+    "previousPrice": 78000,
     "title": {
       "ar": "تأسيس مشروع تجاري جديد شامل التخطيط",
       "en": "New trading company: end-to-end planning",
@@ -404,8 +404,8 @@ export const packageOffers: PackageOffer[] = [
     "slug": "professional-ready",
     "group": "professional",
     "id": "ready",
-    "price": 38000,
-    "previousPrice": 39000,
+    "price": 37000,
+    "previousPrice": 38000,
     "title": {
       "ar": "مكتب مهني قائم يدخل السوق السعودي",
       "en": "Existing professional firm entry",
@@ -454,8 +454,8 @@ export const packageOffers: PackageOffer[] = [
     "slug": "professional-add",
     "group": "professional",
     "id": "add",
-    "price": 58000,
-    "previousPrice": 59000,
+    "price": 57000,
+    "previousPrice": 58000,
     "title": {
       "ar": "توسيع نطاق مكتب أو نشاط مهني",
       "en": "Professional practice expansion",
@@ -504,8 +504,8 @@ export const packageOffers: PackageOffer[] = [
     "slug": "professional-scratch",
     "group": "professional",
     "id": "scratch",
-    "price": 88000,
-    "previousPrice": 89000,
+    "price": 87000,
+    "previousPrice": 88000,
     "title": {
       "ar": "تأسيس ممارسة مهنية جديدة من الصفر",
       "en": "New regulated professional practice",
@@ -552,7 +552,7 @@ export const packageOffers: PackageOffer[] = [
   }
 ];
 export const packageDisclosure: Trilingual = {
-  "ar": "الأسعار المعلنة هي أتعاب خدماتنا المقترحة بالريال السعودي، وليست رسومًا حكومية أو رأس مال. تعتمد الأهلية ونطاق التنفيذ على النشاط والمستندات والموافقات. يثبت السعر النهائي ومحتوى الخدمة في عرض مكتوب قبل أي التزام.",
-  "en": "Published amounts are our proposed service fees in SAR, not government charges or required capital. Eligibility and scope depend on the activity, documents and approvals. The final scope and fee are confirmed in a written quotation before any commitment.",
-  "zh": "公布金额为我们的拟议服务费（沙特里亚尔），不含政府费用或所需资本金。具体资格和服务范围取决于业务、文件与审批；最终价格及服务内容以签署前的书面报价为准。"
+  "ar": "الأسعار المعلنة هي أتعاب باقات خدماتنا المهنية فقط بالريال السعودي. أي تخفيض يخص أتعابنا حصريًا، ولا يخفض الرسوم الحكومية أو رسوم الجهات الرسمية أو الضرائب أو رأس المال أو تكاليف الأطراف الخارجية. تعتمد الأهلية ونطاق التنفيذ على النشاط والمستندات والموافقات. يثبت السعر النهائي ومحتوى الخدمة في عرض مكتوب قبل أي التزام.",
+  "en": "Published package prices are our proposed professional service fees in SAR only. Any discount applies exclusively to our service fees, never government/authority charges, taxes, required capital, or third-party costs. Eligibility and scope depend on the activity, documents and approvals. The final scope and fee are confirmed in a written quotation before any commitment.",
+  "zh": "公布的套餐价格仅为我们的拟议专业服务费（沙特里亚尔）。任何折扣只适用于我们的服务费，不适用于政府及主管机构费用、税费、所需资本金或第三方成本。具体资格和服务范围取决于业务、文件与审批；最终价格及服务内容以签署前的书面报价为准。"
 };
