@@ -261,10 +261,15 @@ Evidence items:
 ${JSON.stringify(batch, null, 2)}
 
 Rules:
-- Only use evidence provided. No fabricated claims.
-- Support Arabic, English, Chinese.
+- Only use evidence provided. No fabricated claims or invented requirements, fees, approvals, timelines or rankings.
+- Audience: investors evaluating Saudi company formation services; material regulatory facts require current official authority evidence and later specialist review.
+- Every FAQ must respond directly and specifically to the question. Do not paraphrase competitor research as a public-facing FAQ and never write "Observed competitor guides", "competitor pages", or a recycled disclaimer.
+- Produce an original, fluent question and answer separately for Arabic, English and Simplified Chinese when relevant evidence supports them. Arabic question AND answer must be natural Arabic (except short proper nouns/acronyms), English must both be English, Chinese must both be Simplified Chinese. No mixed-language sentences or English copies of Chinese answers.
+- Do not translate a single English answer mechanically into another language; localize to each investor's question and requirements.
+- If authoritative evidence is insufficient to state a useful, specific answer, return no FAQ for that topic. Instead propose a source-verification goal/opportunity.
+- Include evidence_ids on every claim that has relevant evidence. Do not claim a source was verified merely because it appears in the bundle.
 - Score opportunities 0-100 based on evidence strength.
-- Classify draft risk: high for legal/regulatory/financial content.
+- Classify draft risk: high for legal/regulatory/financial content. Drafts are never auto-published.
 - Return ONLY valid JSON, no markdown.`;
 
   // Pass full prompt to runOpenCode (it writes to work dir)

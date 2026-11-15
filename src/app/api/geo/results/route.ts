@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getContent, setContent, type ContentDraft } from "@/lib/content-store";
 import { createOpportunity, createGoal, detectLanguage } from "@/lib/market-intelligence";
 import { normalizeGeoBatch, persistGeoBatch } from "@/lib/geo-ingest";
+import { validateGeoDrafts } from "@/lib/geo-draft-quality";
 import { getSupabaseCredentials } from "@/lib/storage-mode";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +36,7 @@ export async function POST(req:NextRequest) {
    });
   },
   saveDrafts:async drafts=>{
+   validateGeoDrafts(drafts);
    const before=await getContent();
    const reviewed=new Set(before.drafts.filter(d=>d.status==="approved"||d.status==="rejected").map(d=>d.q));
    const incoming:ContentDraft[]=drafts.filter(d=>!reviewed.has(d.q)).map(d=>({

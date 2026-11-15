@@ -21,6 +21,27 @@ const {normalizeGeoBatch,persistGeoBatch}=require('../.geo-ingest-test-build/geo
  const reported=await persistGeoBatch(report,{saveOpportunity:async()=>{},saveGoal:async()=>{},saveDrafts:async()=>0,saveReport:async()=>{calls.r++}});
  assert.equal(reported.ok,true);assert.equal(reported.saved.run_report,1);
  const fs=require('node:fs');
+ const {assessGeoDraftCopy,validateGeoDrafts}=require('../.geo-ingest-test-build/geo-draft-quality.js');
+ const englishQ='How can a foreign investor open a company in Saudi Arabia?';
+ const englishA='Start by identifying your proposed business activities and ownership structure. Check current eligibility, licensing and document requirements with the relevant Saudi authorities. Professional service charges must be quoted separately from government and third-party fees; authority approvals are not guaranteed.';
+ const arQ='ما المستندات التي يحتاجها المستثمر لتأسيس شركة في السعودية؟';
+ const arA='تختلف المستندات المطلوبة حسب النشاط وصفة المستثمر وطبيعة المنشأة المزمع تسجيلها. ابدأ بتحديد النشاط والشكل القانوني، ثم راجع المستندات والشروط الحالية في المصادر الرسمية للجهات المختصة. أتعاب المستشار منفصلة عن الرسوم الحكومية ولا توجد ضمانات مسبقة للموافقة.';
+ const zhQ='外国投资者在沙特设立公司需要准备哪些资料？';
+ const zhA='需要先确认投资者身份、企业经营活动和拟设立公司的结构，并根据主管部门现行要求核对申请资料及许可条件。服务机构的专业收费应当与政府费用和第三方费用分别列示。审批决定由沙特相关主管机关作出，任何咨询机构都无法保证一定获批。';
+ for(const item of [[englishQ,englishA],[arQ,arA],[zhQ,zhA]]){
+   const assessment=assessGeoDraftCopy(item[0],item[1]);
+   assert.equal(assessment.publishable,true,JSON.stringify(assessment));
+ }
+ assert.equal(assessGeoDraftCopy(englishQ,'Observed competitor guides cover Saudi company formation for foreign investors, including registration, licensing, banking and residence-related topics. Requirements, approvals, fees and timelines are determined by official Saudi authorities; verify current rules with the relevant authorities before acting. This is commercial advisory information, not a government service or guarantee of approval.').publishable,false,'generic English filler');
+ assert.equal(assessGeoDraftCopy('كيف يمكن ل investor أجنبي فتح شركة في Saudi Arabia؟','تشير صفحات competitors Observed إلى temas متعلقة بتأسيس الشركات في Saudi Arabia للمستثمرين الأجانب، بما في ذلك التسجيل والتراخيص والخدمات المصرفية وoptions الإقامة. تحدد Authorities Saudi الرسمية requirements and approvals and fees.').publishable,false,'mixed Arabic');
+ assert.equal(assessGeoDraftCopy(zhQ,englishA).publishable,false,'English Chinese answer must be rejected');
+ assert.throws(()=>validateGeoDrafts([{q:zhQ,a:englishA}]),/quality failed/);
+ validateGeoDrafts([{q:englishQ,a:englishA},{q:arQ,a:arA},{q:zhQ,a:zhA}]);
+ const dashboard=fs.readFileSync('src/app/admin/dashboard/page.tsx','utf8');
+ const adminRoute=fs.readFileSync('src/app/api/admin/content/route.ts','utf8');
+ assert(dashboard.includes('disabled={saving || !assessGeoDraftCopy(d.q,d.a).publishable}'),'invalid pending drafts cannot be approved in dashboard');
+ assert(adminRoute.includes("assessGeoDraftCopy(incoming.q||'',incoming.a||'')"),'approval must be checked server-side');
+
  const route=fs.readFileSync('src/app/api/geo/results/route.ts','utf8');
  const runner=fs.readFileSync('scripts/opencode-geo-analysis.js','utf8');
  const store=fs.readFileSync('src/lib/content-store.ts','utf8');

@@ -1,5 +1,6 @@
 ﻿'use client';
 
+import { assessGeoDraftCopy } from "@/lib/geo-draft-quality";
 import React, { useState, useEffect } from 'react';
 import VisibilityDashboard from '@/components/VisibilityDashboard';
 import CookiePolicyAdmin from '@/components/CookiePolicyAdmin';
@@ -287,7 +288,10 @@ export default function AdminDashboard() {
   };
 
   const approveDraft = (idx: number) => {
-    if (!content || saving || !window.confirm('اعتماد هذه المسودة ونشرها في محتوى الموقع؟')) return;
+    if (!content || saving) return;
+    const checked=assessGeoDraftCopy(content.drafts[idx]?.q,content.drafts[idx]?.a);
+    if (!checked.publishable) { setError('لا يمكن نشر المسودة قبل تصحيح الأخطاء اللغوية والتحريرية.'); return; }
+    if (!window.confirm('اعتماد هذه المسودة ونشرها في محتوى الموقع؟ يجب التحقق يدويًا من المصادر الرسمية وصحة المعلومات قبل الموافقة.')) return;
     const drafts = [...content.drafts];
     const draft = {...drafts[idx],status:'approved'};
     drafts[idx]=draft;
@@ -572,9 +576,11 @@ export default function AdminDashboard() {
                       <p className="font-semibold">{d.q}</p>
                       <p className="text-slate-700 text-sm mt-1">{d.a}</p>
                       <p className="text-xs text-slate-400 mt-1">الحالة: {readable(d.status)} — {formatDate(d.createdAt)}</p>
+                      {!assessGeoDraftCopy(d.q,d.a).publishable && <p className="text-xs text-red-700 mt-2" role="alert">محتوى غير صالح للنشر: لغة غير متسقة أو إجابة عامة. يحتاج إلى إعادة كتابة ومراجعة المصادر، ويمكن رفض المسودة.</p>}
+                      {d.risk_level === 'high' && <p className="text-xs text-amber-800 mt-2">محتوى عالي المخاطر: لا تعتمد دون مراجعة مختص والتحقق من المصدر الرسمي.</p>}
                       {d.status === 'pending' && (
                         <div className="flex gap-2 mt-3">
-                          <button onClick={() => approveDraft(i)} className="btn-primary text-xs" disabled={saving}>اعتماد ونشر</button>
+                          <button onClick={() => approveDraft(i)} className="btn-primary text-xs" disabled={saving || !assessGeoDraftCopy(d.q,d.a).publishable}>اعتماد ونشر</button>
                           <button onClick={() => rejectDraft(i)} className="btn-secondary text-xs" disabled={saving}>رفض</button>
                         </div>
                       )}
