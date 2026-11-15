@@ -79,7 +79,7 @@ const {normalizeGeoBatch,persistGeoBatch}=require('../.geo-ingest-test-build/lib
   const scope={process:{env:{GEO_API_URL:'https://example.invalid',GEO_API_KEY:'test-only'}},
    AbortSignal:{timeout:()=>undefined},console:{warn:()=>{}},
    fetch:async(_url,options)=>{const data=JSON.parse(options.body);calls.push(data);return response(data)}};
-  vm.runInNewContext(runner.slice(start,end)+'\\nthis.saveGEOStage=saveGEOStage;',scope);
+  vm.runInNewContext(runner.slice(start,end)+'\nthis.saveGEOStage=saveGEOStage;',scope);
   return {save:scope.saveGEOStage,calls};
  };
  const reply=(status,saved,errors)=>({ok:status===200,status,json:async()=>({ok:status===200,saved:{drafts:saved},errors})});
