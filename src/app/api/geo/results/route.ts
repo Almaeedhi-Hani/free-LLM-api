@@ -40,7 +40,7 @@ export async function POST(req:NextRequest) {
    const before=await getContent();
    const reviewed=new Set(before.drafts.filter(d=>d.status==="approved"||d.status==="rejected").map(d=>d.q));
    const incoming:ContentDraft[]=drafts.filter(d=>!reviewed.has(d.q)).map(d=>({
-    q:d.q,a:d.a,createdAt:new Date().toISOString(),status:"pending" as const,risk_level:d.risk_level
+    q:d.q,a:d.a,createdAt:new Date().toISOString(),status:"pending" as const,risk_level:d.risk_level,evidence_ids:d.evidence_ids||[],evidence_refs:d.evidence_refs||[]
    }));
    const after=incoming.length?await setContent({drafts:incoming}):before;
    // Confirm that each draft is stored, including already-reviewed duplicates.

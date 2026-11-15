@@ -578,6 +578,15 @@ export default function AdminDashboard() {
                       <p className="text-xs text-slate-400 mt-1">الحالة: {readable(d.status)} — {formatDate(d.createdAt)}</p>
                       {!assessGeoDraftCopy(d.q,d.a).publishable && <p className="text-xs text-red-700 mt-2" role="alert">محتوى غير صالح للنشر: لغة غير متسقة أو إجابة عامة. يحتاج إلى إعادة كتابة ومراجعة المصادر، ويمكن رفض المسودة.</p>}
                       {d.risk_level === 'high' && <p className="text-xs text-amber-800 mt-2">محتوى عالي المخاطر: لا تعتمد دون مراجعة مختص والتحقق من المصدر الرسمي.</p>}
+                      <div className="mt-3 border-t border-amber-200 pt-3">
+                        <p className="text-xs font-semibold text-slate-700">مصادر الرصد المستخدمة — لم يُتحقق منها رسميًا</p>
+                        {Array.isArray(d.evidence_refs) && d.evidence_refs.length > 0 ? <ul className="mt-2 space-y-1">
+                          {d.evidence_refs.map((ref:any,i:number)=><li key={String(ref.id)+'-'+i} className="text-xs text-slate-700 break-words">
+                            {ref.url?.startsWith('https://') ? <a href={ref.url} target="_blank" rel="noopener noreferrer" className="underline text-blue-700">{ref.label}</a> : <span>{ref.label}</span>}
+                            <span className="text-slate-500"> — {ref.kind} / {ref.source}</span>
+                          </li>)}
+                        </ul> : <p className="mt-1 text-xs text-red-700">لم تُرفق بالمسودة مراجع يمكن تتبعها. يلزم التحقق من مصادر أصلية قبل النشر.</p>}
+                      </div>
                       {d.status === 'pending' && (
                         <div className="flex gap-2 mt-3">
                           <button onClick={() => approveDraft(i)} className="btn-primary text-xs" disabled={saving || !assessGeoDraftCopy(d.q,d.a).publishable}>اعتماد ونشر</button>

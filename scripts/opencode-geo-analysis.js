@@ -358,9 +358,19 @@ async function stageGoals() {
 
 async function stageDrafts() {
  const items=stageResults.geo_analysis?.drafts||[];
- // Unclassified financial, licensing or regulatory drafts must remain high risk.
+ // Resolve LLM-generated evidence IDs ONLY against the actually collected evidence bundle.
+ // These are research references, not verified Saudi authority requirements.
+ const byId=new Map((stageResults.evidence?.items||[]).map(e=>[e.id,e]));
  for(const d of items){
   if(!['low','medium','high'].includes(d.risk_level))d.risk_level='high';
+  const ids=[...new Set(Array.isArray(d.evidence_ids)?d.evidence_ids:[])].filter(id=>typeof id==='string').slice(0,12);
+  d.evidence_refs=ids.map(id=>{
+   const e=byId.get(id);
+   if(!e)return null;
+   const url=typeof e.url==='string'&&e.url.startsWith('https://')?e.url:undefined;
+   return {id,label:String(e.name||id).slice(0,240),source:String(e.source||'unknown').slice(0,100),kind:String(e.type||'unknown').slice(0,100),...(url?{url}:{}),...(e.observed_at?{observed_at:e.observed_at}:{})};
+  }).filter(Boolean);
+  d.evidence_ids=d.evidence_refs.map(e=>e.id);
  }
  const saved=await saveGEOStage('drafts',items);
  stageResults.drafts={count:items.length,items,saved_to_api:saved.status==='success',persisted:saved.saved,error:saved.error||null};

@@ -4,7 +4,8 @@
  */
 export type GeoOpportunity = {title:string;type:"gap"|"content"|"keyword";score:number;evidence_ids?:string[];description?:string};
 export type GeoGoal = {title:string;priority:"high"|"medium"|"low";description?:string;related_opportunity?:string};
-export type GeoDraft = {q:string;a:string;risk_level:"low"|"medium"|"high";evidence_ids?:string[]};
+export type GeoEvidenceReference={id:string;label:string;source:string;kind:string;url?:string;observed_at?:string};
+export type GeoDraft = {q:string;a:string;risk_level:"low"|"medium"|"high";evidence_ids?:string[];evidence_refs?:GeoEvidenceReference[]};
 export type GeoReport = {run_at:string;status:"success"|"partial"|"error";last_result:string};
 export type GeoBatch = {opportunities?:GeoOpportunity[];goals?:GeoGoal[];drafts?:GeoDraft[];run_report?:GeoReport};
 export interface SaveActions {
@@ -17,6 +18,31 @@ export type GeoResult = {ok:boolean;saved:{opportunities:number;goals:number;dra
 
 const textOk=(v:unknown,max:number)=>typeof v==="string"&&v.trim().length>0&&v.length<=max&&!v.includes("\uFFFD");
 const validUrlFreeText=(v:unknown)=>v===undefined||textOk(v,2000);
+/** Preserves observed provenance, never marks a source official or verified. */
+function normalizeReferences(raw:unknown):GeoEvidenceReference[] {
+ if(raw===undefined||raw===null)return [];
+ if(!Array.isArray(raw)||raw.length>12)throw new Error("Invalid GEO evidence references");
+ const result:GeoEvidenceReference[]=[];
+ for(const e of raw){
+  if(!e||typeof e!=="object"||!textOk(e.id,150)||!textOk(e.label,240)||!textOk(e.source,100)||!textOk(e.kind,100))
+    throw new Error("Invalid GEO evidence reference metadata");
+  let url:string|undefined;
+  if(e.url!==undefined&&e.url!==null&&e.url!==""){
+    if(!textOk(e.url,1200))throw new Error("Invalid GEO evidence URL");
+    try{
+      const parsed=new URL(e.url);
+      if(parsed.protocol!=="https:"||!parsed.hostname||parsed.username||parsed.password)throw new Error("URL rejected");
+      url=parsed.toString();
+    }catch{throw new Error("Invalid GEO evidence URL")}
+  }
+  if(e.observed_at!==undefined&&e.observed_at!==null&&e.observed_at!==""){
+    if(!textOk(e.observed_at,60)||!Number.isFinite(Date.parse(e.observed_at)))throw new Error("Invalid GEO observation date");
+  }
+  result.push({id:e.id,label:e.label,source:e.source,kind:e.kind,...(url?{url}:{}),...(e.observed_at?{observed_at:e.observed_at}:{})});
+ }
+ return result;
+}
+
 export function normalizeGeoBatch(raw:unknown):GeoBatch{
  if(!raw||typeof raw!=="object"||Array.isArray(raw))throw new Error("Expected GEO data object");
  const value=raw as Record<string,unknown>;
@@ -35,7 +61,7 @@ export function normalizeGeoBatch(raw:unknown):GeoBatch{
      out.goals=items;
    }else{
      if(!items.every(d=>d&&textOk(d.q||d.question,1000)&&textOk(d.a||d.answer,5000)&&["high","medium","low"].includes(d.risk_level)))throw new Error("Invalid drafts");
-     out.drafts=items.map(d=>({q:d.q||d.question,a:d.a||d.answer,risk_level:d.risk_level,evidence_ids:d.evidence_ids}));
+     out.drafts=items.map(d=>({q:d.q||d.question,a:d.a||d.answer,risk_level:d.risk_level,evidence_ids:Array.isArray(d.evidence_ids)?d.evidence_ids.filter((id:unknown)=>textOk(id,150)).slice(0,12):[],evidence_refs:normalizeReferences(d.evidence_refs)}));
    }
  }
  if(value.run_report!==undefined){
