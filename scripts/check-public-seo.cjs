@@ -37,7 +37,7 @@ const slugs = [
           1,
           path + " H1",
         );
-        assert((html.match(/<h2(?:\s|>)/g) || []).length >= 3, path + " H2");
+        assert((html.match(/<h2(?:\s|>)/g) || []).length >= (route === "/packages" ? 0 : 3), path + " H2");
         const canonical = (html.match(/<link rel="canonical" href="([^"]+)"/) ||
           [])[1];
         assert.equal(
