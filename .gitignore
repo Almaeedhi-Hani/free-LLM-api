@@ -27,3 +27,5 @@ content-store.json
 .freellm-build/
 .geo-agent-build/
 .claude/
+
+.package-test-build/

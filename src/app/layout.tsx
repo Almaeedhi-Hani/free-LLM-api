@@ -58,6 +58,7 @@ export default async function RootLayout({
             </a>
             <nav className="desktop-nav" aria-label={t.nav}>
               <a href={localizedPath(lang) + "#services"}>{t.nav}</a>
+              <a href={localizedPath(lang,"/packages")}>{lang==="ar"?"الباقات":lang==="zh"?"服务套餐":"Packages"}</a>
               <a href={localizedPath(lang) + "#journey"}>{t.journey}</a>
               <a href={localizedPath(lang) + "#sources"}>{t.sources}</a>
             </nav>
@@ -65,7 +66,7 @@ export default async function RootLayout({
           </div>
           <nav className="mobile-nav">
             <a href={localizedPath(lang) + "#services"}>{t.nav}</a>
-            <a href={localizedPath(lang) + "#journey"}>{t.journey}</a>
+            <a href={localizedPath(lang,"/packages")}>{lang==="ar"?"الباقات":lang==="zh"?"服务套餐":"Packages"}</a>
             <a href={localizedPath(lang) + "#contact"}>{t.contact}</a>
           </nav>
         </header>
@@ -80,6 +81,7 @@ export default async function RootLayout({
             </div>
             <div>
               <h2>{t.nav}</h2>
+              <a href={localizedPath(lang,"/packages")}>{lang==="ar"?"الباقات":lang==="zh"?"服务套餐":"Packages"}</a>
               {serviceList.map((s) => (
                 <a
                   key={s.slug}

@@ -32,6 +32,8 @@ jobs:
         run: npm ci
       - name: Market intelligence CRUD and failure-mode tests
         run: npm run test:market
+      - name: Verify original multilingual packages and pricing
+        run: npm run test:packages
       - name: GEO agent tests
         run: npm run test:agent
       - name: Content storage tests
@@ -40,3 +42,24 @@ jobs:
         run: npx tsc src/lib/cron-agent-guards.ts --outDir .cron-test-build --module commonjs --target es2020 --skipLibCheck --types node && node scripts/cron-agent-guards.test.cjs
       - name: Production build
         run: npm run build
+      - name: Validate rendered SEO metadata, visible offers and LLM feed (isolated file fixture)
+        run: |
+          # Runtime production intentionally fails closed without Supabase secrets.
+          # Exercise SSR without secrets via dev server; production build is gated above.
+          (NODE_ENV=development npm run dev -- -p 3000 > /tmp/seo-render.log 2>&1 &)
+          ready=0
+          for i in $(seq 1 50); do
+            if curl -fsS --max-time 12 http://127.0.0.1:3000/ >/dev/null 2>&1; then ready=1; break; fi
+            sleep 2
+          done
+          if [ "$ready" != "1" ]; then
+            tail -80 /tmp/seo-render.log
+            echo "SSR fixture did not become ready"
+            exit 1
+          fi
+          SEO_TEST_BASE_URL=http://127.0.0.1:3000 node scripts/check-public-seo.cjs
+          curl -fsS http://127.0.0.1:3000/api/llm-version > /tmp/seo-llm.txt
+          grep -q "Service fee: 28000 SAR" /tmp/seo-llm.txt
+          grep -q "Service fee: 78000 SAR" /tmp/seo-llm.txt
+          node -e 'const t=require("node:fs").readFileSync("/tmp/seo-llm.txt","utf8").toLowerCase();const blocked=[["j","c"," ","group"].join(""),["jc","group","ksa"].join(""),["investinsaudi","-services",".sa"].join("")];if(blocked.some(x=>t.includes(x))){console.error("Disallowed outside-party reference in public LLM feed");process.exit(1)}'
+

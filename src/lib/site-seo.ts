@@ -53,3 +53,32 @@ export function pageMetadata(slug?: string): Metadata {
     },
   };
 }
+
+export function packageMetadata(lang: "ar" | "en" | "zh"): Metadata {
+  const path = localizedPath(lang, "/packages");
+  const titles = {
+    ar: "باقات تأسيس الشركات والتراخيص الاستثمارية في السعودية | خدمات المستثمرين",
+    en: "Saudi Company Formation Packages & Fees | Investor Services",
+    zh: "沙特公司设立及投资许可服务套餐与价格｜投资者服务",
+  };
+  const descriptions = {
+    ar: "قارن 10 باقات لخدمات تأسيس الشركات والتسجيل الاستثماري والتراخيص التجارية والمهنية. أسعار الخدمة والمزايا والوثائق والاستثناءات واضحة، مع تقييم للأهلية قبل العرض النهائي.",
+    en: "Compare 10 Saudi company-formation, investment-registration, trading and professional service packages. Transparent service fees, eligibility, deliverables and exclusions.",
+    zh: "比较沙特公司设立、投资登记、贸易及专业服务的十种套餐。了解服务费用、资格、交付内容及不包含的项目。",
+  };
+  const canonical = siteUrl + path;
+  return {
+    title: titles[lang], description: descriptions[lang],
+    alternates: {
+      canonical,
+      languages: {
+        ar: siteUrl + "/packages",
+        en: siteUrl + "/en/packages",
+        "zh-Hans": siteUrl + "/zh/packages",
+        "x-default": siteUrl + "/packages",
+      },
+    },
+    openGraph: { title: titles[lang], description: descriptions[lang], url: canonical, type:"website", locale: {ar:"ar_SA",en:"en_US",zh:"zh_CN"}[lang] },
+    robots: { index:true, follow:true, "max-snippet": -1 },
+  };
+}
