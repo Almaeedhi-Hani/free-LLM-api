@@ -24,6 +24,15 @@ export async function ServicePage({ slug }: { slug: string }) {
         citation: [s.source, ...guide.references.map((r) => r.url)],
       },
       {
+        "@type": "Service",
+        "@id": siteUrl + localizedPath(lang, `/services/${slug}`) + "#service",
+        name: s.title[lang],
+        description: s.summary[lang],
+        serviceType: s.title[lang],
+        areaServed: { "@type": "Country", name: "Saudi Arabia" },
+        url: siteUrl + localizedPath(lang, `/services/${slug}`),
+      },
+      {
         "@type": "FAQPage",
         mainEntity: [
           {
@@ -133,6 +142,19 @@ export async function ServicePage({ slug }: { slug: string }) {
           </a>
         </aside>
       </div>
+      <section className="service-related" aria-labelledby="service-related-heading">
+        <p className="eyebrow">{lang === "ar" ? "استكشف خدماتنا" : lang === "zh" ? "探索其他服务" : "EXPLORE SERVICES"}</p>
+        <h2 id="service-related-heading">{lang === "ar" ? "خدمات مرتبطة بخطوتك التالية" : lang === "zh" ? "与下一步相关的服务" : "Related services for your next step"}</h2>
+        <div className="service-related-grid">
+          {services.filter((item) => item.slug !== slug).slice(0, 3).map((item) => (
+            <a key={item.slug} href={localizedPath(lang, `/services/${item.slug}`)}>
+              <span>{item.authority}</span>
+              <strong>{item.title[lang]}</strong>
+              <small>{lang === "ar" ? "عرض الدليل" : lang === "zh" ? "查看指南" : "View guide"} ↗</small>
+            </a>
+          ))}
+        </div>
+      </section>
       <div className="service-next-step">
         <div>
           <span>{lang === "ar" ? "الخطوة التالية" : lang === "zh" ? "下一步" : "NEXT STEP"}</span>
