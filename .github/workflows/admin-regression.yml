@@ -32,6 +32,8 @@ jobs:
         run: npm ci
       - name: Market intelligence CRUD and failure-mode tests
         run: npm run test:market
+      - name: Verify original multilingual packages and pricing
+        run: npm run test:packages
       - name: GEO agent tests
         run: npm run test:agent
       - name: Content storage tests
@@ -40,3 +42,19 @@ jobs:
         run: npx tsc src/lib/cron-agent-guards.ts --outDir .cron-test-build --module commonjs --target es2020 --skipLibCheck --types node && node scripts/cron-agent-guards.test.cjs
       - name: Production build
         run: npm run build
+      - name: Validate rendered SEO metadata, visible offers and LLM feed
+        run: |
+          (npm run start -- -p 3000 > /tmp/seo-render.log 2>&1 &)
+          for i in $(seq 1 50); do
+            if curl -fsS http://127.0.0.1:3000/ >/dev/null; then break; fi
+            sleep 2
+          done
+          SEO_TEST_BASE_URL=http://127.0.0.1:3000 node scripts/check-public-seo.cjs
+          curl -fsS http://127.0.0.1:3000/api/llm-version > /tmp/seo-llm.txt
+          grep -q "Service fee: 28000 SAR" /tmp/seo-llm.txt
+          grep -q "Service fee: 78000 SAR" /tmp/seo-llm.txt
+          if grep -Eiq 'JC Group|jcgroupksa|investinsaudi-services[.]sa' /tmp/seo-llm.txt; then
+            echo "Disallowed company/reference leaked into LLM feed"
+            exit 1
+          fi
+
