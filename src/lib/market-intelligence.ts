@@ -1273,7 +1273,7 @@ export async function runMarketAnalysis(triggeredBy: TriggeredBy = 'manual'): Pr
     return { run_id: run.id, summary };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    await finishRun(run.id, 'failed', discovery ? { discovery } : undefined, msg);
+    await finishRun(run.id, 'failed', undefined, msg);
     throw e;
   }
 }
@@ -1526,7 +1526,7 @@ export async function runRadar(config?: Partial<DiscoveryConfig>): Promise<{
     return { run_id: run.id, discovery, analysis };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    await finishRun(run.id, 'failed', undefined, msg);
+    await finishRun(run.id, 'failed', discovery ? { discovery } : undefined, msg);
     throw e;
   }
 }
