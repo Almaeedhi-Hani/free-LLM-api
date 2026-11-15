@@ -46,7 +46,7 @@ export default async function PackagesLanding({lang}:{lang:PackageLocale}) {
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{__html:JSON.stringify(schema).replace(/</g,"\\u003c")}}/>
-      <PackageRequest lang={lang} contactUrl={content.contact.whatsapp}/>
+      <PackageRequest lang={lang}/>
     </>
   );
 }

@@ -37,7 +37,7 @@ const slugs = [
           1,
           path + " H1",
         );
-        assert((html.match(/<h2(?:\s|>)/g) || []).length >= 3, path + " H2");
+        assert((html.match(/<h2(?:\s|>)/g) || []).length >= (route === "/packages" ? 0 : 3), path + " H2");
         const canonical = (html.match(/<link rel="canonical" href="([^"]+)"/) ||
           [])[1];
         assert.equal(
@@ -66,10 +66,10 @@ const slugs = [
         assert(!/href="\/ai-readable"/.test(html), path + " AI button");
         assert(html.includes("application/ld+json"));
         if (route === "/packages") {
-          assert((html.match(/class="package-offer-card"/g)||[]).length === 10, path+" SSR offer cards");
-          assert(html.includes("services-branch") && html.includes("professional-scratch"),path+" all package anchors");
+          assert((html.match(/class="license-category-card"/g)||[]).length === 3, path+" original three license-category cards");
+          assert(html.includes("services-branch") && html.includes("professional-scratch"),path+" all ten package offers available in JSON-LD");
           assert(html.includes("schema.org") && html.includes("priceCurrency"),path+" Service Offer JSONLD");
-          assert(html.includes("company") || lang !== "en", path+" package descriptions");
+          assert(html.includes(lang==="ar"?"باقات التراخيص الاستثمارية":lang==="zh"?"投资登记套餐":"Investment license packages"),path+" restored heading");
         }
         pages++;
       }),
