@@ -20,9 +20,9 @@ const FALLBACK_MODELS = Array.from(new Set([MODEL,
   'opencode/glm-5.3-flash-free',
   'openrouter/google/gemma-4-26b-a4b-it:free',
 ])).filter(m => /(?:-free|:free)$/i.test(m));
-const MAX_RETRIES = 3;
-// Each weekly run performs at most three successful locale analyses (one per AR/EN/ZH),
-// with bounded free-model fallbacks. OpenCode bills per model policy; no paid tier assumed.
+const MAX_RETRIES = 2;
+// Each weekly run performs three distinct language analyses, with at most 18 free-model
+// attempts across those analyses. No paid-tier fallback or unverified token quota is assumed.
 const RETRY_DELAY_MS = 8000;
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -61,7 +61,7 @@ function runOpenCode(prompt, model) {
       delete safeEnv.PARALLEL_API_KEY;
       delete safeEnv.FIRECRAWL_API_KEY;
       const output = execSync(cmd, {
-        timeout: 180000,
+        timeout: 120000,
         encoding: 'utf-8',
         maxBuffer: 20 * 1024 * 1024,
         cwd: workDir,
@@ -264,7 +264,8 @@ async function stageGeoAnalysis() {
     const prompt=promptForLocale(lang,sample);
     let response=null;
     // Use configured free model first. The fallback list contains free-tier models only.
-    for(const model of FALLBACK_MODELS){
+    // Maximum 3 free models per locale × 2 retries × 120s remains within the scheduled 45m job ceiling.
+    for(const model of FALLBACK_MODELS.slice(0,3)){
       calls++;
       const trial=runOpenCode(prompt,model);
       if(trial.data){response=trial;break}
