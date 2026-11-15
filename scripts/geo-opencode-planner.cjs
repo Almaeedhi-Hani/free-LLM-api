@@ -69,7 +69,8 @@ function promptForLocale(lang,evidence){
  "Offer official_source_candidates in the tree as references for HUMAN re-verification; competitor URLs and keyword suggestions ARE NOT authority-verified legal evidence. Attach actual evidence_ids for researched claims, never fabricate IDs. No source => source-research task, not regulatory fact.",
  "Financial, corporate formation, licensing, banking and legal drafts stay high risk; require specialist review. Official fees and taxes are separate from our professional service fees. NEVER modify the published service prices or existing three-stage package visual layout.",
  "If evidence is weak propose no article or FAQ; prefer a research goal/technical task. A credible single guide is better than five fabricated ones.",
- "Output compact JSON with arrays and at most 3 opportunities, 3 goals, 2 FAQs, 5 editorial_actions for this locale. Keep every title and paragraph specific to its content purpose.",
+ "Every opportunity MUST have a nonempty title of at most 500 characters, type exactly gap or content or keyword, and score as a JSON NUMBER from 0 to 100 (not a quoted number, percentage string, null, or object). Optional description, when present, must be nonempty text at most 2000 characters. Omit an opportunity rather than invent a score or evidence.",
+  "Output compact JSON with arrays and at most 3 opportunities, 3 goals, 2 FAQs, 5 editorial_actions for this locale. Keep every title and paragraph specific to its content purpose.",
  "Proposed output schema follows below, no Markdown fences."
  ];
  const schema={
