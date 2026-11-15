@@ -1,0 +1,23 @@
+name: OpenCode Lab PR validation
+on:
+  pull_request:
+    paths:
+      - 'src/app/admin/opencode-lab/**'
+      - 'src/app/api/admin/opencode-lab/**'
+      - '.github/workflows/opencode-lab-pr.yml'
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: TypeScript validation
+        run: npx tsc --noEmit
+      - name: Production build
+        run: npm run build
