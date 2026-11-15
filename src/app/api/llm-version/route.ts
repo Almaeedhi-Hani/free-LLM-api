@@ -56,6 +56,7 @@ export async function GET() {
     "WhatsApp: " + content.contact.whatsapp,
     "## Additional editorial information (Arabic)",
     content.goldenParagraph,
+    ...(content.keywords.length ? ["Editorial keywords: " + content.keywords.join(", ")] : []),
     ...content.faqs.filter(f=>!/^STORAGE_TEST_/i.test(f.q)).map(f=>"Q: "+f.q+"\nA: "+f.a),
     "Last editorial update: " + content.updatedAt,
   ].join("\n\n");
