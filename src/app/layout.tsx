@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { CookieConsent } from "@/components/CookieConsent";
 import { getContent } from "@/lib/content-store";
+import { approvedEditorial } from "@/lib/editorial-workflow";
 import { getLocale, localizedPath } from "@/lib/site-language";
 import { copy, services } from "@/lib/service-catalog";
 export const dynamic = "force-dynamic";
@@ -23,6 +24,7 @@ export default async function RootLayout({
   const t = copy[lang];
   const content = await getContent();
   const { contact } = content;
+  const hasGuides=approvedEditorial(content.editorialItems,lang).some(e=>e.kind==="guide"||e.kind==="comparison");
   const verification = content.searchIntegrations?.googleVerification || "9DD9bimLxrjoQrAMYZB4Icwz_0lnfnb2idwXBqqBK4w";
   const serviceList = services;
   return (
@@ -59,6 +61,7 @@ export default async function RootLayout({
             <nav className="desktop-nav" aria-label={t.nav}>
               <a href={localizedPath(lang) + "#services"}>{t.nav}</a>
               <a href={localizedPath(lang,"/packages")}>{lang==="ar"?"الباقات":lang==="zh"?"服务套餐":"Packages"}</a>
+              {hasGuides&&<a href={localizedPath(lang,"/insights")}>{lang==="ar"?"الأدلة":lang==="zh"?"指南":"Guides"}</a>}
               <a href={localizedPath(lang) + "#journey"}>{t.journey}</a>
               <a href={localizedPath(lang) + "#sources"}>{t.sources}</a>
             </nav>
@@ -67,6 +70,7 @@ export default async function RootLayout({
           <nav className="mobile-nav">
             <a href={localizedPath(lang) + "#services"}>{t.nav}</a>
             <a href={localizedPath(lang,"/packages")}>{lang==="ar"?"الباقات":lang==="zh"?"服务套餐":"Packages"}</a>
+            {hasGuides&&<a href={localizedPath(lang,"/insights")}>{lang==="ar"?"الأدلة":lang==="zh"?"指南":"Guides"}</a>}
             <a href={localizedPath(lang) + "#contact"}>{t.contact}</a>
           </nav>
         </header>

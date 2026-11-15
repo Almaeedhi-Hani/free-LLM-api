@@ -2,6 +2,8 @@ import ArrowUpRight from "@/components/ArrowUpRight";
 import { getLocale, localizedPath } from "@/lib/site-language";
 import { copy, services } from "@/lib/service-catalog";
 import { getContent } from "@/lib/content-store";
+import { EditorialBlock } from "@/components/EditorialBlock";
+import { approvedEditorial } from "@/lib/editorial-workflow";
 import { guides, guideLabels, decisionPrompts } from "@/lib/service-guides";
 import { siteUrl } from "@/lib/site-seo";
 export async function ServicePage({ slug }: { slug: string }) {
@@ -143,6 +145,13 @@ export async function ServicePage({ slug }: { slug: string }) {
           </a>
         </aside>
       </div>
+      <EditorialBlock items={content.editorialItems} lang={lang} kind="service" target={slug} inside/>
+      {approvedEditorial(content.editorialItems,lang).filter(e=>(e.kind==='guide'||e.kind==='comparison')&&e.slug&&e.target===e.slug).slice(0,3).length>0&&
+        <section className="service-related">
+          <h2>{lang==='ar'?'محتوى معرفي ذو صلة':lang==='zh'?'更多实用指南':'Further investor resources'}</h2>
+          {approvedEditorial(content.editorialItems,lang).filter(e=>e.kind==='guide'||e.kind==='comparison').slice(0,3).map(e=>
+            <p key={e.id}><a href={localizedPath(lang,'/insights/'+e.slug)}>{e.title} <ArrowUpRight /></a></p>)}
+        </section>}
       <section className="service-related" aria-labelledby="service-related-heading">
         <p className="eyebrow">{lang === "ar" ? "استكشف خدماتنا" : lang === "zh" ? "探索其他服务" : "EXPLORE SERVICES"}</p>
         <h2 id="service-related-heading">{lang === "ar" ? "خدمات مرتبطة بخطوتك التالية" : lang === "zh" ? "与下一步相关的服务" : "Related services for your next step"}</h2>

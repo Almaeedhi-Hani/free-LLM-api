@@ -254,7 +254,8 @@ Analyze the following evidence items and return a JSON object with:
 {
   "opportunities": [{"title": "...", "type": "gap|content|keyword", "score": 0-100, "evidence_ids": ["..."], "description": "..."}],
   "goals": [{"title": "...", "priority": "high|medium|low", "related_opportunity": "..."}],
-  "drafts": [{"q": "question", "a": "answer", "evidence_ids": ["..."], "risk_level": "low|medium|high"}]
+  "drafts": [{"q": "question", "a": "answer", "evidence_ids": ["..."], "risk_level": "low|medium|high"}],
+  "editorial_actions": [{"kind": "home|service|packages|guide|comparison|trust|technical_seo|internal_link", "lang": "ar|en|zh", "target": "/|/packages|company-formation|misa-license|corporate-banking|contract-drafting|premium-residency|investment-funds|unique-article-slug", "slug": "only-for-guide-or-comparison", "title": "specific helpful heading", "summary": "clear summary for a decision-making reader", "body": "original substantial editorial content; no invented legal or company claims", "evidence_ids": ["..."], "risk_level": "high"}]
 }
 
 Evidence items:
@@ -263,6 +264,10 @@ ${JSON.stringify(batch, null, 2)}
 Rules:
 - Only use evidence provided. No fabricated claims or invented requirements, fees, approvals, timelines or rankings.
 - Audience: investors evaluating Saudi company formation services; material regulatory facts require current official authority evidence and later specialist review.
+- Generate DIFFERENT website improvements, not only FAQs. Propose diverse editorial_actions rooted in actual evidence, prioritizing buyer-intent service pages, useful pricing and requirements context, original long-form guides, legitimate comparisons, internal linking/technical tasks and evidence-backed trust content. Target actual service slugs, not arbitrary routes.
+- Do not reuse the same paragraph as a FAQ, guide and service section. Each output must have distinct purpose, user intent and source IDs.
+- Editorial actions are pending human review. Do NOT claim actual publication, first-place rankings, ownership of competitor facts or official approval. If evidence cannot support an accurate article, propose a technical_seo or research goal, not a fabricated guide.
+- Avoid unsourced trust signals: no testimonials, licenses, years of experience, client counts or external endorsements without verified proof.
 - Every FAQ must respond directly and specifically to the question. Do not paraphrase competitor research as a public-facing FAQ and never write "Observed competitor guides", "competitor pages", or a recycled disclaimer.
 - Produce an original, fluent question and answer separately for Arabic, English and Simplified Chinese when relevant evidence supports them. Arabic question AND answer must be natural Arabic (except short proper nouns/acronyms), English must both be English, Chinese must both be Simplified Chinese. No mixed-language sentences or English copies of Chinese answers.
 - Do not translate a single English answer mechanically into another language; localize to each investor's question and requirements.
@@ -294,6 +299,7 @@ Rules:
     opportunities: data.opportunities || [],
     goals: data.goals || [],
     drafts: data.drafts || [],
+    editorial_actions: Array.isArray(data.editorial_actions)?data.editorial_actions:[],
     model: result.model,
     tokens_used: 0,
   };
@@ -329,7 +335,7 @@ async function updateGEOAgentRun(outcome) {
   if(!base||!key)return false;
   try{
     const status=Object.values(outcome.stages).every(s=>s.status==='success')?'success':'partial';
-    const last_result=['discovery','evidence','geo_analysis','opportunities','goals','drafts'].map(stage=>stage+':'+(outcome.stages[stage]?.status||'not_run')).join(' | ');
+    const last_result=['discovery','evidence','geo_analysis','opportunities','goals','drafts','editorial_actions'].map(stage=>stage+':'+(outcome.stages[stage]?.status||'not_run')).join(' | ');
     const response=await fetch(base.replace(/\/$/,'')+'/api/geo/results',{
       method:'POST',headers:{'Content-Type':'application/json','x-geo-api-key':key},
       body:JSON.stringify({run_report:{run_at:outcome.pipeline_run,status,last_result}}),
@@ -378,6 +384,31 @@ async function stageDrafts() {
  return {records_processed:saved.saved,status:saved.status,error:saved.error};
 }
 
+async function stageEditorialActions() {
+ const items=stageResults.geo_analysis?.editorial_actions||[];
+ if(!items.length){
+  stageResults.editorial_actions={count:0,persisted:0,reason:'No supported cross-site proposals in this evidence batch'};
+  console.log('[EDITORIAL] No evidence-backed cross-site proposals generated');
+  return {records_processed:0,status:'success',note:'No editorial proposals generated'};
+ }
+ const byId=new Map((stageResults.evidence?.items||[]).map(e=>[e.id,e]));
+ const crypto=require('node:crypto');
+ const proposed=items.slice(0,15).map((item,i)=>{
+  const ids=[...new Set(Array.isArray(item.evidence_ids)?item.evidence_ids:[])].filter(id=>typeof id==='string'&&byId.has(id)).slice(0,12);
+  const refs=ids.map(id=>{
+   const e=byId.get(id);
+   const url=typeof e.url==='string'&&e.url.startsWith('https://')?e.url:undefined;
+   return {id,label:String(e.name||id).slice(0,240),source:String(e.source||'unknown').slice(0,100),kind:String(e.type||'unknown').slice(0,100),...(url?{url}:{}),...(e.observed_at?{observed_at:e.observed_at}:{})};
+  });
+  const id='ed-'+crypto.createHash('sha256').update([item.kind,item.lang,item.target,item.title].join('|')).digest('hex').slice(0,24);
+  return {id,kind:item.kind,lang:item.lang,target:item.target,slug:item.slug,title:item.title,summary:item.summary,body:item.body,risk_level:item.risk_level==='low'||item.risk_level==='medium'?'high':item.risk_level,status:'pending',createdAt:new Date().toISOString(),evidence_ids:ids,evidence_refs:refs};
+ });
+ const saved=await saveGEOStage('editorial_actions',proposed);
+ stageResults.editorial_actions={count:proposed.length,persisted:saved.saved,status:saved.status,error:saved.error||null};
+ console.log('[EDITORIAL] Generated',proposed.length,'persisted',saved.saved,saved.status);
+ return {records_processed:saved.saved,status:saved.status,error:saved.error};
+}
+
 // --- Main pipeline ---
 async function runFullPipeline() {
   console.log('=== GEO Intelligence Full Pipeline (OpenCode) ===');
@@ -386,7 +417,7 @@ async function runFullPipeline() {
   console.log('Timestamp:', new Date().toISOString());
 
   const pipelineStart = Date.now();
-  const stageOrder = ['discovery', 'evidence', 'geo_analysis', 'opportunities', 'goals', 'drafts'];
+  const stageOrder = ['discovery', 'evidence', 'geo_analysis', 'opportunities', 'goals', 'drafts', 'editorial_actions'];
   const handlers = {
     discovery: stageDiscovery,
     evidence: stageEvidence,
@@ -394,6 +425,7 @@ async function runFullPipeline() {
     opportunities: stageOpportunities,
     goals: stageGoals,
     drafts: stageDrafts,
+    editorial_actions:stageEditorialActions,
   };
 
   const results = {};
@@ -430,6 +462,7 @@ async function runFullPipeline() {
       opportunities: stageResults.opportunities?.count || 0,
       goals: stageResults.goals?.count || 0,
       drafts: stageResults.drafts?.count || 0,
+      editorial_actions:stageResults.editorial_actions?.count || 0,
       high_risk_drafts: stageResults.drafts?.items?.filter(d => d.risk_level === 'high').length || 0,
     },
     stage_results: stageResults,
@@ -448,6 +481,7 @@ async function runFullPipeline() {
   output.summary.persisted_opportunities=stageResults.opportunities?.persisted||0;
   output.summary.persisted_goals=stageResults.goals?.persisted||0;
   output.summary.persisted_drafts=stageResults.drafts?.persisted||0;
+  output.summary.persisted_editorial_actions=stageResults.editorial_actions?.persisted||0;
   output.pipeline_ok=Object.values(results).length===stageOrder.length && Object.values(results).every(s=>s.status==='success');
   output.dashboard_synced=await updateGEOAgentRun(output);
   if(!output.dashboard_synced)output.pipeline_ok=false;

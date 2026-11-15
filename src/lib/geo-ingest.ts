@@ -7,14 +7,16 @@ export type GeoGoal = {title:string;priority:"high"|"medium"|"low";description?:
 export type GeoEvidenceReference={id:string;label:string;source:string;kind:string;url?:string;observed_at?:string};
 export type GeoDraft = {q:string;a:string;risk_level:"low"|"medium"|"high";evidence_ids?:string[];evidence_refs?:GeoEvidenceReference[]};
 export type GeoReport = {run_at:string;status:"success"|"partial"|"error";last_result:string};
-export type GeoBatch = {opportunities?:GeoOpportunity[];goals?:GeoGoal[];drafts?:GeoDraft[];run_report?:GeoReport};
+import { type EditorialItem,validateEditorialItem } from './editorial-workflow';
+export type GeoBatch = {opportunities?:GeoOpportunity[];goals?:GeoGoal[];drafts?:GeoDraft[];editorial_actions?:EditorialItem[];run_report?:GeoReport};
 export interface SaveActions {
  saveOpportunity:(o:GeoOpportunity)=>Promise<void>;
  saveGoal:(g:GeoGoal)=>Promise<void>;
  saveDrafts:(d:GeoDraft[])=>Promise<number>;
+ saveEditorial:(e:EditorialItem[])=>Promise<number>;
  saveReport:(report:GeoReport)=>Promise<void>;
 }
-export type GeoResult = {ok:boolean;saved:{opportunities:number;goals:number;drafts:number;run_report:number};requested:{opportunities:number;goals:number;drafts:number;run_report:number};errors:string[]};
+export type GeoResult = {ok:boolean;saved:{opportunities:number;goals:number;drafts:number;run_report:number;editorial_actions:number};requested:{opportunities:number;goals:number;drafts:number;run_report:number;editorial_actions:number};errors:string[]};
 
 const textOk=(v:unknown,max:number)=>typeof v==="string"&&v.trim().length>0&&v.length<=max&&!v.includes("\uFFFD");
 const validUrlFreeText=(v:unknown)=>v===undefined||textOk(v,2000);
@@ -48,7 +50,7 @@ export function normalizeGeoBatch(raw:unknown):GeoBatch{
  const value=raw as Record<string,unknown>;
  const out:GeoBatch={};
  let hasInput=false;
- for(const key of ["opportunities","goals","drafts"] as const){
+ for(const key of ["opportunities","goals","drafts","editorial_actions"] as const){
    if(value[key]===undefined)continue;
    hasInput=true;
    const items=value[key];
@@ -59,6 +61,8 @@ export function normalizeGeoBatch(raw:unknown):GeoBatch{
    }else if(key==="goals"){
      if(!items.every(g=>g&&textOk(g.title,500)&&["high","medium","low"].includes(g.priority)))throw new Error("Invalid goals");
      out.goals=items;
+   }else if(key==="editorial_actions"){
+     out.editorial_actions=items.map(d=>validateEditorialItem(d));
    }else{
      if(!items.every(d=>d&&textOk(d.q||d.question,1000)&&textOk(d.a||d.answer,5000)&&["high","medium","low"].includes(d.risk_level)))throw new Error("Invalid drafts");
      out.drafts=items.map(d=>({q:d.q||d.question,a:d.a||d.answer,risk_level:d.risk_level,evidence_ids:Array.isArray(d.evidence_ids)?d.evidence_ids.filter((id:unknown)=>textOk(id,150)).slice(0,12):[],evidence_refs:normalizeReferences(d.evidence_refs)}));
@@ -74,7 +78,7 @@ export function normalizeGeoBatch(raw:unknown):GeoBatch{
  return out;
 }
 export async function persistGeoBatch(batch:GeoBatch,actions:SaveActions):Promise<GeoResult>{
- const result:GeoResult={ok:false,saved:{opportunities:0,goals:0,drafts:0,run_report:0},requested:{opportunities:batch.opportunities?.length||0,goals:batch.goals?.length||0,drafts:batch.drafts?.length||0,run_report:batch.run_report?1:0},errors:[]};
+ const result:GeoResult={ok:false,saved:{opportunities:0,goals:0,drafts:0,run_report:0,editorial_actions:0},requested:{opportunities:batch.opportunities?.length||0,goals:batch.goals?.length||0,drafts:batch.drafts?.length||0,run_report:batch.run_report?1:0,editorial_actions:batch.editorial_actions?.length||0},errors:[]};
  for(const item of batch.opportunities||[]){
    try{await actions.saveOpportunity(item);result.saved.opportunities++}catch(e){result.errors.push("opportunities: "+(e instanceof Error?e.message:"storage error"))}
  }
@@ -87,6 +91,11 @@ export async function persistGeoBatch(batch:GeoBatch,actions:SaveActions):Promis
      result.saved.drafts=count;
      if(count!==batch.drafts.length)result.errors.push("drafts: persisted count did not match requested count");
    }catch(e){result.errors.push("drafts: "+(e instanceof Error?e.message:"storage error"))}
+ }
+ if(batch.editorial_actions?.length){
+   try{const saved=await actions.saveEditorial(batch.editorial_actions);result.saved.editorial_actions=saved;
+    if(saved!==batch.editorial_actions.length)result.errors.push('editorial_actions: persisted count mismatch');
+   }catch(e){result.errors.push('editorial_actions: '+(e instanceof Error?e.message:'storage error'))}
  }
  if(batch.run_report){
    try{await actions.saveReport(batch.run_report);result.saved.run_report=1}

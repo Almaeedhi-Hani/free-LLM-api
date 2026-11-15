@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getContent } from "@/lib/content-store";
+import { approvedEditorial } from "@/lib/editorial-workflow";
 import { services } from "@/lib/service-catalog";
 import { guides } from "@/lib/service-guides";
 import { packageOffers, packageDisclosure, packageUpdatedAt } from "@/lib/package-offers";
@@ -55,6 +56,12 @@ export async function GET() {
     "3. Verify the requirements of MISA, Ministry of Commerce and sector regulators.",
     "4. Separate professional service fees, government fees, working capital and third-party costs.",
     "5. Request a written scope and fee breakdown before commencing work.",
+    "## Human-reviewed editorial improvements (by page and language)",
+    ...languages.flatMap(lang=>approvedEditorial(content.editorialItems,lang).filter(e=>e.kind!=="technical_seo"&&e.kind!=="internal_link").map(e=>[
+      "### "+e.title,"Language: "+lang,"Placement: "+e.kind+" "+e.target,"Summary: "+e.summary,e.body,
+      "Sources reviewed by editor (verify independently): "+(e.verified_sources||[]).join("; "),
+      "Public page: "+siteUrl+(lang==="ar"?"":"/"+lang)+(e.kind==="service"?"/services/"+e.target:e.kind==="packages"?"/packages":e.kind==="guide"||e.kind==="comparison"?"/insights/"+e.slug:"/")
+    ].join("\\n"))),
     "## Contact",
     "Phone: " + content.contact.phoneDisplay,
     ...(content.contact.email ? ["Email: " + content.contact.email] : []),

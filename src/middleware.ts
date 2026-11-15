@@ -25,7 +25,7 @@ export function middleware(req: NextRequest) {
   const lang: Locale = match ? match[1] as Locale : "ar";
   const stripped = match ? pathname.slice(match[0].length) || "/" : pathname;
   // Never redirect APIs, admin, assets or other non-editorial routes.
-  if (stripped !== "/" && !stripped.startsWith("/services/") && stripped !== "/packages") return NextResponse.next();
+  if (stripped !== "/" && !stripped.startsWith("/services/") && stripped !== "/packages" && stripped !== "/insights" && !stripped.startsWith("/insights/")) return NextResponse.next();
   if (lang === "ar" && match) {
     const target = req.nextUrl.clone();
     target.pathname = stripped;
@@ -56,5 +56,5 @@ export function middleware(req: NextRequest) {
   return NextResponse.next({request:{headers}});
 }
 export const config = {
-  matcher: ["/", "/services/:path*", "/ar/:path*", "/en/:path*", "/zh/:path*"],
+  matcher: ["/", "/services/:path*", "/insights/:path*", "/ar/:path*", "/en/:path*", "/zh/:path*"],
 };

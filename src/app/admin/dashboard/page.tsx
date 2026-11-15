@@ -1,5 +1,6 @@
 ﻿'use client';
 
+import EditorialReviewPanel from '@/components/EditorialReviewPanel';
 import { assessGeoDraftCopy } from "@/lib/geo-draft-quality";
 import React, { useState, useEffect } from 'react';
 import VisibilityDashboard from '@/components/VisibilityDashboard';
@@ -12,6 +13,7 @@ type Tab =
   | 'content'
   | 'agent'
   | 'reviews'
+  | 'editorial'
   | 'settings'
   | 'competitors'
   | 'keywords'
@@ -53,6 +55,7 @@ const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'evidence', label: 'الأدلة ومصادر النتائج', icon: '🔍' },
   { key: 'content', label: 'محتوى الموقع', icon: '📝' },
   { key: 'reviews', label: 'اعتماد المسودات', icon: '🔍' },
+  { key: 'editorial', label: 'تطوير جميع صفحات الموقع', icon: '📚' },
   { key: 'contact', label: 'التواصل', icon: '📞' },
   { key: 'visibility', label: 'SEO وظهور الذكاء الاصطناعي', icon: '📈' },
   { key: 'cookies', label: 'إدارة الكوكيز', icon: '🍪' },
@@ -597,6 +600,14 @@ export default function AdminDashboard() {
                   ))}
                 </ul>
               </section>
+            )}
+
+            {tab === 'editorial' && (
+              <EditorialReviewPanel
+                items={content.editorialItems||[]}
+                saving={saving}
+                onSaveItems={async items=>await save({editorialItems:items})}
+              />
             )}
 
             {tab === 'settings' && (
