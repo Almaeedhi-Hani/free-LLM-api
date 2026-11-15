@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// OpenCode GEO Analysis — Full 6-stage pipeline.
-// No FreeLLMAPI. No paid services. 0 cost.
-// Results saved to Supabase (if configured) or local file.
+// OpenCode GEO Analysis — bounded multilingual research + editorial publishing proposals.
+// Uses free-tier models only; rate limits and provider conditions may change.
+// Results persist to the existing authenticated GEO API; generated output is not published automatically.
 
 const { execSync } = require('child_process');
 const fs = require('fs');
@@ -19,7 +19,7 @@ const FALLBACK_MODELS = Array.from(new Set([MODEL,
   'opencode/flint-40b-free',
   'opencode/glm-5.3-flash-free',
   'openrouter/google/gemma-4-26b-a4b-it:free',
-]));
+])).filter(m => /(?:-free|:free)$/i.test(m));
 const MAX_RETRIES = 3;
 // Each weekly run performs at most three successful locale analyses (one per AR/EN/ZH),
 // with bounded free-model fallbacks. OpenCode bills per model policy; no paid tier assumed.
@@ -30,6 +30,7 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 // --- OpenCode runner ---
 function runOpenCode(prompt, model) {
   const chosenModel = model || MODEL;
+  if (!/(?:-free|:free)$/i.test(chosenModel) || !/^[a-z0-9/:.\\-]+$/i.test(chosenModel))return {error:'Only a safely named free-tier OpenCode model is allowed for this workflow'};
   // Use a clean temp directory so OpenCode cannot read project files
   const workDir = path.join(process.cwd(), '.opencode-work');
   if (!fs.existsSync(workDir)) fs.mkdirSync(workDir, { recursive: true });
