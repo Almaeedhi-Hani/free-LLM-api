@@ -11,7 +11,7 @@ const {normalizeGeoBatch,persistGeoBatch}=require('../.geo-ingest-test-build/geo
  saveOpportunity:async()=>{calls.o++}, saveGoal:async()=>{calls.g++},
  saveDrafts:async items=>{calls.d++;return items.length},saveReport:async()=>{calls.r++}
  });
- assert.equal(success.ok,true);assert.deepEqual(success.saved,{opportunities:1,goals:1,drafts:1,run_report:0});
+ assert.equal(success.ok,true);assert.deepEqual(success.saved,{opportunities:1,goals:1,drafts:1,run_report:0,editorial_actions:0});
  const failed=await persistGeoBatch(sample,{
  saveOpportunity:async()=>{throw Error('RLS or schema error')},
  saveGoal:async()=>{},saveDrafts:async()=>0,saveReport:async()=>{}
