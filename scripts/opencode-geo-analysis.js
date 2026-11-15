@@ -15,12 +15,12 @@ const OC_BIN = process.env.OPENCODE_BIN ||
 const MODEL = process.env.OPENCODE_MODEL || 'opencode/beam-free';
 const FALLBACK_MODELS = Array.from(new Set([MODEL,
   'opencode/beam-free',
+  'opencode/glm-5.3-flash-free',
   'opencode/deepseek-v4.1-flash-free',
   'opencode/flint-40b-free',
-  'opencode/glm-5.3-flash-free',
   'openrouter/google/gemma-4-26b-a4b-it:free',
 ])).filter(m => /(?:-free|:free)$/i.test(m));
-const MAX_RETRIES = 2;
+const MAX_RETRIES = 1; // Move to another confirmed free provider instead of repeating timed-out requests
 // Each weekly run performs three distinct language analyses, with at most 18 free-model
 // attempts across those analyses. No paid-tier fallback or unverified token quota is assumed.
 const RETRY_DELAY_MS = 8000;
@@ -258,6 +258,18 @@ async function stageGeoAnalysis() {
   if(!all.length)return {records_processed:0,status:'partial',error:'No verified research inputs'};
   const result={opportunities:[],goals:[],drafts:[],editorial_actions:[],languages:{},models_used:[],tokens_used:null};
   let failed=0,calls=0;
+  const recordLocale=(lang,sample,response,recovered=false)=>{
+    const data=response.data||{};
+    const fields=['opportunities','goals','drafts','editorial_actions'];
+    for(const field of fields){
+      if(!Array.isArray(data[field]))continue;
+      const filtered=field==='editorial_actions'?data[field].filter(x=>x&&x.lang===lang):data[field];
+      result[field].push(...filtered.slice(0,field==='editorial_actions'?5:field==='drafts'?2:3));
+    }
+    result.models_used.push(response.model);
+    result.languages[lang]={status:'analyzed',recovered_after_fallback:recovered,evidence_sampled:sample.length,model:response.model,
+      generated:{opportunities:data.opportunities?.length||0,goals:data.goals?.length||0,drafts:data.drafts?.length||0,editorial_actions:data.editorial_actions?.length||0}};
+  };
   for(const lang of LANGS){
     const sample=selectLocaleEvidence(all,lang,8);
     if(!sample.length){result.languages[lang]={status:'missing_evidence'};failed++;continue}
@@ -272,16 +284,23 @@ async function stageGeoAnalysis() {
       logStage('GEO_ANALYSIS',lang+' free model unavailable: '+model+' '+String(trial.error||'unparseable JSON').slice(0,110));
     }
     if(!response){result.languages[lang]={status:'model_unavailable',evidence_sampled:sample.length};failed++;continue}
-    const data=response.data||{};
-    const fields=['opportunities','goals','drafts','editorial_actions'];
-    for(const field of fields){
-      if(!Array.isArray(data[field]))continue;
-      const filtered=field==='editorial_actions'?data[field].filter(x=>x&&x.lang===lang):data[field];
-      result[field].push(...filtered.slice(0,field==='editorial_actions'?5:field==='drafts'?2:3));
+    recordLocale(lang,sample,response);
+  }
+  // Give any failed locale a final chance after the other languages have run.
+  // A free provider's temporary rate limit must not systematically omit Arabic.
+  // This retry remains bounded and does not imply that an unavailable model succeeded.
+  for(const lang of LANGS){
+    if(result.languages[lang]?.status!=='model_unavailable')continue;
+    const sample=selectLocaleEvidence(all,lang,5);
+    const prompt=promptForLocale(lang,sample);
+    for(const model of FALLBACK_MODELS.slice(0,2)){
+      calls++;
+      const trial=runOpenCode(prompt,model);
+      if(!trial.data)continue;
+      recordLocale(lang,sample,trial,true);
+      failed--;
+      break;
     }
-    result.models_used.push(response.model);
-    result.languages[lang]={status:'analyzed',evidence_sampled:sample.length,model:response.model,
-      generated:{opportunities:data.opportunities?.length||0,goals:data.goals?.length||0,drafts:data.drafts?.length||0,editorial_actions:data.editorial_actions?.length||0}};
   }
   // Generated claims must never be confused with independently verified outcomes.
   stageResults.geo_analysis=result;
