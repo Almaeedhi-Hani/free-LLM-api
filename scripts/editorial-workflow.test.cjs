@@ -12,11 +12,25 @@ assert.equal(approvedEditorial([draft],'ar').length,0,'pending content never ren
 const approved={...draft,status:'approved',reviewedAt:now,verified_sources:['https://misa.gov.sa/frequently-asked-questions/']};
 assert.equal(approvedEditorial([approved],'ar','service','company-formation').length,1);
 assert.equal(approvedEditorial([approved],'en').length,0,'locale isolation');
+// Reproduce failures observed in GEO run 43716242173: model emits route and
+// content-tree IDs, while the public page uses canonical service slugs.
+const routed=validateEditorialItem({...base,target:'/services/company-formation',topic_node_id:'company-formation'});
+assert.equal(routed.target,'company-formation');
+const misa=validateEditorialItem({...base,target:'/services/misa-license',topic_node_id:'misa-registration'});
+assert.equal(misa.target,'misa-license');
+const banking=validateEditorialItem({...base,target:'banking',topic_node_id:'banking'});
+assert.equal(banking.target,'corporate-banking');
+assert.throws(()=>validateEditorialItem({...base,target:'/services/nonexistent-service'}),/Unknown service/);
+assert.throws(()=>validateEditorialItem({...base,target:'/services/misa-license',topic_node_id:'company-formation'}),/mismatch/);
 assert.throws(()=>validateEditorialItem({...approved,target:'/admin/dashboard'}),/Unknown service/);
 assert.throws(()=>validateEditorialItem({...approved,verified_sources:['javascript:alert(1)']}),/HTTPS/);
 const guide={...approved,id:'ed-guide-1234',kind:'guide',target:'foreign-investor-preparation',slug:'foreign-investor-preparation',related_service:'company-formation'};
 assert.equal(publicGuide([guide],'ar','foreign-investor-preparation').id,'ed-guide-1234');
 assert.throws(()=>validateEditorialItem({...guide,related_service:'invented-service'}),/Invalid related service/);
+const bankingGuide=validateEditorialItem({...guide,related_service:'banking',topic_node_id:'banking-kyc'});
+assert.equal(bankingGuide.related_service,'corporate-banking');
+const bankRouteGuide=validateEditorialItem({...guide,related_service:'/services/corporate-banking'});
+assert.equal(bankRouteGuide.related_service,'corporate-banking');
 assert.equal(publicGuide([guide],'zh','foreign-investor-preparation'),undefined);
 assert.throws(()=>validateEditorialItem({...guide,topic_node_id:'unknown-topic'}),/Unknown topic node/);
 assert.throws(()=>validateEditorialItem({...guide,internal_links:[{node_id:'company-documents',anchor:'Documents preparation'}]}),/existing live/);
