@@ -1,6 +1,7 @@
 ﻿'use client';
 
 import EditorialReviewPanel from '@/components/EditorialReviewPanel';
+import {DataRoleLegend,DataRolePanel,DataRoleTag} from '@/components/AdminDataRoles';
 import { assessGeoDraftCopy } from "@/lib/geo-draft-quality";
 import React, { useState, useEffect } from 'react';
 import VisibilityDashboard from '@/components/VisibilityDashboard';
@@ -43,6 +44,13 @@ const formatDate = (value: unknown) => {
   if (!value) return 'غير متوفر';
   const date = new Date(String(value));
   return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('ar-SA');
+};
+// Display-only separation: the original AI answer remains unchanged in storage.
+// A generic trailing verification phrase is not a cited fact or a system-provided source.
+const splitDraftReviewText=(value:unknown)=>{
+  const answer=String(value||'');
+  const match=/(?:يجب|ينبغي)\s+التحقق\s+من\s+المصادر\s+الرسمية/i.exec(answer);
+  return match?{answer:answer.slice(0,match.index).trim(),note:answer.slice(match.index).trim()}: {answer,note:''};
 };
 const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'home', label: 'الرئيسية', icon: '📊' },
@@ -430,7 +438,8 @@ export default function AdminDashboard() {
             </div>
           </header>
 
-          <main className="p-4 sm:p-6 max-w-7xl mx-auto">
+          <main className="min-w-0 p-4 sm:p-6 max-w-7xl mx-auto">
+            <div className="mb-4"><DataRoleLegend /></div>
             {error && <div role="alert" className="rounded-lg bg-red-50 border border-red-200 p-3 text-red-700 mb-4 text-sm">{error}</div>}
             {notice && <div role="status" className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-emerald-800 mb-4 text-sm flex justify-between gap-3"><span>{notice}</span><button onClick={()=>setNotice('')} aria-label="إغلاق التنبيه">✕</button></div>}
 
@@ -570,34 +579,48 @@ export default function AdminDashboard() {
             )}
 
             {tab === 'reviews' && (
-              <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                <h2 className="text-xl font-bold mb-2">مراجعة المسودات قبل النشر</h2><p className="text-sm text-slate-500 mb-4">اعتماد المسودة ينشر السؤال والإجابة. تحقق من صحة المعلومات أولًا.</p>
-                {pendingDrafts === 0 && <p className="text-slate-500 text-sm">لا توجد مسودات معلقة.</p>}
-                <ul className="space-y-4">
-                  {content.drafts.map((d: any, i: number) => (
-                    <li key={i} className="bg-amber-50 rounded-lg p-4 border border-amber-200">
-                      <p className="font-semibold">{d.q}</p>
-                      <p className="text-slate-700 text-sm mt-1">{d.a}</p>
-                      <p className="text-xs text-slate-400 mt-1">الحالة: {readable(d.status)} — {formatDate(d.createdAt)}</p>
-                      {!assessGeoDraftCopy(d.q,d.a).publishable && <p className="text-xs text-red-700 mt-2" role="alert">محتوى غير صالح للنشر: لغة غير متسقة أو إجابة عامة. يحتاج إلى إعادة كتابة ومراجعة المصادر، ويمكن رفض المسودة.</p>}
-                      {d.risk_level === 'high' && <p className="text-xs text-amber-800 mt-2">محتوى عالي المخاطر: لا تعتمد دون مراجعة مختص والتحقق من المصدر الرسمي.</p>}
-                      <div className="mt-3 border-t border-amber-200 pt-3">
-                        <p className="text-xs font-semibold text-slate-700">مصادر الرصد المستخدمة — لم يُتحقق منها رسميًا</p>
-                        {Array.isArray(d.evidence_refs) && d.evidence_refs.length > 0 ? <ul className="mt-2 space-y-1">
-                          {d.evidence_refs.map((ref:any,i:number)=><li key={String(ref.id)+'-'+i} className="text-xs text-slate-700 break-words">
-                            {ref.url?.startsWith('https://') ? <a href={ref.url} target="_blank" rel="noopener noreferrer" className="underline text-blue-700">{ref.label}</a> : <span>{ref.label}</span>}
-                            <span className="text-slate-500"> — {ref.kind} / {ref.source}</span>
-                          </li>)}
-                        </ul> : <p className="mt-1 text-xs text-red-700">لم تُرفق بالمسودة مراجع يمكن تتبعها. يلزم التحقق من مصادر أصلية قبل النشر.</p>}
-                      </div>
-                      {d.status === 'pending' && (
-                        <div className="flex gap-2 mt-3">
-                          <button onClick={() => approveDraft(i)} className="btn-primary text-xs" disabled={saving || !assessGeoDraftCopy(d.q,d.a).publishable}>اعتماد ونشر</button>
-                          <button onClick={() => rejectDraft(i)} className="btn-secondary text-xs" disabled={saving}>رفض</button>
+              <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+                <h2 className="mb-2 text-xl font-bold">مراجعة المسودات قبل النشر</h2>
+                <p className="mb-4 text-sm text-slate-600">اعتماد المسودة ينشر السؤال والإجابة؛ ألوان الأقسام تفصل النص المولّد عن بيانات النظام وروابط المنافسين والتنبيهات.</p>
+                {pendingDrafts===0&&<p className="text-sm text-slate-600">لا توجد مسودات معلقة.</p>}
+                <ul className="space-y-5">
+                  {content.drafts.map((d: any,i: number)=>{
+                    const parts=splitDraftReviewText(d.a);
+                    return <li key={i} className="min-w-0 space-y-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-5">
+                      <DataRolePanel tone="content" title="السؤال والإجابة المقترحة للاستخدام" description="الجزء الأخضر هو المحتوى الذي أنشأه النموذج، وليس توثيقًا رسميًا.">
+                        <h3 className="mb-3 text-base font-bold text-emerald-950 break-words">{d.q}</h3>
+                        <p className="whitespace-pre-line break-words text-sm text-slate-900">{parts.answer}</p>
+                      </DataRolePanel>
+                      {parts.note&&<DataRolePanel tone="warning" title="عبارة تحقق وردت ضمن النص المولّد" description="عُزلت هذه العبارة بصريًا لأنها تنبيه للتحقق وليست معلومة توثّق الإجابة. لا يغيّر العرض النص المحفوظ تلقائيًا.">
+                        <p className="text-rose-900 font-semibold">{parts.note}</p>
+                      </DataRolePanel>}
+                      <DataRolePanel tone="system" title="بيانات المسودة من النظام" description="الحالة والتاريخ ومستوى المراجعة معلومات إدارية وليست جزءًا من الإجابة.">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <DataRoleTag tone="system">الحالة: {readable(d.status)}</DataRoleTag>
+                          <span className="text-xs text-slate-600">تاريخ الإنشاء: {formatDate(d.createdAt)}</span>
                         </div>
-                      )}
+                      </DataRolePanel>
+                      {!assessGeoDraftCopy(d.q,d.a).publishable&&<DataRolePanel tone="warning" title="تنبيه جودة آلي — ليس جزءًا من الإجابة">
+                        <p className="text-rose-900" role="alert">محتوى غير صالح للنشر: لغة غير متسقة أو إجابة عامة. يحتاج إلى إعادة كتابة ومراجعة المصادر، ويمكن رفض المسودة.</p>
+                      </DataRolePanel>}
+                      {d.risk_level==='high'&&<DataRolePanel tone="warning" title="تحذير من النظام — محتوى عالي المخاطر">
+                        <p className="text-rose-900">لا تعتمد دون مراجعة مختص والتحقق من المصدر الرسمي. هذا التنبيه ليس جزءًا من الإجابة.</p>
+                      </DataRolePanel>}
+                      <DataRolePanel tone="research" title="مصادر الرصد المستخدمة — صفحات منافسة ونتائج بحث مرتبطة بالموضوع" description="روابط اكتشفها البحث لمقارنة التغطية والموضوعات؛ لا تثبت صحة الإجابة ولا تعني أن النموذج نقل النص من هذه المواقع.">
+                        {Array.isArray(d.evidence_refs)&&d.evidence_refs.length>0?<ul className="space-y-2">{d.evidence_refs.map((ref:any,j:number)=><li key={String(ref.id)+'-'+j} className="rounded-lg border border-blue-100 bg-white/80 p-2 break-words text-xs">
+                          {ref.url?.startsWith('https://')?<a href={ref.url} target="_blank" rel="noopener noreferrer" className="font-medium text-blue-800 underline underline-offset-2">{ref.label}</a>:<span>{ref.label}</span>}
+                          <p className="mt-1 text-blue-700">نوع الرصد: {ref.kind||'غير معروف'} · مزوّد البحث: {ref.source||'غير معروف'}</p>
+                        </li>)}</ul>:<p className="text-xs text-blue-900">لا توجد روابط رصد مسجلة لهذه المسودة.</p>}
+                      </DataRolePanel>
+                      <DataRolePanel tone="verification" title="المصادر الرسمية والتحقق قبل النشر" description="مصادر المنافسين ليست مصدرًا رسميًا. تحقّق من صحة المعلومات من الجهات المختصة قبل الاعتماد.">
+                        <p className="text-xs text-amber-950">تؤدي الموافقة إلى نشر نص المسودة المحفوظ كما هو، بما فيه أي جملة تحقق ضمن النص. راجع الإجابة وأعد صياغتها عند الحاجة قبل النشر.</p>
+                      </DataRolePanel>
+                      {d.status==='pending'&&<div className="flex flex-wrap gap-2 border-t border-slate-200 pt-3">
+                        <button onClick={()=>approveDraft(i)} className="btn-primary text-xs" disabled={saving || !assessGeoDraftCopy(d.q,d.a).publishable}>اعتماد ونشر</button>
+                        <button onClick={()=>rejectDraft(i)} className="btn-secondary text-xs" disabled={saving}>رفض</button>
+                      </div>}
                     </li>
-                  ))}
+                  })}
                 </ul>
               </section>
             )}
@@ -933,46 +956,75 @@ export default function AdminDashboard() {
             )}
 
             {tab === 'evidence' && (
-              <div className="space-y-6">
-                <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold">الأدلة ومصادر فرص السوق</h2>
-                    <button className="btn-secondary text-xs" disabled={evidenceLoading} onClick={fetchEvidence}>{evidenceLoading ? 'جاري التحميل...' : 'تحديث'}</button>
-                  </div>
-                  {!evidenceData && !evidenceLoading && <p className="text-slate-400 text-sm">اضغط تحديث لتحميل الأدلة.</p>}
-                  {evidenceLoading && <p className="text-slate-400 text-sm">جاري التحميل...</p>}
-                  {evidenceData && (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">المنافسون</p><p className="text-xl font-bold">{evidenceData.competitors.length}</p></div>
-                        <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">الكلمات</p><p className="text-xl font-bold">{evidenceData.keywords.length}</p></div>
-                        <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">الفرص</p><p className="text-xl font-bold">{evidenceData.opportunities.length}</p></div>
-                        <div className="bg-slate-50 rounded-lg p-3"><p className="text-xs text-slate-500">الأهداف</p><p className="text-xl font-bold">{evidenceData.goals.length}</p></div>
-                      </div>
-                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm">
-                        <p className="font-semibold text-amber-800">ملاحظة: نتيجة البحث هي مرشح وتحتاج إلى مراجعة أدلتها.</p>
-                        <p className="text-amber-700 mt-1">المنافسون: {evidenceData.competitors.length}، الكلمات: {evidenceData.keywords.length}، الفرص: {evidenceData.opportunities.length}. لا تُعتمد النتائج دون مصادر قابلة للتحقق.</p>
-                      </div>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead><tr className="text-right border-b"><th className="py-2">النوع</th><th>العنوان</th><th>المصدر</th><th>الأدلة (evidence_ids)</th></tr></thead>
-                          <tbody>
-                            {evidenceData.opportunities.map((o: any) => (
-                              <tr key={o.id} className="border-b">
-                                <td className="py-2">{o.type === 'content_gap' ? 'فجوة تنافسية' : 'فجوة كلمات'}</td>
-                                <td>{o.title}</td>
-                                <td className="text-xs text-slate-400">{o.type === 'content_gap' ? 'competitor_observation' : 'keyword'}</td>
-                                <td className="text-xs">{(o.evidence || []).map((e: any) => e.source || '').join(', ') || '—'}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+              <div className="min-w-0 space-y-6">
+                <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-6">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-xl font-bold text-navy-900">الأدلة ومصادر فرص السوق</h2>
+                      <p className="mt-1 text-xs text-slate-600">تفاصيل الرصد وتصنيفات النظام؛ لا تمثل بيانات المنافسين مراجع رسمية للتحقق من المحتوى.</p>
                     </div>
-                  )}
+                    <button className="btn-secondary text-xs" disabled={evidenceLoading} onClick={fetchEvidence}>{evidenceLoading?'جاري التحميل...':'تحديث'}</button>
+                  </div>
+                  {!evidenceData&&!evidenceLoading&&<p className="text-sm text-slate-500">اضغط تحديث لتحميل الأدلة.</p>}
+                  {evidenceLoading&&<p className="text-sm text-slate-500">جاري التحميل...</p>}
+                  {evidenceData&&<div className="min-w-0 space-y-4">
+                    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                      <div className="rounded-xl border border-blue-200 bg-blue-50 p-3"><p className="text-xs font-semibold text-blue-900">منافسون مرصودون</p><p className="text-xl font-bold text-blue-950">{evidenceData.competitors.length}</p></div>
+                      <div className="rounded-xl border border-violet-200 bg-violet-50 p-3"><p className="text-xs font-semibold text-violet-900">كلمات بحث</p><p className="text-xl font-bold text-violet-950">{evidenceData.keywords.length}</p></div>
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3"><p className="text-xs font-semibold text-emerald-900">فرص مقترحة</p><p className="text-xl font-bold text-emerald-950">{evidenceData.opportunities.length}</p></div>
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><p className="text-xs font-semibold text-slate-900">أهداف النظام</p><p className="text-xl font-bold text-slate-950">{evidenceData.goals.length}</p></div>
+                    </div>
+                    <DataRolePanel tone="verification" title="تنبيه التحقق من أدلة السوق" description="العناوين الظاهرة أدناه فرص بحث أو تحليل، وليست معلومات حكومية موثّقة ولا نتائج تصنيف مؤكدة.">
+                      <p className="text-xs text-amber-950">الفرص: {evidenceData.opportunities.length}، الكلمات: {evidenceData.keywords.length}، المنافسون: {evidenceData.competitors.length}. يجب مراجعة المصادر قبل استخدام هذه البيانات في أي محتوى منشور.</p>
+                    </DataRolePanel>
+                    <div className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-3">
+                      <div className="flex flex-wrap items-center gap-2"><DataRoleTag tone="research">الرصد من مصادر خارجية</DataRoleTag><DataRoleTag tone="system">تصنيف وبيانات النظام</DataRoleTag></div>
+                      <p className="mt-2 text-xs font-medium text-blue-950">اسحب الجدول يمينًا ويسارًا لرؤية جميع الأعمدة، ومرره لأعلى وأسفل لقراءة الصفوف. مساحة العناوين واسعة حتى لا تنضغط الكلمات على الجوال.</p>
+                    </div>
+                    <div role="region" aria-label="جدول أدلة السوق قابل للتمرير أفقيًا وعموديًا" tabIndex={0} className="max-h-[72vh] w-full min-w-0 overflow-auto overscroll-contain rounded-xl border border-slate-200 bg-white shadow-inner focus:outline-none focus:ring-2 focus:ring-blue-400">
+                      <table className="w-[1120px] min-w-[1120px] table-fixed border-collapse text-sm">
+                        <colgroup><col style={{width:'185px'}}/><col style={{width:'430px'}}/><col style={{width:'225px'}}/><col style={{width:'280px'}}/></colgroup>
+                        <thead className="sticky top-0 z-10 bg-slate-100 text-slate-900 shadow-sm">
+                          <tr className="border-b border-slate-300 text-right">
+                            <th scope="col" className="px-4 py-3 font-bold">نوع الفرصة</th>
+                            <th scope="col" className="px-4 py-3 font-bold">عنوان الفرصة المقترحة</th>
+                            <th scope="col" className="px-4 py-3 font-bold">نوع الرصد / تصنيف النظام</th>
+                            <th scope="col" className="px-4 py-3 font-bold">مراجع الأدلة المرتبطة</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {evidenceData.opportunities.map((o:any)=>(
+                            <tr key={o.id} className="align-top odd:bg-white even:bg-slate-50/80 border-b border-slate-200">
+                              <td className="px-4 py-4 whitespace-normal break-words">
+                                <DataRoleTag tone={o.type==='content_gap'?'research':'technical'}>{o.type==='content_gap'?'فجوة تنافسية':o.type==='keyword_gap'?'فجوة كلمات بحث':readable(o.type)}</DataRoleTag>
+                              </td>
+                              <td className="px-4 py-4 whitespace-normal break-words leading-7 text-slate-900">
+                                <span className="block font-medium">{o.title}</span>
+                                <span className="mt-1 block text-xs text-slate-500">مسار البحث المقترح، لا نص منشور</span>
+                              </td>
+                              <td className="px-4 py-4 whitespace-normal break-words">
+                                <DataRoleTag tone="system">{o.type==='content_gap'?'competitor_observation':o.type==='keyword_gap'?'keyword':o.type}</DataRoleTag>
+                                <p className="mt-2 text-xs text-slate-500">وسم تنظيمي آلي</p>
+                              </td>
+                              <td className="px-4 py-4 whitespace-normal break-words text-xs">
+                                {(o.evidence||[]).length>0?<ul className="space-y-2">
+                                  {o.evidence.map((e:any,j:number)=><li key={j} className="rounded-lg border border-blue-100 bg-blue-50 p-2 leading-6">
+                                    <DataRoleTag tone="research">{e.source||'مصدر غير محدد'}</DataRoleTag>
+                                    {typeof e.url==='string'&&e.url.startsWith('https://')&&<a className="mt-1 block break-all text-blue-800 underline" href={e.url} target="_blank" rel="noopener noreferrer">{e.url}</a>}
+                                  </li>)}
+                                </ul>:<span className="text-amber-800">لا توجد أدلة مرتبطة موثقة في السجل</span>}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {evidenceData.opportunities.length===0&&<p className="text-sm text-slate-500">لا توجد فرص محفوظة لعرضها في الجدول.</p>}
+                  </div>}
                 </section>
               </div>
             )}
+
           </main>
         </div>
       </div>
