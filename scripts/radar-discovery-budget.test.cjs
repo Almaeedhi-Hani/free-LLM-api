@@ -36,7 +36,11 @@ global.fetch = async (url, options = {}) => {
 (async()=>{
   const first = await mi.runDiscovery({maxCompetitors:10,maxSuggestionsPerSeed:5,triggeredBy:'test'});
   assert.equal(suggestions,3,'One suggestion request per language, not 24');
+  assert.equal(first.suggestion_requests_used,3);
+  assert.equal(first.suggestion_requests_limit,3);
+  assert.equal(first.search_requests_limit,6);
   assert.equal(calls.length,4,'AR fallback (2 calls), EN Tavily, ZH Parallel');
+  assert.ok(calls[0].includes('exa.ai') && calls[1].includes('tavily') && calls[2].includes('tavily') && calls[3].includes('parallel.ai'),'Providers must rotate per language');
   assert.ok(first.search_requests_used <= 6,'Actual paid-provider calls are capped at 6');
   assert.equal(first.search_requests_used,calls.length);
   assert.equal(first.search_queries.length,3);
