@@ -11,6 +11,9 @@ import { defaultSources, availableSources } from './market-sources';
 import { isRelevantInvestorService } from './open-search-sources';
 import { RADAR_QUERIES, selectRadarQuery } from './radar-query-plan';
 import { buildQueryMemory, chooseNextQueries } from './radar-memory';
+import type { QueryAttempt } from './radar-memory';
+import { calculateRadarMetrics } from './radar-metrics';
+import type { RadarMetrics, RadarObservationMetric } from './radar-metrics';
 import type { SuggestionResult, SearchResult } from './market-sources';
 
 // ---------------------------------------------------------------------------
@@ -533,7 +536,7 @@ export async function upsertCompetitor(input: UpsertCompetitorInput): Promise<Co
         headers: { Prefer: 'return=representation' },
         body: JSON.stringify({
           name,
-          languages: input.languages ?? existing.languages,
+          languages: Array.from(new Set([...(existing.languages || []), ...(input.languages || [])])),
           market: input.market ?? existing.market,
           source: input.source ?? existing.source,
           notes: input.notes ?? existing.notes,
@@ -569,7 +572,7 @@ export async function upsertCompetitor(input: UpsertCompetitorInput): Promise<Co
       rows[idx] = {
         ...rows[idx],
         name,
-        languages: input.languages ?? rows[idx].languages,
+        languages: Array.from(new Set([...(rows[idx].languages || []), ...(input.languages || [])])),
         market: input.market ?? rows[idx].market,
         source: input.source ?? rows[idx].source,
         notes: input.notes ?? rows[idx].notes,
@@ -1296,7 +1299,11 @@ export interface DiscoverySummary {
   observations_recorded: number;
   unique_domains: number;
   success: boolean;
-  search_diagnostics: { source_id: string; language: string; http_status: number; duration_ms: number; response_received: boolean; results_parsed: number; results_accepted: number; blocked_detected: boolean; failure_reason: string; }[];
+  search_diagnostics: { source_id: string; language: string; http_status: number; duration_ms: number; response_received: boolean; results_parsed: number; results_accepted: number; blocked_detected: boolean; failure_reason: string; request_count?: number; }[];
+  search_queries: (QueryAttempt & {source_id: string; results_accepted: number})[];
+  search_requests_used: number;
+  search_requests_limit: number;
+  radar_metrics: RadarMetrics;
   errors: string[];
 }
 
@@ -1323,25 +1330,60 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
     unique_domains: 0,
     success: false,
     search_diagnostics: [],
+    search_queries: [],
+    search_requests_used: 0,
+    search_requests_limit: 6,
+    radar_metrics: calculateRadarMetrics([], []),
     errors: [],
   };
 
   const collectedTerms = new Set<string>();
   const discoveredDomains = new Set<string>();
   const searchDiagnostics: DiscoverySummary['search_diagnostics'] = [];
-  const observedKeys = new Set<string>();
+  const runObservations: RadarObservationMetric[] = [];
 
 
 
 
+
+  // Reuse stored observations and search attempts (including empty searches) from
+  // the existing analysis_runs summaries; no migrations or new credentials.
+  let adaptiveQueries: Partial<Record<Language, string>> = {};
+  if (!config?.seeds) {
+    try {
+      const competitors = (await listCompetitors({ status: 'active' })).slice(0, 50);
+      const observations = (await Promise.all(competitors.map(c => listObservations(c.id, 100)))).flat();
+      const recentRuns = await listRuns(100);
+      const priorAttempts: QueryAttempt[] = recentRuns.flatMap(run => {
+        if (run.run_type !== 'radar') return [];
+        const data = run.summary as {
+          search_queries?: QueryAttempt[];
+          discovery?: { search_queries?: QueryAttempt[] };
+        } | null;
+        const queries = data?.search_queries ?? data?.discovery?.search_queries ?? [];
+        return Array.isArray(queries)
+          ? queries.filter(q => q && typeof q.query === 'string' && typeof q.language === 'string' && typeof q.attempted_at === 'string')
+          : [];
+      });
+      const selected = chooseNextQueries(buildQueryMemory(observations, new Date(), priorAttempts));
+      adaptiveQueries = Object.fromEntries(selected.map(q => [q.language, q.query]));
+    } catch (e) {
+      summary.errors.push('Query memory unavailable; using daily rotation: ' + (e instanceof Error ? e.message : String(e)));
+    }
+  }
+  const selectedSeed = (lang: Language): string | undefined => {
+    const seedList = seeds[lang] || [];
+    if (config?.seeds) return seedList.length ? seedList[Math.floor(Date.now() / 86400000) % seedList.length] : undefined;
+    return adaptiveQueries[lang] || selectRadarQuery(lang, new Date()).query;
+  };
 
   // 1) Keyword/question discovery via suggest sources
   for (const source of sources) {
     if (!source.collectSuggestions) continue;
     summary.sources_used.push(source.id);
     for (const lang of ['ar', 'en', 'zh'] as Language[]) {
-      const seedList = seeds[lang] || [];
-      for (const seed of seedList) {
+      const query = selectedSeed(lang);
+      for (const seed of query ? [query] : []) {
         try {
           const res = await source.collectSuggestions(seed, lang);
           const limited = res.slice(0, maxSug);
@@ -1370,45 +1412,39 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
     }
   }
 
-  // Use existing observation history; no new tables or external requests.
-  // If storage is unavailable, retain the deterministic daily fallback.
-  let adaptiveQueries: Partial<Record<Language, string>> = {};
-  if (!config?.seeds) {
-    try {
-      const competitors = (await listCompetitors({ status: 'active' })).slice(0, 50);
-      const observations = (await Promise.all(competitors.map(c => listObservations(c.id, 100)))).flat();
-      const selected = chooseNextQueries(buildQueryMemory(observations, new Date()));
-      adaptiveQueries = Object.fromEntries(selected.map(q => [q.language, q.query]));
-    } catch (e) {
-      summary.errors.push('Query memory unavailable; using daily rotation: ' + (e instanceof Error ? e.message : String(e)));
-    }
-  }
-
   // 2) Search-provider discovery: hard per-run budget, graceful fallback on provider blocks.
-  let attempts = 0;
-  const maxSearchAttempts = 6;
+  let requestsUsed = 0;
+  const maxSearchRequests = 6;
   for (const source of sources) {
     if (!source.collectResults) continue;
     if (source.requiresKey && !(process.env[source.requiresKey] || '').trim()) continue;
     for (const lang of ['ar', 'en', 'zh'] as Language[]) {
-      const seedList = seeds[lang] || [];
-      // Rotate across different investor intents rather than repeating the first seed forever.
-      // Preserve caller-provided custom seeds when configured.
-      const chosenSeed = config?.seeds
-        ? seedList[Math.floor(Date.now() / 86400000) % Math.max(seedList.length, 1)]
-        : (adaptiveQueries[lang] || selectRadarQuery(lang, new Date()).query);
+      const chosenSeed = selectedSeed(lang);
       for (const seed of chosenSeed ? [chosenSeed] : []) {
-        if (attempts >= maxSearchAttempts) break;
-        attempts++;
-        const diag = { source_id: source.id, language: lang, http_status: 0, duration_ms: 0, response_received: false, results_parsed: 0, results_accepted: 0, blocked_detected: false, failure_reason: '' };
+        const reservation = Math.min(maxSearchRequests - requestsUsed, source.id === 'multi-provider-search' ? 2 : 1);
+        if (reservation <= 0) break;
+        // Reserve the worst-case number of requests before calling the provider.
+        requestsUsed += reservation;
+        summary.search_queries.push({language: lang, query: seed, attempted_at: new Date().toISOString(), source_id: source.id, results_accepted: 0});
+        const diag = { source_id: source.id, language: lang, http_status: 0, duration_ms: 0, response_received: false, results_parsed: 0, results_accepted: 0, blocked_detected: false, failure_reason: '', request_count: reservation };
         try {
-          const results = await source.collectResults!(seed, lang, maxComp);
+          const results = await source.collectResults!(seed, lang, maxComp, reservation);
            const srcDiag = (source as any).lastDiagnostic;
-           if (srcDiag) { diag.http_status = srcDiag.http_status; diag.duration_ms = srcDiag.duration_ms; diag.response_received = srcDiag.response_received; diag.blocked_detected = srcDiag.blocked_detected; if (srcDiag.failure_reason) diag.failure_reason = srcDiag.failure_reason; }
+           if (srcDiag) {
+             diag.http_status = srcDiag.http_status;
+             diag.duration_ms = srcDiag.duration_ms;
+             diag.response_received = srcDiag.response_received;
+             diag.blocked_detected = srcDiag.blocked_detected;
+             if (srcDiag.failure_reason) diag.failure_reason = srcDiag.failure_reason;
+             if (source.id === 'multi-provider-search') {
+               diag.request_count = Math.max(0, Math.min(reservation, srcDiag.request_count ?? reservation));
+               requestsUsed -= reservation - diag.request_count;
+             }
+           }
           diag.results_parsed = results.length;
           for (const r of results) {
-            if (discoveredDomains.size >= maxComp) break;
             if (!r.domain) continue;
+            if (discoveredDomains.size >= maxComp && !discoveredDomains.has(r.domain)) continue;
             if (isExcludedDomain(r.domain)) continue;
             if (!isRelevantInvestorService(r.title || '', r.snippet || '')) continue;
             try {
@@ -1426,23 +1462,26 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
                  summary.competitors_discovered += 1;
                }
                diag.results_accepted += 1;
+              const observedAt = new Date().toISOString();
               await recordObservation({
                 competitor_id: comp.id,
                 language: lang,
                  query: seed,
-                 rank: source.requiresKey ? null : r.rank,
+                 rank: source.requiresKey || source.id === 'multi-provider-search' ? null : r.rank,
                  title: source.requiresKey ? undefined : r.title,
                  snippet: source.requiresKey ? undefined : r.snippet,
                  url: source.requiresKey ? undefined : r.url,
-                observed_at: new Date().toISOString(),
+                observed_at: observedAt,
                 strengths: [],
                 weaknesses: [],
               });
               summary.observations_recorded += 1;
+              runObservations.push({competitor_id: comp.id, language: lang, query: seed, url: source.requiresKey ? undefined : r.url, observed_at: observedAt});
             } catch (e) {
               summary.errors.push(`competitor upsert failed: ${e instanceof Error ? e.message : String(e)}`);
             }
           }
+          summary.search_queries[summary.search_queries.length - 1].results_accepted = diag.results_accepted;
           searchDiagnostics.push(diag);
         } catch (e) {
           diag.failure_reason = e instanceof Error ? e.message : String(e);
@@ -1455,7 +1494,9 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
 
   summary.search_diagnostics = searchDiagnostics;
   summary.unique_domains = discoveredDomains.size;
-  summary.success = summary.competitors_discovered > 0;
+  summary.search_requests_used = requestsUsed;
+  summary.radar_metrics = calculateRadarMetrics(runObservations, searchDiagnostics);
+  summary.success = summary.competitors_discovered > 0 || summary.observations_recorded > 0;
   return summary;
 }
 
