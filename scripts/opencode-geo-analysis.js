@@ -45,19 +45,12 @@ function runOpenCode(prompt, model) {
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     const {workDir,runtimeEnv,cleanup}=createIsolatedGeoWorkspace(prompt);
     try {
-      // Sanitized env: exclude secrets from OpenCode process
-      const safeEnv = { ...process.env };
-      delete safeEnv.SUPABASE_SERVICE_ROLE_KEY;
-      delete safeEnv.SUPABASE_URL;
-      delete safeEnv.ADMIN_TOKEN;
-      delete safeEnv.CRON_SECRET;
-      delete safeEnv.GEO_API_KEY;
-      delete safeEnv.EXA_API_KEY;
-      delete safeEnv.TAVILY_API_KEY;
-      delete safeEnv.PARALLEL_API_KEY;
-      delete safeEnv.FIRECRAWL_API_KEY;
-      for(const key of ['GITHUB_TOKEN','GH_TOKEN','OPENAI_API_KEY','OPENROUTER_API_KEY','ANTHROPIC_API_KEY','NVIDIA_API_KEY'])
-        delete safeEnv[key];
+      // Allow only benign process variables. No GitHub, Supabase or provider secrets,
+      // user-wide model config overrides, or old session configuration reach the CLI.
+      const safeEnv={};
+      for(const key of ['PATH','LANG','LC_ALL','LC_CTYPE','CI','GITHUB_ACTIONS','TMPDIR','SSL_CERT_FILE','NODE_EXTRA_CA_CERTS']){
+        if(process.env[key])safeEnv[key]=process.env[key];
+      }
       Object.assign(safeEnv,runtimeEnv);
       const output = execSync(cmd, {
         timeout: 120000,
