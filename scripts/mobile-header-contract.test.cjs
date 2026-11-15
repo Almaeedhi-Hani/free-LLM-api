@@ -27,6 +27,15 @@ assert(menu.includes('hashchange')&&menu.includes('"/packages"')&&menu.includes(
 assert(menu.includes('hasGuides?')&&menu.includes('langHref(lang)'),
   "Optional guides and locale links are preserved");
 assert(menu.includes('site-language=${lang};'),"Language changes retain the configured cookie");
+assert(menu.includes('className="mobile-floating-header-languages"'),
+  "Language choices must be visible in the top header without opening the dropdown");
+assert(menu.indexOf('className="mobile-floating-header-languages"') < menu.indexOf('className="mobile-floating-menu-toggle"'),
+  "Language selector belongs between brand and hamburger button");
+assert(!menu.includes('className="mobile-floating-languages"'),
+  "The bottom-of-menu duplicate language row must be removed");
+assert(menu.includes('lang==="ar"?"العربية":lang==="en"?"English":"中文"'),
+  "Show all three language names visibly in the header");
+
 assert(menu.includes('labels={')&&menu.includes('ar:{')&&menu.includes('en:{')&&menu.includes('zh:{'),
   "Arabic, English and Chinese navigation text must be present");
 
@@ -38,6 +47,15 @@ assert(css.includes('.mobile-floating-nav-bar')&&css.includes('border-radius:999
   "Warm floating pill presentation present");
 assert(css.includes('.mobile-floating-menu-link.is-active')&&css.includes('background:#104148')&&css.includes('background:#c7a365'),
   "Active page uses project emerald and a restrained gold underline");
+assert(css.includes('width:min(200px,calc(100vw - 48px))') &&
+  css.includes('right:22px;left:auto') &&
+  css.includes('min-height:40px') &&
+  css.includes('padding:12px 12px 13px'),
+  "Dropdown must be narrower, aligned to the marked side, and shorter than before");
+assert(css.includes('.mobile-floating-header-languages a[aria-current="page"]'),
+  "Active language must be visible in the pill, including RTL support");
+assert(css.includes('.mobile-floating-header-languages a:focus-visible'),
+  "The header language links must remain keyboard accessible");
 assert(css.includes('max-height:calc(100dvh')&&css.includes('overflow-y:auto'),
   "Long mobile menus stay scrollable in small viewports");
 assert(css.includes('body:not(:has(.admin-route)) #main'),
