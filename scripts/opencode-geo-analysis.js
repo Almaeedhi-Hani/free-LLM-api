@@ -13,14 +13,16 @@ const OC_BIN = process.env.OPENCODE_BIN ||
     ? 'C:\\Users\\hp\\AppData\\Local\\Programs\\ai.opencode.desktop\\resources\\opencode-cli.exe'
     : (process.env.HOME + '/.opencode/bin/opencode'));
 const MODEL = process.env.OPENCODE_MODEL || 'opencode/beam-free';
-const FALLBACK_MODELS = [
+const FALLBACK_MODELS = Array.from(new Set([MODEL,
   'opencode/beam-free',
   'opencode/deepseek-v4.1-flash-free',
   'opencode/flint-40b-free',
   'opencode/glm-5.3-flash-free',
   'openrouter/google/gemma-4-26b-a4b-it:free',
-];
+]));
 const MAX_RETRIES = 3;
+// Each weekly run performs at most three successful locale analyses (one per AR/EN/ZH),
+// with bounded free-model fallbacks. OpenCode bills per model policy; no paid tier assumed.
 const RETRY_DELAY_MS = 8000;
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -235,79 +237,48 @@ async function stageEvidence() {
     observed_at: e.collected_at || e.observed_at || null,
   }));
   logStage('EVIDENCE', `Built bundle: ${evidenceItems.length} items`);
-  stageResults.evidence = { total: evidenceItems.length, items: evidenceItems.slice(0, 30) };
+  const {chooseResearchEvidence}=require('./geo-opencode-planner.cjs');
+  stageResults.evidence = { total: evidenceItems.length, items: chooseResearchEvidence(evidenceItems,60) };
   return { records_processed: evidenceItems.length, status: evidenceItems.length > 0 ? 'success' : 'partial' };
 }
 
 async function stageGeoAnalysis() {
-  logStage('GEO_ANALYSIS', 'Running LLM analysis via OpenCode...');
-  const evidenceItems = stageResults.evidence?.items || [];
-  if (evidenceItems.length === 0) {
-    return { records_processed: 0, status: 'partial', error: 'No evidence available' };
+  logStage('GEO_ANALYSIS', 'OpenCode: topic architecture, market evidence and editorial improvements in AR/EN/ZH');
+  const {LANGS,selectLocaleEvidence,promptForLocale}=require('./geo-opencode-planner.cjs');
+  const all=stageResults.evidence?.items||[];
+  if(!all.length)return {records_processed:0,status:'partial',error:'No verified research inputs'};
+  const result={opportunities:[],goals:[],drafts:[],editorial_actions:[],languages:{},models_used:[],tokens_used:null};
+  let failed=0,calls=0;
+  for(const lang of LANGS){
+    const sample=selectLocaleEvidence(all,lang,8);
+    if(!sample.length){result.languages[lang]={status:'missing_evidence'};failed++;continue}
+    const prompt=promptForLocale(lang,sample);
+    let response=null;
+    // Use configured free model first. The fallback list contains free-tier models only.
+    for(const model of FALLBACK_MODELS){
+      calls++;
+      const trial=runOpenCode(prompt,model);
+      if(trial.data){response=trial;break}
+      logStage('GEO_ANALYSIS',lang+' free model unavailable: '+model+' '+String(trial.error||'unparseable JSON').slice(0,110));
+    }
+    if(!response){result.languages[lang]={status:'model_unavailable',evidence_sampled:sample.length};failed++;continue}
+    const data=response.data||{};
+    const fields=['opportunities','goals','drafts','editorial_actions'];
+    for(const field of fields){
+      if(!Array.isArray(data[field]))continue;
+      const filtered=field==='editorial_actions'?data[field].filter(x=>x&&x.lang===lang):data[field];
+      result[field].push(...filtered.slice(0,field==='editorial_actions'?5:field==='drafts'?2:3));
+    }
+    result.models_used.push(response.model);
+    result.languages[lang]={status:'analyzed',evidence_sampled:sample.length,model:response.model,
+      generated:{opportunities:data.opportunities?.length||0,goals:data.goals?.length||0,drafts:data.drafts?.length||0,editorial_actions:data.editorial_actions?.length||0}};
   }
-
-  // Batch: max 8 items per LLM call to keep prompt manageable
-  const batch = evidenceItems.slice(0, 8);
-  const prompt = `You are a GEO (Generative Engine Optimization) intelligence analyst.
-
-Analyze the following evidence items and return a JSON object with:
-{
-  "opportunities": [{"title": "...", "type": "gap|content|keyword", "score": 0-100, "evidence_ids": ["..."], "description": "..."}],
-  "goals": [{"title": "...", "priority": "high|medium|low", "related_opportunity": "..."}],
-  "drafts": [{"q": "question", "a": "answer", "evidence_ids": ["..."], "risk_level": "low|medium|high"}],
-  "editorial_actions": [{"kind": "home|service|packages|guide|comparison|trust|technical_seo|internal_link", "lang": "ar|en|zh", "target": "/|/packages|company-formation|misa-license|corporate-banking|contract-drafting|premium-residency|investment-funds|unique-article-slug", "slug": "only-for-guide-or-comparison", "related_service": "optional relevant service slug for guide/comparison links", "title": "specific helpful heading", "summary": "clear summary for a decision-making reader", "body": "original substantial editorial content; no invented legal or company claims", "evidence_ids": ["..."], "risk_level": "high"}]
-}
-
-Evidence items:
-${JSON.stringify(batch, null, 2)}
-
-Rules:
-- Only use evidence provided. No fabricated claims or invented requirements, fees, approvals, timelines or rankings.
-- Audience: investors evaluating Saudi company formation services; material regulatory facts require current official authority evidence and later specialist review.
-- Generate DIFFERENT website improvements, not only FAQs. Propose diverse editorial_actions rooted in actual evidence, prioritizing buyer-intent service pages, useful pricing and requirements context, original long-form guides, legitimate comparisons, internal linking/technical tasks and evidence-backed trust content. Target actual service slugs, not arbitrary routes.
-- Provide non-empty original title (at least 12 characters), summary (at least 30 characters) and substantive body (at least 100 characters) for each editorial action. Use a permitted destination. For home and trust use target "/"; packages target "/packages"; service target one of the six existing service slugs; guides and comparisons target their lowercase hyphenated unique slug. For technical_seo/internal_link use an existing local site path.
-- Do not reuse the same paragraph as a FAQ, guide and service section. Each output must have distinct purpose, user intent and source IDs.
-- Editorial actions are pending human review. Do NOT claim actual publication, first-place rankings, ownership of competitor facts or official approval. If evidence cannot support an accurate article, propose a technical_seo or research goal, not a fabricated guide.
-- Avoid unsourced trust signals: no testimonials, licenses, years of experience, client counts or external endorsements without verified proof.
-- Every FAQ must respond directly and specifically to the question. Do not paraphrase competitor research as a public-facing FAQ and never write "Observed competitor guides", "competitor pages", or a recycled disclaimer.
-- Produce an original, fluent question and answer separately for Arabic, English and Simplified Chinese when relevant evidence supports them. Arabic question AND answer must be natural Arabic (except short proper nouns/acronyms), English must both be English, Chinese must both be Simplified Chinese. No mixed-language sentences or English copies of Chinese answers.
-- Do not translate a single English answer mechanically into another language; localize to each investor's question and requirements.
-- If authoritative evidence is insufficient to state a useful, specific answer, return no FAQ for that topic. Instead propose a source-verification goal/opportunity.
-- Include evidence_ids on every claim that has relevant evidence. Do not claim a source was verified merely because it appears in the bundle.
-- Score opportunities 0-100 based on evidence strength.
-- Classify draft risk: high for legal/regulatory/financial content. Drafts are never auto-published.
-- Return ONLY valid JSON, no markdown.`;
-
-  // Pass full prompt to runOpenCode (it writes to work dir)
-  // Try models in order
-  let result = null;
-  for (const model of FALLBACK_MODELS) {
-    result = runOpenCode(prompt, model);
-    if (result.data) break;
-    if (result.error && result.error.includes('429')) continue;
-    // If other error, try next model
-  }
-
-  if (!result || result.error) {
-    logStage('GEO_ANALYSIS', `LLM failed: ${result?.error || 'unknown'}`);
-    stageResults.geo_analysis = { error: result?.error, blocked: true };
-    return { records_processed: 0, status: 'blocked', error_code: 'LLM_ERROR', safe_error_message: result?.error };
-  }
-
-  const data = result.data || {};
-  logStage('GEO_ANALYSIS', `Analysis complete: ${data.opportunities?.length || 0} opportunities, ${data.goals?.length || 0} goals, ${data.drafts?.length || 0} drafts`);
-  stageResults.geo_analysis = {
-    opportunities: data.opportunities || [],
-    goals: data.goals || [],
-    drafts: data.drafts || [],
-    editorial_actions: Array.isArray(data.editorial_actions)?data.editorial_actions:[],
-    model: result.model,
-    tokens_used: 0,
-  };
-  return {
-    records_processed: (data.opportunities?.length || 0) + (data.goals?.length || 0) + (data.drafts?.length || 0),
-    status: 'success',
-  };
+  // Generated claims must never be confused with independently verified outcomes.
+  stageResults.geo_analysis=result;
+  logStage('GEO_ANALYSIS','OpenCode calls='+calls+', languages='+JSON.stringify(result.languages)+', editorial proposals='+result.editorial_actions.length);
+  const count=result.opportunities.length+result.goals.length+result.drafts.length+result.editorial_actions.length;
+  return {records_processed:count,status:failed?'partial':'success',languages_analyzed:LANGS.length-failed,models_used:result.models_used,
+    error:failed?(failed+' language analysis segment(s) unavailable') : undefined};
 }
 
 async function saveGEOStage(stage, items) {
@@ -402,7 +373,7 @@ async function stageEditorialActions() {
    return {id,label:String(e.name||id).slice(0,240),source:String(e.source||'unknown').slice(0,100),kind:String(e.type||'unknown').slice(0,100),...(url?{url}:{}),...(e.observed_at?{observed_at:e.observed_at}:{})};
   });
   const id='ed-'+crypto.createHash('sha256').update([item.kind,item.lang,item.target,item.title].join('|')).digest('hex').slice(0,24);
-  return {id,kind:item.kind,lang:item.lang,target:item.target,slug:item.slug,related_service:item.related_service,title:item.title,summary:item.summary,body:item.body,risk_level:item.risk_level==='low'||item.risk_level==='medium'?'high':item.risk_level,status:'pending',createdAt:new Date().toISOString(),evidence_ids:ids,evidence_refs:refs};
+  return {id,kind:item.kind,lang:item.lang,target:item.target,slug:item.slug,related_service:item.related_service,topic_node_id:item.topic_node_id,primary_keyword:item.primary_keyword,secondary_keywords:item.secondary_keywords,h1_suggestion:item.h1_suggestion,sections:item.sections,internal_links:item.internal_links,schema_suggestions:item.schema_suggestions,title:item.title,summary:item.summary,body:item.body,risk_level:item.risk_level==='low'||item.risk_level==='medium'?'high':item.risk_level,status:'pending',createdAt:new Date().toISOString(),evidence_ids:ids,evidence_refs:refs};
  });
  const saved=await saveGEOStage('editorial_actions',proposed);
  stageResults.editorial_actions={count:proposed.length,persisted:saved.saved,status:saved.status,error:saved.error||null};
