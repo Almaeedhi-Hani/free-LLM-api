@@ -30,5 +30,10 @@ jobs:
         run: npm run test:market
       - name: Verify credentialed provider failover with mocked API responses
         run: node scripts/provider-search.test.cjs
-      - name: Probe live public search (no DB writes, no provider secrets)
+      # Bing RSS and DuckDuckGo may block CI runners independent of code correctness.
+      # Keep the live probe visible as a diagnostic; the deterministic market tests above remain blocking.
+      - name: Probe live public search (external diagnostic, non-blocking)
+        continue-on-error: true
         run: node scripts/radar-live-smoke.cjs
+      - name: Explain external source availability
+        run: echo '::notice::Bing RSS/DuckDuckGo availability is diagnostic only; run the manual credentialed provider smoke for live Exa/Tavily/Parallel validation.'
