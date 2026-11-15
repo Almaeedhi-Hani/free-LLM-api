@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContent, setContent } from '@/lib/content-store';
-import {validateEditorialBatch} from '@/lib/editorial-workflow';
+import {validateEditorialBatch,officialSourceCandidates} from '@/lib/editorial-workflow';
 import { assessGeoDraftCopy, splitGeoDraftReviewText } from "@/lib/geo-draft-quality";
 import { StorageConflictError, StorageUnavailableError } from '@/lib/storage-mode';
 
@@ -100,9 +100,21 @@ export async function POST(req: NextRequest) {
       const previous=new Map((before.editorialItems||[]).map(x=>[x.id,x]));
       for(const e of patch.editorialItems as Array<{id:string;status:string;title:string;summary:string;body:string}>){
         const p=previous.get(e.id);
-        if(!p)continue;
-        if(p.status!=='approved'&&e.status==='approved' && !(e as any).reviewedAt)
-          return NextResponse.json({status:'error',message:'Approval requires explicit human review'},{status:422});
+        if(!p){
+          if(e.status==='approved')return NextResponse.json({status:'error',message:'New editorial items must start in pending review'},{status:422});
+          continue;
+        }
+        if(p.status!=='approved'&&e.status==='approved'){
+          if(!(e as any).reviewedAt)
+            return NextResponse.json({status:'error',message:'Approval requires explicit human review'},{status:422});
+          // The UI discovers government candidates from stored evidence.
+          // Enforce the exact same constraint server-side: a competitor/keyword
+          // page is never silently promoted into a verified official source.
+          const official=officialSourceCandidates(p.evidence_refs);
+          const confirmed=(e as any).verified_sources;
+          if(!Array.isArray(confirmed)||!confirmed.length||!official.length||!confirmed.every((url:unknown)=>typeof url==='string'&&official.includes(url)))
+            return NextResponse.json({status:'error',message:'Approval requires reviewed official links present in the saved research evidence'},{status:422});
+        }
         if(p.status==='approved'&&e.status==='approved'&&(p.title!==e.title||p.body!==e.body||p.summary!==e.summary))
           return NextResponse.json({status:'error',message:'Published changes require review as a new pending revision'},{status:422});
       }
