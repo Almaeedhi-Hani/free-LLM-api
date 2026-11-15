@@ -3,10 +3,10 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const {packageOffers,packageGroups,packageDisclosure} = require("../.package-test-build/package-offers.js");
 const expected = {
-  "services-gcc":18000,"services-premium":21000,"services-branch":28000,
-  "services-scratch":48000,"trading-ready":38000,"trading-add":58000,
-  "trading-scratch":78000,"professional-ready":38000,"professional-add":58000,
-  "professional-scratch":88000
+  "services-gcc":17000,"services-premium":20000,"services-branch":27000,
+  "services-scratch":47000,"trading-ready":37000,"trading-add":57000,
+  "trading-scratch":77000,"professional-ready":37000,"professional-add":57000,
+  "professional-scratch":87000
 };
 assert.equal(packageOffers.length,10);
 assert.equal(packageGroups.length,3);
