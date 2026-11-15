@@ -6,11 +6,11 @@ import { getContent } from "@/lib/content-store";
 export const dynamic = "force-dynamic";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const content = await getContent();
-  const paths = ["/", ...services.map((s) => `/services/${s.slug}`)];
+  const paths = ["/", "/packages", ...services.map((s) => `/services/${s.slug}`)];
   return paths.flatMap((path) =>
     (["ar", "en", "zh"] as const).map((lang) => ({
       url: siteUrl + localizedPath(lang, path),
-      lastModified: path === "/" ? content.updatedAt : "2026-11-13",
+      lastModified: path === "/" ? content.updatedAt : path === "/packages" ? "2026-11-15" : "2026-11-13",
       changeFrequency: "weekly" as const,
       priority: path === "/" ? 1 : 0.8,
       alternates: {
