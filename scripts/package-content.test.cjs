@@ -31,7 +31,7 @@ const featureSets=packageOffers.map(o=>o.features.map(x=>x.ar).join("|"));
 assert.equal(new Set(featureSets).size,10,"offer inclusions must not be copied across packages");
 assert(![["j","c","group","ksa"].join(""),["j","c"," ","group"].join("")].some(term=>JSON.stringify(packageDisclosure).toLowerCase().includes(term)));
 for (const lang of ["ar","en","zh"]) {
-  assert(/رسوم حكومية|government|政府/.test(packageDisclosure[lang]),lang+" public fees disclosed");
+  assert(/الرسوم الحكومية|رسوم حكومية|government|政府/.test(packageDisclosure[lang]),lang+" public fees disclosed");
   assert(/الضرائب|taxes|税费/.test(packageDisclosure[lang]),lang+" tax costs separate");
 }
 const markup = fs.readFileSync("src/components/SchemaMarkup.tsx","utf8");
