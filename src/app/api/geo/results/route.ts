@@ -1,170 +1,58 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
+import { getContent, setContent, type ContentDraft } from "@/lib/content-store";
+import { createOpportunity, createGoal, detectLanguage } from "@/lib/market-intelligence";
+import { normalizeGeoBatch, persistGeoBatch } from "@/lib/geo-ingest";
+import { getSupabaseCredentials } from "@/lib/storage-mode";
 
-const GEO_API_KEY = process.env.GEO_API_KEY || '';
-const MAX_OPPORTUNITIES = 50;
-const MAX_GOALS = 50;
-const MAX_DRAFTS = 50;
-
-function isAuthorized(req: NextRequest): boolean {
-  const key = req.headers.get('x-geo-api-key') || '';
-  if (!GEO_API_KEY || !key) return false;
-  if (key.length !== GEO_API_KEY.length) return false;
-  let result = 0;
-  for (let i = 0; i < key.length; i++) {
-    result |= key.charCodeAt(i) ^ GEO_API_KEY.charCodeAt(i);
-  }
-  return result === 0;
+export const dynamic = "force-dynamic";
+// This route is authenticated separately from admin APIs; GEO_API_KEY is never sent to a browser.
+function authorized(req:NextRequest):boolean {
+ const secret=process.env.GEO_API_KEY||"";
+ const supplied=req.headers.get("x-geo-api-key")||"";
+ if(!secret||secret.length!==supplied.length)return false;
+ let diff=0;for(let i=0;i<secret.length;i++)diff|=secret.charCodeAt(i)^supplied.charCodeAt(i);
+ return diff===0;
 }
-
-function validateOpportunity(o: any): boolean {
-  if (!o || typeof o !== 'object') return false;
-  if (!o.title || typeof o.title !== 'string' || o.title.length > 500) return false;
-  if (!['gap', 'content', 'keyword'].includes(o.type)) return false;
-  if (typeof o.score !== 'number' || o.score < 0 || o.score > 100) return false;
-  return true;
-}
-
-function validateGoal(g: any): boolean {
-  if (!g || typeof g !== 'object') return false;
-  if (!g.title || typeof g.title !== 'string' || g.title.length > 500) return false;
-  if (!['high', 'medium', 'low'].includes(g.priority)) return false;
-  return true;
-}
-
-function validateDraft(d: any): boolean {
-  if (!d || typeof d !== 'object') return false;
-  const q = d.q || d.question;
-  const a = d.a || d.answer;
-  if (!q || typeof q !== 'string' || q.length > 1000) return false;
-  if (!a || typeof a !== 'string' || a.length > 5000) return false;
-  if (!['low', 'medium', 'high'].includes(d.risk_level)) return false;
-  return true;
-}
-
-function isArabicTextValid(text: string): boolean {
-  if (!text || typeof text !== 'string') return false;
-  // Check for common mojibake patterns (replacement character)
-  if (text.includes('\uFFFD') || /\uFFFD/.test(text)) return false;
-  // Check for valid Arabic or Latin characters (using es2018+ unicode property escapes not available)
-  // Fallback: allow Arabic ranges + ASCII printable + common punctuation
-  const arabicAndAsciiRegex = /^[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFFa-zA-Z0-9\s\-.,;:()!?/\\"'<>]+$/;
-  const asciiOnlyRegex = /^[\x20-\x7E\s]+$/;
-  return arabicAndAsciiRegex.test(text) || asciiOnlyRegex.test(text);
-}
-
-export async function POST(req: NextRequest) {
-  if (!isAuthorized(req)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function POST(req:NextRequest) {
+ if(!authorized(req))return NextResponse.json({ok:false,error:"Unauthorized"},{status:401});
+ if(!getSupabaseCredentials())return NextResponse.json({ok:false,error:"Persistent Supabase storage not configured"},{status:503});
+ let batch;
+ try{batch=normalizeGeoBatch(await req.json())}
+ catch(e){return NextResponse.json({ok:false,error:e instanceof Error?e.message:"Bad JSON"},{status:422})}
+ const outcome=await persistGeoBatch(batch,{
+  saveOpportunity:async o=>{
+   await createOpportunity({
+    title:o.title, type:o.type==="keyword"?"keyword_gap":"content_gap",
+    score:o.score,confidence:"low",languages:[detectLanguage(o.title)],
+    evidence:[],related_keywords:[],related_competitors:[],
+    estimated_impact:"Unverified AI suggestion; editorial and source review required"
+   });
+  },
+  saveGoal:async g=>{
+   await createGoal({
+    title:g.title,priority:g.priority,description:g.description||"OpenCode candidate; human and evidence review required",
+    evidence:[],success_metrics:[],confidence:"low"
+   });
+  },
+  saveDrafts:async drafts=>{
+   const before=await getContent();
+   const reviewed=new Set(before.drafts.filter(d=>d.status==="approved"||d.status==="rejected").map(d=>d.q));
+   const incoming:ContentDraft[]=drafts.filter(d=>!reviewed.has(d.q)).map(d=>({
+    q:d.q,a:d.a,createdAt:new Date().toISOString(),status:"pending" as const,risk_level:d.risk_level
+   }));
+   const after=incoming.length?await setContent({drafts:incoming}):before;
+   // Confirm that each draft is stored, including already-reviewed duplicates.
+   const count=drafts.filter(d=>after.drafts.some(s=>s.q===d.q)).length;
+   return count;
+  },
+  saveReport:async report=>{
+   await setContent({agent:{
+    lastRun:report.run_at,
+    status:report.status==="success"?"success":"error",
+    lastResult:report.last_result
+   }});
   }
-
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !supabaseKey) {
-    return NextResponse.json({ error: 'Supabase not configured on server' }, { status: 503 });
-  }
-
-  let body;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
-  }
-
-  const { opportunities, goals, drafts, source_run_id } = body;
-  const headers = {
-    'apikey': supabaseKey,
-    'Authorization': `Bearer ${supabaseKey}`,
-    'Content-Type': 'application/json',
-  };
-
-  const results: Record<string, any> = {};
-
-  // Save opportunities
-  if (Array.isArray(opportunities) && opportunities.length > 0) {
-    const validOpps = opportunities
-      .slice(0, MAX_OPPORTUNITIES)
-      .filter(validateOpportunity);
-    
-    if (validOpps.length > 0) {
-      try {
-        const res = await fetch(`${supabaseUrl}/rest/v1/opportunities`, {
-          method: 'POST',
-          headers: { ...headers, 'Prefer': 'return=representation' },
-          body: JSON.stringify(validOpps.map((o: any) => ({
-            title: String(o.title).substring(0, 500),
-            type: String(o.type),
-            score: Math.max(0, Math.min(100, Number(o.score))),
-            description: String(o.description || '').substring(0, 2000),
-            created_at: new Date().toISOString(),
-          }))),
-        });
-        results.opportunities = res.ok ? await res.json() : { error: res.status };
-      } catch (e) {
-        results.opportunities = { error: String(e) };
-      }
-    } else {
-      results.opportunities = { error: 'No valid opportunities after validation' };
-    }
-  }
-
-  // Save goals
-  if (Array.isArray(goals) && goals.length > 0) {
-    const validGoals = goals
-      .slice(0, MAX_GOALS)
-      .filter(validateGoal);
-    
-    if (validGoals.length > 0) {
-      try {
-        const res = await fetch(`${supabaseUrl}/rest/v1/agent_goals`, {
-          method: 'POST',
-          headers: { ...headers, 'Prefer': 'return=representation' },
-          body: JSON.stringify(validGoals.map((g: any) => ({
-            title: String(g.title).substring(0, 500),
-            priority: g.priority,
-            created_at: new Date().toISOString(),
-          }))),
-        });
-        results.goals = res.ok ? await res.json() : { error: res.status };
-      } catch (e) {
-        results.goals = { error: String(e) };
-      }
-    } else {
-      results.goals = { error: 'No valid goals after validation' };
-    }
-  }
-
-  // Save drafts
-  if (Array.isArray(drafts) && drafts.length > 0) {
-    const validDrafts = drafts
-      .slice(0, MAX_DRAFTS)
-      .filter((d: any) => {
-        if (!validateDraft(d)) return false;
-        const q = d.q || d.question;
-        const a = d.a || d.answer;
-        return isArabicTextValid(q) && isArabicTextValid(a);
-      });
-    
-    if (validDrafts.length > 0) {
-      try {
-        const res = await fetch(`${supabaseUrl}/rest/v1/content_drafts`, {
-          method: 'POST',
-          headers: { ...headers, 'Prefer': 'return=representation' },
-          body: JSON.stringify(validDrafts.map((d: any) => ({
-            question: String(d.q || d.question).substring(0, 1000),
-            answer: String(d.a || d.answer).substring(0, 5000),
-            risk_level: d.risk_level,
-            status: 'pending_review',
-            created_at: new Date().toISOString(),
-          }))),
-        });
-        results.drafts = res.ok ? await res.json() : { error: res.status };
-      } catch (e) {
-        results.drafts = { error: String(e) };
-      }
-    } else {
-      results.drafts = { error: 'No valid drafts after validation (encoding check failed)' };
-    }
-  }
-
-  return NextResponse.json({ saved: results });
+ });
+ if(!outcome.ok)console.error("GEO ingestion was partial",outcome.errors);
+ return NextResponse.json(outcome,{status:outcome.ok?200:502});
 }

@@ -293,98 +293,69 @@ Rules:
   };
 }
 
-async function stageOpportunities() {
-  logStage('OPPORTUNITIES', 'Persisting opportunities...');
-  const opps = stageResults.geo_analysis?.opportunities || [];
-  logStage('OPPORTUNITIES', `Saving ${opps.length} opportunities`);
-  stageResults.opportunities = { count: opps.length, items: opps };
-  // Save via GEO API (limited-scope) if configured
-  const GEO_API_URL2 = process.env.GEO_API_URL || process.env.SITE_URL;
-  const GEO_API_KEY2 = process.env.GEO_API_KEY;
-  if (GEO_API_URL2 && GEO_API_KEY2 && opps.length > 0) {
-    try {
-      const res = await fetch(`${GEO_API_URL2}/api/geo/results`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-geo-api-key': GEO_API_KEY2 },
-        body: JSON.stringify({ opportunities: opps, goals: [], drafts: [] }),
-        signal: AbortSignal.timeout(15000),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        logStage('OPPORTUNITIES', `Saved via GEO API: ${JSON.stringify(data.saved?.opportunities?.length || 0)} opportunities`);
-      } else {
-        logStage('OPPORTUNITIES', `GEO API save failed: ${res.status} (will save locally)`);
-      }
-    } catch (e) {
-      logStage('OPPORTUNITIES', `GEO API save failed: ${e.message} (will save locally)`);
+async function saveGEOStage(stage, items) {
+  if (!items.length) return {status:'success',saved:0};
+  const base = process.env.GEO_API_URL || process.env.SITE_URL;
+  const key = process.env.GEO_API_KEY;
+  if (!base || !key) return {status:'partial',saved:0,error:'GEO remote API not configured'};
+  try {
+    const res=await fetch(base.replace(/\\/$/,'')+'/api/geo/results',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-geo-api-key':key},
+      body:JSON.stringify({[stage]:items}),
+      signal:AbortSignal.timeout(15000)
+    });
+    const payload=await res.json();
+    const count=payload?.saved?.[stage] ?? 0;
+    if(!res.ok || !payload?.ok || count!==items.length){
+      return {status:'partial',saved:count,error:'Remote GEO persistence rejected or partially saved: '+JSON.stringify(payload?.errors || payload?.error || res.status).slice(0,300)};
     }
-  }
-  // Always save to local artifact for verification
-  stageResults.opportunities = { count: opps.length, items: opps, saved_to_api: false };
-  return { records_processed: opps.length, status: 'success' };
+    return {status:'success',saved:count};
+  }catch(e){return {status:'partial',saved:0,error:'GEO API persistence unavailable: '+(e?.message||String(e))}}
+}
+async function updateGEOAgentRun(outcome) {
+  const base=process.env.GEO_API_URL || process.env.SITE_URL;
+  const key=process.env.GEO_API_KEY;
+  if(!base||!key)return false;
+  try{
+    const status=Object.values(outcome.stages).every(s=>s.status==='success')?'success':'partial';
+    const last_result=['discovery','evidence','geo_analysis','opportunities','goals','drafts'].map(stage=>stage+':'+(outcome.stages[stage]?.status||'not_run')).join(' | ');
+    const response=await fetch(base.replace(/\\/$/,'')+'/api/geo/results',{
+      method:'POST',headers:{'Content-Type':'application/json','x-geo-api-key':key},
+      body:JSON.stringify({run_report:{run_at:outcome.pipeline_run,status,last_result}}),
+      signal:AbortSignal.timeout(15000)
+    });
+    const json=await response.json();
+    return response.ok && json?.ok===true && json.saved?.run_report===1;
+  }catch(e){console.error('[GEO_STATUS] Failed to sync agent dashboard:',e?.message||e);return false}
+}
+
+async function stageOpportunities() {
+ const items=stageResults.geo_analysis?.opportunities||[];
+ const saved=await saveGEOStage('opportunities',items);
+ stageResults.opportunities={count:items.length,items,saved_to_api:saved.status==='success',persisted:saved.saved,error:saved.error||null};
+ console.log('[OPPORTUNITIES] Generated',items.length,'persisted',saved.saved,saved.status);
+ return {records_processed:saved.saved,status:saved.status,error:saved.error};
 }
 
 async function stageGoals() {
-  logStage('GOALS', 'Persisting goals...');
-  const goals = stageResults.geo_analysis?.goals || [];
-  logStage('GOALS', `Saving ${goals.length} goals`);
-  stageResults.goals = { count: goals.length, items: goals };
-  const GEO_API_URL3 = process.env.GEO_API_URL || process.env.SITE_URL;
-  const GEO_API_KEY3 = process.env.GEO_API_KEY;
-  if (GEO_API_URL3 && GEO_API_KEY3 && goals.length > 0) {
-    try {
-      const res = await fetch(`${GEO_API_URL3}/api/geo/results`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-geo-api-key': GEO_API_KEY3 },
-        body: JSON.stringify({ opportunities: [], goals: goals, drafts: [] }),
-        signal: AbortSignal.timeout(15000),
-      });
-      if (res.ok) logStage('GOALS', `Saved via GEO API`);
-      else logStage('GOALS', `GEO API save failed: ${res.status} (will save locally)`);
-    } catch (e) {
-      logStage('GOALS', `GEO API save failed: ${e.message} (will save locally)`);
-    }
-  }
-  stageResults.goals = { count: goals.length, items: goals, saved_to_api: false };
-  return { records_processed: goals.length, status: 'success' };
+ const items=stageResults.geo_analysis?.goals||[];
+ const saved=await saveGEOStage('goals',items);
+ stageResults.goals={count:items.length,items,saved_to_api:saved.status==='success',persisted:saved.saved,error:saved.error||null};
+ console.log('[GOALS] Generated',items.length,'persisted',saved.saved,saved.status);
+ return {records_processed:saved.saved,status:saved.status,error:saved.error};
 }
 
 async function stageDrafts() {
-  logStage('DRAFTS', 'Persisting drafts (pending_review)...');
-  const drafts = stageResults.geo_analysis?.drafts || [];
-  // Classify risk
-  for (const d of drafts) {
-    if (!d.risk_level) {
-      const text = (d.q + ' ' + d.a).toLowerCase();
-      if (text.includes('legal') || text.includes('regulatory') || text.includes('financial') || text.includes('MISA') || text.includes('cost')) {
-        d.risk_level = 'high';
-      } else if (text.includes('pricing') || text.includes('fee')) {
-        d.risk_level = 'medium';
-      } else {
-        d.risk_level = 'low';
-      }
-    }
-  }
-  logStage('DRAFTS', `Saving ${drafts.length} drafts (${drafts.filter(d => d.risk_level === 'high').length} high risk)`);
-  stageResults.drafts = { count: drafts.length, items: drafts };
-  const GEO_API_URL4 = process.env.GEO_API_URL || process.env.SITE_URL;
-  const GEO_API_KEY4 = process.env.GEO_API_KEY;
-  if (GEO_API_URL4 && GEO_API_KEY4 && drafts.length > 0) {
-    try {
-      const res = await fetch(`${GEO_API_URL4}/api/geo/results`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-geo-api-key': GEO_API_KEY4 },
-        body: JSON.stringify({ opportunities: [], goals: [], drafts: drafts }),
-        signal: AbortSignal.timeout(15000),
-      });
-      if (res.ok) logStage('DRAFTS', `Saved via GEO API`);
-      else logStage('DRAFTS', `GEO API save failed: ${res.status} (will save locally)`);
-    } catch (e) {
-      logStage('DRAFTS', `GEO API save failed: ${e.message} (will save locally)`);
-    }
-  }
-  stageResults.drafts = { count: drafts.length, items: drafts, saved_to_api: false };
-  return { records_processed: drafts.length, status: 'success' };
+ const items=stageResults.geo_analysis?.drafts||[];
+ // Unclassified financial, licensing or regulatory drafts must remain high risk.
+ for(const d of items){
+  if(!['low','medium','high'].includes(d.risk_level))d.risk_level='high';
+ }
+ const saved=await saveGEOStage('drafts',items);
+ stageResults.drafts={count:items.length,items,saved_to_api:saved.status==='success',persisted:saved.saved,error:saved.error||null};
+ console.log('[DRAFTS] Generated',items.length,'persisted',saved.saved,saved.status);
+ return {records_processed:saved.saved,status:saved.status,error:saved.error};
 }
 
 // --- Main pipeline ---
@@ -454,6 +425,14 @@ async function runFullPipeline() {
   try { fs.rmSync(path.join(process.cwd(), '.opencode-work'), { recursive: true, force: true }); } catch (e) {}
   try { fs.unlinkSync(path.join(process.cwd(), 'market-intel', 'geo-prompt.txt')); } catch (e) {}
 
+  output.summary.persisted_opportunities=stageResults.opportunities?.persisted||0;
+  output.summary.persisted_goals=stageResults.goals?.persisted||0;
+  output.summary.persisted_drafts=stageResults.drafts?.persisted||0;
+  output.pipeline_ok=Object.values(results).length===stageOrder.length && Object.values(results).every(s=>s.status==='success');
+  output.dashboard_synced=await updateGEOAgentRun(output);
+  if(!output.dashboard_synced)output.pipeline_ok=false;
+  // Update the persisted workflow artifact with the verified remote outcome.
+  fs.writeFileSync(outFile,JSON.stringify(output,null,2));
   return output;
 }
 
@@ -485,7 +464,7 @@ if (args.includes('--test')) {
 } else if (args.includes('--full-pipeline')) {
   runFullPipeline().then(r => {
     console.log('\nPipeline summary:', JSON.stringify(r.summary));
-    process.exit(0);
+    process.exit(r.pipeline_ok ? 0 : 1);
   }).catch(e => {
     console.error('Pipeline failed:', e);
     process.exit(1);
