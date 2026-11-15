@@ -1367,9 +1367,3 @@ html{scroll-padding-top:96px}
 .package-page .package-buttons button,.package-whatsapp-cta{width:100%}
 }
 @media (prefers-reduced-motion:reduce){.package-offer-card,.package-filter button{transition:none}.package-offer-card:hover{transform:none}}
-
-/* Fee clarity: service discounts must never appear to discount public charges. */
-.package-hero-fee-note { max-width: 780px; margin: 1rem 0; padding: .85rem 1rem; border-inline-start: 3px solid #b89a5a; border-radius: .6rem; background: rgba(184,154,90,.09); line-height: 1.8; font-size: .92rem; }
-.package-fee-clarity { margin: .55rem 0 1.15rem; padding: .7rem .85rem; border-radius: .6rem; color: #2a534b; background: #f0f5f1; font-size: .86rem; line-height: 1.75; }
-.package-saved small { display: inline-block; margin-inline-end: .4rem; font-size: .74rem; }
-@media(max-width:640px){.package-hero-fee-note{margin-block:.85rem}.package-fee-clarity{font-size:.84rem}}
