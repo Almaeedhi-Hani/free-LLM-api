@@ -303,7 +303,7 @@ async function saveGEOStage(stage, items) {
   let lastError='GEO endpoint unavailable';
   for (let attempt=1; attempt<=maxAttempts; attempt++) {
     try {
-      const res=await fetch(base.replace(/\\/$/,'')+'/api/geo/results',{
+      const res=await fetch(base.replace(/\/$/,'')+'/api/geo/results',{
         method:'POST',
         headers:{'Content-Type':'application/json','x-geo-api-key':key},
         body:JSON.stringify({[stage]:items}),
