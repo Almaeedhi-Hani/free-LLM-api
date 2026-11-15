@@ -37,6 +37,18 @@ assert.throws(()=>validateEditorialItem({...guide,internal_links:[{node_id:'comp
 validateEditorialItem({...guide,topic_node_id:'company-documents',primary_keyword:'Saudi company incorporation documents',secondary_keywords:['foreign investor paperwork'],sections:[{h2:'Prepare official records',body:'Start by identifying activity, ownership and the proposed company structure. Consult current documentation requirements with the relevant official authority before applying. Professional fees should be displayed separately from statutory and third-party charges.'}],internal_links:[{node_id:'company-formation',anchor:'Company formation in Saudi Arabia'}],schema_suggestions:['Article','BreadcrumbList']});
 assert.throws(()=>validateEditorialItem({...approved,kind:'technical_seo',target:'/'}),/never published/);
 assert.throws(()=>validateEditorialBatch([approved,approved]),/Duplicate editorial ID/);
+// Regression: real 2026-11-15 zh proposals were rejected despite substantive ideographic prose.
+const chinese={...base,lang:'zh',
+ title:'沙特投资登记与公司设立前的准备事项',
+ summary:'帮助投资者了解公司登记前的资料范围，并说明不同活动应向官方机构核实的条件与收费。',
+ body:'投资者应当先明确拟开展的商业活动、股东结构和拟设立的法律实体。某些行业可能需要其他主管机构批准。申请前需核查最新官方指南，并整理公司与股东的资料。专业咨询费与政府收费必须分别说明，顾问不得保证审批结果。投资者还应按实际情况核查银行尽职调查要求。',
+ sections:[{h2:'材料清单',body:'需要根据投资者身份、行业与公司形式核实文件材料，不能将示例视为官方固定要求。',
+  subsections:[{h3:'官方要求',body:'提交前应到主管机关获取当前材料清单，并区分政府收费与咨询服务费用。'}]}]};
+assert.equal(validateEditorialItem(chinese).lang,'zh');
+assert.equal(approvedEditorial([validateEditorialItem(chinese)],'zh').length,0,'Chinese drafts remain unpublished');
+assert.throws(()=>validateEditorialItem({...chinese,body:'仅供参考。'}),/substantive/,'extremely short Chinese body still rejected');
+assert.throws(()=>validateEditorialItem({...chinese,sections:[{h2:'资料',body:'过短'}]}),/H2\/H3/,'extremely short Chinese section still rejected');
+assert.throws(()=>validateEditorialItem({...chinese,lang:'en'}),/H2\/H3/,'English retains stricter section lengths');
 const fs=require('node:fs');
 const worker=fs.readFileSync('scripts/opencode-geo-analysis.js','utf8');
 assert(worker.includes('stageEditorialActions'),'GEO produces editorial proposals beyond FAQ');
