@@ -19,7 +19,7 @@ const slugs = [
   let pages = 0;
   for (const lang of ["ar", "en", "zh"]) {
     await Promise.all(
-      ["", ...slugs.map((s) => "/services/" + s)].map(async (route) => {
+      ["", "/packages", ...slugs.map((s) => "/services/" + s)].map(async (route) => {
         const path = (lang === "ar" ? "" : "/" + lang) + route || "/";
         const r = await fetch(base + path);
         assert.equal(r.status, 200, path);
@@ -65,12 +65,18 @@ const slugs = [
         assert(!html.includes("STORAGE_TEST_2026"), path + " QA content");
         assert(!/href="\/ai-readable"/.test(html), path + " AI button");
         assert(html.includes("application/ld+json"));
+        if (route === "/packages") {
+          assert((html.match(/class="package-offer-card"/g)||[]).length === 10, path+" SSR offer cards");
+          assert(html.includes("services-branch") && html.includes("professional-scratch"),path+" all package anchors");
+          assert(html.includes("schema.org") && html.includes("priceCurrency"),path+" Service Offer JSONLD");
+          assert(html.includes("company") || lang !== "en", path+" package descriptions");
+        }
         pages++;
       }),
     );
   }
   const sitemap = await (await fetch(base + "/sitemap.xml")).text();
-  assert.equal((sitemap.match(/<loc>/g) || []).length, 21);
+  assert.equal((sitemap.match(/<loc>/g) || []).length, 24);
   const robots = await (await fetch(base + "/robots.txt")).text();
   assert(robots.includes("Disallow: /admin/"));
   const admin = await (await fetch(base + "/admin/dashboard")).text();
@@ -78,7 +84,7 @@ const slugs = [
   console.log(
     `PASS ${pages} localized pages: titles, descriptions, single H1, heading structure, canonicals, reciprocal hreflang, JSON-LD and hidden QA text`,
   );
-  console.log("PASS 21-entry sitemap, robots exclusions and admin noindex");
+  console.log("PASS 24-entry sitemap, robots exclusions and admin noindex");
 })().catch((e) => {
   console.error(e.message);
   process.exitCode = 1;
