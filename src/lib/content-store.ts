@@ -18,6 +18,7 @@ export interface ContentDraft {
   a: string;
   createdAt: string;
   status: 'pending' | 'approved' | 'rejected';
+  risk_level?: 'low' | 'medium' | 'high';
 }
 
 export interface ContactInfo {
@@ -202,7 +203,11 @@ function buildNext(current: SiteContent, patch: Partial<SiteContent>, options: C
     if (patch.keywords) next.keywords = Array.from(new Set([...current.keywords, ...patch.keywords]));
     if (patch.drafts) {
       const map = new Map(current.drafts.map((d) => [d.q, d]));
-      for (const d of patch.drafts) map.set(d.q, d);
+      for (const d of patch.drafts) {
+        const prior=map.get(d.q);
+        if(prior && (prior.status==='approved'||prior.status==='rejected')) continue;
+        map.set(d.q,d);
+      }
       next.drafts = Array.from(map.values());
     }
   }

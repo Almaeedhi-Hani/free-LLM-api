@@ -36,6 +36,8 @@ jobs:
         run: npm run test:packages
       - name: Evidence-gated organic ranking, indexing, AI visibility and conversion tests
         run: npm run test:visibility
+      - name: GEO persistence and pipeline truthfulness tests
+        run: npm run test:geo-persist
       - name: GEO agent tests
         run: npm run test:agent
       - name: Content storage tests
