@@ -2,7 +2,7 @@
 
 import EditorialReviewPanel from '@/components/EditorialReviewPanel';
 import {DataRoleLegend,DataRolePanel,DataRoleTag} from '@/components/AdminDataRoles';
-import { assessGeoDraftCopy } from "@/lib/geo-draft-quality";
+import { assessGeoDraftCopy, splitGeoDraftReviewText } from "@/lib/geo-draft-quality";
 import React, { useState, useEffect } from 'react';
 import VisibilityDashboard from '@/components/VisibilityDashboard';
 import CookiePolicyAdmin from '@/components/CookiePolicyAdmin';
@@ -45,13 +45,8 @@ const formatDate = (value: unknown) => {
   const date = new Date(String(value));
   return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('ar-SA');
 };
-// Display-only separation: the original AI answer remains unchanged in storage.
-// A generic trailing verification phrase is not a cited fact or a system-provided source.
-const splitDraftReviewText=(value:unknown)=>{
-  const answer=String(value||'');
-  const match=/(?:يجب|ينبغي)\s+التحقق\s+من\s+المصادر\s+الرسمية/i.exec(answer);
-  return match?{answer:answer.slice(0,match.index).trim(),note:answer.slice(match.index).trim()}: {answer,note:''};
-};
+// Each operator's edit belongs to one draft, not to the latest list position.
+const draftReviewKey=(d:{q?:string;createdAt?:string})=>JSON.stringify([d.q||'',d.createdAt||'']);
 const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'home', label: 'الرئيسية', icon: '📊' },
   { key: 'competitors', label: 'المنافسون', icon: '🏢' },
@@ -80,6 +75,7 @@ export default function AdminDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [newFaq, setNewFaq] = useState({ q: '', a: '' });
   const [editingFaq, setEditingFaq] = useState<{ index: number; q: string; a: string } | null>(null);
+  const [draftReviewEdits,setDraftReviewEdits]=useState<Record<string,string>>({});
   const [newKeyword, setNewKeyword] = useState('');
   const [newMarketKeyword,setNewMarketKeyword]=useState('');
   const [competitorSearch,setCompetitorSearch]=useState('');
@@ -300,14 +296,27 @@ export default function AdminDashboard() {
 
   const approveDraft = (idx: number) => {
     if (!content || saving) return;
-    const checked=assessGeoDraftCopy(content.drafts[idx]?.q,content.drafts[idx]?.a);
-    if (!checked.publishable) { setError('لا يمكن نشر المسودة قبل تصحيح الأخطاء اللغوية والتحريرية.'); return; }
-    if (!window.confirm('اعتماد هذه المسودة ونشرها في محتوى الموقع؟ يجب التحقق يدويًا من المصادر الرسمية وصحة المعلومات قبل الموافقة.')) return;
-    const drafts = [...content.drafts];
-    const draft = {...drafts[idx],status:'approved'};
+    const existing=content.drafts[idx];
+    if (!existing || existing.status!=='pending') return;
+    // Publish precisely what the operator saw and could edit in the green preview,
+    // never the original model answer hidden behind the review-only red section.
+    const proposed=splitGeoDraftReviewText(existing.a);
+    const reviewedAnswer=(draftReviewEdits[draftReviewKey(existing)]??proposed.answer).trim();
+    const checked=assessGeoDraftCopy(existing.q,reviewedAnswer);
+    if (!checked.publishable) {
+      setError('لا يمكن نشر النص النهائي المعروض: '+checked.issues.join(' | '));
+      return;
+    }
+    if (splitGeoDraftReviewText(reviewedAnswer).note) {
+      setError('أزل عبارة التحقق الإجرائية من نص النشر النهائي أو أعد صياغتها قبل الاعتماد.');
+      return;
+    }
+    if (!window.confirm('اعتماد ونشر النص النهائي المعروض في المربع الأخضر فقط؟ لن تُنشر عبارة التحقق المعروضة باللون الأحمر. تأكد من مراجعة المعلومات من المصادر الرسمية أولًا.')) return;
+    const drafts=[...content.drafts];
+    const draft={...existing,a:reviewedAnswer,status:'approved'};
     drafts[idx]=draft;
-    const faqs = [...content.faqs.filter((f:any)=>f.q!==draft.q),{q:draft.q,a:draft.a}];
-    save({ faqs, drafts });
+    const faqs=[...content.faqs.filter((f:any)=>f.q!==draft.q),{q:draft.q,a:reviewedAnswer}];
+    void save({faqs,drafts});
   };
 
   const rejectDraft = (idx: number) => {
@@ -585,13 +594,23 @@ export default function AdminDashboard() {
                 {pendingDrafts===0&&<p className="text-sm text-slate-600">لا توجد مسودات معلقة.</p>}
                 <ul className="space-y-5">
                   {content.drafts.map((d: any,i: number)=>{
-                    const parts=splitDraftReviewText(d.a);
+                    const parts=splitGeoDraftReviewText(d.a);
+                    const reviewKey=draftReviewKey(d);
+                    const finalAnswer=d.status==='pending'?(draftReviewEdits[reviewKey]??parts.answer):d.a;
+                    const finalAssessment=assessGeoDraftCopy(d.q,finalAnswer);
                     return <li key={i} className="min-w-0 space-y-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-5">
                       <DataRolePanel tone="content" title="السؤال والإجابة المقترحة للاستخدام" description="الجزء الأخضر هو المحتوى الذي أنشأه النموذج، وليس توثيقًا رسميًا.">
                         <h3 className="mb-3 text-base font-bold text-emerald-950 break-words">{d.q}</h3>
-                        <p className="whitespace-pre-line break-words text-sm text-slate-900">{parts.answer}</p>
+                        {d.status==='pending'?<div className="space-y-2">
+                          <label htmlFor={`faq-publish-${i}`} className="block text-xs font-bold text-emerald-950">النص النهائي الذي سيُنشر — قابل للتعديل</label>
+                          <textarea id={`faq-publish-${i}`} aria-label={`النص النهائي للنشر: ${d.q}`}
+                            className="w-full rounded-lg border border-emerald-300 bg-white p-3 text-sm leading-7 text-slate-900"
+                            rows={5} value={finalAnswer}
+                            onChange={e=>setDraftReviewEdits(prev=>({...prev,[reviewKey]:e.target.value}))}/>
+                          <p className="text-xs text-emerald-900">هذا هو النص الذي سيُحفظ في المسودة المعتمدة ويُنشر في الأسئلة الشائعة بعد موافقتك.</p>
+                        </div>:<p className="whitespace-pre-line break-words text-sm text-slate-900">{d.a}</p>}
                       </DataRolePanel>
-                      {parts.note&&<DataRolePanel tone="warning" title="عبارة تحقق وردت ضمن النص المولّد" description="عُزلت هذه العبارة بصريًا لأنها تنبيه للتحقق وليست معلومة توثّق الإجابة. لا يغيّر العرض النص المحفوظ تلقائيًا.">
+                      {d.status==='pending'&&parts.note&&<DataRolePanel tone="warning" title="عبارة تحقق وردت ضمن النص المولّد" description="هذه العبارة مستخرجة من نهاية الإجابة الأصلية للتوضيح. استُبعدت من معاينة النشر المقترحة، ولن تُنشر إلا إذا كتبتها بنفسك في النص النهائي.">
                         <p className="text-rose-900 font-semibold">{parts.note}</p>
                       </DataRolePanel>}
                       <DataRolePanel tone="system" title="بيانات المسودة من النظام" description="الحالة والتاريخ ومستوى المراجعة معلومات إدارية وليست جزءًا من الإجابة.">
@@ -600,8 +619,8 @@ export default function AdminDashboard() {
                           <span className="text-xs text-slate-600">تاريخ الإنشاء: {formatDate(d.createdAt)}</span>
                         </div>
                       </DataRolePanel>
-                      {!assessGeoDraftCopy(d.q,d.a).publishable&&<DataRolePanel tone="warning" title="تنبيه جودة آلي — ليس جزءًا من الإجابة">
-                        <p className="text-rose-900" role="alert">محتوى غير صالح للنشر: لغة غير متسقة أو إجابة عامة. يحتاج إلى إعادة كتابة ومراجعة المصادر، ويمكن رفض المسودة.</p>
+                      {!finalAssessment.publishable&&<DataRolePanel tone="warning" title="تنبيه جودة آلي — ليس جزءًا من الإجابة">
+                        <p className="text-rose-900" role="alert">النص النهائي غير صالح للنشر بعد: راجع اللغة وطول الإجابة وجودتها، ثم صححه في مربع النص الأخضر. يمكن رفض المسودة عند الحاجة.</p>
                       </DataRolePanel>}
                       {d.risk_level==='high'&&<DataRolePanel tone="warning" title="تحذير من النظام — محتوى عالي المخاطر">
                         <p className="text-rose-900">لا تعتمد دون مراجعة مختص والتحقق من المصدر الرسمي. هذا التنبيه ليس جزءًا من الإجابة.</p>
@@ -613,10 +632,10 @@ export default function AdminDashboard() {
                         </li>)}</ul>:<p className="text-xs text-blue-900">لا توجد روابط رصد مسجلة لهذه المسودة.</p>}
                       </DataRolePanel>
                       <DataRolePanel tone="verification" title="المصادر الرسمية والتحقق قبل النشر" description="مصادر المنافسين ليست مصدرًا رسميًا. تحقّق من صحة المعلومات من الجهات المختصة قبل الاعتماد.">
-                        <p className="text-xs text-amber-950">تؤدي الموافقة إلى نشر نص المسودة المحفوظ كما هو، بما فيه أي جملة تحقق ضمن النص. راجع الإجابة وأعد صياغتها عند الحاجة قبل النشر.</p>
+                        <p className="text-xs text-amber-950">ستُنشر فقط الإجابة النهائية الظاهرة في مربع التحرير الأخضر بعد اعتمادك. أما عبارة التحقق الحمراء فلا تدخل ضمن الإجابة النهائية المقترحة.</p>
                       </DataRolePanel>
                       {d.status==='pending'&&<div className="flex flex-wrap gap-2 border-t border-slate-200 pt-3">
-                        <button onClick={()=>approveDraft(i)} className="btn-primary text-xs" disabled={saving || !assessGeoDraftCopy(d.q,d.a).publishable}>اعتماد ونشر</button>
+                        <button onClick={()=>approveDraft(i)} className="btn-primary text-xs" disabled={saving || !finalAssessment.publishable || Boolean(splitGeoDraftReviewText(finalAnswer).note)}>اعتماد ونشر</button>
                         <button onClick={()=>rejectDraft(i)} className="btn-secondary text-xs" disabled={saving}>رفض</button>
                       </div>}
                     </li>
