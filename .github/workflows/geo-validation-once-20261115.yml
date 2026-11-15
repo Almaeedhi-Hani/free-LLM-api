@@ -1,5 +1,5 @@
 name: GEO Intelligence One-Time Production Recovery Check
-# One-time recheck after strict FAQ batch isolation and allowed-schema filtering; the regular GEO schedule remains unchanged.
+# One-time validation of isolated fresh sessions, compaction and Big Pickle free model; recurring GEO schedule unchanged.
 
 on:
   push:
@@ -40,7 +40,8 @@ jobs:
           TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
           PARALLEL_API_KEY: ${{ secrets.PARALLEL_API_KEY }}
           FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
-          OPENCODE_MODEL: opencode/beam-free
+          # One-time test of public research with the currently free Big Pickle model.
+          OPENCODE_MODEL: opencode/big-pickle
           OPENCODE_BIN: /home/runner/.opencode/bin/opencode
         run: |
           node scripts/opencode-geo-analysis.js --full-pipeline
