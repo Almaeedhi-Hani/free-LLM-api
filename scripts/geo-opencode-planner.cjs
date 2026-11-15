@@ -5,6 +5,13 @@
  */
 const manifest=require("../src/data/content-tree.json");
 const LANGS=["ar","en","zh"];
+const SCHEMA_TYPES=Object.freeze(["Article","BreadcrumbList","Service","WebPage","FAQPage","CollectionPage"]);
+// Unsupported model suggestions are never converted to a different schema type.
+function supportedSchemaSuggestions(values){
+ if(values===undefined)return undefined;
+ if(!Array.isArray(values))return values; // preserve malformed shapes for server rejection
+ return [...new Set(values.filter(type=>SCHEMA_TYPES.includes(type)))].slice(0,5);
+}
 function chooseResearchEvidence(items,limit=60){
  const selected=[],seen=new Set();
  const add=e=>{
@@ -56,6 +63,7 @@ function promptForLocale(lang,evidence){
  "For Simplified Chinese, use concise but meaningful titles and H1s of at least 6 Chinese characters and internal link anchors of at least 3 characters. Write a substantive original draft body of at least 80 Chinese characters, H2 headings with at least 4 ideographs, and at least 20 Chinese characters in EACH H2 and nested H3 body. If evidence cannot support that length, omit the editorial action rather than pad or invent claims.",
  "Propose 1-4 contextual internal_links objects {node_id, anchor} that target only existing live routes from the tree, reflecting parent/child and topical relevance. Do not create links to missing or unpublished pages or claim all guides are related.",
  "Propose schema_suggestions from Article, BreadcrumbList, Service, WebPage, FAQPage, CollectionPage only when the type matches what is visible. Never invent ratings, licenses, organizations, outcomes, contacts, FAQs or hidden structured-data-only content. Nothing changes public JSON-LD automatically.",
+ "Each proposed FAQ answer must contain at least 140 characters for Arabic or English, or 110 characters including at least 55 Han ideographs for Simplified Chinese. Provide a direct, useful answer grounded in evidence; never pad with filler or invent official requirements. Omit the FAQ when evidence is insufficient.",
  "Offer official_source_candidates in the tree as references for HUMAN re-verification; competitor URLs and keyword suggestions ARE NOT authority-verified legal evidence. Attach actual evidence_ids for researched claims, never fabricate IDs. No source => source-research task, not regulatory fact.",
  "Financial, corporate formation, licensing, banking and legal drafts stay high risk; require specialist review. Official fees and taxes are separate from our professional service fees. NEVER modify the published service prices or existing three-stage package visual layout.",
  "If evidence is weak propose no article or FAQ; prefer a research goal/technical task. A credible single guide is better than five fabricated ones.",
@@ -70,4 +78,4 @@ function promptForLocale(lang,evidence){
  };
  return [rules.join("\n"),"\nACTUAL SITE CONTENT TREE:\n"+JSON.stringify(topics),"\nOBSERVED RESEARCH INPUT:\n"+JSON.stringify(evidence),"\nOUTPUT JSON SHAPE (replace examples with real evidence, omit unsupported objects):\n"+JSON.stringify(schema)].join("\n\n");
 }
-module.exports={LANGS,chooseResearchEvidence,selectLocaleEvidence,promptForLocale};
+module.exports={LANGS,SCHEMA_TYPES,supportedSchemaSuggestions,chooseResearchEvidence,selectLocaleEvidence,promptForLocale};

@@ -1,6 +1,7 @@
 "use strict";
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
+const vm=require('node:vm');
 const {normalizeGeoBatch,persistGeoBatch}=require('../.geo-ingest-test-build/lib/geo-ingest.js');
 (async()=>{
  assert.throws(()=>normalizeGeoBatch({opportunities:[{title:'x',type:'bad',score:55}]}),/Invalid opportunities/);
@@ -64,5 +65,34 @@ const {normalizeGeoBatch,persistGeoBatch}=require('../.geo-ingest-test-build/lib
  assert(runner.includes("No evidence-backed editorial proposals generated; inspect model output"),'Zero editorial output must not silently pass');
 
  assert(runner.includes('output.dashboard_synced=await updateGEOAgentRun(output)'));
- console.log('PASS verified GEO persistence counts, dashboard syncing, failed writes, no nonexistent tables or silent job success');
+ const {supportedSchemaSuggestions,promptForLocale}=require('./geo-opencode-planner.cjs');
+ assert.deepEqual(supportedSchemaSuggestions(['WebPage','Offer','WebPage','Service']),['WebPage','Service'],'unsupported/duplicate model schemas never reach server');
+ assert.deepEqual(supportedSchemaSuggestions(['Offer']),[],'unsupported schemas must not be misrepresented as a different valid schema');
+ assert.equal(supportedSchemaSuggestions('Offer'),'Offer','malformed shapes still go through strict server validation');
+ assert(promptForLocale('zh',[{id:'source-1',language:'zh',type:'keyword',source:'test'}]).includes('110 characters including at least 55 Han ideographs'),'prompt should prevent overly short Chinese FAQs');
+ // Exercise the exact remote persistence function without external calls or secrets.
+ const start=runner.indexOf('async function saveGEOStage(');
+ const end=runner.indexOf('async function updateGEOAgentRun(',start);
+ assert(start>=0&&end>start,'GEO persistence function must remain testable');
+ const runMock=async response=>{
+  const calls=[];
+  const scope={process:{env:{GEO_API_URL:'https://example.invalid',GEO_API_KEY:'test-only'}},
+   AbortSignal:{timeout:()=>undefined},console:{warn:()=>{}},
+   fetch:async(_url,options)=>{const data=JSON.parse(options.body);calls.push(data);return response(data)}};
+  vm.runInNewContext(runner.slice(start,end)+'\nthis.saveGEOStage=saveGEOStage;',scope);
+  return {save:scope.saveGEOStage,calls};
+ };
+ const reply=(status,saved,errors)=>({ok:status===200,status,json:async()=>({ok:status===200,saved:{drafts:saved},errors})});
+ const quality=await runMock(data=>data.drafts.length===2
+   ?reply(502,0,['drafts: GEO draft quality failed: draft 2: Answer is too short to be a useful verified FAQ.'])
+   :(data.drafts[0].q==='valid'?reply(200,1,[]):reply(502,0,['drafts: GEO draft quality failed: draft 1: Answer is too short to be a useful verified FAQ.'])));
+ const partial=await quality.save('drafts',[{q:'valid'},{q:'short'}]);
+ assert.equal(partial.status,'partial','invalid draft must keep stage visibly partial');
+ assert.equal(partial.saved,1,'save other valid drafts on definitive quality rejection');
+ assert.equal(quality.calls.length,3,'only definitive validation failure gets per-item fallback');
+ const storage=await runMock(()=>reply(502,0,['drafts: database unavailable']));
+ const storageResult=await storage.save('drafts',[{q:'valid'},{q:'other'}]);
+ assert.equal(storageResult.saved,0);
+ assert.equal(storage.calls.length,1,'no retry of non-deduplicated drafts on storage failures');
+ console.log('PASS verified GEO persistence, schema safeguards, draft quality fallback, and no ambiguous retries');
 })().catch(e=>{console.error(e);process.exit(1)});
