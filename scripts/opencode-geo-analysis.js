@@ -6,6 +6,7 @@
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const {supportedSchemaSuggestions}=require('./geo-opencode-planner.cjs');
 
 // --- Config ---
 const OC_BIN = process.env.OPENCODE_BIN ||
@@ -314,6 +315,22 @@ async function saveGEOStage(stage, items) {
       catch {return {status:'partial',saved:0,error:'Invalid GEO API response (HTTP '+res.status+')'}}
       const count=payload?.saved?.[stage] ?? 0;
       if (res.ok && payload?.ok && count===items.length) return {status:'success',saved:count};
+      // Draft quality validation precedes writes: split only this definitive rejection.
+      // Never retry non-deduplicated drafts after ambiguous network/storage failures.
+      const draftQualityRejected=stage==='drafts' && res.status===502 && count===0 &&
+        Array.isArray(payload?.errors) && payload.errors.some(msg=>
+          typeof msg==='string' && msg.startsWith('drafts: GEO draft quality failed:'));
+      if(draftQualityRejected && items.length>1){
+        let saved=0;
+        const failures=[];
+        for(const item of items){
+          const one=await saveGEOStage(stage,[item]);
+          saved+=one.saved;
+          if(one.status!=='success')failures.push(String(one.error||'rejected').slice(0,150));
+        }
+        return {status:saved===items.length?'success':'partial',saved,
+          error:failures.length?'Rejected '+failures.length+' low-quality draft(s): '+failures.slice(0,3).join(' | '):undefined};
+      }
       // An invalid model proposal should not discard every valid editorial proposal.
       // Keep the stage partial if even one item is rejected; never report a false success.
       if(stage==='editorial_actions' && res.status===422 && items.length>1) {
@@ -410,7 +427,10 @@ async function stageEditorialActions() {
    return {id,label:String(e.name||id).slice(0,240),source:String(e.source||'unknown').slice(0,100),kind:String(e.type||'unknown').slice(0,100),...(url?{url}:{}),...(e.observed_at?{observed_at:e.observed_at}:{})};
   });
   const id='ed-'+crypto.createHash('sha256').update([item.kind,item.lang,item.target,item.title].join('|')).digest('hex').slice(0,24);
-  return {id,kind:item.kind,lang:item.lang,target:item.target,slug:item.slug,related_service:item.related_service,topic_node_id:item.topic_node_id,primary_keyword:item.primary_keyword,secondary_keywords:item.secondary_keywords,h1_suggestion:item.h1_suggestion,sections:item.sections,internal_links:item.internal_links,schema_suggestions:item.schema_suggestions,title:item.title,summary:item.summary,body:item.body,risk_level:item.risk_level==='low'||item.risk_level==='medium'?'high':item.risk_level,status:'pending',createdAt:new Date().toISOString(),evidence_ids:ids,evidence_refs:refs};
+  const schemas=supportedSchemaSuggestions(item.schema_suggestions);
+  if(Array.isArray(item.schema_suggestions) && schemas.length!==item.schema_suggestions.length)
+    console.warn('[EDITORIAL] Removed unsupported or duplicate schema suggestion for '+item.lang+'/'+item.kind+' (pending human review)');
+  return {id,kind:item.kind,lang:item.lang,target:item.target,slug:item.slug,related_service:item.related_service,topic_node_id:item.topic_node_id,primary_keyword:item.primary_keyword,secondary_keywords:item.secondary_keywords,h1_suggestion:item.h1_suggestion,sections:item.sections,internal_links:item.internal_links,schema_suggestions:schemas,title:item.title,summary:item.summary,body:item.body,risk_level:item.risk_level==='low'||item.risk_level==='medium'?'high':item.risk_level,status:'pending',createdAt:new Date().toISOString(),evidence_ids:ids,evidence_refs:refs};
  });
  const saved=await saveGEOStage('editorial_actions',proposed);
  stageResults.editorial_actions={count:proposed.length,persisted:saved.saved,status:saved.status,error:saved.error||null};
