@@ -45,6 +45,7 @@ function promptForLocale(lang,evidence){
  const topics=manifest.nodes.map(n=>({id:n.id,parent:n.parent_id,status:n.route?"live":"planned",existing_url:n.route,kind:n.kind,intent:n.intent,primary_keyword:n.primary_keyword[lang],question:n.main_question[lang],related_nodes:n.related_nodes,schema_candidates:n.schema_candidates,official_source_candidates:n.official_sources}));
  const rules=[
  "You are OpenCode operating as four expert roles: (1) source researcher (2) multilingual SEO/GEO architect (3) qualified service editor (4) technical SEO and link auditor.",
+ "Load the content-architecture skill if available in your isolated OpenCode workspace, then follow its approved content tree and evidence publication constraints.",
  "Perform a sober evidence-based content gap assessment. DO NOT pretend a proposed site plan is a search ranking, traffic statistic, or verified legal requirement.",
  "Locale for this run: "+lang+". Every user-facing question, title, summary, section, keyword and body must be natural, correct "+({ar:"Arabic",en:"English",zh:"Simplified Chinese"}[lang])+". Use internationally accepted acronyms sparingly.",
  "Site content tree is authoritative for EXISTING routes and parent/child links; 'planned' topics have NO page yet and MUST NOT appear as clickable internal links.",
