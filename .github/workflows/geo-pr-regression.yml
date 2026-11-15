@@ -6,6 +6,8 @@ on:
       - 'scripts/opencode-geo-analysis.js'
       - 'scripts/geo-editorial-prompt.test.cjs'
       - 'scripts/geo-provider-fallback.test.cjs'
+      - 'scripts/geo-opportunity-contract.cjs'
+      - 'scripts/geo-opportunity-contract.test.cjs'
       - 'src/data/content-tree.json'
       - 'src/lib/geo-ingest.ts'
       - 'src/lib/geo-draft-quality.ts'
@@ -36,6 +38,8 @@ jobs:
         run: node scripts/geo-editorial-prompt.test.cjs
       - name: Free-model fallback safety
         run: node scripts/geo-provider-fallback.test.cjs
+      - name: Opportunity contract and partial persistence regression
+        run: node scripts/geo-opportunity-contract.test.cjs
       - name: Multilingual evidence-to-prompt integration
         run: node scripts/geo-opencode-planner.test.cjs
       - name: GEO ingest and persistence integration with mocked storage
