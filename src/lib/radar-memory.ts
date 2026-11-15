@@ -41,6 +41,6 @@ export function buildCompetitorMatrix(observations: readonly QueryMemoryObservat
   }
   return Array.from(grouped,([competitor_id,items])=>{
     const ranks=items.map(o=>o.rank).filter((n):n is number=>typeof n==='number'&&n>0);
-    return {competitor_id,languages:[...new Set(items.map(o=>o.language))].sort(),angles:[...new Set(items.map(o=>queryAngle.get(o.language+'|'+o.query.toLowerCase())).filter((x):x is string=>Boolean(x)))].sort(),queries:new Set(items.map(o=>o.language+'|'+o.query.toLowerCase())).size,observations:items.length,best_rank:ranks.length?Math.min(...ranks):null};
+    return {competitor_id,languages:Array.from(new Set(items.map(o=>o.language))).sort(),angles:Array.from(new Set(items.map(o=>queryAngle.get(o.language+'|'+o.query.toLowerCase())).filter((x):x is string=>Boolean(x)))).sort(),queries:new Set(items.map(o=>o.language+'|'+o.query.toLowerCase())).size,observations:items.length,best_rank:ranks.length?Math.min(...ranks):null};
   }).sort((a,b)=>b.angles.length-a.angles.length||b.queries-a.queries||a.competitor_id.localeCompare(b.competitor_id));
 }
