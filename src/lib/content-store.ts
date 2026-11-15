@@ -19,6 +19,9 @@ export interface ContentDraft {
   createdAt: string;
   status: 'pending' | 'approved' | 'rejected';
   risk_level?: 'low' | 'medium' | 'high';
+  /** Search evidence metadata for admin review; NOT independently verified authority sources. */
+  evidence_ids?: string[];
+  evidence_refs?: Array<{id:string;label:string;source:string;kind:string;url?:string;observed_at?:string}>;
 }
 
 export interface ContactInfo {

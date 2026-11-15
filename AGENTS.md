@@ -42,3 +42,10 @@ Return concise source-backed findings, provenance and checked_at, evidence IDs, 
 - **Qualified enquiries**: measure consented qualified enquiries or signed business separately from click events; do not store PII in observation reports.
 - Run `npm run test:visibility` for measurement definitions and follow `docs/seo-geo-evidence-playbook.md`. No targets, 47-hour deadlines, or rankings may be reported as accomplished without matched dated evidence.
 - Preserve the restored three-category package UI in any content changes. Copy and scope may improve but not the card layout without explicit owner approval.
+
+## Research evidence linked to GEO review drafts
+- Resolve any AI-proposed evidence ID against the specific evidence bundle actually collected for the run; never make up source links.
+- Keep evidence type, title, original URL, source provider and observation time attached to pending review drafts.
+- Competitor guides, keyword suggestions, market research and URLs are unverified references, **not** official or authority-verified Saudi guidance. Label them accordingly.
+- Do not auto-publish high-risk drafts. A human reviewer must verify factual claims with current primary authority sources before approval; a source link by itself is not proof.
+- Keep UI and package price changes out of the provenance pipeline; defer dashboard auto-refresh until separately requested.

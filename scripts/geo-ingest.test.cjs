@@ -17,6 +17,14 @@ const {normalizeGeoBatch,persistGeoBatch}=require('../.geo-ingest-test-build/geo
  });
  assert.equal(failed.ok,false);assert.equal(failed.saved.opportunities,0);assert.equal(failed.saved.drafts,0);
  assert.equal(failed.errors.length,2);
+ const provenance=normalizeGeoBatch({drafts:[{q:'What documents are needed to register a company in Saudi Arabia?',a:'The required documents vary by sector and investor type. Confirm current requirements directly with the competent Saudi authority before filing. An independent advisory firm cannot guarantee an official approval or reduce government fees.',risk_level:'high',evidence_ids:['disc_0'],evidence_refs:[{id:'disc_0',label:'Observed company registration guide',kind:'competitor_candidate',source:'search',url:'https://example.org/business-guide',observed_at:'2026-11-15T10:18:00Z'}]}]});
+ assert.equal(provenance.drafts[0].evidence_refs[0].url,'https://example.org/business-guide');
+ assert.equal(provenance.drafts[0].evidence_refs[0].kind,'competitor_candidate');
+ assert.throws(()=>normalizeGeoBatch({drafts:[{q:'What are the Saudi business requirements?',a:'Review registration requirements and financial obligations with the appropriate Saudi government sources before beginning your application, and consult a qualified adviser regarding activities and paperwork.',risk_level:'high',evidence_refs:[{id:'x',label:'Bad source',kind:'web',source:'search',url:'javascript:alert(1)'}]}]}),/Invalid GEO evidence URL/);
+ const code=fs.readFileSync('scripts/opencode-geo-analysis.js','utf8');
+ const admin=fs.readFileSync('src/app/admin/dashboard/page.tsx','utf8');
+ assert(code.includes('const byId=new Map('),'evidence links must be matched with retrieved evidence, not fabricated');
+ assert(admin.includes('مصادر الرصد المستخدمة'),'dashboard must display research provenance');
  const report=normalizeGeoBatch({run_report:{run_at:new Date().toISOString(),status:'partial',last_result:'drafts:partial'}});
  const reported=await persistGeoBatch(report,{saveOpportunity:async()=>{},saveGoal:async()=>{},saveDrafts:async()=>0,saveReport:async()=>{calls.r++}});
  assert.equal(reported.ok,true);assert.equal(reported.saved.run_report,1);
