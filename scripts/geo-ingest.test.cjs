@@ -102,6 +102,7 @@ const {normalizeGeoBatch,persistGeoBatch}=require('../.geo-ingest-test-build/lib
    assert.notEqual(first.workDir,second.workDir,'never reuse an old OpenCode session workspace');
    assert.notEqual(first.runtimeEnv.OPENCODE_DB,second.runtimeEnv.OPENCODE_DB,'session databases are unique per request');
    assert.equal(first.runtimeEnv.HOME,first.workDir,'each OpenCode process uses isolated HOME');
+   assert(fs.existsSync(require('node:path').dirname(first.runtimeEnv.OPENCODE_DB)),'temporary SQLite parent directory exists');
    assert(first.runtimeEnv.XDG_CONFIG_HOME.startsWith(first.workDir),'global config is not reused');
    assert.notEqual(first.runtimeEnv.XDG_CONFIG_HOME,second.runtimeEnv.XDG_CONFIG_HOME,'each run has independent config');
    assert(first.workDir.startsWith(require('node:os').tmpdir()),'sessions are outside the repository');
