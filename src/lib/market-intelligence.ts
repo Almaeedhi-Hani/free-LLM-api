@@ -10,6 +10,7 @@ import {
 import { defaultSources, availableSources } from './market-sources';
 import { isRelevantInvestorService } from './open-search-sources';
 import { RADAR_QUERIES, selectRadarQuery } from './radar-query-plan';
+import { buildQueryMemory, chooseNextQueries } from './radar-memory';
 import type { SuggestionResult, SearchResult } from './market-sources';
 
 // ---------------------------------------------------------------------------
@@ -1369,6 +1370,20 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
     }
   }
 
+  // Use existing observation history; no new tables or external requests.
+  // If storage is unavailable, retain the deterministic daily fallback.
+  let adaptiveQueries: Partial<Record<Language, string>> = {};
+  if (!config?.seeds) {
+    try {
+      const competitors = (await listCompetitors({ status: 'active' })).slice(0, 50);
+      const observations = (await Promise.all(competitors.map(c => listObservations(c.id, 100)))).flat();
+      const selected = chooseNextQueries(buildQueryMemory(observations, new Date()));
+      adaptiveQueries = Object.fromEntries(selected.map(q => [q.language, q.query]));
+    } catch (e) {
+      summary.errors.push('Query memory unavailable; using daily rotation: ' + (e instanceof Error ? e.message : String(e)));
+    }
+  }
+
   // 2) Search-provider discovery: hard per-run budget, graceful fallback on provider blocks.
   let attempts = 0;
   const maxSearchAttempts = 6;
@@ -1381,7 +1396,7 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
       // Preserve caller-provided custom seeds when configured.
       const chosenSeed = config?.seeds
         ? seedList[Math.floor(Date.now() / 86400000) % Math.max(seedList.length, 1)]
-        : selectRadarQuery(lang, new Date()).query;
+        : (adaptiveQueries[lang] || selectRadarQuery(lang, new Date()).query);
       for (const seed of chosenSeed ? [chosenSeed] : []) {
         if (attempts >= maxSearchAttempts) break;
         attempts++;
