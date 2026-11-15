@@ -180,8 +180,8 @@ export default function PackageRequest({ lang, contactUrl }: { lang: PackageLoca
       </section>
       <section className="package-official">
         <h2>{t.official}</h2>
-        <a href="https://misa.gov.sa/" target="_blank" rel="noopener noreferrer">{t.source1}</a>
-        <a href="https://mc.gov.sa/" target="_blank" rel="noopener noreferrer">{t.source2}</a>
+        <a href="https://investsaudi.sa/e-services/registering_investment" target="_blank" rel="noopener noreferrer">{t.source1}</a>
+        <a href="https://mc.gov.sa/en/Pages/Start-your-project.aspx" target="_blank" rel="noopener noreferrer">{t.source2}</a>
         <a href={lang==="ar"?"/services/company-formation":"/"+lang+"/services/company-formation"}>{t.start}</a>
       </section>
     </div>
