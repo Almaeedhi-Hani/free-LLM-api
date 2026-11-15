@@ -1143,6 +1143,19 @@ export async function listRuns(limit = 20): Promise<AnalysisRun[]> {
     .slice(0, limit);
 }
 
+/** Read only radar runs so unrelated analysis jobs cannot crowd out search history. */
+async function listRadarRuns(limit = 100): Promise<AnalysisRun[]> {
+  const bounded = Math.max(1, Math.min(200, Math.trunc(limit)));
+  if (isSupabase()) {
+    const res = await sbFetch(`analysis_runs?select=*&run_type=eq.radar&order=started_at.desc&limit=${bounded}`);
+    return sbJson<AnalysisRun[]>(res, 'listRadarRuns');
+  }
+  return readFile<AnalysisRun>('analysis_runs.json')
+    .filter(r => r.run_type === 'radar')
+    .sort((a, b) => b.started_at.localeCompare(a.started_at))
+    .slice(0, bounded);
+}
+
 // ---------------------------------------------------------------------------
 // Bounded market analysis (no external data sources; deterministic)
 // ---------------------------------------------------------------------------
@@ -1357,7 +1370,7 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
     try {
       const competitors = (await listCompetitors({ status: 'active' })).slice(0, 50);
       const observations = (await Promise.all(competitors.map(c => listObservations(c.id, 100)))).flat();
-      const recentRuns = await listRuns(100);
+      const recentRuns = await listRadarRuns(100);
       const priorAttempts: QueryAttempt[] = recentRuns.flatMap(run => {
         if (run.run_type !== 'radar') return [];
         const data = run.summary as {
