@@ -19,11 +19,14 @@ export function buildQueryMemory(observations: readonly QueryMemoryObservation[]
     })
   );
 }
-export function chooseNextQueries(memory: readonly QueryMemoryEntry[], perLanguage = 1): RadarQuery[] {
+export function chooseNextQueries(memory: readonly QueryMemoryEntry[], perLanguage = 1, now = new Date()): RadarQuery[] {
   const limit = Math.max(0, Math.min(8, Math.trunc(perLanguage)));
+  const day = Math.floor(now.getTime()/86400000);
+  const angles = RADAR_QUERIES.ar.map(x=>x.angle);
+  const tieOrder = (angle: string) => (angles.indexOf(angle as typeof angles[number]) - day % angles.length + angles.length) % angles.length;
   return (['ar','en','zh'] as const).flatMap(language =>
     memory.filter(x=>x.language===language)
-      .sort((a,b)=>b.score-a.score || a.angle.localeCompare(b.angle))
+      .sort((a,b)=>b.score-a.score || tieOrder(a.angle)-tieOrder(b.angle))
       .slice(0,limit).map(({language,angle,query})=>({language,angle,query}))
   );
 }
