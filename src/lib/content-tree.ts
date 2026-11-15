@@ -1,4 +1,4 @@
-import manifest from "@/data/content-tree.json";
+import manifest from "../data/content-tree.json";
 export type TopicLocale="ar"|"en"|"zh";
 export type TopicNode=typeof manifest.nodes[number];
 export const topicNodes:TopicNode[]=manifest.nodes;

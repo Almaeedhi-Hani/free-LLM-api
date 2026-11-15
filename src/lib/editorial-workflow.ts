@@ -1,3 +1,4 @@
+import {topicNodeById,siteTopicPath} from './content-tree';
 /** Multiple reviewed editorial publication surfaces. Never auto-publish AI output. */
 export type EditorialKind = 'home'|'service'|'packages'|'guide'|'comparison'|'trust'|'technical_seo'|'internal_link';
 export type EditorialLocale = 'ar'|'en'|'zh';
@@ -5,6 +6,9 @@ export type EditorialStatus = 'pending'|'approved'|'rejected';
 export type EditorialRef={id:string;label:string;source:string;kind:string;url?:string;observed_at?:string};
 export type EditorialItem={
  id:string;kind:EditorialKind;lang:EditorialLocale;target:string;slug?:string;related_service?:string;
+ topic_node_id?:string;primary_keyword?:string;secondary_keywords?:string[];h1_suggestion?:string;
+ sections?:Array<{h2:string;body:string;subsections?:Array<{h3:string;body:string}>}>;
+ internal_links?:Array<{node_id:string;anchor:string}>;schema_suggestions?:string[];
  title:string;summary:string;body:string;risk_level:'low'|'medium'|'high';
  status:EditorialStatus;createdAt:string;reviewedAt?:string;updatedAt?:string;
  evidence_ids:string[];evidence_refs:EditorialRef[];verified_sources?:string[];
@@ -34,6 +38,19 @@ export function validateEditorialItem(item:unknown):EditorialItem {
  }else if(e.kind==='technical_seo'||e.kind==='internal_link'){
    if(!/^\/(?:$|packages$|services\/(?:company-formation|misa-license|corporate-banking|contract-drafting|premium-residency|investment-funds)$|insights(?:\/[a-z0-9-]+)?$)/.test(e.target))throw Error('Invalid technical/internal link target');
  }
+ if(e.topic_node_id){
+   const node=topicNodeById(e.topic_node_id);
+   if(!node)throw Error('Unknown topic node');
+   if(e.kind==='service'&&node.route!=='/services/'+e.target)throw Error('Topic tree service target mismatch');
+   if(e.kind==='packages'&&node.id!=='packages')throw Error('Topic tree package target mismatch');
+   if((e.kind==='home'||e.kind==='trust')&&node.id!=='investor-hub')throw Error('Topic tree homepage mismatch');
+ }
+ if(e.primary_keyword&&!safeText(e.primary_keyword,3,160))throw Error('Invalid primary keyword');
+ if(e.h1_suggestion&&!safeText(e.h1_suggestion,12,170))throw Error('Invalid H1 suggestion');
+ if(e.secondary_keywords&&(!Array.isArray(e.secondary_keywords)||e.secondary_keywords.length>10||!e.secondary_keywords.every(x=>safeText(x,3,150))))throw Error('Invalid supporting keywords');
+ if(e.sections&&(!Array.isArray(e.sections)||e.sections.length>6||!e.sections.every(s=>safeText(s.h2,6,170)&&safeText(s.body,70,5000)&&(!s.subsections||(Array.isArray(s.subsections)&&s.subsections.length<=5&&s.subsections.every(h=>safeText(h.h3,6,170)&&safeText(h.body,60,4000)))))))throw Error('Invalid H2/H3 section structure');
+ if(e.internal_links&&(!Array.isArray(e.internal_links)||e.internal_links.length>6||!e.internal_links.every(x=>safeText(x.node_id,2,90)&&safeText(x.anchor,5,120)&&Boolean(siteTopicPath(x.node_id)))))throw Error('Internal links must point to existing live tree pages');
+ if(e.schema_suggestions&&(!Array.isArray(e.schema_suggestions)||e.schema_suggestions.length>5||!e.schema_suggestions.every(s=>['Article','BreadcrumbList','Service','WebPage','FAQPage','CollectionPage'].includes(s))))throw Error('Invalid Schema suggestion');
  if(!Number.isFinite(Date.parse(e.createdAt)))throw Error('Invalid editorial creation date');
  if(e.status==='approved'){
    if(!e.reviewedAt||!Number.isFinite(Date.parse(e.reviewedAt)))throw Error('Editorial approval must have reviewedAt');

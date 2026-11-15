@@ -1,6 +1,10 @@
 "use strict";
 const assert=require('node:assert/strict');
-const {validateEditorialItem,validateEditorialBatch,approvedEditorial,publicGuide}=require('../.editorial-test-build/editorial-workflow.js');
+const {validateEditorialItem,validateEditorialBatch,approvedEditorial,publicGuide}=require('../.editorial-test-build/lib/editorial-workflow.js');
+const {validateContentTree,topicRelatedLiveNodes}=require('../.editorial-test-build/lib/content-tree.js');
+const tree=validateContentTree();assert.equal(tree.nodes,18);assert.equal(tree.live,9);assert.equal(tree.planned,9);
+assert(topicRelatedLiveNodes('company-documents').some(n=>n.id==='company-formation'));
+assert(!topicRelatedLiveNodes('company-formation').some(n=>n.id==='company-documents'),'planned guide must not receive broken links');
 const now='2026-11-15T10:00:00Z';
 const base={id:'ed-123456789a',kind:'service',lang:'ar',target:'company-formation',title:'كيف تحدد المسار الأنسب لتأسيس الشركة؟',summary:'مراجعة النشاط والشركاء والجهات المعنية قبل اختيار باقة تنفيذ مناسبة.',body:'يتطلب اختيار المسار المناسب دراسة النشاط ونوع الكيان وصفة المستثمر ومراحل تأسيسه. يجب مراجعة الوثائق والاشتراطات الحالية مع الجهة الرسمية المختصة قبل تقديم الطلب. وتفصل أتعاب المستشار عن الرسوم الحكومية والتكاليف التي تفرضها الجهات الأخرى. يساعد التخطيط المسبق على تحديد نطاق العمل بصورة واقعية دون تقديم ضمان بالموافقة.',risk_level:'high',status:'pending',createdAt:now,evidence_ids:[],evidence_refs:[]};
 const draft=validateEditorialItem(base);
@@ -14,6 +18,9 @@ const guide={...approved,id:'ed-guide-1234',kind:'guide',target:'foreign-investo
 assert.equal(publicGuide([guide],'ar','foreign-investor-preparation').id,'ed-guide-1234');
 assert.throws(()=>validateEditorialItem({...guide,related_service:'invented-service'}),/Invalid related service/);
 assert.equal(publicGuide([guide],'zh','foreign-investor-preparation'),undefined);
+assert.throws(()=>validateEditorialItem({...guide,topic_node_id:'unknown-topic'}),/Unknown topic node/);
+assert.throws(()=>validateEditorialItem({...guide,internal_links:[{node_id:'company-documents',anchor:'Documents preparation'}]}),/existing live/);
+validateEditorialItem({...guide,topic_node_id:'company-documents',primary_keyword:'Saudi company incorporation documents',secondary_keywords:['foreign investor paperwork'],sections:[{h2:'Prepare official records',body:'Start by identifying activity, ownership and the proposed company structure. Consult current documentation requirements with the relevant official authority before applying. Professional fees should be displayed separately from statutory and third-party charges.'}],internal_links:[{node_id:'company-formation',anchor:'Company formation in Saudi Arabia'}],schema_suggestions:['Article','BreadcrumbList']});
 assert.throws(()=>validateEditorialItem({...approved,kind:'technical_seo',target:'/'}),/never published/);
 assert.throws(()=>validateEditorialBatch([approved,approved]),/Duplicate editorial ID/);
 const fs=require('node:fs');
