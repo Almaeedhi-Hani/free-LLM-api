@@ -616,7 +616,7 @@ export default function AdminDashboard() {
                         <p className="text-xs text-amber-950">تؤدي الموافقة إلى نشر نص المسودة المحفوظ كما هو، بما فيه أي جملة تحقق ضمن النص. راجع الإجابة وأعد صياغتها عند الحاجة قبل النشر.</p>
                       </DataRolePanel>
                       {d.status==='pending'&&<div className="flex flex-wrap gap-2 border-t border-slate-200 pt-3">
-                        <button onClick={()=>approveDraft(i)} className="btn-primary text-xs" disabled={saving||!assessGeoDraftCopy(d.q,d.a).publishable}>اعتماد ونشر</button>
+                        <button onClick={()=>approveDraft(i)} className="btn-primary text-xs" disabled={saving || !assessGeoDraftCopy(d.q,d.a).publishable}>اعتماد ونشر</button>
                         <button onClick={()=>rejectDraft(i)} className="btn-secondary text-xs" disabled={saving}>رفض</button>
                       </div>}
                     </li>
