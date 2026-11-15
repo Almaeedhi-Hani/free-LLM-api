@@ -58,7 +58,7 @@ const DEFAULT_CONTENT: SiteContent = {
     phone: '+966545059528',
     phoneDisplay: '+966 54 505 9528',
     whatsapp: 'https://wa.me/966545059528',
-    email: 'info@investinsaudi-services.sa',
+    email: '',
   },
   agent: {
     lastRun: '',
