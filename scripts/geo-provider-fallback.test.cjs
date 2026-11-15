@@ -1,0 +1,11 @@
+"use strict";
+const assert=require("node:assert/strict");
+const fs=require("node:fs");
+const runner=fs.readFileSync("scripts/opencode-geo-analysis.js","utf8");
+assert.match(runner,/const is429 = \/\(\?:\\b429\\b\|rate/);
+assert.match(runner,/e\.code === 'ETIMEDOUT'/);
+assert.match(runner,/return \{error:reason,model:chosenModel/);
+assert.match(runner,/finally \{\s*cleanup\(\)/);
+assert.match(runner,/FREE_MODEL_ALLOWLIST\.includes\(chosenModel\)/);
+assert.doesNotMatch(runner,/while \(Date\.now\(\) - start < RETRY_DELAY_MS\)/);
+console.log("PASS free-model rate-limit and timeout fallback safeguards");

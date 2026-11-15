@@ -1,0 +1,44 @@
+name: GEO PR regression checks
+on:
+  pull_request:
+    paths:
+      - 'scripts/geo-opencode-planner.cjs'
+      - 'scripts/opencode-geo-analysis.js'
+      - 'scripts/geo-editorial-prompt.test.cjs'
+      - 'scripts/geo-provider-fallback.test.cjs'
+      - 'src/data/content-tree.json'
+      - 'src/lib/geo-ingest.ts'
+      - 'src/lib/geo-draft-quality.ts'
+      - 'src/lib/editorial-workflow.ts'
+      - 'src/lib/content-tree.ts'
+      - '.github/workflows/geo-pr-regression.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  geo-static-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
+      - name: Syntax checks
+        run: |
+          node --check scripts/geo-opencode-planner.cjs
+          node --check scripts/opencode-geo-analysis.js
+          node --check scripts/geo-editorial-prompt.test.cjs
+          node --check scripts/geo-provider-fallback.test.cjs
+      - name: Multilingual editorial prompt
+        run: node scripts/geo-editorial-prompt.test.cjs
+      - name: Free-model fallback safety
+        run: node scripts/geo-provider-fallback.test.cjs
+      - name: Multilingual evidence-to-prompt integration
+        run: node scripts/geo-opencode-planner.test.cjs
+      - name: GEO ingest and persistence integration with mocked storage
+        run: npm run test:geo-persist
+      - name: Editorial review and publication gate integration
+        run: npm run test:editorial

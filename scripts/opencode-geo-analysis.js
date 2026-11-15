@@ -30,7 +30,6 @@ const FALLBACK_MODELS=Array.from(new Set([MODEL,...FREE_MODEL_ALLOWLIST]))
 const MAX_RETRIES = 2;
 // Each weekly run performs three distinct language analyses, with at most 18 free-model
 // attempts across those analyses. No paid-tier fallback or unverified token quota is assumed.
-const RETRY_DELAY_MS = 8000;
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -84,16 +83,18 @@ function runOpenCode(prompt, model) {
       return { text: textContent, model: chosenModel };
     } catch (e) {
       const stderr = (e.stderr?.toString() || '') + (e.stdout?.toString() || '');
-      const is429 = stderr.includes('429') || stderr.includes('rate limit') || stderr.includes('quota');
-      if (is429) {
-        console.log(`[OpenCode] Rate limited (attempt ${attempt + 1}/${MAX_RETRIES}). Waiting ${RETRY_DELAY_MS}ms...`);
-        const start = Date.now();
-        while (Date.now() - start < RETRY_DELAY_MS) {}
-        continue;
+      const is429 = /(?:\b429\b|rate[ -]?limit|quota|resource exhausted)/i.test(stderr);
+      const isTimeout = e.code === 'ETIMEDOUT' || /(?:ETIMEDOUT|timed? out|deadline exceeded)/i.test(stderr);
+      // Repeating a rate-limited or timed-out request against the SAME free
+      // provider wastes the bounded CI window. Move directly to the next
+      // allowlisted free model; never silently classify this as success.
+      if (is429 || isTimeout) {
+        const reason=is429?'rate_limited':'timeout';
+        console.warn('[OpenCode] '+chosenModel+' '+reason+'; skipping same-model retry');
+        return {error:reason,model:chosenModel,stderr:stderr.substring(0,500)};
       }
-      // Try next fallback model
       if (attempt === MAX_RETRIES - 1) {
-        return { error: e.message, stderr: stderr.substring(0, 500) };
+        return { error: e.message, model:chosenModel, stderr: stderr.substring(0, 500) };
       }
     } finally {
       cleanup(); // remove ONLY this attempt's disposable sessions and input files
