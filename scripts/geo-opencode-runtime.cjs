@@ -45,6 +45,8 @@ function createIsolatedGeoWorkspace(prompt,projectRoot=path.join(__dirname,"..")
     return {
       workDir,
       runtimeEnv:{
+        HOME:workDir,
+        XDG_CONFIG_HOME:path.join(storage,"config"),
         XDG_DATA_HOME:path.join(storage,"data"),
         XDG_STATE_HOME:path.join(storage,"state"),
         XDG_CACHE_HOME:path.join(storage,"cache"),
