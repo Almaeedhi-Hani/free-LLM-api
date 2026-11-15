@@ -1301,6 +1301,8 @@ export interface DiscoverySummary {
   success: boolean;
   search_diagnostics: { source_id: string; language: string; http_status: number; duration_ms: number; response_received: boolean; results_parsed: number; results_accepted: number; blocked_detected: boolean; failure_reason: string; request_count?: number; }[];
   search_queries: (QueryAttempt & {source_id: string; results_accepted: number})[];
+  suggestion_requests_used: number;
+  suggestion_requests_limit: number;
   search_requests_used: number;
   search_requests_limit: number;
   radar_metrics: RadarMetrics;
@@ -1331,6 +1333,8 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
     success: false,
     search_diagnostics: [],
     search_queries: [],
+    suggestion_requests_used: 0,
+    suggestion_requests_limit: 3,
     search_requests_used: 0,
     search_requests_limit: 6,
     radar_metrics: calculateRadarMetrics([], []),
@@ -1377,13 +1381,18 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
     return adaptiveQueries[lang] || selectRadarQuery(lang, new Date()).query;
   };
 
-  // 1) Keyword/question discovery via suggest sources
+  // 1) Independently cap suggestion API calls to three total (one per language).
+  let suggestionRequests = 0;
+  const maxSuggestionRequests = 3;
   for (const source of sources) {
+    if (suggestionRequests >= maxSuggestionRequests) break;
     if (!source.collectSuggestions) continue;
     summary.sources_used.push(source.id);
     for (const lang of ['ar', 'en', 'zh'] as Language[]) {
       const query = selectedSeed(lang);
       for (const seed of query ? [query] : []) {
+        if (suggestionRequests >= maxSuggestionRequests) break;
+        suggestionRequests += 1;
         try {
           const res = await source.collectSuggestions(seed, lang);
           const limited = res.slice(0, maxSug);
@@ -1411,6 +1420,8 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
       }
     }
   }
+
+  summary.suggestion_requests_used = suggestionRequests;
 
   // 2) Search-provider discovery: hard per-run budget, graceful fallback on provider blocks.
   let requestsUsed = 0;
@@ -1461,7 +1472,6 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
                  discoveredDomains.add(r.domain);
                  summary.competitors_discovered += 1;
                }
-               diag.results_accepted += 1;
               const observedAt = new Date().toISOString();
               await recordObservation({
                 competitor_id: comp.id,
@@ -1476,6 +1486,7 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
                 weaknesses: [],
               });
               summary.observations_recorded += 1;
+              diag.results_accepted += 1;
               runObservations.push({competitor_id: comp.id, language: lang, query: seed, url: source.requiresKey ? undefined : r.url, observed_at: observedAt});
             } catch (e) {
               summary.errors.push(`competitor upsert failed: ${e instanceof Error ? e.message : String(e)}`);
