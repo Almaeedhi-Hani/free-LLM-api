@@ -18,6 +18,7 @@ assert.equal(m.evidence_coverage_percent,67);
 assert.equal(m.search_response_rate_percent,50);
 assert.equal(m.results_parsed,10);
 assert.equal(m.results_accepted,2);
+assert.equal(m.provider_requests,2);
 assert.equal(m.blocked_attempts,1);
 assert.equal(m.provider_failures,1);
 assert.equal(calculateRadarMetrics([],[]).search_response_rate_percent,null);
