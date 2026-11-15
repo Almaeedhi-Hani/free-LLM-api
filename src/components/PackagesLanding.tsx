@@ -4,6 +4,8 @@ import { siteUrl } from "@/lib/site-seo";
 import { packageOffers, packageDisclosure, packageUpdatedAt } from "@/lib/package-offers";
 import type { PackageLocale } from "@/lib/package-offers";
 import PackageRequest from "@/app/packages/PackageRequest";
+import FormationPlaybook from "@/components/FormationPlaybook";
+import { formationPlaybook, playbookReviewedAt, playbookSources } from "@/lib/formation-playbook";
 
 export default async function PackagesLanding({lang}:{lang:PackageLocale}) {
   const content = await getContent();
@@ -21,6 +23,8 @@ export default async function PackagesLanding({lang}:{lang:PackageLocale}) {
         }[lang],
         inLanguage: lang==="zh"?"zh-Hans":lang,
         dateModified: packageUpdatedAt,
+        citation: playbookSources.map(source=>source.url),
+        hasPart: {"@type":"WebPageElement",name:formationPlaybook.title[lang],dateModified:playbookReviewedAt},
         mainEntity: {
           "@type":"ItemList",
           numberOfItems:packageOffers.length,
@@ -29,6 +33,7 @@ export default async function PackagesLanding({lang}:{lang:PackageLocale}) {
             url:url+"#"+offer.slug,
             item:{
               "@type":"Service",name:offer.title[lang],
+              provider:{"@id":siteUrl+"/#organization"},
               description:offer.pitch[lang],
               serviceType:offer.title[lang],
               areaServed:{ "@type":"Country",name:"Saudi Arabia" },
@@ -41,12 +46,15 @@ export default async function PackagesLanding({lang}:{lang:PackageLocale}) {
           })),
         }
       }
+      ,{"@type":"Organization","@id":siteUrl+"/#organization",name:"Saudi investor services",url:siteUrl,
+        description:"Independent private investor-services provider; government approvals belong to the competent Saudi authorities."}
     ]
   };
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{__html:JSON.stringify(schema).replace(/</g,"\\u003c")}}/>
       <PackageRequest lang={lang} contactUrl={content.contact.whatsapp}/>
+      <FormationPlaybook lang={lang}/>
     </>
   );
 }
