@@ -25,7 +25,7 @@ export function middleware(req: NextRequest) {
   const lang: Locale = match ? match[1] as Locale : "ar";
   const stripped = match ? pathname.slice(match[0].length) || "/" : pathname;
   // Never redirect APIs, admin, assets or other non-editorial routes.
-  if (stripped !== "/" && !stripped.startsWith("/services/")) return NextResponse.next();
+  if (stripped !== "/" && !stripped.startsWith("/services/") && stripped !== "/packages") return NextResponse.next();
   if (lang === "ar" && match) {
     const target = req.nextUrl.clone();
     target.pathname = stripped;
