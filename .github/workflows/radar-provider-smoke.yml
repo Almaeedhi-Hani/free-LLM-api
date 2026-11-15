@@ -10,7 +10,6 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    environment: radar-provider-test
     env:
       EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
       TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
