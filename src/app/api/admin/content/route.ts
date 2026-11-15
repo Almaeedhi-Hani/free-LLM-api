@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContent, setContent } from '@/lib/content-store';
+import { assessGeoDraftCopy } from "@/lib/geo-draft-quality";
 import { StorageConflictError, StorageUnavailableError } from '@/lib/storage-mode';
 
 export const dynamic = 'force-dynamic';
@@ -62,6 +63,20 @@ export async function POST(req: NextRequest) {
     }
     if (expectedUpdatedAt !== undefined && (typeof expectedUpdatedAt !== 'string' || !expectedUpdatedAt)) {
       return NextResponse.json({ status: 'error', message: 'Invalid expectedUpdatedAt' }, { status: 400 });
+    }
+    // Reject only *new* transitions to approved with broken multilingual copy.
+    // Existing approved drafts remain readable; editing other admin settings is unaffected.
+    if (patch.drafts !== undefined) {
+      if (!Array.isArray(patch.drafts))return NextResponse.json({status:'error',message:'Invalid drafts payload'},{status:400});
+      const previous=await getContent();
+      const byQuestion=new Map(previous.drafts.map(d=>[d.q,d]));
+      for(const incoming of patch.drafts as Array<{q?:string;a?:string;status?:string}>){
+        if(incoming?.status!=='approved')continue;
+        const before=byQuestion.get(incoming.q||'');
+        if(before?.status==='approved')continue;
+        const check=assessGeoDraftCopy(incoming.q||'',incoming.a||'');
+        if(!check.publishable)return NextResponse.json({status:'error',message:'Draft cannot be approved: its language or content quality is invalid'},{status:422});
+      }
     }
     // Versioned dashboard requests can replace arrays safely; existing agent/API
     // callers without the revision retain additive merge semantics.
