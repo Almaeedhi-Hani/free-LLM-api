@@ -1,21 +1,23 @@
 import { RADAR_QUERIES, RadarLanguage, RadarQuery } from './radar-query-plan';
+export interface QueryAttempt { language: string; query: string; attempted_at: string }
 export interface QueryMemoryObservation { language: string; query: string; competitor_id: string; observed_at: string; rank?: number | null }
-export interface QueryMemoryEntry extends RadarQuery { last_seen_at: string | null; observation_count: number; competitor_count: number; best_rank: number | null; days_since_seen: number | null; score: number }
+export interface QueryMemoryEntry extends RadarQuery { last_seen_at: string | null; observation_count: number; attempt_count: number; competitor_count: number; best_rank: number | null; days_since_seen: number | null; score: number }
 export interface CompetitorMatrixEntry { competitor_id: string; languages: string[]; angles: string[]; queries: number; observations: number; best_rank: number | null }
 /** Historical observations are evidence, not proof of current rankings. */
-export function buildQueryMemory(observations: readonly QueryMemoryObservation[], now: Date): QueryMemoryEntry[] {
+export function buildQueryMemory(observations: readonly QueryMemoryObservation[], now: Date, attempts: readonly QueryAttempt[] = []): QueryMemoryEntry[] {
   const today = now.getTime();
   return (Object.keys(RADAR_QUERIES) as RadarLanguage[]).flatMap(language =>
     RADAR_QUERIES[language].map(({angle,query}) => {
       const matching = observations.filter(o => o.language === language && o.query.trim().toLowerCase() === query.toLowerCase());
-      const validDates = matching.map(o => Date.parse(o.observed_at)).filter(Number.isFinite);
+      const matchingAttempts = attempts.filter(a => a.language === language && a.query.trim().toLowerCase() === query.toLowerCase());
+      const validDates = [...matching.map(o => Date.parse(o.observed_at)), ...matchingAttempts.map(a => Date.parse(a.attempted_at))].filter(Number.isFinite);
       const latest = validDates.length ? Math.max(...validDates) : null;
       const days = latest === null ? null : Math.max(0, Math.floor((today-latest)/86400000));
       const ranks = matching.map(o => o.rank).filter((n): n is number => typeof n === 'number' && n > 0);
       const unique = new Set(matching.map(o => o.competitor_id));
       // Prioritize uncovered queries, then stale observations; slight reward for competitor diversity.
       const score = latest === null ? 1000 : Math.min(days ?? 0,365) * 2 + Math.max(0, 10-unique.size);
-      return {language,angle,query,last_seen_at:latest===null?null:new Date(latest).toISOString(),observation_count:matching.length,competitor_count:unique.size,best_rank:ranks.length?Math.min(...ranks):null,days_since_seen:days,score};
+      return {language,angle,query,last_seen_at:latest===null?null:new Date(latest).toISOString(),observation_count:matching.length,attempt_count:matchingAttempts.length,competitor_count:unique.size,best_rank:ranks.length?Math.min(...ranks):null,days_since_seen:days,score};
     })
   );
 }
@@ -26,7 +28,7 @@ export function chooseNextQueries(memory: readonly QueryMemoryEntry[], perLangua
   const tieOrder = (angle: string) => (angles.indexOf(angle as typeof angles[number]) - day % angles.length + angles.length) % angles.length;
   return (['ar','en','zh'] as const).flatMap(language =>
     memory.filter(x=>x.language===language)
-      .sort((a,b)=>b.score-a.score || tieOrder(a.angle)-tieOrder(b.angle))
+      .slice().sort((a,b)=>b.score-a.score || tieOrder(a.angle)-tieOrder(b.angle))
       .slice(0,limit).map(({language,angle,query})=>({language,angle,query}))
   );
 }
