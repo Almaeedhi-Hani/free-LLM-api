@@ -1,5 +1,6 @@
 "use strict";
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
 const {packageOffers,packageGroups,packageDisclosure} = require("../.package-test-build/package-offers.js");
 const expected = {
   "services-gcc":18000,"services-premium":21000,"services-branch":28000,
@@ -29,4 +30,12 @@ assert.deepEqual(packageGroups.map(g=>packageOffers.filter(o=>o.group===g.id).le
 const featureSets=packageOffers.map(o=>o.features.map(x=>x.ar).join("|"));
 assert.equal(new Set(featureSets).size,10,"offer inclusions must not be copied across packages");
 assert(![["j","c","group","ksa"].join(""),["j","c"," ","group"].join("")].some(term=>JSON.stringify(packageDisclosure).toLowerCase().includes(term)));
+for (const lang of ["ar","en","zh"]) {
+  assert(/رسوم حكومية|government|政府/.test(packageDisclosure[lang]),lang+" public fees disclosed");
+  assert(/الضرائب|taxes|税费/.test(packageDisclosure[lang]),lang+" tax costs separate");
+}
+const markup = fs.readFileSync("src/components/SchemaMarkup.tsx","utf8");
+assert(!/1010998877|MISA-2024-LIC-9988|\+966110000000/.test(markup),"no fabricated licensing or telephone defaults");
+const llm = fs.readFileSync("src/app/api/llm-version/route.ts","utf8");
+assert(llm.includes("government fees, official charges and taxes are never discounted"),"machine readable fee separation");
 console.log("PASS ten independently written trilingual packages, SAR 1000 reductions, eligibility, scope and fee disclosure");

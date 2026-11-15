@@ -552,7 +552,7 @@ export const packageOffers: PackageOffer[] = [
   }
 ];
 export const packageDisclosure: Trilingual = {
-  "ar": "الأسعار المعلنة هي أتعاب خدماتنا المقترحة بالريال السعودي، وليست رسومًا حكومية أو رأس مال. تعتمد الأهلية ونطاق التنفيذ على النشاط والمستندات والموافقات. يثبت السعر النهائي ومحتوى الخدمة في عرض مكتوب قبل أي التزام.",
-  "en": "Published amounts are our proposed service fees in SAR, not government charges or required capital. Eligibility and scope depend on the activity, documents and approvals. The final scope and fee are confirmed in a written quotation before any commitment.",
-  "zh": "公布金额为我们的拟议服务费（沙特里亚尔），不含政府费用或所需资本金。具体资格和服务范围取决于业务、文件与审批；最终价格及服务内容以签署前的书面报价为准。"
+  "ar": "الأسعار المعلنة هي أتعاب باقات خدماتنا المهنية فقط بالريال السعودي. أي تخفيض يخص أتعابنا حصريًا، ولا يخفض الرسوم الحكومية أو رسوم الجهات الرسمية أو الضرائب أو رأس المال أو تكاليف الأطراف الخارجية. تعتمد الأهلية ونطاق التنفيذ على النشاط والمستندات والموافقات. يثبت السعر النهائي ومحتوى الخدمة في عرض مكتوب قبل أي التزام.",
+  "en": "Published package prices are our proposed professional service fees in SAR only. Any discount applies exclusively to our service fees, never government/authority charges, taxes, required capital, or third-party costs. Eligibility and scope depend on the activity, documents and approvals. The final scope and fee are confirmed in a written quotation before any commitment.",
+  "zh": "公布的套餐价格仅为我们的拟议专业服务费（沙特里亚尔）。任何折扣只适用于我们的服务费，不适用于政府及主管机构费用、税费、所需资本金或第三方成本。具体资格和服务范围取决于业务、文件与审批；最终价格及服务内容以签署前的书面报价为准。"
 };
