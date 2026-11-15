@@ -11,7 +11,7 @@ export interface SearchSource {
   supportedLanguages: Language[];
   deprecated?: boolean;
   collectSuggestions(query: string, language: Language): Promise<SuggestionResult[]>;
-  collectResults?(query: string, language: Language, limit: number): Promise<SearchResult[]>;
+  collectResults?(query: string, language: Language, limit: number, requestBudget?: number): Promise<SearchResult[]>;
 }
 
 export class GoogleSuggestSource implements SearchSource {
@@ -157,26 +157,40 @@ export class MultiProviderSearchSource implements SearchSource {
   requiresKey = null;
   supportedLanguages: Language[] = ['ar', 'en', 'zh'];
   lastDiagnostic = {http_status: 0, duration_ms: 0, response_received: false,
-    results_parsed: 0, blocked_detected: false, failure_reason: ''};
+    results_parsed: 0, blocked_detected: false, failure_reason: '', request_count: 0};
   isAvailable(): boolean {
     const adapter = require('./provider-search.cjs');
     return adapter.configured().length > 0;
   }
   async collectSuggestions(): Promise<SuggestionResult[]> {return [];}
-  async collectResults(query: string, language: Language, limit: number): Promise<SearchResult[]> {
+  async collectResults(query: string, language: Language, limit: number, requestBudget = 2): Promise<SearchResult[]> {
     const adapter = require('./provider-search.cjs');
     const started = Date.now();
-    const out = await adapter.search({queries:[{query,language}],maxCalls:2,maxResults:Math.min(limit,8)});
+    // Adapter normally rotates by query index. Discovery calls one language at a time,
+    // so explicitly rotate the provider order to avoid exhausting the first provider.
+    const configured: string[] = adapter.configured();
+    const offset = configured.length ? ['ar', 'en', 'zh'].indexOf(language) % configured.length : 0;
+    const providers = configured.slice(offset).concat(configured.slice(0, offset));
+    const out = await adapter.search({
+      queries: [{query, language}],
+      maxCalls: Math.max(0, Math.min(2, Math.trunc(requestBudget))),
+      maxResults: Math.min(limit, 8),
+      providers,
+    });
+    const diagnostics: {http_status: number; status: string}[] = out.diagnostics;
     this.lastDiagnostic = {
-      http_status: out.results.length ? 200 : 0,
-      duration_ms: Date.now()-started, response_received:out.diagnostics.some((d: {http_status:number})=>d.http_status>0),
-      results_parsed:out.results.length,blocked_detected:false,
-      failure_reason:out.results.length?'':out.diagnostics.map((d: {status:string})=>d.status).join(',')||'no_configured_providers'
+      http_status: diagnostics.find(d => d.http_status === 200)?.http_status || diagnostics[diagnostics.length - 1]?.http_status || 0,
+      duration_ms: Date.now() - started,
+      response_received: diagnostics.some(d => d.http_status > 0),
+      results_parsed: out.results.length,
+      blocked_detected: diagnostics.some(d => ['rate_limited', 'auth_error'].includes(d.status)),
+      failure_reason: out.results.length ? '' : diagnostics.map(d => d.status).join(',') || 'no_configured_providers',
+      request_count: out.request_count,
     };
-    return out.results.map((r: SearchResult, i: number)=>({
-      domain:r.domain,url:r.url,title:r.title,snippet:r.snippet,source:r.source,
-      // This is an internal display order, not the Google SERP rank.
-      rank:i+1
+    return out.results.map((r: SearchResult, i: number) => ({
+      domain: r.domain, url: r.url, title: r.title, snippet: r.snippet, source: r.source,
+      // Provider display order is NOT a Google search ranking.
+      rank: i + 1,
     }));
   }
 }
