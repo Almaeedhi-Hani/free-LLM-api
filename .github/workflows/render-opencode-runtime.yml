@@ -1,0 +1,28 @@
+name: Render OpenCode runtime verification
+on:
+  pull_request:
+    paths:
+      - 'scripts/install-opencode-render.sh'
+      - 'package.json'
+      - 'src/app/api/admin/opencode-lab/route.ts'
+      - '.github/workflows/render-opencode-runtime.yml'
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Verify installed CLI and dynamic catalog
+        run: |
+          test -x .runtime-bin/opencode
+          .runtime-bin/opencode --version
+          timeout 35s .runtime-bin/opencode models > /tmp/models.txt
+          test -s /tmp/models.txt
+          head -n 8 /tmp/models.txt

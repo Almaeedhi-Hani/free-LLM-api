@@ -18,7 +18,7 @@ function authorized(req: NextRequest) {
 function run(args: string[], cwd: string, env: NodeJS.ProcessEnv, timeoutMs: number): Promise<{output:string;code:number|null;durationMs:number}> {
   return new Promise((resolve,reject)=>{
     const started=Date.now();
-    const child=spawn('opencode',args,{cwd,env,stdio:['ignore','pipe','pipe'],shell:false});
+    const child=spawn(join(process.cwd(),'.runtime-bin','opencode'),args,{cwd,env,stdio:['ignore','pipe','pipe'],shell:false});
     let output='',done=false;
     const timer=setTimeout(()=>{child.kill('SIGTERM');setTimeout(()=>{if(!done)child.kill('SIGKILL');},2000).unref();},timeoutMs);
     const append=(chunk:Buffer)=>{output+=(chunk.toString('utf8')).slice(0,MAX_OUTPUT-output.length);};
