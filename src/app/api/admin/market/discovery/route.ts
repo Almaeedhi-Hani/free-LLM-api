@@ -1,5 +1,6 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'crypto';
+import { calculateRadarMetrics } from '@/lib/radar-metrics';
 import { runDiscovery, listAvailableSources, startRun, finishRun, listRuns } from '@/lib/market-intelligence';
 
 export const dynamic = 'force-dynamic';
@@ -48,17 +49,18 @@ export async function POST(req: NextRequest) {
       triggeredBy: 'admin',
     });
     const hasErrors = (summary.errors?.length || 0) > 0;
+    const providerMetrics = calculateRadarMetrics([], summary.search_diagnostics);
     const isPartial = summary.success && hasErrors;
     if (!summary.success) {
       if (runId) await finishRun(runId, 'failed', summary as any, 'Discovery did not find competitors or encountered errors');
       return NextResponse.json(
-        { ok: false, status: 'failed', summary, message: 'Discovery did not find competitors or encountered errors' },
+        { ok: false, status: 'failed', summary, provider_metrics: providerMetrics, message: 'Discovery did not find competitors or encountered errors' },
         { status: 500 }
       );
     }
     const finalStatus = isPartial ? 'partial' : 'success';
     if (runId) await finishRun(runId, finalStatus, summary as any);
-    return NextResponse.json({ ok: true, status: finalStatus, summary, hasErrors });
+    return NextResponse.json({ ok: true, status: finalStatus, summary, hasErrors, provider_metrics: providerMetrics });
   } catch (e) {
     if (runId) await finishRun(runId, 'failed', undefined, e instanceof Error ? e.message : String(e));
     return NextResponse.json(
