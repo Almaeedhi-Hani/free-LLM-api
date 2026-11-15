@@ -1,0 +1,514 @@
+{
+  "version": "2026-11-15",
+  "purpose": "Seed site topic hierarchy, not observed ranks, verified service requirements or automatic publication approval",
+  "locales": [
+    "ar",
+    "en",
+    "zh"
+  ],
+  "nodes": [
+    {
+      "id": "investor-hub",
+      "parent_id": null,
+      "route": "/",
+      "kind": "home",
+      "intent": "commercial",
+      "primary_keyword": {
+        "ar": "خدمات المستثمرين في السعودية",
+        "en": "Saudi investor services",
+        "zh": "沙特投资者服务"
+      },
+      "main_question": {
+        "ar": "كيف أبدأ نشاطًا استثماريًا مناسبًا في السعودية؟",
+        "en": "How do I plan a Saudi investment entry?",
+        "zh": "如何规划进入沙特市场？"
+      },
+      "schema_candidates": [
+        "WebPage",
+        "Organization"
+      ],
+      "official_sources": [],
+      "related_nodes": [
+        "company-formation",
+        "misa-registration",
+        "packages",
+        "insights-hub"
+      ]
+    },
+    {
+      "id": "company-formation",
+      "parent_id": "investor-hub",
+      "route": "/services/company-formation",
+      "kind": "service",
+      "intent": "commercial",
+      "primary_keyword": {
+        "ar": "خدمات تأسيس شركات للمستثمر الأجنبي",
+        "en": "Saudi company formation services for foreign investors",
+        "zh": "沙特外资公司注册服务"
+      },
+      "main_question": {
+        "ar": "ما خطوات تأسيس شركة أجنبية في السعودية؟",
+        "en": "How does a foreign investor form a Saudi company?",
+        "zh": "外国投资者如何在沙特设立公司？"
+      },
+      "schema_candidates": [
+        "Service",
+        "BreadcrumbList"
+      ],
+      "official_sources": [
+        "https://mc.gov.sa/en/Pages/Start-your-project.aspx"
+      ],
+      "related_nodes": [
+        "misa-registration",
+        "company-documents",
+        "banking",
+        "packages"
+      ]
+    },
+    {
+      "id": "misa-registration",
+      "parent_id": "investor-hub",
+      "route": "/services/misa-license",
+      "kind": "service",
+      "intent": "commercial",
+      "primary_keyword": {
+        "ar": "التسجيل الاستثماري للمستثمر الأجنبي",
+        "en": "Saudi investment registration assistance",
+        "zh": "沙特外资投资登记服务"
+      },
+      "main_question": {
+        "ar": "متى يحتاج المستثمر إلى التسجيل الاستثماري؟",
+        "en": "What registration route applies to a foreign investor?",
+        "zh": "外国投资者需要办理什么投资登记？"
+      },
+      "schema_candidates": [
+        "Service",
+        "BreadcrumbList"
+      ],
+      "official_sources": [
+        "https://misa.gov.sa/activities/laws-regulations-copy/"
+      ],
+      "related_nodes": [
+        "company-formation",
+        "misa-process",
+        "investment-activities",
+        "packages"
+      ]
+    },
+    {
+      "id": "banking",
+      "parent_id": "investor-hub",
+      "route": "/services/corporate-banking",
+      "kind": "service",
+      "intent": "commercial",
+      "primary_keyword": {
+        "ar": "فتح حساب بنكي لشركة أجنبية في السعودية",
+        "en": "Saudi corporate bank account assistance",
+        "zh": "沙特企业银行开户服务"
+      },
+      "main_question": {
+        "ar": "ما متطلبات تجهيز ملف الحساب البنكي للشركة؟",
+        "en": "What does a Saudi corporate bank account application require?",
+        "zh": "如何准备沙特企业银行开户材料？"
+      },
+      "schema_candidates": [
+        "Service",
+        "BreadcrumbList"
+      ],
+      "official_sources": [
+        "https://rulebook.sama.gov.sa/en/account-opening-rules"
+      ],
+      "related_nodes": [
+        "banking-kyc",
+        "company-formation"
+      ]
+    },
+    {
+      "id": "contracts",
+      "parent_id": "investor-hub",
+      "route": "/services/contract-drafting",
+      "kind": "service",
+      "intent": "commercial",
+      "primary_keyword": {
+        "ar": "إعداد عقود الشركات والحوكمة في السعودية",
+        "en": "Saudi corporate contracts and governance support",
+        "zh": "沙特公司合同与治理咨询"
+      },
+      "main_question": {
+        "ar": "ما عناصر حوكمة الشركة والعقود التي تستحق المراجعة؟",
+        "en": "What corporate agreements and governance items need review?",
+        "zh": "沙特公司需要审核哪些合同及治理事项？"
+      },
+      "schema_candidates": [
+        "Service",
+        "BreadcrumbList"
+      ],
+      "official_sources": [
+        "https://laws.boe.gov.sa/"
+      ],
+      "related_nodes": [
+        "governance-documents",
+        "company-formation"
+      ]
+    },
+    {
+      "id": "residency",
+      "parent_id": "investor-hub",
+      "route": "/services/premium-residency",
+      "kind": "service",
+      "intent": "commercial",
+      "primary_keyword": {
+        "ar": "استشارات الإقامة المميزة للمستثمرين",
+        "en": "Saudi premium residency advisory services",
+        "zh": "沙特高级居留咨询服务"
+      },
+      "main_question": {
+        "ar": "كيف أقارن خيارات الإقامة المميزة حسب الأهلية؟",
+        "en": "How should investors compare premium residency eligibility?",
+        "zh": "如何比较沙特高级居留申请资格？"
+      },
+      "schema_candidates": [
+        "Service",
+        "BreadcrumbList"
+      ],
+      "official_sources": [
+        "https://pr.gov.sa/premium-residency-regulations"
+      ],
+      "related_nodes": [
+        "residency-eligibility",
+        "company-formation"
+      ]
+    },
+    {
+      "id": "investment-funds",
+      "parent_id": "investor-hub",
+      "route": "/services/investment-funds",
+      "kind": "service",
+      "intent": "commercial",
+      "primary_keyword": {
+        "ar": "خدمات تأسيس الصناديق الاستثمارية بالسعودية",
+        "en": "Saudi investment funds regulatory advisory",
+        "zh": "沙特投资基金法规咨询服务"
+      },
+      "main_question": {
+        "ar": "ما الجهات والقواعد التي تحكم الصناديق الاستثمارية؟",
+        "en": "What rules apply to Saudi investment funds?",
+        "zh": "沙特投资基金受到哪些法规监管？"
+      },
+      "schema_candidates": [
+        "Service",
+        "BreadcrumbList"
+      ],
+      "official_sources": [
+        "https://cma.gov.sa/en/RulesRegulations/Regulations/Pages/default.aspx"
+      ],
+      "related_nodes": [
+        "funds-regulations",
+        "contracts"
+      ]
+    },
+    {
+      "id": "packages",
+      "parent_id": "investor-hub",
+      "route": "/packages",
+      "kind": "commercial",
+      "intent": "transactional",
+      "primary_keyword": {
+        "ar": "باقات خدمات تأسيس الشركات في السعودية",
+        "en": "Saudi company setup service packages",
+        "zh": "沙特公司注册服务套餐"
+      },
+      "main_question": {
+        "ar": "كيف تختلف أتعاب الخدمات المهنية بين الباقات؟",
+        "en": "How do service packages differ in scope and professional fees?",
+        "zh": "企业设立服务套餐的专业费用有何差异？"
+      },
+      "schema_candidates": [
+        "WebPage",
+        "Offer"
+      ],
+      "official_sources": [],
+      "related_nodes": [
+        "company-formation",
+        "misa-registration",
+        "package-scope"
+      ]
+    },
+    {
+      "id": "insights-hub",
+      "parent_id": "investor-hub",
+      "route": "/insights",
+      "kind": "hub",
+      "intent": "informational",
+      "primary_keyword": {
+        "ar": "أدلة تأسيس الشركات للمستثمرين",
+        "en": "Saudi investor business guides",
+        "zh": "沙特公司设立指南"
+      },
+      "main_question": {
+        "ar": "ما الدليل المناسب لكل خطوة من خطوات دخول السوق؟",
+        "en": "Which guide helps with each investor decision?",
+        "zh": "哪些指南适用于进入沙特市场的不同阶段？"
+      },
+      "schema_candidates": [
+        "CollectionPage",
+        "BreadcrumbList"
+      ],
+      "official_sources": [],
+      "related_nodes": [
+        "company-documents",
+        "misa-process",
+        "banking-kyc"
+      ]
+    },
+    {
+      "id": "company-documents",
+      "parent_id": "company-formation",
+      "route": null,
+      "kind": "guide",
+      "intent": "informational",
+      "primary_keyword": {
+        "ar": "مستندات تأسيس شركة لمستثمر أجنبي",
+        "en": "Documents for Saudi foreign investor incorporation",
+        "zh": "沙特外资公司设立所需材料"
+      },
+      "main_question": {
+        "ar": "ما المستندات المعتادة وما الذي يتغير حسب النشاط؟",
+        "en": "Which incorporation documents vary by investor and activity?",
+        "zh": "设立公司所需材料如何因投资者和行业而变化？"
+      },
+      "schema_candidates": [
+        "Article",
+        "BreadcrumbList"
+      ],
+      "official_sources": [
+        "https://mc.gov.sa/en/Pages/Start-your-project.aspx"
+      ],
+      "related_nodes": [
+        "company-formation",
+        "misa-registration"
+      ]
+    },
+    {
+      "id": "foreign-branch",
+      "parent_id": "company-formation",
+      "route": null,
+      "kind": "guide",
+      "intent": "informational",
+      "primary_keyword": {
+        "ar": "تسجيل فرع شركة أجنبية في السعودية",
+        "en": "Registering a foreign company branch in Saudi Arabia",
+        "zh": "在沙特注册外国公司分支机构"
+      },
+      "main_question": {
+        "ar": "ما الفرق بين تسجيل فرع وتأسيس كيان جديد؟",
+        "en": "How does branch registration compare with a new entity?",
+        "zh": "分支机构登记与新设实体有何区别？"
+      },
+      "schema_candidates": [
+        "Article",
+        "BreadcrumbList"
+      ],
+      "official_sources": [
+        "https://mc.gov.sa/en/Pages/Start-your-project.aspx"
+      ],
+      "related_nodes": [
+        "company-formation",
+        "misa-registration"
+      ]
+    },
+    {
+      "id": "misa-process",
+      "parent_id": "misa-registration",
+      "route": null,
+      "kind": "guide",
+      "intent": "informational",
+      "primary_keyword": {
+        "ar": "خطوات التسجيل الاستثماري في السعودية",
+        "en": "Saudi investment registration process",
+        "zh": "沙特投资登记流程"
+      },
+      "main_question": {
+        "ar": "ما مراحل التسجيل وكيف نتحقق من المتطلبات الحالية؟",
+        "en": "How should investors check current investment registration steps?",
+        "zh": "如何核实最新的投资登记步骤？"
+      },
+      "schema_candidates": [
+        "Article",
+        "BreadcrumbList"
+      ],
+      "official_sources": [
+        "https://misa.gov.sa/activities/laws-regulations-copy/"
+      ],
+      "related_nodes": [
+        "misa-registration",
+        "company-formation"
+      ]
+    },
+    {
+      "id": "investment-activities",
+      "parent_id": "misa-registration",
+      "route": null,
+      "kind": "guide",
+      "intent": "informational",
+      "primary_keyword": {
+        "ar": "الأنشطة الاستثمارية والاشتراطات القطاعية",
+        "en": "Sector-specific Saudi investment activity requirements",
+        "zh": "沙特投资活动与行业许可要求"
+      },
+      "main_question": {
+        "ar": "كيف يختلف مسار الموافقات بحسب النشاط؟",
+        "en": "How do sector approvals vary by business activity?",
+        "zh": "不同行业的许可要求有何差异？"
+      },
+      "schema_candidates": [
+        "Article",
+        "BreadcrumbList"
+      ],
+      "official_sources": [
+        "https://misa.gov.sa/activities/laws-regulations-copy/"
+      ],
+      "related_nodes": [
+        "misa-registration",
+        "company-formation"
+      ]
+    },
+    {
+      "id": "banking-kyc",
+      "parent_id": "banking",
+      "route": null,
+      "kind": "guide",
+      "intent": "informational",
+      "primary_keyword": {
+        "ar": "ملف اعرف عميلك لفتح حساب شركة",
+        "en": "Corporate banking KYC document checklist",
+        "zh": "沙特企业开户尽职调查材料"
+      },
+      "main_question": {
+        "ar": "ما معلومات المالك المستفيد والمفوّض التي قد تطلبها البنوك؟",
+        "en": "What KYC information may a Saudi bank request?",
+        "zh": "沙特银行可能要求哪些尽职调查资料？"
+      },
+      "schema_candidates": [
+        "Article",
+        "BreadcrumbList"
+      ],
+      "official_sources": [
+        "https://rulebook.sama.gov.sa/en/account-opening-rules"
+      ],
+      "related_nodes": [
+        "banking",
+        "company-formation"
+      ]
+    },
+    {
+      "id": "governance-documents",
+      "parent_id": "contracts",
+      "route": null,
+      "kind": "guide",
+      "intent": "informational",
+      "primary_keyword": {
+        "ar": "قائمة مراجعة عقود وحوكمة الشركات",
+        "en": "Company agreements and governance checklist",
+        "zh": "公司合同与治理核对清单"
+      },
+      "main_question": {
+        "ar": "أي عقود وقرارات يجب مناقشتها مع المختص؟",
+        "en": "What governance documents warrant legal review?",
+        "zh": "哪些治理文件需要专业审核？"
+      },
+      "schema_candidates": [
+        "Article",
+        "BreadcrumbList"
+      ],
+      "official_sources": [
+        "https://laws.boe.gov.sa/"
+      ],
+      "related_nodes": [
+        "contracts",
+        "company-formation"
+      ]
+    },
+    {
+      "id": "residency-eligibility",
+      "parent_id": "residency",
+      "route": null,
+      "kind": "guide",
+      "intent": "informational",
+      "primary_keyword": {
+        "ar": "مقارنة شروط منتجات الإقامة المميزة",
+        "en": "Premium Residency eligibility comparison",
+        "zh": "沙特高级居留申请资格对比"
+      },
+      "main_question": {
+        "ar": "ما شروط كل منتج وكيف تؤكدها من المصدر الرسمي؟",
+        "en": "How can applicants verify eligibility per product?",
+        "zh": "如何核实各高级居留产品的资格条件？"
+      },
+      "schema_candidates": [
+        "Article",
+        "BreadcrumbList"
+      ],
+      "official_sources": [
+        "https://pr.gov.sa/premium-residency-regulations"
+      ],
+      "related_nodes": [
+        "residency"
+      ]
+    },
+    {
+      "id": "funds-regulations",
+      "parent_id": "investment-funds",
+      "route": null,
+      "kind": "guide",
+      "intent": "informational",
+      "primary_keyword": {
+        "ar": "القواعد المنظمة للصناديق الاستثمارية",
+        "en": "Saudi investment fund regulatory overview",
+        "zh": "沙特投资基金监管规则概览"
+      },
+      "main_question": {
+        "ar": "كيف تختلف قواعد المنتجات الاستثمارية؟",
+        "en": "How do investment fund rules differ by product?",
+        "zh": "不同基金产品有哪些监管区别？"
+      },
+      "schema_candidates": [
+        "Article",
+        "BreadcrumbList"
+      ],
+      "official_sources": [
+        "https://cma.gov.sa/en/RulesRegulations/Regulations/Pages/default.aspx"
+      ],
+      "related_nodes": [
+        "investment-funds",
+        "contracts"
+      ]
+    },
+    {
+      "id": "package-scope",
+      "parent_id": "packages",
+      "route": null,
+      "kind": "comparison",
+      "intent": "commercial",
+      "primary_keyword": {
+        "ar": "مقارنة نطاق باقات خدمات المستثمرين",
+        "en": "Compare Saudi investor service package scope",
+        "zh": "沙特投资者服务套餐范围比较"
+      },
+      "main_question": {
+        "ar": "ما الذي تشمل أتعاب الخدمة وما المستثنى؟",
+        "en": "Which professional fees and exclusions apply?",
+        "zh": "专业服务费用包含哪些内容与除外项目？"
+      },
+      "schema_candidates": [
+        "Article",
+        "BreadcrumbList"
+      ],
+      "official_sources": [],
+      "related_nodes": [
+        "packages",
+        "company-formation"
+      ]
+    }
+  ]
+}

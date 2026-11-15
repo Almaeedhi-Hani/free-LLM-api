@@ -13,7 +13,7 @@
     "test:packages": "tsc src/lib/package-offers.ts --outDir .package-test-build --module commonjs --target es2020 --lib es2020,dom --moduleResolution node --esModuleInterop --skipLibCheck --strict --types node && node scripts/package-content.test.cjs",
     "test:visibility": "tsc src/lib/visibility-outcomes.ts --outDir .visibility-test-build --module commonjs --target es2020 --lib es2020,dom --moduleResolution node --esModuleInterop --skipLibCheck --strict --types node && node scripts/visibility-outcomes.test.cjs",
     "test:geo-persist": "node --check scripts/opencode-geo-analysis.js && tsc src/lib/geo-ingest.ts src/lib/geo-draft-quality.ts src/lib/editorial-workflow.ts --outDir .geo-ingest-test-build --module commonjs --target es2020 --lib es2020,dom --moduleResolution node --esModuleInterop --skipLibCheck --strict --types node && node scripts/geo-ingest.test.cjs",
-    "test:editorial": "tsc src/lib/editorial-workflow.ts --outDir .editorial-test-build --module commonjs --target es2020 --lib es2020,dom --moduleResolution node --esModuleInterop --skipLibCheck --strict --types node && node scripts/editorial-workflow.test.cjs"
+    "test:editorial": "tsc src/lib/editorial-workflow.ts src/lib/content-tree.ts --resolveJsonModule --outDir .editorial-test-build --module commonjs --target es2020 --lib es2020,dom --moduleResolution node --esModuleInterop --skipLibCheck --strict --types node && node scripts/editorial-workflow.test.cjs"
   },
   "dependencies": {
     "react": "^18.2.0",
