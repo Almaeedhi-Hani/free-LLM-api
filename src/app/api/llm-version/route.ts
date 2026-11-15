@@ -21,7 +21,7 @@ export async function GET() {
   );
   const offers = languages.flatMap(lang => packageOffers.map(offer => [
     "### " + offer.title[lang],
-    "Our professional package service fee: " + offer.price + " SAR",
+    "Service fee: " + offer.price + " SAR (our professional services only; government charges are excluded)",
     "Previous fee for our own professional services: " + offer.previousPrice + " SAR (not a verified competitor comparison).",
     "Any discount applies only to our professional services; government and authority fees, taxes and third-party costs are excluded.",
     "Audience: " + offer.audience[lang],
