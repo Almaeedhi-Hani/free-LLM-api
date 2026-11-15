@@ -7,6 +7,7 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const {supportedSchemaSuggestions}=require('./geo-opencode-planner.cjs');
+const {createIsolatedGeoWorkspace}=require('./geo-opencode-runtime.cjs');
 
 // --- Config ---
 const OC_BIN = process.env.OPENCODE_BIN ||
@@ -14,13 +15,18 @@ const OC_BIN = process.env.OPENCODE_BIN ||
     ? 'C:\\Users\\hp\\AppData\\Local\\Programs\\ai.opencode.desktop\\resources\\opencode-cli.exe'
     : (process.env.HOME + '/.opencode/bin/opencode'));
 const MODEL = process.env.OPENCODE_MODEL || 'opencode/beam-free';
-const FALLBACK_MODELS = Array.from(new Set([MODEL,
+// Explicitly allow only confirmed no-charge model IDs; free model names need not end in "-free".
+// Big Pickle is temporary/free and intended for PUBLIC research inputs only (provider may retain training data).
+const FREE_MODEL_ALLOWLIST=Object.freeze([
   'opencode/beam-free',
+  'opencode/big-pickle',
   'opencode/glm-5.3-flash-free',
   'opencode/deepseek-v4.1-flash-free',
   'opencode/flint-40b-free',
   'openrouter/google/gemma-4-26b-a4b-it:free',
-])).filter(m => /(?:-free|:free)$/i.test(m));
+]);
+const FALLBACK_MODELS=Array.from(new Set([MODEL,...FREE_MODEL_ALLOWLIST]))
+  .filter(m=>FREE_MODEL_ALLOWLIST.includes(m));
 const MAX_RETRIES = 2;
 // Each weekly run performs three distinct language analyses, with at most 18 free-model
 // attempts across those analyses. No paid-tier fallback or unverified token quota is assumed.
@@ -31,24 +37,13 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 // --- OpenCode runner ---
 function runOpenCode(prompt, model) {
   const chosenModel = model || MODEL;
-  if (!/(?:-free|:free)$/i.test(chosenModel) || !/^[a-z0-9/:.-]+$/i.test(chosenModel))return {error:'Only a safely named free-tier OpenCode model is allowed for this workflow'};
-  // Use a clean temp directory so OpenCode cannot read project files
-  const workDir = path.join(process.cwd(), '.opencode-work');
-  if (!fs.existsSync(workDir)) fs.mkdirSync(workDir, { recursive: true });
-  // Make the audited content-architecture skill available to this deliberately
-  // isolated OpenCode session, without exposing the project tree or secrets.
-  const skillSource=path.join(__dirname,'..','.opencode','skills','content-architecture','SKILL.md');
-  if(fs.existsSync(skillSource)){
-    const skillRoot=path.join(workDir,'.opencode','skills','content-architecture');
-    fs.mkdirSync(skillRoot,{recursive:true});
-    fs.copyFileSync(skillSource,path.join(skillRoot,'SKILL.md'));
-  }
-  const tmpFile = path.join(workDir, 'prompt.txt');
-  fs.writeFileSync(tmpFile, prompt, 'utf-8');
-
+  if (!FREE_MODEL_ALLOWLIST.includes(chosenModel) || !/^[a-z0-9/:.-]+$/i.test(chosenModel))return {error:'Only an explicitly allowlisted free-tier OpenCode model is allowed for this workflow'};
+  // Each attempt receives a new workspace, session DB, and short AGENTS.md.
+  // No previous OpenCode transcript or session is copied into the prompt.
   const cmd = `"${OC_BIN}" run --standalone --archived --format json --model ${chosenModel} --file prompt.txt "Follow the instructions in the attached file. Output JSON only, no markdown."`;
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    const {workDir,runtimeEnv,cleanup}=createIsolatedGeoWorkspace(prompt);
     try {
       // Sanitized env: exclude secrets from OpenCode process
       const safeEnv = { ...process.env };
@@ -61,6 +56,9 @@ function runOpenCode(prompt, model) {
       delete safeEnv.TAVILY_API_KEY;
       delete safeEnv.PARALLEL_API_KEY;
       delete safeEnv.FIRECRAWL_API_KEY;
+      for(const key of ['GITHUB_TOKEN','GH_TOKEN','OPENAI_API_KEY','OPENROUTER_API_KEY','ANTHROPIC_API_KEY','NVIDIA_API_KEY'])
+        delete safeEnv[key];
+      Object.assign(safeEnv,runtimeEnv);
       const output = execSync(cmd, {
         timeout: 120000,
         encoding: 'utf-8',
@@ -104,6 +102,8 @@ function runOpenCode(prompt, model) {
       if (attempt === MAX_RETRIES - 1) {
         return { error: e.message, stderr: stderr.substring(0, 500) };
       }
+    } finally {
+      cleanup(); // remove ONLY this attempt's disposable sessions and input files
     }
   }
   return { error: 'Max retries exceeded (rate limited)' };
