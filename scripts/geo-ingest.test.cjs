@@ -1,7 +1,7 @@
 "use strict";
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
-const {normalizeGeoBatch,persistGeoBatch}=require('../.geo-ingest-test-build/geo-ingest.js');
+const {normalizeGeoBatch,persistGeoBatch}=require('../.geo-ingest-test-build/lib/geo-ingest.js');
 (async()=>{
  assert.throws(()=>normalizeGeoBatch({opportunities:[{title:'x',type:'bad',score:55}]}),/Invalid opportunities/);
  assert.throws(()=>normalizeGeoBatch({drafts:[{q:'test',a:'text',risk_level:'wrong'}]}),/Invalid drafts/);
@@ -30,7 +30,7 @@ const {normalizeGeoBatch,persistGeoBatch}=require('../.geo-ingest-test-build/geo
  const reported=await persistGeoBatch(report,{saveOpportunity:async()=>{},saveGoal:async()=>{},saveDrafts:async()=>0,saveReport:async()=>{calls.r++}});
  assert.equal(reported.ok,true);assert.equal(reported.saved.run_report,1);
 
- const {assessGeoDraftCopy,validateGeoDrafts}=require('../.geo-ingest-test-build/geo-draft-quality.js');
+ const {assessGeoDraftCopy,validateGeoDrafts}=require('../.geo-ingest-test-build/lib/geo-draft-quality.js');
  const englishQ='How can a foreign investor open a company in Saudi Arabia?';
  const englishA='Start by identifying your proposed business activities and ownership structure. Check current eligibility, licensing and document requirements with the relevant Saudi authorities. Professional service charges must be quoted separately from government and third-party fees; authority approvals are not guaranteed.';
  const arQ='ما المستندات التي يحتاجها المستثمر لتأسيس شركة في السعودية؟';

@@ -7,7 +7,7 @@ export function siteTopicPath(id:string):string|null{return topicNodeById(id)?.r
 export function topicRelatedLiveNodes(id:string):TopicNode[]{
  const node=topicNodeById(id);if(!node)return [];
  const related=[...(node.related_nodes||[]),...(node.parent_id?[node.parent_id]:[])];
- return [...new Set(related)].map(topicNodeById).filter((x):x is TopicNode=>Boolean(x?.route&&x?.id!==id));
+ return Array.from(new Set(related)).map(topicNodeById).filter((x):x is TopicNode=>Boolean(x?.route&&x?.id!==id));
 }
 export function validateContentTree():{nodes:number;live:number;planned:number}{
  const byId=new Map(topicNodes.map(n=>[n.id,n]));
