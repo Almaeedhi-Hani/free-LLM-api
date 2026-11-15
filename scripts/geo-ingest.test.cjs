@@ -31,7 +31,17 @@ const {normalizeGeoBatch,persistGeoBatch}=require('../.geo-ingest-test-build/lib
  const reported=await persistGeoBatch(report,{saveOpportunity:async()=>{},saveGoal:async()=>{},saveDrafts:async()=>0,saveReport:async()=>{calls.r++}});
  assert.equal(reported.ok,true);assert.equal(reported.saved.run_report,1);
 
- const {assessGeoDraftCopy,validateGeoDrafts}=require('../.geo-ingest-test-build/lib/geo-draft-quality.js');
+ const {assessGeoDraftCopy,validateGeoDrafts,splitGeoDraftReviewText}=require('../.geo-ingest-test-build/lib/geo-draft-quality.js');
+ // The UI must never silently hide a whole middle sentence, or publish a
+ // trailing procedural warning that was visually separated for review.
+ const trailing='تختلف الشروط حسب النشاط والجهة المختصة؛ يجب التحقق من المصادر الرسمية قبل submission.';
+ const parts=splitGeoDraftReviewText(trailing);
+ assert.equal(parts.answer,'تختلف الشروط حسب النشاط والجهة المختصة','display only the substantive candidate answer');
+ assert.equal(parts.note,'يجب التحقق من المصادر الرسمية قبل submission.','isolate only the precise trailing procedural note');
+ const mid='يجب التحقق من المصادر الرسمية قبل submission، وقد تختلف المتطلبات حسب القطاع ويجب شرحها للمستثمر بوضوح.';
+ assert.deepEqual(splitGeoDraftReviewText(mid),{answer:mid,note:''},'never truncate content in the middle of the answer');
+ assert.deepEqual(splitGeoDraftReviewText('لا تتوفر معلومات رسمية كافية حاليًا.'),{answer:'لا تتوفر معلومات رسمية كافية حاليًا.',note:''},'ordinary information remains unchanged');
+ assert.equal(splitGeoDraftReviewText('يجب التحقق من المصادر الرسمية قبل submission.').note,'','do not silently blank a standalone answer');
  const englishQ='How can a foreign investor open a company in Saudi Arabia?';
  const englishA='Start by identifying your proposed business activities and ownership structure. Check current eligibility, licensing and document requirements with the relevant Saudi authorities. Professional service charges must be quoted separately from government and third-party fees; authority approvals are not guaranteed.';
  const arQ='ما المستندات التي يحتاجها المستثمر لتأسيس شركة في السعودية؟';
@@ -49,8 +59,13 @@ const {normalizeGeoBatch,persistGeoBatch}=require('../.geo-ingest-test-build/lib
  validateGeoDrafts([{q:englishQ,a:englishA},{q:arQ,a:arA},{q:zhQ,a:zhA}]);
  const dashboard=fs.readFileSync('src/app/admin/dashboard/page.tsx','utf8');
  const adminRoute=fs.readFileSync('src/app/api/admin/content/route.ts','utf8');
- assert(dashboard.includes('disabled={saving || !assessGeoDraftCopy(d.q,d.a).publishable}'),'invalid pending drafts cannot be approved in dashboard');
- assert(adminRoute.includes("assessGeoDraftCopy(incoming.q||'',incoming.a||'')"),'approval must be checked server-side');
+ assert(dashboard.includes('disabled={saving || !finalAssessment.publishable'),'invalid pending drafts cannot be approved in dashboard');
+ assert(dashboard.includes('draftReviewEdits[draftReviewKey(existing)]??proposed.answer'),'final publish answer is an explicit operator review value');
+ assert(dashboard.includes('a:reviewedAnswer,status:\'approved\''),'approved draft saves exactly the reviewed answer');
+ assert(dashboard.includes('{q:draft.q,a:reviewedAnswer}'),'published FAQ matches the reviewed answer');
+ assert(adminRoute.includes("assessGeoDraftCopy(incoming.q||'',answer)"),'final approved answer must be quality-checked server-side');
+ assert(adminRoute.includes('Approved FAQ must exactly match the reviewed draft answer'),'server must reject mismatched published FAQ copy');
+ assert(adminRoute.includes('Remove the procedural verification note from the final FAQ answer'),'server rejects procedural note in approved FAQ');
 
  const route=fs.readFileSync('src/app/api/geo/results/route.ts','utf8');
  const runner=fs.readFileSync('scripts/opencode-geo-analysis.js','utf8');

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContent, setContent } from '@/lib/content-store';
 import {validateEditorialBatch} from '@/lib/editorial-workflow';
-import { assessGeoDraftCopy } from "@/lib/geo-draft-quality";
+import { assessGeoDraftCopy, splitGeoDraftReviewText } from "@/lib/geo-draft-quality";
 import { StorageConflictError, StorageUnavailableError } from '@/lib/storage-mode';
 
 export const dynamic = 'force-dynamic';
@@ -75,7 +75,21 @@ export async function POST(req: NextRequest) {
         if(incoming?.status!=='approved')continue;
         const before=byQuestion.get(incoming.q||'');
         if(before?.status==='approved')continue;
-        const check=assessGeoDraftCopy(incoming.q||'',incoming.a||'');
+        // No approval may silently publish a different FAQ answer from the
+        // exact text reviewed in the draft. Enforce this at the API boundary.
+        if(typeof expectedUpdatedAt!=='string'){
+          return NextResponse.json({status:'error',message:'Draft approval requires a versioned human review'},{status:400});
+        }
+        const answer=String(incoming.a||'').trim();
+        const note=splitGeoDraftReviewText(answer).note;
+        if(note){
+          return NextResponse.json({status:'error',message:'Remove the procedural verification note from the final FAQ answer before approval'},{status:422});
+        }
+        if(!Array.isArray(patch.faqs) ||
+           !(patch.faqs as Array<{q?:string;a?:string}>).some(f=>f?.q===incoming.q && f?.a===answer)){
+          return NextResponse.json({status:'error',message:'Approved FAQ must exactly match the reviewed draft answer'},{status:422});
+        }
+        const check=assessGeoDraftCopy(incoming.q||'',answer);
         if(!check.publishable)return NextResponse.json({status:'error',message:'Draft cannot be approved: its language or content quality is invalid'},{status:422});
       }
     }

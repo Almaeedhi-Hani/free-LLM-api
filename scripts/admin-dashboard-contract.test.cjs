@@ -5,6 +5,7 @@ const discovery=fs.readFileSync('src/app/api/admin/market/discovery/route.ts','u
 const provider=fs.readFileSync('src/lib/provider-search.cjs','utf8');
 const editorial=fs.readFileSync('src/components/EditorialReviewPanel.tsx','utf8');
 const roles=fs.readFileSync('src/components/AdminDataRoles.tsx','utf8');
+const adminRoute=fs.readFileSync('src/app/api/admin/content/route.ts','utf8');
 const tests=[
  ['All 12 dashboard sections present',()=>['home','contact','content','agent','reviews','settings','competitors','keywords','opportunities','goals','runs','evidence'].every(x=>dashboard.includes("key: '"+x+"'"))],
  ['Login verifies server secret before unlocking',()=>dashboard.includes("fetch('/api/admin/content',{headers:{'x-admin-secret':key}})")],
@@ -15,11 +16,13 @@ const tests=[
  ['Provider discovery has bounded request budget',()=>provider.includes('maxCalls:3')&&provider.includes('maxPerProvider:1')],
  ['Competitor state editing PATCH exists',()=>dashboard.includes("method:'PATCH',body:JSON.stringify({id:c.id,status})")],
  ['Sources readiness and provider names visible',()=>dashboard.includes('fetchMarketSources')&&dashboard.includes('firecrawl')],
- ['Reviews require confirmation',()=>dashboard.includes('window.confirm(\'اعتماد هذه المسودة')],
+ ['Reviews require confirmation',()=>dashboard.includes("window.confirm('اعتماد ونشر النص النهائي المعروض")],
  ['Save failure keeps editable drafts',()=>dashboard.includes("if(ok)setNewFaq")&&dashboard.includes("if(ok)setEditingFaq")],
  ['User feedback shown accessibly',()=>dashboard.includes('role="alert"')&&dashboard.includes('role="status"')],
  ['Semantic legend present across admin tabs',()=>dashboard.includes('<DataRoleLegend />')&&roles.includes('محتوى مقترح للاستخدام')&&roles.includes('بيانات من النظام')&&roles.includes('روابط رصد وبحث')&&roles.includes('مصادر تحتاج تحققًا')],
- ['Draft generated answer separated from model verification note',()=>dashboard.includes('splitDraftReviewText(d.a)')&&dashboard.includes('عبارة تحقق وردت ضمن النص المولّد')&&dashboard.includes('تؤدي الموافقة إلى نشر نص المسودة المحفوظ كما هو')],
+ ['Draft generated answer separated from model verification note',()=>dashboard.includes('splitGeoDraftReviewText(d.a)')&&dashboard.includes('عبارة تحقق وردت ضمن النص المولّد')&&dashboard.includes('لن تُنشر إلا إذا كتبتها بنفسك')],
+ ['Operator sees and can edit exact final FAQ publish text',()=>dashboard.includes('النص النهائي الذي سيُنشر — قابل للتعديل')&&dashboard.includes('value={finalAnswer}')&&dashboard.includes('a:reviewedAnswer,status:\'approved\'')&&dashboard.includes('{q:draft.q,a:reviewedAnswer}')],
+ ['API rejects mismatched or unreviewed published FAQ',()=>adminRoute.includes('Approved FAQ must exactly match the reviewed draft answer')&&adminRoute.includes('Draft approval requires a versioned human review')&&adminRoute.includes('Remove the procedural verification note')],
  ['Draft research never described as verified official source',()=>dashboard.includes('صفحات منافسة ونتائج بحث مرتبطة بالموضوع')&&dashboard.includes('روابط المنافسين ليست مصدرًا رسميًا')],
  ['Editorial source, SEO, metadata and copy in distinct colored sections',()=>editorial.includes('tone="research"')&&editorial.includes('tone="technical"')&&editorial.includes('tone="system"')&&editorial.includes('المحتوى المقترح للاستخدام في الموقع')&&editorial.includes('title="التحقق من المصادر الأصلية قبل النشر"')],
  ['Evidence table scrolls in both axes without squeezing content',()=>dashboard.includes('max-h-[72vh] w-full min-w-0 overflow-auto')&&dashboard.includes('w-[1120px] min-w-[1120px]')&&dashboard.includes('sticky top-0 z-10')&&dashboard.includes('tabIndex={0}')],

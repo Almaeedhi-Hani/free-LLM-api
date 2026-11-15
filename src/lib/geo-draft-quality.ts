@@ -51,6 +51,24 @@ export function assessGeoDraftCopy(q:string,a:string):DraftCopyAssessment {
    issues.push('Unverified guarantee of official outcome.');
  return {locale,publishable:issues.length===0,issues};
 }
+/**
+ * A narrowly matched, trailing verification instruction can be visually separated
+ * from a proposed answer. This does NOT change stored data or verify legal claims.
+ * Only the exact text edited/reviewed by the operator may be published.
+ *
+ * Never split a phrase in the middle of an answer: the remaining copy might be
+ * meaningful and must stay visible for review.
+ */
+const TRAILING_VERIFICATION_NOTE=/(?:يجب|ينبغي)\s+التحقق\s+من\s+المصادر\s+الرسمية(?:\s+قبل\s+(?:submission|التقديم|الاعتماد|النشر))?[\s.!؟،؛]*$/i;
+export function splitGeoDraftReviewText(value:unknown):{answer:string;note:string}{
+ const original=String(value??'').trim();
+ const match=TRAILING_VERIFICATION_NOTE.exec(original);
+ if(!match||match.index===0)return {answer:original,note:''};
+ const answer=original.slice(0,match.index).replace(/[\s،؛:]+$/,'').trim();
+ if(!answer)return {answer:original,note:''};
+ return {answer,note:original.slice(match.index).trim()};
+}
+
 export function validateGeoDrafts(drafts:readonly {q:string;a:string}[]):void{
  const errors=drafts.flatMap((d,i)=>assessGeoDraftCopy(d.q,d.a).issues.map(issue=>'draft '+(i+1)+': '+issue));
  // Also detect recycled identical answers across differently localized questions.
