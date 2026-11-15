@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import MobileFloatingNav from "@/components/MobileFloatingNav";
 import { CookieConsent } from "@/components/CookieConsent";
 import { getContent } from "@/lib/content-store";
 import { approvedEditorial } from "@/lib/editorial-workflow";
@@ -73,6 +74,7 @@ export default async function RootLayout({
             {hasGuides&&<a href={localizedPath(lang,"/insights")}>{lang==="ar"?"الأدلة":lang==="zh"?"指南":"Guides"}</a>}
             <a href={localizedPath(lang) + "#contact"}>{t.contact}</a>
           </nav>
+          <MobileFloatingNav locale={lang} brand={t.brand} hasGuides={hasGuides} />
         </header>
         <main id="main">{children}</main>
         <footer className="site-footer">
