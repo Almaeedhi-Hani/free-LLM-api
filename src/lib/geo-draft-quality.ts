@@ -64,7 +64,7 @@ export function splitGeoDraftReviewText(value:unknown):{answer:string;note:strin
  const original=String(value??'').trim();
  const match=TRAILING_VERIFICATION_NOTE.exec(original);
  if(!match||match.index===0)return {answer:original,note:''};
- const answer=original.slice(0,match.index).replace(/[\s،؛:]+$/u,'').trim();
+ const answer=original.slice(0,match.index).replace(/[\s،؛:]+$/,'').trim();
  if(!answer)return {answer:original,note:''};
  return {answer,note:original.slice(match.index).trim()};
 }
