@@ -64,7 +64,7 @@ async function search({queries,env=process.env,fetchFn=fetch,maxCalls=LIMITS.max
     let payload;try{payload=await response.json()}catch{payload=null}
     const candidates=response.ok?safeResults(decode(provider,payload),provider,q.query,q.language):[];
     let added=0;
-    for(const candidate of candidates){if(seen.has(candidate.domain))continue;seen.add(candidate.domain);found.push(candidate);added++;if(found.length>=target)break}
+    for(const candidate of candidates){const evidenceKey=q.language+'|'+candidate.domain; if(seen.has(evidenceKey))continue;seen.add(evidenceKey);found.push(candidate);added++;if(found.length>=target)break}
     diagnostics.push({provider,language:q.language,http_status:response.status,results:candidates.length,added,
       duration_ms:Date.now()-start,status:response.ok?(added?'ok':'empty'):(response.status===429?'rate_limited':response.status===401||response.status===403?'auth_error':'http_error')});
     languageHasResults=added>0;
