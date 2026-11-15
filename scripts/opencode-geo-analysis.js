@@ -30,7 +30,7 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 // --- OpenCode runner ---
 function runOpenCode(prompt, model) {
   const chosenModel = model || MODEL;
-  if (!/(?:-free|:free)$/i.test(chosenModel) || !/^[a-z0-9/:.\\-]+$/i.test(chosenModel))return {error:'Only a safely named free-tier OpenCode model is allowed for this workflow'};
+  if (!/(?:-free|:free)$/i.test(chosenModel) || !/^[a-z0-9/:.-]+$/i.test(chosenModel))return {error:'Only a safely named free-tier OpenCode model is allowed for this workflow'};
   // Use a clean temp directory so OpenCode cannot read project files
   const workDir = path.join(process.cwd(), '.opencode-work');
   if (!fs.existsSync(workDir)) fs.mkdirSync(workDir, { recursive: true });
