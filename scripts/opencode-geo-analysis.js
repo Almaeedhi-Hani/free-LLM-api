@@ -83,7 +83,7 @@ function runOpenCode(prompt, model) {
       return { text: textContent, model: chosenModel };
     } catch (e) {
       const stderr = (e.stderr?.toString() || '') + (e.stdout?.toString() || '');
-      const is429 = /(?:\\b429\\b|rate[ -]?limit|quota|resource exhausted)/i.test(stderr);
+      const is429 = /(?:\b429\b|rate[ -]?limit|quota|resource exhausted)/i.test(stderr);
       const isTimeout = e.code === 'ETIMEDOUT' || /(?:ETIMEDOUT|timed? out|deadline exceeded)/i.test(stderr);
       // Repeating a rate-limited or timed-out request against the SAME free
       // provider wastes the bounded CI window. Move directly to the next
