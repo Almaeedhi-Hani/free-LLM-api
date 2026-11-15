@@ -49,6 +49,17 @@ assert.equal(approvedEditorial([validateEditorialItem(chinese)],'zh').length,0,'
 assert.throws(()=>validateEditorialItem({...chinese,body:'仅供参考。'}),/substantive/,'extremely short Chinese body still rejected');
 assert.throws(()=>validateEditorialItem({...chinese,sections:[{h2:'资料',body:'过短'}]}),/H2\/H3/,'extremely short Chinese section still rejected');
 assert.throws(()=>validateEditorialItem({...chinese,lang:'en'}),/H2\/H3/,'English retains stricter section lengths');
+// Real 2026-11-15 model output used concise but meaningful Chinese titles,
+ // H1 suggestions and short natural anchors, which must remain pending for review.
+const zhReal={...chinese,kind:'home',target:'/',topic_node_id:'investor-hub',
+ title:'首页中文决策支持',h1_suggestion:'沙特市场进入决策支持',
+ internal_links:[{node_id:'packages',anchor:'服务套餐'}]};
+assert.equal(validateEditorialItem(zhReal).title,'首页中文决策支持');
+assert.equal(approvedEditorial([validateEditorialItem(zhReal)],'zh').length,0);
+assert.throws(()=>validateEditorialItem({...zhReal,title:'简短标题'}),/substantive/,'three-four-character title remains too short');
+assert.throws(()=>validateEditorialItem({...zhReal,h1_suggestion:'短标题'}),/H1/,'three-character H1 remains too short');
+assert.throws(()=>validateEditorialItem({...zhReal,internal_links:[{node_id:'packages',anchor:'费用'}]}),/Internal links/,'two-character anchor remains too short');
+assert.throws(()=>validateEditorialItem({...zhReal,lang:'en'}),/substantive/,'English title minimum remains unchanged');
 const fs=require('node:fs');
 const worker=fs.readFileSync('scripts/opencode-geo-analysis.js','utf8');
 assert(worker.includes('stageEditorialActions'),'GEO produces editorial proposals beyond FAQ');

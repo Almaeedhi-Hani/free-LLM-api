@@ -1,5 +1,5 @@
 name: GEO Intelligence One-Time Production Recovery Check
-# Recheck validated Chinese drafts once after this fix; the regular GEO schedule is unchanged.
+# Recheck multilingual GEO draft persistence and free fallback selection once; the regular GEO schedule is unchanged.
 
 on:
   push:

@@ -15,9 +15,9 @@ const OC_BIN = process.env.OPENCODE_BIN ||
 const MODEL = process.env.OPENCODE_MODEL || 'opencode/beam-free';
 const FALLBACK_MODELS = Array.from(new Set([MODEL,
   'opencode/beam-free',
+  'opencode/glm-5.3-flash-free',
   'opencode/deepseek-v4.1-flash-free',
   'opencode/flint-40b-free',
-  'opencode/glm-5.3-flash-free',
   'openrouter/google/gemma-4-26b-a4b-it:free',
 ])).filter(m => /(?:-free|:free)$/i.test(m));
 const MAX_RETRIES = 2;
