@@ -367,11 +367,15 @@ async function updateGEOAgentRun(outcome) {
 }
 
 async function stageOpportunities() {
- const items=stageResults.geo_analysis?.opportunities||[];
+ const generated=stageResults.geo_analysis?.opportunities||[];
+ const {valid:items,rejected}=require('./geo-opportunity-contract.cjs').filterOpportunities(generated);
+ if(rejected.length)console.warn('[OPPORTUNITIES] Rejected invalid model items:',JSON.stringify(rejected));
  const saved=await saveGEOStage('opportunities',items);
- stageResults.opportunities={count:items.length,items,saved_to_api:saved.status==='success',persisted:saved.saved,error:saved.error||null};
- console.log('[OPPORTUNITIES] Generated',items.length,'persisted',saved.saved,saved.status);
- return {records_processed:saved.saved,status:saved.status,error:saved.error};
+ const status=rejected.length?'partial':saved.status;
+ const error=rejected.length?('Rejected '+rejected.length+' invalid opportunities'+(saved.error?'; '+saved.error:'')):(saved.error||null);
+ stageResults.opportunities={count:generated.length,items,saved_to_api:status==='success',persisted:saved.saved,error};
+ console.log('[OPPORTUNITIES] Generated',generated.length,'valid',items.length,'persisted',saved.saved,status);
+ return {records_processed:saved.saved,status,error};
 }
 
 async function stageGoals() {
