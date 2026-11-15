@@ -74,6 +74,7 @@ const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'opportunities', label: 'الفرص', icon: '🎯' },
   { key: 'goals', label: 'الأهداف', icon: '✅' },
   { key: 'agent', label: 'وكيل GEO', icon: '🤖' },
+
   { key: 'runs', label: 'سجل التشغيل', icon: '📜' },
   { key: 'evidence', label: 'الأدلة ومصادر النتائج', icon: '🔍' },
   { key: 'content', label: 'محتوى الموقع', icon: '📝' },
@@ -86,6 +87,7 @@ const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'settings', label: 'الإعدادات', icon: '⚙️' },
 ];
 
+// OpenCode Lab is a separate, isolated admin diagnostic route.
 export default function AdminDashboard() {
   const [secret, setSecret] = useState('');
   const [authed, setAuthed] = useState(false);
