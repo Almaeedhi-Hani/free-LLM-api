@@ -296,20 +296,47 @@ async function saveGEOStage(stage, items) {
   const base = process.env.GEO_API_URL || process.env.SITE_URL;
   const key = process.env.GEO_API_KEY;
   if (!base || !key) return {status:'partial',saved:0,error:'GEO remote API not configured'};
-  try {
-    const res=await fetch(base.replace(/\/$/,'')+'/api/geo/results',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-geo-api-key':key},
-      body:JSON.stringify({[stage]:items}),
-      signal:AbortSignal.timeout(15000)
-    });
-    const payload=await res.json();
-    const count=payload?.saved?.[stage] ?? 0;
-    if(!res.ok || !payload?.ok || count!==items.length){
+  // Opportunities are deduplicated by (title,type); editorial items by stable ID.
+  // Other stages are not safe to retry after an ambiguous network failure.
+  const replaySafe = stage==='opportunities' || stage==='editorial_actions';
+  const maxAttempts = replaySafe ? 3 : 1;
+  let lastError='GEO endpoint unavailable';
+  for (let attempt=1; attempt<=maxAttempts; attempt++) {
+    try {
+      const res=await fetch(base.replace(/\\/$/,'')+'/api/geo/results',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','x-geo-api-key':key},
+        body:JSON.stringify({[stage]:items}),
+        signal:AbortSignal.timeout(30000)
+      });
+      let payload;
+      try {payload=await res.json()}
+      catch {return {status:'partial',saved:0,error:'Invalid GEO API response (HTTP '+res.status+')'}}
+      const count=payload?.saved?.[stage] ?? 0;
+      if (res.ok && payload?.ok && count===items.length) return {status:'success',saved:count};
+      // An invalid model proposal should not discard every valid editorial proposal.
+      // Keep the stage partial if even one item is rejected; never report a false success.
+      if(stage==='editorial_actions' && res.status===422 && items.length>1) {
+        let saved=0;
+        const failures=[];
+        for(const item of items){
+          const one=await saveGEOStage(stage,[item]);
+          saved+=one.saved;
+          if(one.status!=='success')failures.push(String(one.error||'rejected').slice(0,150));
+        }
+        return {status:saved===items.length?'success':'partial',saved,
+          error:failures.length?'Rejected '+failures.length+' invalid proposal(s): '+failures.slice(0,3).join(' | '):undefined};
+      }
       return {status:'partial',saved:count,error:'Remote GEO persistence rejected or partially saved: '+JSON.stringify(payload?.errors || payload?.error || res.status).slice(0,300)};
+    } catch(e) {
+      lastError=e?.message||String(e);
+      if(attempt<maxAttempts) {
+        console.warn('[GEO_PERSIST] '+stage+' attempt '+attempt+' unavailable; retrying safe request: '+lastError.slice(0,130));
+        await new Promise(resolve=>setTimeout(resolve,attempt*1000));
+      }
     }
-    return {status:'success',saved:count};
-  }catch(e){return {status:'partial',saved:0,error:'GEO API persistence unavailable: '+(e?.message||String(e))}}
+  }
+  return {status:'partial',saved:0,error:'GEO API persistence unavailable after '+maxAttempts+' attempt(s): '+lastError};
 }
 async function updateGEOAgentRun(outcome) {
   const base=process.env.GEO_API_URL || process.env.SITE_URL;
@@ -371,7 +398,7 @@ async function stageEditorialActions() {
  if(!items.length){
   stageResults.editorial_actions={count:0,persisted:0,reason:'No supported cross-site proposals in this evidence batch'};
   console.log('[EDITORIAL] No evidence-backed cross-site proposals generated');
-  return {records_processed:0,status:'success',note:'No editorial proposals generated'};
+  return {records_processed:0,status:'partial',error:'No evidence-backed editorial proposals generated; inspect model output'};
  }
  const byId=new Map((stageResults.evidence?.items||[]).map(e=>[e.id,e]));
  const crypto=require('node:crypto');
