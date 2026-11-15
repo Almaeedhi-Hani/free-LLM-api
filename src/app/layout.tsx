@@ -94,7 +94,7 @@ export default async function RootLayout({
               <a dir="ltr" href={`tel:${contact.phone}`}>
                 {contact.phoneDisplay}
               </a>
-              <a href={`mailto:${contact.email}`}>{contact.email}</a>
+              {contact.email ? <a href={`mailto:${contact.email}`}>{contact.email}</a> : null}
               <a
                 href={contact.whatsapp}
                 target="_blank"
