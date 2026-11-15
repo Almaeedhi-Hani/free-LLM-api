@@ -13,6 +13,7 @@ export interface RadarSearchDiagnostic {
   response_received: boolean;
   results_parsed: number;
   results_accepted: number;
+  request_count?: number;
   blocked_detected: boolean;
   failure_reason: string;
 }
@@ -24,6 +25,7 @@ export interface RadarMetrics {
   evidenced_observations: number;
   evidence_coverage_percent: number;
   search_attempts: number;
+  provider_requests: number;
   search_responses: number;
   search_response_rate_percent: number | null;
   results_parsed: number;
@@ -45,6 +47,7 @@ export function calculateRadarMetrics(
     evidenced_observations: evidenced.length,
     evidence_coverage_percent: observations.length ? Math.round(100 * evidenced.length / observations.length) : 0,
     search_attempts: diagnostics.length,
+    provider_requests: diagnostics.reduce((n, d) => n + Math.max(0, d.request_count ?? 1), 0),
     search_responses: searchResponses,
     search_response_rate_percent: diagnostics.length ? Math.round(100 * searchResponses / diagnostics.length) : null,
     results_parsed: diagnostics.reduce((n, d) => n + Math.max(0, d.results_parsed), 0),
