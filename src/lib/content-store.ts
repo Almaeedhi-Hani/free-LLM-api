@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { type EditorialItem } from './editorial-workflow';
+import { type EditorialItem } from './editorial-types';
 import path from 'path';
 import {
   StorageConflictError,
