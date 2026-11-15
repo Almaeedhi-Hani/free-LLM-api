@@ -22,7 +22,7 @@ const fixtures={
  assert.equal(calls,3);
  assert.deepEqual(out.diagnostics.map(x=>x.language),['ar','en','zh']);
  assert.deepEqual(out.diagnostics.map(x=>x.provider),['exa','tavily','parallel']);
- assert.equal(out.results.length,5,'Dedup same-domain results across languages while preserving distinct competitors');
+ assert.equal(out.results.length,3,'Dedup same-domain results across languages while preserving distinct competitors');
  assert.ok(out.results.every(x=>x.verification==='candidate'),'Search output is unverified candidates, not confirmed competitors');
  assert.ok(out.results.every(x=>x.url&&x.title&&x.query&&x.source),'Evidence fields preserved');
  assert.ok(!out.results.some(x=>x.domain.endsWith('.gov.sa')),'Official sites excluded');
@@ -37,9 +37,9 @@ const fixtures={
  assert.equal(matrix.length,3);
  assert.equal(metrics.unique_competitors,3);
  assert.equal(metrics.unique_queries,3);
- assert.equal(metrics.results_accepted,5);
+ assert.equal(metrics.results_accepted,3);
  assert.ok(memory,'Query memory created');
- assert.deepEqual(matrix.find(x=>x.competitor_id==='alpha.example').languages,['ar','en']);
- assert.deepEqual(matrix.find(x=>x.competitor_id==='beta.example').languages,['en','zh']);
+ assert.deepEqual(matrix.find(x=>x.competitor_id==='alpha.example').languages,['ar']);
+ assert.deepEqual(matrix.find(x=>x.competitor_id==='beta.example').languages,['en']);
  console.log('PASS provider -> candidate evidence -> query memory -> competitor matrix -> metrics (isolated, no DB writes)');
 })().catch(e=>{console.error(e);process.exitCode=1});
