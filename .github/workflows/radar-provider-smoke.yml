@@ -1,4 +1,4 @@
-name: Radar provider live smoke (manual, main only)
+name: Radar provider smoke (manual, feature branch)
 
 on:
   workflow_dispatch:
@@ -6,63 +6,33 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: radar-provider-smoke-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   probe:
+    name: Live AR EN ZH (3 requests max)
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     env:
+      CI: 'true'
+      NODE_ENV: test
       EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
       TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
       PARALLEL_API_KEY: ${{ secrets.PARALLEL_API_KEY }}
       FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
     steps:
-      - name: Read-only bounded API probe (no checkout, no database, no deployment)
-        shell: bash
-        run: |
-          node <<'NODE'
-          const providers = [
-            {name:'exa',key:process.env.EXA_API_KEY,url:'https://api.exa.ai/search',headers:k=>({'x-api-key':k}),body:q=>({query:q,type:'auto',numResults:5}),items:x=>x?.results},
-            {name:'tavily',key:process.env.TAVILY_API_KEY,url:'https://api.tavily.com/search',headers:k=>({Authorization:'Bearer '+k}),body:q=>({query:q,search_depth:'basic',max_results:5,include_answer:false,include_raw_content:false}),items:x=>x?.results},
-            {name:'parallel',key:process.env.PARALLEL_API_KEY,url:'https://api.parallel.ai/v1/search',headers:k=>({'x-api-key':k}),body:q=>({objective:'Find Saudi company formation service provider websites: '+q,search_queries:[q],mode:'turbo',advanced_settings:{max_results:5,excerpt_settings:{max_chars_per_result:400}}}),items:x=>x?.results},
-            {name:'firecrawl',key:process.env.FIRECRAWL_API_KEY,url:'https://api.firecrawl.dev/v2/search',headers:k=>({Authorization:'Bearer '+k}),body:q=>({query:q,limit:5,sources:[{type:'web'}]}),items:x=>Array.isArray(x?.data)?x.data:x?.data?.web}
-          ].filter(p=>Boolean(p.key?.trim()));
-          const queries=[
-            {language:'ar',query:'خطوات تأسيس شركة في السعودية'},
-            {language:'en',query:'how to register a company in Saudi Arabia'},
-            {language:'zh',query:'沙特阿拉伯公司注册流程'}
-          ];
-          if(!providers.length){console.error('NO_CONFIGURED_PROVIDERS');process.exit(2)}
-          const diagnostics=[],domains=new Set(),languages=new Set();
-          let calls=0;
-          for(let i=0;i<queries.length&&calls<3;i++){
-            const q=queries[i];let accepted=false;
-            for(let j=0;j<providers.length&&calls<3&&!accepted;j++){
-              const p=providers[(i+j)%providers.length];
-              calls++;
-              const started=Date.now();
-              try{
-                const response=await fetch(p.url,{method:'POST',headers:{'content-type':'application/json',...p.headers(p.key)},body:JSON.stringify(p.body(q.query)),signal:AbortSignal.timeout(9000)});
-                const payload=await response.json().catch(()=>null);
-                const items=response.ok?p.items(payload):[];
-                const found=[];
-                for(const item of Array.isArray(items)?items:[]){
-                  try{
-                    const u=new URL(item.url);
-                    if(!['https:','http:'].includes(u.protocol)||!item.title)continue;
-                    const domain=u.hostname.toLowerCase().replace(/^www\./,'');
-                    if(domain.endsWith('.gov.sa'))continue;
-                    found.push(domain);domains.add(domain);
-                  }catch{}
-                }
-                accepted=found.length>0;
-                if(accepted)languages.add(q.language);
-                diagnostics.push({provider:p.name,language:q.language,http_status:response.status,results:found.length,duration_ms:Date.now()-started,status:response.ok?(accepted?'ok':'empty'):'http_error'});
-              }catch(e){
-                diagnostics.push({provider:p.name,language:q.language,http_status:0,results:0,duration_ms:Date.now()-started,status:e?.name==='TimeoutError'?'timeout':'network_error'});
-              }
-            }
-          }
-          console.log(JSON.stringify({read_only:true,request_count:calls,request_limit:3,configured_providers:providers.map(p=>p.name),unique_domains:domains.size,languages_with_results:[...languages],diagnostics},null,2));
-          if(!domains.size){console.error('FAIL: no candidate domains');process.exitCode=1}
-          else if(languages.size<2){console.error('PARTIAL: fewer than two languages yielded candidates');process.exitCode=1}
-          NODE
+      - name: Check out the selected feature-branch commit
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Verify isolated radar fixture tests without external calls
+        run: npm run test:market
+      - name: Verify real provider candidates for Arabic, English and Chinese
+        run: node scripts/radar-provider-live-smoke.cjs
