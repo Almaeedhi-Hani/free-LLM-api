@@ -21,7 +21,7 @@ function RequestCard({r,secret,onChange,onDelete}:{r:RequestRow;secret:string;on
  const [expanded,setExpanded]=useState(false);
  const [busy,setBusy]=useState(false);
  const [actionError,setActionError]=useState("");
- const state = r.share_opened_at ? "مشاركة مفتوحة" : r.viewed_at ? "تمت المشاهدة" : "جديد · لم يُفتح";
+ const state = r.share_opened_at ? "تم الضغط على المشاركة" : r.viewed_at ? "تمت المشاهدة" : "جديد · لم يُفتح";
  const stateStyle = r.share_opened_at ? "border-[#9cac9d] bg-[#e4eee6] text-[#275e43]" : r.viewed_at ? "border-[#cbd6c8] bg-[#edf1ed] text-[#49665f]" : "border-[#d4ad66] bg-[#fff0cf] text-[#81551c]";
  async function mark(action:"viewed"|"share_opened"){
   try {
@@ -35,13 +35,12 @@ function RequestCard({r,secret,onChange,onDelete}:{r:RequestRow;secret:string;on
   if(!expanded&&!r.viewed_at)void mark("viewed");
   setExpanded(v=>!v);
  }
+ const shareUrl="https://api.whatsapp.com/send?text="+encodeURIComponent(shareText(r));
  function share(){
-  const url="https://api.whatsapp.com/send?text="+encodeURIComponent(shareText(r));
-  const opened=window.open(url,"_blank");
-  if(opened){opened.opener=null;void mark("share_opened");}
-  else setActionError("تعذر فتح واتساب؛ اسمح بالنوافذ المنبثقة وحاول مجددًا");
+  setActionError("");
+  void mark("share_opened");
  }
- async function remove(){
+  async function remove(){
   if(!window.confirm("هل تريد حذف طلب "+display(r.name)+" نهائيًا؟ لا يمكن التراجع عن الحذف."))return;
   setBusy(true);setActionError("");
   try{
@@ -66,7 +65,7 @@ function RequestCard({r,secret,onChange,onDelete}:{r:RequestRow;secret:string;on
     <span className="text-sm text-[#647e77]">{expanded?"إخفاء التفاصيل ▲":"عرض التفاصيل ▼"}</span>
    </div>
   </button>
-  {!expanded&&<button type="button" onClick={share} className="mt-4 w-full rounded-full bg-[#c8a563] px-4 py-2.5 font-semibold text-[#163f38] hover:bg-[#b99654] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#163f38]">مشاركة الطلب عبر واتساب</button>}
+  {!expanded&&<a href={shareUrl} target="_blank" rel="noopener noreferrer" onClick={share} className="mt-4 block w-full rounded-full bg-[#c8a563] px-4 py-2.5 text-center font-semibold text-[#163f38] hover:bg-[#b99654] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#163f38]">مشاركة الطلب عبر واتساب</a>}
   {actionError&&<p role="alert" className="mt-2 text-sm text-red-700">{actionError}</p>}
   {expanded&&<div id={"request-details-"+r.id} className="mt-3 flex flex-1 flex-col border-t border-[#d9d9cd] pt-3">
    <h4 className="mb-2 shrink-0 text-lg font-semibold">مراجعة الطلب</h4>
