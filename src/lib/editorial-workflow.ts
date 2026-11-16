@@ -77,8 +77,6 @@ export function validateEditorialItem(item:unknown):EditorialItem {
  if(e.schema_suggestions&&(!Array.isArray(e.schema_suggestions)||e.schema_suggestions.length>5||!e.schema_suggestions.every(s=>['Article','BreadcrumbList','Service','WebPage','FAQPage','CollectionPage'].includes(s))))throw Error('Invalid Schema suggestion');
  if(!Number.isFinite(Date.parse(e.createdAt)))throw Error('Invalid editorial creation date');
  if(e.status==='approved'){
-   const publicationIssues=editorialPublicationIssues(e);
-   if(publicationIssues.length)throw Error('Editorial publication blocked: '+publicationIssues.join(' '));
    if(!e.reviewedAt||!Number.isFinite(Date.parse(e.reviewedAt)))throw Error('Editorial approval must have reviewedAt');
    if(e.kind==='technical_seo'||e.kind==='internal_link')throw Error('Technical SEO and links are implementation tasks, never published by content store');
    if(!Array.isArray(e.verified_sources)||e.verified_sources.length===0||e.verified_sources.length>12)throw Error('Approval needs reviewed source links');
