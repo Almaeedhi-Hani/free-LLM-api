@@ -12,8 +12,13 @@ export function EditorialBlock({items,lang,kind,target,inside=false}:{items:Edit
    <h2>{e.title}</h2><p>{e.summary}</p>
    {e.body.split(/\n\s*\n/).filter(Boolean).map((p,i)=><p key={i}>{p}</p>)}
    {(e.sections||[]).map((section,i)=><section key={i}><h3>{section.h2}</h3><p>{section.body}</p>{(section.subsections||[]).map((sub,j)=><div key={j}><h4>{sub.h3}</h4><p>{sub.body}</p></div>)}</section>)}
-   {e.internal_links?.filter(link=>link.node_id!=="insights-hub"||approvedEditorial(items,lang).some(a=>a.kind==="guide"||a.kind==="comparison")).slice(0,4).map(link=><p key={link.node_id}><a href={localizedPath(lang,siteTopicPath(link.node_id)!)}>{link.anchor}</a></p>)}
-   {(!e.internal_links||e.internal_links.length===0)&&e.topic_node_id&&topicRelatedLiveNodes(e.topic_node_id).filter(node=>node.route!==target&&node.route!=="/insights").slice(0,3).map(node=><p key={node.id}><a href={localizedPath(lang,node.route!)}>{node.primary_keyword[lang]}</a></p>)}
+   {e.internal_links?.filter((link,index,all)=>{
+     const route=siteTopicPath(link.node_id);
+     if(!route||route===target||route==='/services/'+target||all.findIndex(other=>other.node_id===link.node_id)!==index)return false;
+     if(route==='/insights'&&!approvedEditorial(items,lang).some(a=>a.kind==='guide'||a.kind==='comparison'))return false;
+     return true;
+   }).slice(0,4).map(link=><p key={link.node_id}><a href={localizedPath(lang,siteTopicPath(link.node_id)!)}>{link.anchor}</a></p>)}
+   {(!e.internal_links||e.internal_links.length===0)&&e.topic_node_id&&topicRelatedLiveNodes(e.topic_node_id).filter(node=>node.route!==target&&node.route!=='/services/'+target&&(node.route!=='/insights'||approvedEditorial(items,lang).some(a=>a.kind==='guide'||a.kind==='comparison'))).slice(0,3).map(node=><p key={node.id}><a href={localizedPath(lang,node.route!)}>{node.primary_keyword[lang]}</a></p>)}
    <p><small>{lang==='ar'?'مراجع تمت مراجعتها قبل النشر؛ تحقّق من المتطلبات الحالية لدى الجهة المختصة.':lang==='zh'?'发布前已审核相关参考资料；请再次核对主管部门的现行要求。':'References reviewed before publishing; verify current rules with the competent authority.'}</small></p>
    {(e.verified_sources||[]).map((url,i)=><p key={url}><a href={url} target="_blank" rel="noopener noreferrer">{lang==='ar'?'المصدر المراجع':lang==='zh'?'已审核来源':'Reviewed source'} {i+1}</a></p>)}
   </article>)}
