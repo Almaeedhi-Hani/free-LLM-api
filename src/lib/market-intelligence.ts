@@ -1490,17 +1490,19 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
                 competitor_id: comp.id,
                 language: lang,
                  query: seed,
-                 rank: source.requiresKey || source.id === 'multi-provider-search' ? null : r.rank,
-                 title: source.requiresKey ? undefined : r.title,
-                 snippet: source.requiresKey ? undefined : r.snippet,
-                 url: source.requiresKey ? undefined : r.url,
+                 // Discovery providers return candidates, not verified organic Google ranks.
+                 rank: null,
+                 title: r.title,
+                 snippet: r.snippet,
+                 url: r.url,
                 observed_at: observedAt,
                 strengths: [],
                 weaknesses: [],
+                raw: {source_id: source.id, result_order: r.rank, rank_status: 'unverified_provider_order', evidence_status: 'candidate'},
               });
               summary.observations_recorded += 1;
               diag.results_accepted += 1;
-              runObservations.push({competitor_id: comp.id, language: lang, query: seed, url: source.requiresKey ? undefined : r.url, observed_at: observedAt});
+              runObservations.push({competitor_id: comp.id, language: lang, query: seed, url: r.url, observed_at: observedAt});
             } catch (e) {
               summary.errors.push(`competitor upsert failed: ${e instanceof Error ? e.message : String(e)}`);
             }
