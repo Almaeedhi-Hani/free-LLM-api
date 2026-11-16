@@ -14,7 +14,7 @@ export async function POST(req:NextRequest){
   if(!response.ok)throw Error('Search provider unavailable');
   const xml=(await response.text()).slice(0,250000);
   const found:Array<{url:string;title:string;snippet:string}>=[];
-  for(const match of Array.from(xml.matchAll(/<item\b[^>]*>([\s\S]*?)<\/item>/gi)){
+  for(const match of Array.from(xml.matchAll(/<item\b[^>]*>([\s\S]*?)<\/item>/gi))){
    const field=(tag:string)=>clean(match[1].match(new RegExp('<'+tag+'(?:\\s[^>]*)?>([\\s\\S]*?)<\\/'+tag+'>','i'))?.[1]||'');
    const url=field('link');if(!allowed(url)||found.some(x=>x.url===url))continue;
    found.push({url,title:field('title').slice(0,180),snippet:field('description').slice(0,260)});
