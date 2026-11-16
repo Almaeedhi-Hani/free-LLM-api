@@ -11,7 +11,7 @@ export function EditorialBlock({items,lang,kind,target,inside=false}:{items:Edit
    <p className="eyebrow">{lang==='ar'?'دليل عملي':lang==='zh'?'实用指南':'PRACTICAL GUIDANCE'}</p>
    <h2>{e.title}</h2><p>{e.summary}</p>
    {e.body.split(/\n\s*\n/).filter(Boolean).map((p,i)=><p key={i}>{p}</p>)}
-   {(e.sections||[]).map((section,i)=><section key={i}><h3>{section.h2}</h3><p>{section.body}</p>{(section.subsections||[]).map((sub,j)=><div key={j}><h4>{sub.h3}</h4><p>{sub.body}</p></div>)}</section>)}
+   {(e.sections||[]).map((section,i)=><section key={i}><h2>{section.h2}</h2><p>{section.body}</p>{(section.subsections||[]).map((sub,j)=><div key={j}><h3>{sub.h3}</h3><p>{sub.body}</p></div>)}</section>)}
    {e.internal_links?.filter((link,index,all)=>{
      const route=siteTopicPath(link.node_id);
      if(!route||route===target||route==='/services/'+target||all.findIndex(other=>other.node_id===link.node_id)!==index)return false;
