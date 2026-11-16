@@ -1486,23 +1486,25 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
                  summary.competitors_discovered += 1;
                }
               const observedAt = new Date().toISOString();
+              // Brave Search results must not be persisted under its search-result usage terms.
+              const retainEvidence = source.id !== 'brave-search';
               await recordObservation({
                 competitor_id: comp.id,
                 language: lang,
                  query: seed,
                  // Discovery providers return candidates, not verified organic Google ranks.
                  rank: null,
-                 title: r.title,
-                 snippet: r.snippet,
-                 url: r.url,
+                 title: retainEvidence ? r.title : undefined,
+                 snippet: retainEvidence ? r.snippet : undefined,
+                 url: retainEvidence ? r.url : undefined,
                 observed_at: observedAt,
                 strengths: [],
                 weaknesses: [],
-                raw: {source_id: source.id, result_order: r.rank, rank_status: 'unverified_provider_order', evidence_status: 'candidate'},
+                raw: retainEvidence ? {source_id: source.id, result_order: r.rank, rank_status: 'unverified_provider_order', evidence_status: 'candidate'} : undefined,
               });
               summary.observations_recorded += 1;
               diag.results_accepted += 1;
-              runObservations.push({competitor_id: comp.id, language: lang, query: seed, url: r.url, observed_at: observedAt});
+              runObservations.push({competitor_id: comp.id, language: lang, query: seed, url: retainEvidence ? r.url : undefined, observed_at: observedAt});
             } catch (e) {
               summary.errors.push(`competitor upsert failed: ${e instanceof Error ? e.message : String(e)}`);
             }
