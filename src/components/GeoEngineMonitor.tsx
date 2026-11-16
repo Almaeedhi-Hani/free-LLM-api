@@ -17,6 +17,9 @@ const str = (value: unknown) => typeof value === 'string' ? value : '';
 export default function GeoEngineMonitor({runs,competitors,keywords,opportunities,goals,sources,loading,refresh}:Props) {
   const latest = [...runs].sort((a,b) => Date.parse(str(b.started_at)||'1970-01-01')-Date.parse(str(a.started_at)||'1970-01-01'))[0];
   const status = latest ? str(latest.status) || 'غير معروف' : 'لم يُسجل تشغيل';
+  const completedRuns = runs.filter(run => ['success','completed'].includes(str(run.status).toLowerCase())).length;
+  const failedRuns = runs.filter(run => ['failed','error'].includes(str(run.status).toLowerCase())).length;
+  const runningRuns = runs.filter(run => ['running','in_progress'].includes(str(run.status).toLowerCase())).length;
   const counts = [
     ['المنافسون',competitors.length],['الكلمات المفتاحية',keywords.length],
     ['الفرص',opportunities.length],['الأهداف',goals.length],['سجلات التشغيل',runs.length]
@@ -29,6 +32,12 @@ export default function GeoEngineMonitor({runs,competitors,keywords,opportunitie
     </div>
     <p className="text-sm">آخر حالة مسجلة: <strong>{status}</strong> — {latest?.started_at ? new Date(str(latest.started_at)).toLocaleString('ar-SA') : 'لا يوجد وقت مسجل'}</p>
     <div className="grid grid-cols-2 md:grid-cols-5 gap-3">{counts.map(([label,count])=><div key={label} className="rounded-lg border p-3"><div className="text-sm text-slate-500">{label}</div><div className="text-xl font-bold">{count}</div></div>)}</div>
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+      <div className="rounded-lg border p-3">تشغيلات ناجحة مسجلة: <strong>{completedRuns}</strong></div>
+      <div className="rounded-lg border p-3">تشغيلات فاشلة مسجلة: <strong>{failedRuns}</strong></div>
+      <div className="rounded-lg border p-3">تشغيلات مسجلة كجارية: <strong>{runningRuns}</strong></div>
+    </div>
+    <p className="text-xs text-slate-500">الحالات مستخرجة من السجلات المحفوظة، وقد تكون قديمة؛ لا تعني وجود تشغيل حي.</p>
     <h3 className="font-semibold">مزودو البحث</h3>
     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">{providers.map(name=>{
       const recorded=sources.some(s=>JSON.stringify(s).toLowerCase().includes(name.toLowerCase()));
