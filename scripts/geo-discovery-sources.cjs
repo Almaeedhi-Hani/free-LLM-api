@@ -31,7 +31,7 @@ function parseRss(xml,query,language,max=5){
    const host=u.hostname.replace(/^www\./,'').toLowerCase();
    if(!host||seen.has(host)||host.endsWith('.gov.sa')||/(news|gazette|wikipedia|youtube|aljazeera|alarabiya|saudia\.com)/i.test(host))continue;
    seen.add(host);u.hash='';
-   results.push({url:u.href,title:title.slice(0,250),snippet:snippet.slice(0,400),language,query,source:'bing-rss',collected_at:new Date().toISOString()});
+   results.push({url:u.href,title:title.slice(0,250),snippet:snippet.slice(0,400),language,query,source:'bing-rss',collected_at:new Date().toISOString(),verification:'candidate',rank:null,rank_status:'unverified_provider_order'});
    if(results.length>=max)break;
   }catch{}
  }
