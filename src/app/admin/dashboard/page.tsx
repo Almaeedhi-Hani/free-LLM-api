@@ -251,7 +251,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!authed || !secret) return;
     if (tab === 'home') refreshMarket();
-    else if (tab === 'agent') {fetchRuns();fetchMarketSources();}
+    else if (tab === 'agent') {void Promise.all([refreshMarket(),fetchMarketSources()]);}
     else if (tab === 'competitors') {fetchCompetitors();fetchMarketSources();}
     else if (tab === 'keywords') fetchKeywords();
     else if (tab === 'opportunities') fetchOpportunities();
