@@ -30,6 +30,7 @@ const fixtures={
  assert.deepEqual(out.diagnostics.map(x=>x.provider),['exa','tavily','parallel']);
  assert.equal(out.results.length,5,'Preserve one evidence result per domain and language');
  assert.ok(out.results.every(x=>x.verification==='candidate'),'Search output is unverified candidates, not confirmed competitors');
+ assert.ok(out.results.every(x=>x.rank===null&&x.rank_status==='unverified_provider_order'),'Provider order must never be presented as verified SERP position');
  assert.ok(out.results.every(x=>x.url&&x.title&&x.query&&x.source),'Evidence fields preserved');
  assert.ok(!out.results.some(x=>x.domain.endsWith('.gov.sa')),'Official sites excluded');
  const competitors=new Map();
