@@ -667,6 +667,7 @@ export default function AdminDashboard() {
 
             {tab === 'editorial' && (
               <EditorialReviewPanel
+                adminSecret={secret}
                 items={content.editorialItems||[]}
                 saving={saving}
                 onSaveItems={async items=>await save({editorialItems:items})}

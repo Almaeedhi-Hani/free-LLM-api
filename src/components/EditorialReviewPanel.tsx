@@ -16,13 +16,16 @@ function linkFor(item:EditorialItem):string|undefined{
  if(item.kind==='service')return base+'/services/'+item.target;
  if((item.kind==='guide'||item.kind==='comparison')&&item.slug)return base+'/insights/'+item.slug;
 }
-export default function EditorialReviewPanel({items,saving,onSaveItems}:{items:EditorialItem[];saving:boolean;onSaveItems:(items:EditorialItem[])=>Promise<boolean>}){
+export default function EditorialReviewPanel({items,saving,onSaveItems,adminSecret}:{items:EditorialItem[];saving:boolean;onSaveItems:(items:EditorialItem[])=>Promise<boolean>;adminSecret:string}){
  const [editing,setEditing]=useState<{id:string;title:string;summary:string;body:string}|null>(null);
  const [error,setError]=useState('');
  const [filter,setFilter]=useState('all');
  const [query,setQuery]=useState('');
  const [page,setPage]=useState(0);
  const [sourceDrafts,setSourceDrafts]=useState<Record<string,string>>({});
+ const [sourceResults,setSourceResults]=useState<Record<string,Array<{url:string;title:string;snippet:string}>>>({});
+ const [searching,setSearching]=useState<string|null>(null);
+ const [notice,setNotice]=useState('');
  const [expanded,setExpanded]=useState<string|null>(null);
  const pageSize=10;
  const filtered=items.filter(x=>(filter==='all'||x.status===filter)&&(!query.trim()||[x.title,x.summary,x.target,x.lang,x.kind].join(' ').toLowerCase().includes(query.trim().toLowerCase())));
@@ -37,6 +40,17 @@ export default function EditorialReviewPanel({items,saving,onSaveItems}:{items:E
    const updated=item.status==='approved'?[...items,next]:items.map(x=>x.id===item.id?next:x);
    if(await update(updated))setEditing(null);
  };
+ const searchSources=async(item:EditorialItem)=>{
+   setError('');setNotice('');setSearching(item.id);
+   try{
+     const response=await fetch('/api/admin/editorial-sources',{method:'POST',headers:{'Content-Type':'application/json','x-admin-secret':adminSecret},body:JSON.stringify({title:item.title,lang:item.lang})});
+     const data=await response.json();
+     if(!response.ok)throw Error(data.error||'تعذر البحث');
+     setSourceResults(x=>({...x,[item.id]:data.results||[]}));
+     setNotice(data.notice||'راجع المصادر المقترحة قبل إضافتها.');
+   }catch(e){setError(e instanceof Error?e.message:'فشل البحث عن المصادر')}
+   finally{setSearching(null)}
+ };
  const addSource=async(item:EditorialItem)=>{
    const raw=(sourceDrafts[item.id]||'').trim();
    let url:URL;
@@ -47,12 +61,12 @@ export default function EditorialReviewPanel({items,saving,onSaveItems}:{items:E
    if(!window.confirm('هل راجعت الصفحة الحكومية بنفسك وتأكدت أنها تدعم المعلومات المقترحة؟ إضافة الرابط لا تعني اعتماد المحتوى أو نشره.'))return;
    const next={...item,evidence_refs:[...item.evidence_refs,{id:'manual-'+Date.now().toString(36),label:url.hostname,source:'human-review',kind:'official-manual',url:url.href}],updatedAt:new Date().toISOString()};
    try{validateEditorialItem(next)}catch(e){setError(e instanceof Error?e.message:'تعذر إضافة المصدر');return}
-   if(await update(items.map(x=>x.id===item.id?next:x)))setSourceDrafts(d=>({...d,[item.id]:''}));
+   if(await update(items.map(x=>x.id===item.id?next:x))){setSourceDrafts(d=>({...d,[item.id]:''}));setNotice('حُفظ المصدر للمراجعة. افتح الرابط وتحقق من صحة المعلومات قبل النشر.');}
  };
  const deleteItem=async(item:EditorialItem)=>{
    if(!window.confirm(item.status==='approved'?'تحذير: حذف هذا المحتوى المنشور سيزيله من الموقع ومن قائمة المراجعة نهائيًا. هل تريد المتابعة؟':'حذف هذا المقترح نهائيًا من المحتوى المحفوظ؟ لا يمكن التراجع عن الحذف.'))return;
    if(!window.confirm('تأكيد أخير: هل تريد حذف هذا المحتوى نهائيًا؟'))return;
-   if(await update(items.filter(x=>x.id!==item.id))){setExpanded(null);setPage(0)}
+   if(await update(items.filter(x=>x.id!==item.id))){setExpanded(null);setPage(0);setNotice('تم حذف المقترح بعد حفظ التغييرات.')}
  };
  const approve=async(item:EditorialItem)=>{
    if(item.kind==='technical_seo'||item.kind==='internal_link'){setError('المهام التقنية والروابط المقترحة تحتاج تنفيذًا واختبارًا في الكود، وليس نشرًا تلقائيًا.');return;}
@@ -61,7 +75,7 @@ export default function EditorialReviewPanel({items,saving,onSaveItems}:{items:E
    const next={...item,status:'approved' as const,reviewedAt:new Date().toISOString(),updatedAt:new Date().toISOString(),verified_sources:verified};
    try{validateEditorialItem(next)}catch(e){setError(e instanceof Error?e.message:'مصادر المراجعة غير صحيحة');return}
    if(!window.confirm('تأكيد بشري: هل فتحت روابط الجهات الحكومية المرصودة وتحققت أن المعلومات الواردة في المقترح تدعمها هذه الصفحات فعلًا؟ لا يكفي وجود الرابط وحده.'))return;
-   await update(items.map(x=>x.id===item.id?next:(x.status==='approved'&&x.lang===item.lang&&x.kind===item.kind&&x.target===item.target&&x.slug===item.slug?{...x,status:'rejected' as const,updatedAt:new Date().toISOString()}:x)));
+   if(await update(items.map(x=>x.id===item.id?next:(x.status==='approved'&&x.lang===item.lang&&x.kind===item.kind&&x.target===item.target&&x.slug===item.slug?{...x,status:'rejected' as const,updatedAt:new Date().toISOString()}:x))))setNotice('تم حفظ الاعتماد. يمكنك الآن معاينة الصفحة المنشورة.');
  };
  const reject=async(item:EditorialItem)=>{
    if(!window.confirm(item.status==='approved'?'إلغاء نشر هذا المحتوى من الموقع مع إبقاء سجله؟':'رفض هذا المقترح مع الاحتفاظ به في السجل؟'))return;
@@ -75,6 +89,7 @@ export default function EditorialReviewPanel({items,saving,onSaveItems}:{items:E
   <select className="border border-slate-300 rounded-lg p-2" value={filter} onChange={e=>{setFilter(e.target.value);setPage(0)}} aria-label="تصفية حالة المقترحات">
    <option value="all">كل الحالات</option><option value="pending">تحت المراجعة</option><option value="approved">منشور</option><option value="rejected">مرفوض</option>
   </select></div>
+  {notice&&<p role="status" className="text-emerald-800 text-sm mb-3">{notice}</p>}
   {error&&<p role="alert" className="text-red-700 text-sm mb-3">{error}</p>}
   {filtered.length===0&&<p className="text-slate-600">لا توجد مقترحات محفوظة بعد. يبدأ إنشاء المقترحات متعددة المسارات من تشغيلات GEO التالية؛ الأسئلة القديمة محفوظة بصورة منفصلة.</p>}
   <ul className="space-y-3">{visible.map(item=><li key={item.id} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 space-y-2">
@@ -82,11 +97,11 @@ export default function EditorialReviewPanel({items,saving,onSaveItems}:{items:E
    <div className="flex items-start justify-between gap-3"><div className="min-w-0"><h3 className="font-semibold text-slate-900 break-words">{item.title}</h3><p className="text-sm text-slate-600 line-clamp-2">{item.summary}</p></div><button className="btn-secondary text-xs shrink-0" aria-expanded={expanded===item.id} onClick={()=>setExpanded(expanded===item.id?null:item.id)}>{expanded===item.id?'إخفاء التفاصيل':'مراجعة التفاصيل'}</button></div>
    <div className="flex flex-wrap gap-2 items-center">
      {item.status==='approved'&&linkFor(item)&&<a href={linkFor(item)} target="_blank" rel="noopener noreferrer" className="btn-primary text-xs">معاينة الصفحة</a>}
-     {item.status==='pending'&&item.kind!=='technical_seo'&&item.kind!=='internal_link'&&<button className="btn-primary text-xs" disabled={saving||officialSourceCandidates(item.evidence_refs).length===0} onClick={()=>void approve(item)}>اعتماد ونشر</button>}
+     {item.status==='pending'&&item.kind!=='technical_seo'&&item.kind!=='internal_link'&&<button className="btn-primary text-xs" disabled={saving} onClick={()=>void approve(item)}>اعتماد ونشر</button>}
      {item.status==='approved'&&<button className="btn-secondary text-xs" disabled={saving} onClick={()=>void reject(item)}>إلغاء النشر</button>}
      {item.status==='pending'&&<button className="btn-secondary text-xs" disabled={saving} onClick={()=>void reject(item)}>رفض</button>}
      <button className="btn-secondary text-xs text-red-700" disabled={saving} onClick={()=>void deleteItem(item)}>حذف</button>
-     {item.status==='pending'&&officialSourceCandidates(item.evidence_refs).length===0&&<span className="text-xs text-amber-800">المصادر الرسمية غير مكتملة</span>}
+     {item.status==='pending'&&officialSourceCandidates(item.evidence_refs).length===0&&<span className="text-xs text-amber-800">يلزم توثيق المصادر قبل النشر — اضغط «اعتماد ونشر» لمعرفة السبب أو افتح التفاصيل للبحث</span>}
    </div>
    {expanded===item.id&&(editing?.id===item.id?<DataRolePanel tone="content" title="تحرير النص المقترح" description="هذه حقول تحرير نص المحتوى. الحفظ لا ينشره تلقائيًا."><div className="space-y-2">
       <input className="w-full border rounded p-2" aria-label="عنوان المحتوى" value={editing.title} onChange={e=>setEditing({...editing,title:e.target.value})}/>
@@ -128,10 +143,12 @@ export default function EditorialReviewPanel({items,saving,onSaveItems}:{items:E
         <p className="text-xs text-rose-900">لا تعتمد المحتوى عالي المخاطر قبل مراجعة مختص والتحقق من المصادر الرسمية. هذا التنبيه من النظام ولا يدخل ضمن المحتوى المنشور.</p>
       </DataRolePanel>}
       {item.status==='pending'&&<div className="space-y-3 border-t border-slate-200 pt-3">
+        <div className="flex flex-wrap gap-2"><button className="btn-secondary text-xs" disabled={saving||searching!==null} onClick={()=>void searchSources(item)}>{searching===item.id?'جارٍ البحث...':'بحث ذكي عن مصادر حكومية'}</button></div>
+        {(sourceResults[item.id]||[]).length>0&&<ul className="space-y-2">{sourceResults[item.id].map(result=><li key={result.url} className="border rounded-lg p-2 text-xs"><a href={result.url} target="_blank" rel="noopener noreferrer" className="text-blue-800 underline break-all">{result.title||result.url}</a><p className="text-slate-600">{result.snippet}</p><button className="btn-secondary text-xs mt-2" onClick={()=>setSourceDrafts(d=>({...d,[item.id]:result.url}))}>اختيار الرابط لإضافته بعد المراجعة</button></li>)}</ul>}
         <div className="flex flex-wrap gap-2"><input aria-label="رابط مصدر حكومي رسمي" className="border rounded-lg p-2 flex-1 min-w-40 text-sm" dir="ltr" placeholder="https://...gov.sa/..." value={sourceDrafts[item.id]||''} onChange={e=>setSourceDrafts(d=>({...d,[item.id]:e.target.value}))}/><button className="btn-secondary text-xs" disabled={saving||!sourceDrafts[item.id]?.trim()} onClick={()=>void addSource(item)}>إضافة مصدر موثق</button></div>
         <div className="flex flex-wrap items-center gap-2">
           <DataRoleTag tone="verification">{officialSourceCandidates(item.evidence_refs).length>0?'رصد آلي لروابط جهات حكومية':'بانتظار رصد مصادر حكومية'}</DataRoleTag>
-          {officialSourceCandidates(item.evidence_refs).length===0&&<span className="text-xs text-amber-800">لا توجد روابط حكومية في أدلة البحث المحفوظة؛ الاعتماد غير متاح.</span>}
+          {officialSourceCandidates(item.evidence_refs).length===0&&<span className="text-xs text-amber-800">لم يُرفق مصدر رسمي بعد. استخدم البحث الذكي أو أضف رابطًا يدويًا، ثم راجعه قبل النشر.</span>}
         </div>
         {officialSourceCandidates(item.evidence_refs).length>0&&<ul className="space-y-1">
           {officialSourceCandidates(item.evidence_refs).map(url=><li key={url} className="text-xs break-all"><a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-800 underline underline-offset-2">{url}</a></li>)}
