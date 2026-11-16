@@ -2,6 +2,53 @@
 import { useEffect, useState } from "react";
 
 type RequestRow = {id:string;created_at:string;package_slug:string;package_price:number;locale:string;name:string;email:string;phone:string;country:string;activity:string;company:string;budget:string;notes:string;status:string};
+const labels: Record<string,string> = {saved:"جديد",contacted:"تم التواصل",closed:"مغلق"};
+const display = (value: string | null | undefined) => value?.trim() || "—";
+const price = (value:number) => Number(value).toLocaleString("en-US")+" SAR";
+const date = (value:string) => new Date(value).toLocaleString("ar-SA",{dateStyle:"medium",timeStyle:"short"});
+const detailRows = (r:RequestRow) => [
+ ["الاسم الكامل",r.name],["البريد الإلكتروني",r.email],["رقم الهاتف",r.phone],
+ ["دولة الإقامة",r.country],["النشاط",r.activity],["هل لديك شركة خارج السعودية؟",r.company],
+ ["الميزانية الاستثمارية",r.budget],["ملاحظات",r.notes],
+ ["تفاصيل الباقة",r.package_slug],["السعر",price(r.package_price)],
+ ["اللغة",r.locale.toUpperCase()],["تاريخ الطلب",date(r.created_at)]
+];
+function shareText(r:RequestRow){
+ return ["طلب باقة استثمارية", "رقم الطلب: "+r.id, ...detailRows(r).map(([key,value])=>key+": "+display(value)), "الحالة: "+(labels[r.status]||r.status)].join("\n");
+}
+function RequestCard({r}:{r:RequestRow}){
+ const [expanded,setExpanded]=useState(false);
+ function share(){
+  const url="https://api.whatsapp.com/send?text="+encodeURIComponent(shareText(r));
+  window.open(url,"_blank","noopener,noreferrer");
+ }
+ return <article className="rounded-2xl border border-[#d9d9cd] bg-[#faf9f2] p-4 sm:p-5 text-[#163f38] shadow-sm">
+  <button type="button" aria-expanded={expanded} aria-controls={"request-details-"+r.id} onClick={()=>setExpanded(v=>!v)} className="w-full text-right focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#163f38]">
+   <div className="flex items-start justify-between gap-3">
+    <div className="min-w-0">
+     <p className="text-xs text-[#647e77]">رقم الطلب <span dir="ltr" className="inline-block font-mono">{r.id.slice(0,8)}</span></p>
+     <h3 className="mt-1 text-lg font-bold break-words">{display(r.name)}</h3>
+    </div>
+    <span className="shrink-0 rounded-full border border-[#cbd6c8] px-3 py-1 text-xs">{labels[r.status]||r.status}</span>
+   </div>
+   <p className="mt-3 font-semibold break-words">{r.package_slug}</p>
+   <div className="mt-2 flex items-center justify-between gap-3">
+    <span className="font-semibold" dir="ltr">{price(r.package_price)}</span>
+    <span className="text-sm text-[#647e77]">{expanded?"إخفاء التفاصيل ▲":"عرض التفاصيل ▼"}</span>
+   </div>
+  </button>
+  {!expanded&&<button type="button" onClick={share} className="mt-4 w-full rounded-full bg-[#c8a563] px-4 py-2.5 font-semibold text-[#163f38] hover:bg-[#b99654] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#163f38]">مشاركة الطلب عبر واتساب</button>}
+  {expanded&&<div id={"request-details-"+r.id} className="mt-5 border-t border-[#d9d9cd] pt-4">
+   <h4 className="mb-3 text-xl font-semibold">مراجعة الطلب</h4>
+   <dl>{detailRows(r).map(([label,value])=><div key={label} className="grid grid-cols-1 gap-1 border-b border-[#d9d9cd] py-3 sm:grid-cols-[minmax(130px,1fr)_minmax(0,1.4fr)] sm:gap-4">
+    <dt className="text-sm text-[#647e77]">{label}</dt>
+    <dd className="min-w-0 break-words font-medium whitespace-pre-wrap" dir={label==="البريد الإلكتروني"||label==="رقم الهاتف"?"ltr":undefined}>{display(value)}</dd>
+   </div>)}</dl>
+   <p className="mt-3 text-xs text-[#647e77] break-all">المعرّف الداخلي: {r.id}</p>
+   <button type="button" onClick={()=>setExpanded(false)} className="mt-4 rounded-full border border-[#9cac9d] px-5 py-2">إغلاق التفاصيل</button>
+  </div>}
+ </article>;
+}
 export default function PackageRequestsAdmin({secret}:{secret:string}){
  const [rows,setRows]=useState<RequestRow[]>([]);
  const [loading,setLoading]=useState(false);
@@ -16,19 +63,10 @@ export default function PackageRequestsAdmin({secret}:{secret:string}){
   finally{setLoading(false)}
  }
  useEffect(()=>{void refresh()},[secret]);
- return <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200" dir="rtl">
-  <div className="flex justify-between gap-3 items-center mb-4"><h2 className="text-xl font-bold">طلبات الباقات ({rows.length})</h2><button type="button" onClick={refresh} disabled={loading} className="rounded-lg border px-4 py-2">{loading?"جارٍ التحميل...":"تحديث الطلبات"}</button></div>
+ return <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6" dir="rtl">
+  <div className="mb-5 flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-bold">طلبات الباقات ({rows.length})</h2><button type="button" onClick={refresh} disabled={loading} className="rounded-lg border px-4 py-2">{loading?"جارٍ التحميل...":"تحديث الطلبات"}</button></div>
   {error&&<p role="alert" className="text-red-700">{error}</p>}
   {!loading&&!rows.length&&!error&&<p>لا توجد طلبات محفوظة حتى الآن.</p>}
-  <div className="space-y-4">{rows.map(r=><article key={r.id} className="border rounded-xl p-4">
-   <p className="font-semibold">{r.name} — {r.package_slug} ({Number(r.package_price).toLocaleString("en-US")} SAR)</p>
-   <p className="text-sm">{new Date(r.created_at).toLocaleString("ar-SA")} · {r.status} · {r.locale}</p>
-   <p>الهاتف: <a href={"tel:"+r.phone} className="underline" dir="ltr">{r.phone}</a></p>
-   <p>البريد: <a href={"mailto:"+r.email} className="underline">{r.email}</a></p>
-   <p>الإقامة: {r.country||"—"} · النشاط: {r.activity}</p>
-   <p>شركة خارج السعودية: {r.company} · الميزانية: {r.budget}</p>
-   {r.notes&&<p className="whitespace-pre-wrap">ملاحظات: {r.notes}</p>}
-   <p className="text-xs break-all text-slate-500">رقم الطلب: {r.id}</p>
-  </article>)}</div>
- </section>
+  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3">{rows.map(r=><RequestCard key={r.id} r={r}/>)}</div>
+ </section>;
 }
