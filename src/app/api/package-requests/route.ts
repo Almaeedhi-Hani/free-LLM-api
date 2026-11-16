@@ -32,14 +32,16 @@ export async function POST(req: NextRequest) {
     const record = { id, package_slug: packageSlug, package_price: offer.price, locale, name, email, phone, country, activity, company, budget, notes, status: "saved" };
     const saved = await fetch(credentials.url + "/rest/v1/package_requests", {
       method: "POST", cache: "no-store",
-      headers: { apikey: credentials.key, Authorization: "Bearer " + credentials.key, "Content-Type": "application/json", Prefer: "return=minimal" },
+      headers: { apikey: credentials.key, Authorization: "Bearer " + credentials.key, "Content-Type": "application/json", Prefer: "return=representation" },
       body: JSON.stringify(record)
     });
     if (!saved.ok) {
       console.error("Package request persistence failed", saved.status);
       return NextResponse.json({ error: "Could not save request" }, { status: 503 });
     }
-    return NextResponse.json({ saved: true, reference: id });
+    const records = await saved.json();
+    const requestNumber = records?.[0]?.request_number;
+    return NextResponse.json({ saved: true, reference: typeof requestNumber === "number" ? "PR-"+String(requestNumber).padStart(4,"0") : id });
   } catch (error) {
     console.error("Package request error", error instanceof Error ? error.message : "unknown");
     return NextResponse.json({ error: "Request failed" }, { status: 503 });
