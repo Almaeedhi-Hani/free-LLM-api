@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContent, setContent } from '@/lib/content-store';
-import {validateEditorialBatch,officialSourceCandidates} from '@/lib/editorial-workflow';
+import {validateEditorialBatch,officialSourceCandidates,editorialPublicationIssues} from '@/lib/editorial-workflow';
 import { assessGeoDraftCopy, splitGeoDraftReviewText } from "@/lib/geo-draft-quality";
 import { StorageConflictError, StorageUnavailableError } from '@/lib/storage-mode';
 
@@ -105,6 +105,8 @@ export async function POST(req: NextRequest) {
           continue;
         }
         if(p.status!=='approved'&&e.status==='approved'){
+          const qualityIssues=editorialPublicationIssues(e as any);
+          if(qualityIssues.length)return NextResponse.json({status:'error',message:qualityIssues.join(' ')},{status:422});
           if(!(e as any).reviewedAt)
             return NextResponse.json({status:'error',message:'Approval requires explicit human review'},{status:422});
           // The UI discovers government candidates from stored evidence.
