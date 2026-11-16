@@ -1,9 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
 
-type RequestRow = {id:string;created_at:string;package_slug:string;package_price:number;locale:string;name:string;email:string;phone:string;country:string;activity:string;company:string;budget:string;notes:string;status:string;viewed_at:string|null;share_opened_at:string|null};
+type RequestRow = {id:string;request_number:number;created_at:string;package_slug:string;package_price:number;locale:string;name:string;email:string;phone:string;country:string;activity:string;company:string;budget:string;notes:string;status:string;viewed_at:string|null;share_opened_at:string|null};
 const labels: Record<string,string> = {saved:"جديد",contacted:"تم التواصل",closed:"مغلق"};
 const display = (value: string | null | undefined) => value?.trim() || "—";
+const requestRef = (number:number) => "PR-"+String(number).padStart(4,"0");
 const price = (value:number) => Number(value).toLocaleString("en-US")+" SAR";
 const date = (value:string) => new Date(value).toLocaleString("ar-SA",{dateStyle:"medium",timeStyle:"short"});
 const detailRows = (r:RequestRow) => [
@@ -14,7 +15,7 @@ const detailRows = (r:RequestRow) => [
  ["اللغة",r.locale.toUpperCase()],["تاريخ الطلب",date(r.created_at)]
 ];
 function shareText(r:RequestRow){
- return ["طلب باقة استثمارية", "رقم الطلب: "+r.id, ...detailRows(r).map(([key,value])=>key+": "+display(value)), "الحالة: "+(labels[r.status]||r.status)].join("\n");
+ return ["طلب باقة استثمارية", "رقم الطلب: "+requestRef(r.request_number), ...detailRows(r).map(([key,value])=>key+": "+display(value)), "الحالة: "+(labels[r.status]||r.status)].join("\n");
 }
 function RequestCard({r,secret,onChange,onDelete}:{r:RequestRow;secret:string;onChange:(id:string,patch:Partial<RequestRow>)=>void;onDelete:(id:string)=>void}){
  const [expanded,setExpanded]=useState(false);
@@ -54,7 +55,7 @@ function RequestCard({r,secret,onChange,onDelete}:{r:RequestRow;secret:string;on
   <button type="button" aria-expanded={expanded} aria-controls={"request-details-"+r.id} onClick={toggle} className="w-full text-right focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#163f38]">
    <div className="flex items-start justify-between gap-3">
     <div className="min-w-0">
-     <p className="text-xs text-[#647e77]">رقم الطلب <span dir="ltr" className="inline-block font-mono">{r.id.slice(0,8)}</span></p>
+     <p className="text-xs text-[#647e77]">رقم الطلب <span dir="ltr" className="inline-block font-mono">{requestRef(r.request_number)}</span></p>
      <h3 className="mt-1 text-lg font-bold break-words">{display(r.name)}</h3>
     </div>
     <span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold ${stateStyle}`}>{state}</span>
@@ -73,7 +74,6 @@ function RequestCard({r,secret,onChange,onDelete}:{r:RequestRow;secret:string;on
     <dt className="min-w-0 flex-1 text-right text-sm leading-relaxed text-[#647e77]" title={label}>{label}</dt>
     <dd className="min-w-0 max-w-[55%] shrink-0 whitespace-pre-wrap break-words text-left font-medium leading-relaxed" dir={label==="البريد الإلكتروني"||label==="رقم الهاتف"?"ltr":undefined} title={display(value)}>{display(value)}</dd>
    </div>)}</dl>
-   <p className="mt-2 shrink-0 break-all text-xs text-[#647e77]">المعرّف الداخلي: {r.id}</p>
    <div className="mt-3 flex shrink-0 flex-wrap items-center justify-between gap-3">
     <button type="button" onClick={()=>setExpanded(false)} className="rounded-full border border-[#9cac9d] px-5 py-2">إغلاق التفاصيل</button>
     <button type="button" onClick={remove} disabled={busy} className="rounded-full border border-red-300 px-5 py-2 text-red-800 hover:bg-red-50 disabled:opacity-50">{busy?"جارٍ الحذف...":"حذف البطاقة"}</button>
