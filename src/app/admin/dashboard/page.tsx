@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import VisibilityDashboard from '@/components/VisibilityDashboard';
 import CookiePolicyAdmin from '@/components/CookiePolicyAdmin';
 import SearchIntegrationsAdmin from '@/components/SearchIntegrationsAdmin';
+import GeoEngineMonitor from '@/components/GeoEngineMonitor';
 
 type Tab =
   | 'home'
@@ -250,7 +251,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!authed || !secret) return;
     if (tab === 'home') refreshMarket();
-    else if (tab === 'agent') {fetchRuns();fetchMarketSources();}
+    else if (tab === 'agent') {void Promise.all([refreshMarket(),fetchMarketSources()]);}
     else if (tab === 'competitors') {fetchCompetitors();fetchMarketSources();}
     else if (tab === 'keywords') fetchKeywords();
     else if (tab === 'opportunities') fetchOpportunities();
@@ -585,6 +586,8 @@ export default function AdminDashboard() {
                 </section>
               </div>
             )}
+
+            {tab === 'agent' && <GeoEngineMonitor secret={secret} runs={runs} competitors={competitors} keywords={keywords} opportunities={opportunities} goals={goals} sources={marketSources} loading={marketLoading} refresh={() => { void refreshMarket(); void fetchMarketSources(); }} />}
 
             {tab === 'agent' && (
               <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
