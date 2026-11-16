@@ -110,7 +110,9 @@ export async function POST(req: NextRequest) {
           // The UI discovers government candidates from stored evidence.
           // Enforce the exact same constraint server-side: a competitor/keyword
           // page is never silently promoted into a verified official source.
-          const official=officialSourceCandidates(p.evidence_refs);
+          const official=officialSourceCandidates((e as any).evidence_refs);
+          // Newly supplied official references are accepted only as human-reviewed candidates;
+          // the operator must explicitly confirm the evidence in the UI before approval.
           const confirmed=(e as any).verified_sources;
           if(!Array.isArray(confirmed)||!confirmed.length||!official.length||!confirmed.every((url:unknown)=>typeof url==='string'&&official.includes(url)))
             return NextResponse.json({status:'error',message:'Approval requires reviewed official links present in the saved research evidence'},{status:422});
