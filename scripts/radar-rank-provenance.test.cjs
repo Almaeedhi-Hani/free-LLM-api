@@ -1,0 +1,13 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {buildCompetitorMatrix,buildQueryMemory}=require('../.market-test-build/radar-memory.js');
+const {RADAR_QUERIES}=require('../.market-test-build/radar-query-plan.js');
+const query=RADAR_QUERIES.en[0].query;
+const common={competitor_id:'example.com',language:'en',query,observed_at:'2026-11-17T00:00:00Z'};
+const candidate={...common,rank:1,raw:{rank_status:'unverified_provider_order'}};
+const verified={...common,rank:3,raw:{rank_status:'verified_serp'}};
+assert.equal(buildCompetitorMatrix([candidate])[0].best_rank,null);
+assert.equal(buildCompetitorMatrix([candidate,verified])[0].best_rank,3);
+assert.equal(buildQueryMemory([candidate],new Date('2026-11-18')) .find(x=>x.language==='en'&&x.query===query).best_rank,null);
+assert.equal(buildQueryMemory([candidate,verified],new Date('2026-11-18')).find(x=>x.language==='en'&&x.query===query).best_rank,3);
+console.log('PASS radar rank provenance gating');
