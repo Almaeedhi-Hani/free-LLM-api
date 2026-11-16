@@ -24,7 +24,8 @@ function safeResults(raw,provider,query,language){
   if(!title)continue;
   used.add(entry.domain);
   out.push({...entry,title,snippet:String(item?.description||item?.content||item?.excerpt||item?.text||'').slice(0,500),
-   query,language,source:provider,collected_at:new Date().toISOString(),verification:'candidate'});
+   query,language,source:provider,collected_at:new Date().toISOString(),verification:'candidate',
+   rank:null,rank_status:'unverified_provider_order'});
  }
  return out;
 }
