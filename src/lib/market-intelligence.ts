@@ -685,6 +685,34 @@ export async function recordObservation(input: RecordObservationInput): Promise<
   });
 }
 
+/** Exact historical lookup: no arbitrary recent-observation window. */
+export async function findVerifiedSerpObservation(input: {
+  competitor_id: string; language: Language; query: string; observed_at: string;
+  rank: number; url: string; source: string;
+}): Promise<CompetitorObservation | null> {
+  const matches = (o: CompetitorObservation) =>
+    o.competitor_id === input.competitor_id &&
+    o.language === input.language &&
+    o.query.trim().toLowerCase() === input.query.trim().toLowerCase() &&
+    o.observed_at === input.observed_at && o.rank === input.rank &&
+    o.url === input.url && o.raw?.rank_status === 'verified_serp' &&
+    o.raw?.source_id === input.source;
+  if (isSupabase()) {
+    // Narrow on indexed-compatible scalar columns; filter provenance locally.
+    const base = 'competitor_observations?competitor_id=eq.' + encodeURIComponent(input.competitor_id) +
+      '&language=eq.' + encodeURIComponent(input.language) +
+      '&observed_at=eq.' + encodeURIComponent(input.observed_at) +
+      '&rank=eq.' + input.rank +
+      '&url=eq.' + encodeURIComponent(input.url) +
+      '&select=*&limit=1000';
+    const rows = await sbJson<CompetitorObservation[]>(await sbFetch(base), 'findVerifiedSerpObservation');
+    // Fail closed if the bounded response might hide a match.
+    if (rows.length >= 1000) throw new Error('SERP duplicate lookup exceeded safe limit');
+    return rows.find(matches) ?? null;
+  }
+  return readFile<CompetitorObservation>('competitor_observations.json').find(matches) ?? null;
+}
+
 export async function listObservations(competitorId: string, limit = 50): Promise<CompetitorObservation[]> {
   if (isSupabase()) {
     const res = await sbFetch(
