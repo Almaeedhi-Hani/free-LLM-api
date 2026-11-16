@@ -81,6 +81,11 @@ assert.deepEqual(officialSourceCandidates([{id:'c',label:'Competitor page',sourc
 assert.deepEqual(officialSourceCandidates(undefined),[],'missing research evidence blocks automatic source approval');
 
 const fs=require('node:fs');
+const editorialBlockSource=fs.readFileSync('src/components/EditorialBlock.tsx','utf8');
+assert(editorialBlockSource.includes("route==='/services/'+target"),'published service editorial avoids self-link');
+assert(editorialBlockSource.includes("all.findIndex(other=>other.node_id===link.node_id)"),'published editorial deduplicates link targets');
+assert(editorialBlockSource.includes("route==='/insights'"),'guide hub is gated until published guides exist');
+
 const worker=fs.readFileSync('scripts/opencode-geo-analysis.js','utf8');
 assert(worker.includes('stageEditorialActions'),'GEO produces editorial proposals beyond FAQ');
 assert(worker.includes("persisted_editorial_actions"),'persisted counters measured, not inferred');
