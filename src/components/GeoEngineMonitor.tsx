@@ -34,6 +34,12 @@ export default function GeoEngineMonitor({runs,competitors,keywords,opportunitie
       const recorded=sources.some(s=>JSON.stringify(s).toLowerCase().includes(name.toLowerCase()));
       return <div key={name} className="rounded-lg border p-3"><strong>{name}</strong><p className="text-xs text-slate-500">{recorded?'مذكور في سجلات الاكتشاف؛ الاتصال غير مفحوص':'لا يوجد رصد محفوظ؛ الاتصال غير مفحوص'}</p></div>;
     })}</div>
+    <h3 className="font-semibold">آخر سجلات التشغيل</h3>
+    {runs.length === 0 ? <p className="text-sm text-slate-500">لا توجد سجلات تشغيل محفوظة حتى الآن.</p> :
+      <div className="overflow-x-auto"><table className="w-full text-sm text-right"><thead><tr className="border-b"><th className="p-2">وقت البدء</th><th className="p-2">الحالة المسجلة</th><th className="p-2">المعرف</th></tr></thead><tbody>
+        {[...runs].sort((a,b)=>Date.parse(str(b.started_at)||'1970-01-01')-Date.parse(str(a.started_at)||'1970-01-01')).slice(0,10).map((run,index)=><tr key={str(run.id)||index} className="border-b"><td className="p-2">{str(run.started_at)||'غير مسجل'}</td><td className="p-2">{str(run.status)||'غير معروف'}</td><td className="p-2 font-mono">{str(run.id)||'—'}</td></tr>)}
+      </tbody></table></div>}
+    <p className="text-xs text-slate-500">هذه سجلات تاريخية وليست حالة لحظية. لا يوجد زر تشغيل حتى يتوفر مسار خادم محمي يمنع التكرار.</p>
     <p className="text-xs text-slate-500">عدد صفحات المنافسين الخمس لكل كلمة ولغة لا يُؤكد إلا من سجلات الصفحات المخصصة؛ إجمالي المنافسين أعلاه ليس عدد الصفحات المحللة. التشغيل اليدوي غير متاح من هذه الواجهة حتى توفير نقطة تشغيل آمنة ومحمية.</p>
   </section>;
 }
