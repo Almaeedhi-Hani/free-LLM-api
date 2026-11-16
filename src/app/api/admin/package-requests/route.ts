@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   try {
     const credentials = getSupabaseCredentials();
     if (!credentials) return NextResponse.json({ error: "Storage unavailable" }, { status: 503 });
-    const response = await fetch(credentials.url + "/rest/v1/package_requests?select=id,created_at,package_slug,package_price,locale,name,email,phone,country,activity,company,budget,notes,status,viewed_at,share_opened_at&order=created_at.desc&limit=100", {
+    const response = await fetch(credentials.url + "/rest/v1/package_requests?select=id,request_number,created_at,package_slug,package_price,locale,name,email,phone,country,activity,company,budget,notes,status,viewed_at,share_opened_at&order=created_at.desc&limit=100", {
       headers: { apikey: credentials.key, Authorization: "Bearer " + credentials.key }, cache: "no-store"
     });
     if (!response.ok) return NextResponse.json({ error: "Storage unavailable" }, { status: 503 });
