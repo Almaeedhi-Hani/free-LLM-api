@@ -30,7 +30,16 @@ function parseRss(xml,query,language,max=5){
  return results;
 }
 async function collect({fetchFn=fetch}={}){
- const competitors=[],suggestions=[],diagnostics=[],domains=new Set(),terms=new Set();
+ const competitors=[],suggestions=[],diagnostics=[],seenPages=new Set(),queryCounts=new Map(),terms=new Set();
+ const addCandidate=(hit)=>{
+  if(!hit?.url||!hit?.query||!hit?.language)return;
+  let canonical;try{const u=new URL(hit.url);if(!['https:','http:'].includes(u.protocol))return;u.hash='';canonical=u.href}catch{return}
+  const group=hit.language+'|'+hit.query;
+  const key=group+'|'+canonical;
+  if(seenPages.has(key)||(queryCounts.get(group)||0)>=5)return;
+  seenPages.add(key);queryCounts.set(group,(queryCounts.get(group)||0)+1);
+  competitors.push({...hit,url:canonical});
+ };
  for(const seed of seeds){
   try{
    const url='https://suggestqueries.google.com/complete/search?client=firefox&hl='+seed.language+'&q='+encodeURIComponent(seed.q);
@@ -53,8 +62,7 @@ async function collect({fetchFn=fetch}={}){
  if(providerEngine.configured().length){
   const outcome=await providerEngine.search({queries,maxCalls:3,maxResults:15,fetchFn});
   for(const hit of outcome.results){
-   if(domains.has(hit.domain))continue;domains.add(hit.domain);
-   competitors.push({...hit,source:hit.source,verification:'candidate'});
+   addCandidate({...hit,source:hit.source,verification:'candidate'});
   }
   for(const d of outcome.diagnostics)diagnostics.push({
    source:d.provider,language:d.language,status:d.http_status||d.status,
@@ -69,7 +77,7 @@ async function collect({fetchFn=fetch}={}){
     const r=await fetchFn(url,{signal:AbortSignal.timeout(MAX_REQ_MS),headers:{Accept:'application/rss+xml'}});
     if(!r.ok)throw new Error('http_'+r.status);
     const found=parseRss(await r.text(),seed.q,seed.language,5);
-    for(const candidate of found){const domain=new URL(candidate.url).hostname;if(domains.has(domain))continue;domains.add(domain);competitors.push(candidate);}
+    for(const candidate of found)addCandidate(candidate);
     diagnostics.push({source:'bing-rss',language:seed.language,status:r.status,count:found.length});
    }catch(e){diagnostics.push({source:'bing-rss',language:seed.language,status:'unavailable',reason:String(e?.name==='TimeoutError'?'timeout':e?.message||'error').slice(0,70),count:0})}
   }
