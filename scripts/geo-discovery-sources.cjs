@@ -3,11 +3,19 @@
 // Google Suggest supplies queries, NOT ranking or confirmed competitors. Bing RSS supplies
 // candidate websites with source URLs. All research is subject to further verification.
 const MAX_REQ_MS=6000;
-const seeds=[
- {q:'تأسيس شركة في السعودية للأجانب',language:'ar',locale:'ar-SA'},
- {q:'company formation Saudi Arabia foreign investor',language:'en',locale:'en-US'},
- {q:'沙特外国投资公司注册',language:'zh',locale:'zh-CN'}
-];
+// Rotate one query per language daily, keeping the existing three-provider-call
+// budget. These are the same 8 intent angles maintained in radar-query-plan.ts.
+const QUERY_ANGLES={
+ ar:['خطوات تأسيس شركة في السعودية','تكلفة تأسيس شركة أجنبية في السعودية','شروط ترخيص المستثمر الأجنبي في السعودية','مدة إصدار السجل التجاري وترخيص الاستثمار','الفرق بين الشركة ذات المسؤولية المحدودة والفرع الأجنبي','تجديد ترخيص الاستثمار في السعودية','أسباب رفض طلب ترخيص الاستثمار','تأسيس شركة لمستثمر صيني في السعودية'],
+ en:['how to register a company in Saudi Arabia','foreign company setup cost Saudi Arabia','MISA foreign investor license requirements','Saudi business registration processing time','Saudi subsidiary vs foreign branch comparison','MISA investment license renewal process','Saudi investment license application rejection reasons','Saudi company formation for Chinese investors'],
+ zh:['沙特阿拉伯公司注册流程','沙特外资公司注册费用','沙特外国投资许可证申请条件','沙特公司注册需要多长时间','沙特子公司与外国公司分公司区别','沙特投资许可证续期流程','沙特投资许可证申请被拒原因','中国投资者在沙特设立公司']
+};
+function selectSeeds(now=new Date()){
+ const day=Math.floor(now.getTime()/86400000);
+ return [['ar','ar-SA'],['en','en-US'],['zh','zh-CN']].map(([language,locale])=>({
+  q:QUERY_ANGLES[language][((day%8)+8)%8],language,locale
+ }));
+}
 const decode=s=>String(s||'').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,'$1').replace(/&amp;/gi,'&').replace(/&quot;/gi,'"').replace(/&#39;/g,"'").replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
 const keyword=(s)=>/(company formation|business setup|company registration|company incorporation|investor services|investment licen[sc]|misa licen[sc]|تأسيس شرك|ترخيص استثمار|رخصة استثمار|公司注册|投资许可)/i.test(s);
 const region=(s)=>/(saudi|ksa|misa|السعود|المملكة|沙特)/i.test(s);
@@ -29,8 +37,9 @@ function parseRss(xml,query,language,max=5){
  }
  return results;
 }
-async function collect({fetchFn=fetch}={}){
+async function collect({fetchFn=fetch,now=new Date()}={}){
  const competitors=[],suggestions=[],diagnostics=[],seenPages=new Set(),queryCounts=new Map(),terms=new Set();
+ const seeds=selectSeeds(now);
  const addCandidate=(hit)=>{
   if(!hit?.url||!hit?.query||!hit?.language)return;
   let canonical;try{const u=new URL(hit.url);if(!['https:','http:'].includes(u.protocol))return;u.hash='';canonical=u.href}catch{return}
@@ -85,4 +94,4 @@ async function collect({fetchFn=fetch}={}){
  return {competitors:competitors.slice(0,15),suggestions:suggestions.slice(0,30),diagnostics,
    status:competitors.length?'success':suggestions.length?'partial':'blocked'};
 }
-module.exports={collect,parseRss};
+module.exports={collect,parseRss,selectSeeds};
