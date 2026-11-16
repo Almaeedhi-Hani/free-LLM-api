@@ -36,8 +36,8 @@ function RequestCard({r,secret,onChange,onDelete}:{r:RequestRow;secret:string;on
  }
  function share(){
   const url="https://api.whatsapp.com/send?text="+encodeURIComponent(shareText(r));
-  const opened=window.open(url,"_blank","noopener,noreferrer");
-  if(opened!==null)void mark("share_opened");
+  const opened=window.open(url,"_blank");
+  if(opened){opened.opener=null;void mark("share_opened");}
   else setActionError("تعذر فتح واتساب؛ اسمح بالنوافذ المنبثقة وحاول مجددًا");
  }
  async function remove(){
