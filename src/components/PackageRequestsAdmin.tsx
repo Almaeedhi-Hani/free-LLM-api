@@ -22,7 +22,7 @@ function RequestCard({r}:{r:RequestRow}){
   const url="https://api.whatsapp.com/send?text="+encodeURIComponent(shareText(r));
   window.open(url,"_blank","noopener,noreferrer");
  }
- return <article className="rounded-2xl border border-[#d9d9cd] bg-[#faf9f2] p-4 sm:p-5 text-[#163f38] shadow-sm">
+ return <article className={`flex flex-col rounded-2xl border border-[#d9d9cd] bg-[#faf9f2] p-4 sm:p-5 text-[#163f38] shadow-sm ${expanded ? "h-[460px]" : ""}`}>
   <button type="button" aria-expanded={expanded} aria-controls={"request-details-"+r.id} onClick={()=>setExpanded(v=>!v)} className="w-full text-right focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#163f38]">
    <div className="flex items-start justify-between gap-3">
     <div className="min-w-0">
@@ -38,14 +38,14 @@ function RequestCard({r}:{r:RequestRow}){
    </div>
   </button>
   {!expanded&&<button type="button" onClick={share} className="mt-4 w-full rounded-full bg-[#c8a563] px-4 py-2.5 font-semibold text-[#163f38] hover:bg-[#b99654] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#163f38]">مشاركة الطلب عبر واتساب</button>}
-  {expanded&&<div id={"request-details-"+r.id} className="mt-5 border-t border-[#d9d9cd] pt-4">
-   <h4 className="mb-3 text-xl font-semibold">مراجعة الطلب</h4>
-   <dl>{detailRows(r).map(([label,value])=><div key={label} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] items-center gap-3 border-b border-[#d9d9cd] py-2.5 sm:gap-5">
-    <dt className="min-w-0 truncate text-sm text-[#647e77]" title={label}>{label}</dt>
-    <dd className="min-w-0 overflow-x-auto whitespace-nowrap text-left font-medium" dir={label==="البريد الإلكتروني"||label==="رقم الهاتف"?"ltr":undefined} title={display(value)}>{display(value)}</dd>
+  {expanded&&<div id={"request-details-"+r.id} className="mt-3 flex min-h-0 flex-1 flex-col border-t border-[#d9d9cd] pt-3">
+   <h4 className="mb-2 shrink-0 text-lg font-semibold">مراجعة الطلب</h4>
+   <dl className="min-h-0 flex-1 overflow-y-auto overscroll-contain pe-1">{detailRows(r).map(([label,value])=><div key={label} className="flex items-center justify-between gap-3 border-b border-[#d9d9cd] py-2">
+    <dt className="min-w-0 flex-1 truncate text-right text-sm text-[#647e77]" title={label}>{label}</dt>
+    <dd className="min-w-0 max-w-[55%] shrink-0 overflow-x-auto whitespace-nowrap text-left font-medium" dir={label==="البريد الإلكتروني"||label==="رقم الهاتف"?"ltr":undefined} title={display(value)}>{display(value)}</dd>
    </div>)}</dl>
-   <p className="mt-3 text-xs text-[#647e77] break-all">المعرّف الداخلي: {r.id}</p>
-   <button type="button" onClick={()=>setExpanded(false)} className="mt-4 rounded-full border border-[#9cac9d] px-5 py-2">إغلاق التفاصيل</button>
+   <p className="mt-2 shrink-0 truncate text-xs text-[#647e77]">المعرّف الداخلي: {r.id}</p>
+   <button type="button" onClick={()=>setExpanded(false)} className="mt-2 shrink-0 self-start rounded-full border border-[#9cac9d] px-5 py-2">إغلاق التفاصيل</button>
   </div>}
  </article>;
 }
