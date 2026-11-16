@@ -40,9 +40,9 @@ function RequestCard({r}:{r:RequestRow}){
   {!expanded&&<button type="button" onClick={share} className="mt-4 w-full rounded-full bg-[#c8a563] px-4 py-2.5 font-semibold text-[#163f38] hover:bg-[#b99654] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#163f38]">مشاركة الطلب عبر واتساب</button>}
   {expanded&&<div id={"request-details-"+r.id} className="mt-5 border-t border-[#d9d9cd] pt-4">
    <h4 className="mb-3 text-xl font-semibold">مراجعة الطلب</h4>
-   <dl>{detailRows(r).map(([label,value])=><div key={label} className="grid grid-cols-1 gap-1 border-b border-[#d9d9cd] py-3 sm:grid-cols-[minmax(130px,1fr)_minmax(0,1.4fr)] sm:gap-4">
-    <dt className="text-sm text-[#647e77]">{label}</dt>
-    <dd className="min-w-0 break-words font-medium whitespace-pre-wrap" dir={label==="البريد الإلكتروني"||label==="رقم الهاتف"?"ltr":undefined}>{display(value)}</dd>
+   <dl>{detailRows(r).map(([label,value])=><div key={label} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] items-center gap-3 border-b border-[#d9d9cd] py-2.5 sm:gap-5">
+    <dt className="min-w-0 truncate text-sm text-[#647e77]" title={label}>{label}</dt>
+    <dd className="min-w-0 overflow-x-auto whitespace-nowrap text-left font-medium" dir={label==="البريد الإلكتروني"||label==="رقم الهاتف"?"ltr":undefined} title={display(value)}>{display(value)}</dd>
    </div>)}</dl>
    <p className="mt-3 text-xs text-[#647e77] break-all">المعرّف الداخلي: {r.id}</p>
    <button type="button" onClick={()=>setExpanded(false)} className="mt-4 rounded-full border border-[#9cac9d] px-5 py-2">إغلاق التفاصيل</button>
