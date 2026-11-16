@@ -13,7 +13,7 @@ export function buildQueryMemory(observations: readonly QueryMemoryObservation[]
       const validDates = [...matching.map(o => Date.parse(o.observed_at)), ...matchingAttempts.map(a => Date.parse(a.attempted_at))].filter(Number.isFinite);
       const latest = validDates.length ? Math.max(...validDates) : null;
       const days = latest === null ? null : Math.max(0, Math.floor((today-latest)/86400000));
-      const ranks = matching.filter(o => o.raw?.rank_status === 'verified_serp').map(o => o.rank).filter((n): n is number => Number.isInteger(n) && n >= 1 && n <= 5);
+      const ranks = matching.filter(o => o.raw?.rank_status === 'verified_serp').map(o => o.rank).filter((n): n is number => typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= 5);
       const unique = new Set(matching.map(o => o.competitor_id));
       // Prioritize uncovered queries, then stale observations; slight reward for competitor diversity.
       const score = latest === null ? 1000 : Math.min(days ?? 0,365) * 2 + Math.max(0, 10-unique.size);
