@@ -9,6 +9,20 @@ export function topicRelatedLiveNodes(id:string):TopicNode[]{
  const related=[...(node.related_nodes||[]),...(node.parent_id?[node.parent_id]:[])];
  return Array.from(new Set(related)).map(topicNodeById).filter((x):x is TopicNode=>Boolean(x?.route&&x?.id!==id));
 }
+/** Suggest existing, relevant internal destinations. Never suggest unpublished tree nodes.
+ * These are candidates for human editorial review, not automatically inserted links. */
+export function suggestInternalLinks(topicId:string,locale:TopicLocale,limit=4):Array<{node_id:string;route:string;anchor:string}>{
+ const node=topicNodeById(topicId);
+ if(!node||!['ar','en','zh'].includes(locale))return [];
+ const related=topicRelatedLiveNodes(topicId);
+ const parent=node.parent_id?topicNodeById(node.parent_id):undefined;
+ const ordered=[...(parent?.route?[parent]:[]),...related];
+ const seen=new Set<string>();
+ return ordered.filter(n=>{
+  if(!n.route||n.id===topicId||n.route===node.route||n.route==='/insights'||seen.has(n.route))return false;
+  seen.add(n.route);return true;
+ }).slice(0,Math.max(0,Math.min(6,Math.trunc(limit)||0))).map(n=>({node_id:n.id,route:n.route!,anchor:n.primary_keyword[locale]}));
+}
 export function validateContentTree():{nodes:number;live:number;planned:number}{
  const byId=new Map(topicNodes.map(n=>[n.id,n]));
  if(byId.size!==topicNodes.length)throw Error("Duplicate topic IDs");
