@@ -587,7 +587,7 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {tab === 'agent' && <GeoEngineMonitor runs={runs} competitors={competitors} keywords={keywords} opportunities={opportunities} goals={goals} sources={marketSources} loading={marketLoading} refresh={() => { void refreshMarket(); void fetchMarketSources(); }} />}
+            {tab === 'agent' && <GeoEngineMonitor secret={secret} runs={runs} competitors={competitors} keywords={keywords} opportunities={opportunities} goals={goals} sources={marketSources} loading={marketLoading} refresh={() => { void refreshMarket(); void fetchMarketSources(); }} />}
 
             {tab === 'agent' && (
               <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
