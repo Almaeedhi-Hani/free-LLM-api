@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getContent } from "@/lib/content-store";
 import { getSupabaseCredentials } from "@/lib/storage-mode";
 import { packageOffers } from "@/lib/package-offers";
 
@@ -7,7 +6,6 @@ export const dynamic = "force-dynamic";
 const text = (v: unknown, max: number) => typeof v === "string" ? v.trim().slice(0, max) : "";
 const validEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 const validPhone = (v: string) => /^[+\d\s()\-]{7,30}$/.test(v);
-const validWhatsapp = (v: string) => /^https:\/\/(?:wa\.me\/\d{8,15}|(?:api\.)?whatsapp\.com\/send\?phone=\d{8,15})(?:[&#?].*)?$/.test(v);
 
 export async function POST(req: NextRequest) {
   try {
@@ -30,8 +28,6 @@ export async function POST(req: NextRequest) {
     if (!offer) return NextResponse.json({ error: "Unknown package" }, { status: 400 });
     const credentials = getSupabaseCredentials();
     if (!credentials) return NextResponse.json({ error: "Storage unavailable" }, { status: 503 });
-    const contact = (await getContent()).contact;
-    if (!validWhatsapp(contact.whatsapp)) return NextResponse.json({ error: "WhatsApp contact unavailable" }, { status: 503 });
     const id = crypto.randomUUID();
     const record = { id, package_slug: packageSlug, package_price: offer.price, locale, name, email, phone, country, activity, company, budget, notes, status: "saved" };
     const saved = await fetch(credentials.url + "/rest/v1/package_requests", {
@@ -43,16 +39,7 @@ export async function POST(req: NextRequest) {
       console.error("Package request persistence failed", saved.status);
       return NextResponse.json({ error: "Could not save request" }, { status: 503 });
     }
-    const message = [
-      "New investor package request / طلب باقة استثمارية", "Reference: " + id,
-      "Package: " + offer.title[locale as "ar"|"en"|"zh"], "Price: " + offer.price + " SAR",
-      "Name: " + name, "Phone: " + phone, "Email: " + email,
-      "Country: " + country, "Activity: " + activity,
-      "Foreign company: " + company, "Budget: " + budget, "Notes: " + notes
-    ].join("\n");
-    const url = new URL(contact.whatsapp);
-    url.searchParams.set("text", message);
-    return NextResponse.json({ saved: true, reference: id, whatsappUrl: url.toString() });
+    return NextResponse.json({ saved: true, reference: id });
   } catch (error) {
     console.error("Package request error", error instanceof Error ? error.message : "unknown");
     return NextResponse.json({ error: "Request failed" }, { status: 503 });
