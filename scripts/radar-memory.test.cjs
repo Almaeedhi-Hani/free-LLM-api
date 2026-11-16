@@ -3,7 +3,7 @@ const {RADAR_QUERIES}=require('../.market-test-build/radar-query-plan.js');
 const {buildQueryMemory,chooseNextQueries,buildCompetitorMatrix}=require('../.market-test-build/radar-memory.js');
 const now=new Date('2026-11-15T12:00:00Z');
 const q=RADAR_QUERIES.ar[0].query;
-const observations=[{competitor_id:'x',language:'ar',query:q,rank:1,observed_at:'2026-11-15T10:00:00Z'},{competitor_id:'z',language:'ar',query:q,rank:2,observed_at:'2026-11-15T10:00:00Z'}];
+const observations=[{competitor_id:'x',language:'ar',query:q,rank:1,raw:{rank_status:'verified_serp'},observed_at:'2026-11-15T10:00:00Z'},{competitor_id:'z',language:'ar',query:q,rank:2,raw:{rank_status:'verified_serp'},observed_at:'2026-11-15T10:00:00Z'}];
 const memory=buildQueryMemory(observations,now);
 assert.equal(memory.length,24);
 assert.equal(memory.find(x=>x.query===q).competitor_count,2);
