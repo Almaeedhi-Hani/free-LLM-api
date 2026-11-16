@@ -32,10 +32,12 @@ export async function saveVerifiedSerpObservations(items: readonly VerifiedSerpO
   const seen = new Set<string>();
   for (const item of items) {
     if (!validateVerifiedSerpObservation(item)) { rejected++; continue; }
-    const key = [item.language, item.query.trim().toLowerCase(), item.observed_at, item.rank].join('|');
+    const key = [item.language, item.query.trim().toLowerCase(), item.observed_at, item.rank, new URL(item.url).toString()].join('|');
     if (seen.has(key)) { rejected++; continue; }
     seen.add(key);
     const domain = new URL(item.url).hostname.toLowerCase().replace(/^www\./, '');
+    // Do not duplicate an observation already persisted by an earlier import.
+    // The existing storage layer handles the same timestamp/query identity.
     const competitor = await upsertCompetitor({domain, name: domain, languages: [item.language], source: 'search'});
     await recordObservation({
       competitor_id: competitor.id, language: item.language, query: item.query.trim(),
