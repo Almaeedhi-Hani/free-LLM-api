@@ -1,4 +1,4 @@
-import { recordObservation, upsertCompetitor, listObservations } from './market-intelligence';
+import { recordObservation, upsertCompetitor, findVerifiedSerpObservation } from './market-intelligence';
 import type { Language } from './market-intelligence';
 
 /** Explicitly verified organic SERP evidence, never a provider candidate. */
@@ -38,12 +38,10 @@ export async function saveVerifiedSerpObservations(items: readonly VerifiedSerpO
     const domain = new URL(item.url).hostname.toLowerCase().replace(/^www\./, '');
     // Check previously persisted evidence before inserting another observation.
     const competitor = await upsertCompetitor({domain, name: domain, languages: [item.language], source: 'search'});
-    const previous = await listObservations(competitor.id, 500);
-    const duplicate = previous.some(o =>
-      o.language === item.language && o.query.trim().toLowerCase() === item.query.trim().toLowerCase() &&
-      o.observed_at === item.observed_at && o.rank === item.rank && o.url === item.url &&
-      o.raw?.rank_status === 'verified_serp' && o.raw?.source_id === item.source
-    );
+    const duplicate = await findVerifiedSerpObservation({
+      competitor_id: competitor.id, language: item.language, query: item.query,
+      observed_at: item.observed_at, rank: item.rank, url: item.url, source: item.source,
+    });
     if (duplicate) { rejected++; continue; }
     await recordObservation({
       competitor_id: competitor.id, language: item.language, query: item.query.trim(),
