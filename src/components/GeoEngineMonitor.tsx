@@ -20,6 +20,7 @@ export default function GeoEngineMonitor({runs,competitors,keywords,opportunitie
   const completedRuns = runs.filter(run => ['success','completed'].includes(str(run.status).toLowerCase())).length;
   const failedRuns = runs.filter(run => ['failed','error'].includes(str(run.status).toLowerCase())).length;
   const runningRuns = runs.filter(run => ['running','in_progress'].includes(str(run.status).toLowerCase())).length;
+  const uniqueSources = new Set(sources.map(source => str(source.url) || str(source.link) || str(source.source_url)).filter(Boolean));
   const counts = [
     ['المنافسون',competitors.length],['الكلمات المفتاحية',keywords.length],
     ['الفرص',opportunities.length],['الأهداف',goals.length],['سجلات التشغيل',runs.length]
@@ -43,6 +44,9 @@ export default function GeoEngineMonitor({runs,competitors,keywords,opportunitie
       const recorded=sources.some(s=>JSON.stringify(s).toLowerCase().includes(name.toLowerCase()));
       return <div key={name} className="rounded-lg border p-3"><strong>{name}</strong><p className="text-xs text-slate-500">{recorded?'مذكور في سجلات الاكتشاف؛ الاتصال غير مفحوص':'لا يوجد رصد محفوظ؛ الاتصال غير مفحوص'}</p></div>;
     })}</div>
+    <h3 className="font-semibold">رصد مصادر الأدلة</h3>
+    <p className="text-sm">سجلات المصادر: <strong>{sources.length}</strong> — روابط فريدة معروفة: <strong>{uniqueSources.size}</strong></p>
+    <p className="text-xs text-slate-500">السجلات التي لا تتضمن رابطًا معروفًا لا تُحتسب ضمن الروابط الفريدة. لا يمكن استنتاج التكرارات الفعلية أو تغطية خمس صفحات لكل كلمة ولغة من هذه الأعداد.</p>
     <h3 className="font-semibold">آخر سجلات التشغيل</h3>
     {runs.length === 0 ? <p className="text-sm text-slate-500">لا توجد سجلات تشغيل محفوظة حتى الآن.</p> :
       <div className="overflow-x-auto"><table className="w-full text-sm text-right"><thead><tr className="border-b"><th className="p-2">وقت البدء</th><th className="p-2">الحالة المسجلة</th><th className="p-2">المعرف</th></tr></thead><tbody>
