@@ -1,11 +1,16 @@
 "use strict";
 const assert=require('node:assert/strict');
-const {validateEditorialItem,validateEditorialBatch,approvedEditorial,publicGuide,officialSourceCandidates}=require('../.editorial-test-build/lib/editorial-workflow.js');
+const {validateEditorialItem,validateEditorialBatch,approvedEditorial,publicGuide,officialSourceCandidates,editorialPublicationIssues}=require('../.editorial-test-build/lib/editorial-workflow.js');
 const {validateContentTree,topicRelatedLiveNodes}=require('../.editorial-test-build/lib/content-tree.js');
 const tree=validateContentTree();assert.equal(tree.nodes,18);assert.equal(tree.live,9);assert.equal(tree.planned,9);
 assert(topicRelatedLiveNodes('company-documents').some(n=>n.id==='company-formation'));
 assert(!topicRelatedLiveNodes('company-formation').some(n=>n.id==='company-documents'),'planned guide must not receive broken links');
 const now='2026-11-15T10:00:00Z';
+assert(editorialPublicationIssues({kind:'service',body:'This service page should explain the advisory scope and authority boundaries.'}).length,'planning instructions blocked');
+assert(editorialPublicationIssues({kind:'service',body:'Investors should check the applicable investment requirements with the responsible authority before preparing their application.'}).length===0,'visitor copy remains eligible');
+assert(editorialPublicationIssues({kind:'service',body:'Service overview.',sections:[{h2:'Requirements',body:'Describe the practical support an advisory team can provide.'}]}).length,'section instructions blocked');
+assert(editorialPublicationIssues({kind:'internal_link',body:'Any text'}).length,'SEO tasks not publishable');
+
 const base={id:'ed-123456789a',kind:'service',lang:'ar',target:'company-formation',title:'كيف تحدد المسار الأنسب لتأسيس الشركة؟',summary:'مراجعة النشاط والشركاء والجهات المعنية قبل اختيار باقة تنفيذ مناسبة.',body:'يتطلب اختيار المسار المناسب دراسة النشاط ونوع الكيان وصفة المستثمر ومراحل تأسيسه. يجب مراجعة الوثائق والاشتراطات الحالية مع الجهة الرسمية المختصة قبل تقديم الطلب. وتفصل أتعاب المستشار عن الرسوم الحكومية والتكاليف التي تفرضها الجهات الأخرى. يساعد التخطيط المسبق على تحديد نطاق العمل بصورة واقعية دون تقديم ضمان بالموافقة.',risk_level:'high',status:'pending',createdAt:now,evidence_ids:[],evidence_refs:[]};
 const draft=validateEditorialItem(base);
 assert.equal(approvedEditorial([draft],'ar').length,0,'pending content never renders');

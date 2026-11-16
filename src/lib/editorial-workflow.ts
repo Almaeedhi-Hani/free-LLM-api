@@ -30,6 +30,21 @@ export function safeSlug(slug:string):boolean{return /^[a-z0-9]+(?:-[a-z0-9]+)*$
 export function approvedEditorial(items:readonly EditorialItem[]|undefined,lang:EditorialLocale,kind?:EditorialKind,target?:string):EditorialItem[]{
  return (items||[]).filter(x=>x.status==='approved'&&x.reviewedAt&&x.lang===lang&&(!kind||x.kind===kind)&&(!target||x.target===target)&&x.verified_sources?.length);
 }
+/** Publication gate: reject planning instructions accidentally saved as visitor-facing copy.
+ * Run only on new approvals; pending legacy proposals remain editable and preserved. */
+export function editorialPublicationIssues(item:Pick<EditorialItem,'body'|'sections'|'kind'>):string[]{
+ const parts=[item.body,...(item.sections||[]).flatMap(s=>[s.body,...(s.subsections||[]).map(h=>h.body)])];
+ const patterns=[
+  /\b(?:this|the) (?:service )?page should (?:explain|describe|include|cover|list|discuss)\b/i,
+  /\b(?:this|the) (?:section|article|guide) should (?:explain|describe|include|cover|list|discuss)\b/i,
+  /(?:^|[.!?]\s+)(?:describe|explain|list|include|add|write|mention|outline|provide a (?:general |brief )?(?:checklist|overview))\s+(?:the|a|an|how|what|tasks|steps|information|proposed|current|practical)\b/i,
+  /\b(?:the H1 suggestion is for review|primary keyword is taken from the site tree|demand is unverified)\b/i
+ ];
+ const issues:string[]=[];
+ if(parts.some(p=>patterns.some(rx=>rx.test(p))))issues.push('Draft contains writing instructions or internal SEO planning notes, not publishable visitor copy.');
+ if(item.kind==='internal_link'||item.kind==='technical_seo')issues.push('SEO tasks must never be published as visitor content.');
+ return issues;
+}
 export function validateEditorialItem(item:unknown):EditorialItem {
  if(!item||typeof item!=='object'||Array.isArray(item))throw Error('Invalid editorial item');
  const e={...(item as EditorialItem)};
