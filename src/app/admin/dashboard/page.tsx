@@ -1,6 +1,7 @@
 ﻿'use client';
 
 import EditorialReviewPanel from '@/components/EditorialReviewPanel';
+import PackageRequestsAdmin from '@/components/PackageRequestsAdmin';
 import {DataRoleLegend,DataRolePanel,DataRoleTag} from '@/components/AdminDataRoles';
 import { assessGeoDraftCopy, splitGeoDraftReviewText } from "@/lib/geo-draft-quality";
 import React, { useState, useEffect } from 'react';
@@ -12,6 +13,7 @@ import GeoEngineMonitor from '@/components/GeoEngineMonitor';
 type Tab =
   | 'home'
   | 'contact'
+  | 'package_requests'
   | 'content'
   | 'agent'
   | 'reviews'
@@ -82,6 +84,7 @@ const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'reviews', label: 'اعتماد المسودات', icon: '🔍' },
   { key: 'editorial', label: 'تطوير جميع صفحات الموقع', icon: '📚' },
   { key: 'contact', label: 'التواصل', icon: '📞' },
+  { key: 'package_requests', label: 'طلبات الباقات', icon: '📥' },
   { key: 'visibility', label: 'SEO وظهور الذكاء الاصطناعي', icon: '📈' },
   { key: 'cookies', label: 'إدارة الكوكيز', icon: '🍪' },
   { key: 'integrations', label: 'SEO والتكاملات', icon: '🔗' },
@@ -515,6 +518,7 @@ export default function AdminDashboard() {
               </div>
             )}
 
+            {tab === 'package_requests' && <PackageRequestsAdmin secret={secret} />}
             {tab === 'contact' && (
               <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
                 <h2 className="text-xl font-bold mb-2">بيانات التواصل للزوار</h2><p className="text-sm text-slate-500 mb-4">تُطبّق التغييرات على معلومات التواصل المعروضة في الموقع بعد الحفظ.</p>
