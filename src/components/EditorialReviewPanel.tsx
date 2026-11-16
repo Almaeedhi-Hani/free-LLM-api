@@ -20,7 +20,13 @@ export default function EditorialReviewPanel({items,saving,onSaveItems}:{items:E
  const [editing,setEditing]=useState<{id:string;title:string;summary:string;body:string}|null>(null);
  const [error,setError]=useState('');
  const [filter,setFilter]=useState('all');
- const visible=items.filter(x=>filter==='all'||x.status===filter);
+ const [query,setQuery]=useState('');
+ const [page,setPage]=useState(0);
+ const [sourceDrafts,setSourceDrafts]=useState<Record<string,string>>({});
+ const [expanded,setExpanded]=useState<string|null>(null);
+ const pageSize=10;
+ const filtered=items.filter(x=>(filter==='all'||x.status===filter)&&(!query.trim()||[x.title,x.summary,x.target,x.lang,x.kind].join(' ').toLowerCase().includes(query.trim().toLowerCase())));
+ const visible=filtered.slice(page*pageSize,(page+1)*pageSize);
  const counts={pending:items.filter(x=>x.status==='pending').length,approved:items.filter(x=>x.status==='approved').length,rejected:items.filter(x=>x.status==='rejected').length};
  const update=async(next:EditorialItem[])=>{try{setError('');return await onSaveItems(next)}catch(e){setError(e instanceof Error?e.message:'تعذر حفظ التغييرات');return false}};
  const editItem=async(item:EditorialItem)=>{
@@ -30,6 +36,23 @@ export default function EditorialReviewPanel({items,saving,onSaveItems}:{items:E
    // A new review never unpublishes the old approved page before replacement approval.
    const updated=item.status==='approved'?[...items,next]:items.map(x=>x.id===item.id?next:x);
    if(await update(updated))setEditing(null);
+ };
+ const addSource=async(item:EditorialItem)=>{
+   const raw=(sourceDrafts[item.id]||'').trim();
+   let url:URL;
+   try{url=new URL(raw)}catch{setError('أدخل رابطًا حكوميًا صحيحًا يبدأ بـ https://');return}
+   const host=url.hostname.toLowerCase();
+   if(url.protocol!=='https:'||url.username||url.password||url.port||!(host==='gov.sa'||host.endsWith('.gov.sa'))){setError('يُقبل هنا فقط رابط HTTPS رسمي ضمن نطاق gov.sa.');return}
+   if((item.evidence_refs||[]).length>=12){setError('بلغ المقترح الحد الأقصى للمراجع. راجع المراجع الحالية قبل إضافة أخرى.');return}
+   if(!window.confirm('هل راجعت الصفحة الحكومية بنفسك وتأكدت أنها تدعم المعلومات المقترحة؟ إضافة الرابط لا تعني اعتماد المحتوى أو نشره.'))return;
+   const next={...item,evidence_refs:[...item.evidence_refs,{id:'manual-'+Date.now().toString(36),label:url.hostname,source:'human-review',kind:'official-manual',url:url.href}],updatedAt:new Date().toISOString()};
+   try{validateEditorialItem(next)}catch(e){setError(e instanceof Error?e.message:'تعذر إضافة المصدر');return}
+   if(await update(items.map(x=>x.id===item.id?next:x)))setSourceDrafts(d=>({...d,[item.id]:''}));
+ };
+ const deleteItem=async(item:EditorialItem)=>{
+   if(!window.confirm(item.status==='approved'?'تحذير: حذف هذا المحتوى المنشور سيزيله من الموقع ومن قائمة المراجعة نهائيًا. هل تريد المتابعة؟':'حذف هذا المقترح نهائيًا من المحتوى المحفوظ؟ لا يمكن التراجع عن الحذف.'))return;
+   if(!window.confirm('تأكيد أخير: هل تريد حذف هذا المحتوى نهائيًا؟'))return;
+   if(await update(items.filter(x=>x.id!==item.id))){setExpanded(null);setPage(0)}
  };
  const approve=async(item:EditorialItem)=>{
    if(item.kind==='technical_seo'||item.kind==='internal_link'){setError('المهام التقنية والروابط المقترحة تحتاج تنفيذًا واختبارًا في الكود، وليس نشرًا تلقائيًا.');return;}
@@ -46,16 +69,26 @@ export default function EditorialReviewPanel({items,saving,onSaveItems}:{items:E
  };
  return <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
   <h2 className="text-xl font-bold mb-2">محرك المحتوى متعدد المسارات</h2>
-  <p className="text-slate-600 text-sm mb-3">تحليل السوق يوجّه المقترحات إلى صفحات الخدمات والباقات والرئيسية، أو أدلة مستقلة ومقارنات ومهام SEO. لا ينشر النظام أي مقترح دون مراجعة. الروابط والمهام التقنية لا تُنفذ عن طريق كتابة نص.</p>
+  <p className="text-slate-600 text-sm mb-3">مراجعة المقترحات قبل النشر. تفاصيل النص والمصادر وSEO تظهر عند فتح البطاقة فقط.</p>
   <p className="text-sm mb-3">بانتظار المراجعة: {counts.pending} · منشور: {counts.approved} · مرفوض/مسحوب: {counts.rejected}</p>
-  <select className="border border-slate-300 rounded-lg p-2 mb-4" value={filter} onChange={e=>setFilter(e.target.value)} aria-label="تصفية حالة المقترحات">
+  <div className="flex flex-wrap gap-2 mb-4"><input aria-label="البحث في المقترحات" placeholder="بحث بالعنوان أو المسار..." className="border border-slate-300 rounded-lg p-2 flex-1 min-w-44" value={query} onChange={e=>{setQuery(e.target.value);setPage(0)}}/>
+  <select className="border border-slate-300 rounded-lg p-2" value={filter} onChange={e=>{setFilter(e.target.value);setPage(0)}} aria-label="تصفية حالة المقترحات">
    <option value="all">كل الحالات</option><option value="pending">تحت المراجعة</option><option value="approved">منشور</option><option value="rejected">مرفوض</option>
-  </select>
+  </select></div>
   {error&&<p role="alert" className="text-red-700 text-sm mb-3">{error}</p>}
-  {visible.length===0&&<p className="text-slate-600">لا توجد مقترحات محفوظة بعد. يبدأ إنشاء المقترحات متعددة المسارات من تشغيلات GEO التالية؛ الأسئلة القديمة محفوظة بصورة منفصلة.</p>}
-  <ul className="space-y-5">{visible.map(item=><li key={item.id} className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 sm:p-5 space-y-3">
+  {filtered.length===0&&<p className="text-slate-600">لا توجد مقترحات محفوظة بعد. يبدأ إنشاء المقترحات متعددة المسارات من تشغيلات GEO التالية؛ الأسئلة القديمة محفوظة بصورة منفصلة.</p>}
+  <ul className="space-y-3">{visible.map(item=><li key={item.id} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 space-y-2">
    <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3 text-xs text-slate-800"><DataRoleTag tone="system">بيانات نظام</DataRoleTag><span>{NAMES[item.kind]||item.kind} · {l(item.lang)} · {item.target}</span><DataRoleTag tone={item.status==='approved'?'content':item.status==='rejected'?'warning':'verification'}>{item.status==='approved'?'منشور بعد المراجعة':item.status==='rejected'?'مرفوض':'بانتظار مراجعة'}</DataRoleTag></div>
-   {editing?.id===item.id?<DataRolePanel tone="content" title="تحرير النص المقترح" description="هذه حقول تحرير نص المحتوى. الحفظ لا ينشره تلقائيًا."><div className="space-y-2">
+   <div className="flex items-start justify-between gap-3"><div className="min-w-0"><h3 className="font-semibold text-slate-900 break-words">{item.title}</h3><p className="text-sm text-slate-600 line-clamp-2">{item.summary}</p></div><button className="btn-secondary text-xs shrink-0" aria-expanded={expanded===item.id} onClick={()=>setExpanded(expanded===item.id?null:item.id)}>{expanded===item.id?'إخفاء التفاصيل':'مراجعة التفاصيل'}</button></div>
+   <div className="flex flex-wrap gap-2 items-center">
+     {item.status==='approved'&&linkFor(item)&&<a href={linkFor(item)} target="_blank" rel="noopener noreferrer" className="btn-primary text-xs">معاينة الصفحة</a>}
+     {item.status==='pending'&&item.kind!=='technical_seo'&&item.kind!=='internal_link'&&<button className="btn-primary text-xs" disabled={saving||officialSourceCandidates(item.evidence_refs).length===0} onClick={()=>void approve(item)}>اعتماد ونشر</button>}
+     {item.status==='approved'&&<button className="btn-secondary text-xs" disabled={saving} onClick={()=>void reject(item)}>إلغاء النشر</button>}
+     {item.status==='pending'&&<button className="btn-secondary text-xs" disabled={saving} onClick={()=>void reject(item)}>رفض</button>}
+     <button className="btn-secondary text-xs text-red-700" disabled={saving} onClick={()=>void deleteItem(item)}>حذف</button>
+     {item.status==='pending'&&officialSourceCandidates(item.evidence_refs).length===0&&<span className="text-xs text-amber-800">المصادر الرسمية غير مكتملة</span>}
+   </div>
+   {expanded===item.id&&(editing?.id===item.id?<DataRolePanel tone="content" title="تحرير النص المقترح" description="هذه حقول تحرير نص المحتوى. الحفظ لا ينشره تلقائيًا."><div className="space-y-2">
       <input className="w-full border rounded p-2" aria-label="عنوان المحتوى" value={editing.title} onChange={e=>setEditing({...editing,title:e.target.value})}/>
       <textarea className="w-full border rounded p-2" rows={2} aria-label="ملخص المحتوى" value={editing.summary} onChange={e=>setEditing({...editing,summary:e.target.value})}/>
       <textarea className="w-full border rounded p-2" rows={7} aria-label="نص المحتوى" value={editing.body} onChange={e=>setEditing({...editing,body:e.target.value})}/>
@@ -95,6 +128,7 @@ export default function EditorialReviewPanel({items,saving,onSaveItems}:{items:E
         <p className="text-xs text-rose-900">لا تعتمد المحتوى عالي المخاطر قبل مراجعة مختص والتحقق من المصادر الرسمية. هذا التنبيه من النظام ولا يدخل ضمن المحتوى المنشور.</p>
       </DataRolePanel>}
       {item.status==='pending'&&<div className="space-y-3 border-t border-slate-200 pt-3">
+        <div className="flex flex-wrap gap-2"><input aria-label="رابط مصدر حكومي رسمي" className="border rounded-lg p-2 flex-1 min-w-40 text-sm" dir="ltr" placeholder="https://...gov.sa/..." value={sourceDrafts[item.id]||''} onChange={e=>setSourceDrafts(d=>({...d,[item.id]:e.target.value}))}/><button className="btn-secondary text-xs" disabled={saving||!sourceDrafts[item.id]?.trim()} onClick={()=>void addSource(item)}>إضافة مصدر موثق</button></div>
         <div className="flex flex-wrap items-center gap-2">
           <DataRoleTag tone="verification">{officialSourceCandidates(item.evidence_refs).length>0?'رصد آلي لروابط جهات حكومية':'بانتظار رصد مصادر حكومية'}</DataRoleTag>
           {officialSourceCandidates(item.evidence_refs).length===0&&<span className="text-xs text-amber-800">لا توجد روابط حكومية في أدلة البحث المحفوظة؛ الاعتماد غير متاح.</span>}
@@ -104,16 +138,17 @@ export default function EditorialReviewPanel({items,saving,onSaveItems}:{items:E
         </ul>}
         <div className="flex flex-wrap gap-2">
           <button className="btn-secondary text-xs" disabled={saving} onClick={()=>setEditing({id:item.id,title:item.title,summary:item.summary,body:item.body})}>تحرير المقترح</button>
-          {item.kind!=='technical_seo'&&item.kind!=='internal_link'&&<button className="btn-primary text-xs" disabled={saving||officialSourceCandidates(item.evidence_refs).length===0} onClick={()=>void approve(item)}>اعتماد المحتوى ونشره بصفحته</button>}
-          <button className="btn-secondary text-xs" disabled={saving} onClick={()=>void reject(item)}>رفض</button>
+
+  
         </div>
       </div>}
       {item.status==='approved'&&<div className="flex gap-3 flex-wrap border-t border-slate-200 pt-3">
-        {linkFor(item)&&<a className="text-blue-700 underline text-sm" href={linkFor(item)} target="_blank" rel="noopener noreferrer">فتح موضع النشر</a>}
+
         <button className="btn-secondary text-xs" disabled={saving} onClick={()=>setEditing({id:item.id,title:item.title,summary:item.summary,body:item.body})}>إنشاء تعديل للمراجعة</button>
-        <button className="btn-secondary text-xs" disabled={saving} onClick={()=>void reject(item)}>إلغاء النشر</button>
+
       </div>}
-    </>}
+    </>)}
    </li>)}</ul>
+   <div className="flex justify-between items-center mt-4 text-sm"><span>عرض {filtered.length===0?0:page*pageSize+1}–{Math.min(filtered.length,(page+1)*pageSize)} من {filtered.length}</span><div className="flex gap-2"><button className="btn-secondary text-xs" disabled={page===0} onClick={()=>setPage(p=>Math.max(0,p-1))}>السابق</button><button className="btn-secondary text-xs" disabled={(page+1)*pageSize>=filtered.length} onClick={()=>setPage(p=>p+1)}>التالي</button></div></div>
  </section>;
 }
