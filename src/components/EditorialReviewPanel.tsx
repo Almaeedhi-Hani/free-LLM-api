@@ -39,7 +39,10 @@ export default function EditorialReviewPanel({items,saving,onSaveItems,adminSecr
    try{validateEditorialItem(next)}catch(e){setError(e instanceof Error?e.message:'المحتوى غير مكتمل');return}
    // A new review never unpublishes the old approved page before replacement approval.
    const updated=item.status==='approved'?[...items,next]:items.map(x=>x.id===item.id?next:x);
-   if(await update(updated))setEditing(null);
+   if(await update(updated)){
+     setEditing(null);
+     setReviewedSources(current=>{const copy={...current};delete copy[item.id];return copy;});
+   }
  };
  const searchSources=async(item:EditorialItem)=>{
    setError('');setNotice('');setSearching(item.id);
