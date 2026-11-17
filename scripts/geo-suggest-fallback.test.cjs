@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
-const {collect,selectSeeds}=require('./geo-discovery-sources.cjs');
+const {collect,selectSeeds,isInvestorKeyword}=require('./geo-discovery-sources.cjs');
 const provider=require('../src/lib/provider-search.cjs');
 
 (async()=>{
@@ -55,6 +55,45 @@ const provider=require('../src/lib/provider-search.cjs');
   assert.equal(empty.suggestions.length,0,'HTTP 200 without suggestions must not create fictional keywords');
   assert.equal(empty.diagnostics.filter(x=>x.source==='google-suggest'&&x.reason==='empty_suggestions').length,6);
   assert.equal(empty.status,'blocked');
+
+  // Production Google Suggest returned off-topic completions such as
+  // "Saudi Arabia formation football". They are genuine autocomplete
+  // strings but not relevant investment queries and must NOT be persisted.
+  for(const [lang,term] of [
+   ['ar','تأسيس شركة في السعودية لغير السعوديين'],
+   ['en','saudi company formation cost'],
+   ['en','MISA foreign investor license'],
+   ['zh','沙特公司注册流程']
+  ])assert(isInvestorKeyword(term,lang),lang+' should retain business query '+term);
+  for(const [lang,term] of [
+   ['en','saudi arabia formation football'],
+   ['en','saudi arabia formation date'],
+   ['en','saudi arabia formation day'],
+   ['en','saudi arabia formation world cup'],
+   ['en','saudi arabia formation year'],
+   ['ar','كأس العالم لكرة القدم في السعودية'],
+   ['zh','沙特世界杯足球']
+  ])assert(!isInvestorKeyword(term,lang),lang+' must exclude off-topic query '+term);
+
+  let filteredRequests=0;
+  const filtered=await collect({now:at,fetchFn:async url=>{
+   const u=new URL(url);
+   if(u.hostname==='suggestqueries.google.com'){
+    filteredRequests++;
+    const lang=u.searchParams.get('hl'),q=u.searchParams.get('q');
+    const terms=lang==='en'?(q==='Saudi company formation'?
+     ['Saudi company formation cost']:['saudi arabia formation football','saudi arabia formation date']):
+     lang==='ar'?['تأسيس شركة في السعودية لغير السعوديين']:
+      ['沙特公司注册流程'];
+    return {ok:true,status:200,json:async()=>[q,terms]};
+   }
+   return {ok:true,status:200,text:async()=>'<rss><channel></channel></rss>'};
+  }});
+  assert.equal(filteredRequests,4,'irrelevant English primary must cause one short fallback');
+  assert.deepEqual(filtered.suggestions.map(x=>x.language),['ar','en','zh']);
+  assert.equal(filtered.suggestions.find(x=>x.language==='en').term,'Saudi company formation cost');
+  assert.equal(filtered.diagnostics.filter(x=>x.reason==='no_relevant_suggestions').length,1);
+  assert.equal(filtered.diagnostics.find(x=>x.reason==='no_relevant_suggestions').rejected,2);
 
   const seeds=selectSeeds(at);
   assert.equal(seeds.length,3,'rotating research seeds remain unchanged');
