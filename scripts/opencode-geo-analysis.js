@@ -138,24 +138,53 @@ function logStage(name, msg) {
 async function saveGeoDiscovery(candidates,suggestions) {
   const base=process.env.GEO_API_URL||process.env.SITE_URL;
   const key=process.env.GEO_API_KEY;
-  if(!base||!key)return {status:'partial',confirmed:{candidates:0,keywords:0},error:'GEO discovery API not configured'};
-  try {
-    const response=await fetch(base.replace(/\/$/,'')+'/api/geo/discovery',{
-      method:'POST',headers:{'Content-Type':'application/json','x-geo-api-key':key},
-      body:JSON.stringify({candidates,suggestions}),signal:AbortSignal.timeout(30000)
-    });
-    let payload;
-    try {payload=await response.json()}
-    catch{return {status:'partial',confirmed:{candidates:0,keywords:0},error:'Invalid GEO discovery response (HTTP '+response.status+')'}}
-    const confirmed=payload?.confirmed||{candidates:0,keywords:0};
-    const ok=response.ok&&payload?.ok===true&&confirmed.candidates===candidates.length&&
-      confirmed.keywords===suggestions.length;
-    return {status:ok?'success':'partial',confirmed,
-      error:ok?null:'GEO discovery persistence partial: '+JSON.stringify(payload?.errors||payload?.error||response.status).slice(0,260)};
-  }catch(e){
-    return {status:'partial',confirmed:{candidates:0,keywords:0},
-      error:'GEO discovery persistence unavailable: '+String(e?.message||e).slice(0,150)};
+  const confirmed={candidates:0,keywords:0};
+  if(!base||!key)return {status:'partial',confirmed,error:'GEO discovery API not configured'};
+  // The production endpoint persists every record sequentially, so a single
+  // 10-candidate/21-keyword request can exceed its 30s deadline after writing.
+  // Partition records into small, sequential, bounded requests; no parallel
+  // writes, retries, paid calls, or changed source-of-truth API contracts.
+  const KEYWORDS_PER_REQUEST=3;
+  const CANDIDATES_PER_REQUEST=2;
+  let keywordOffset=0,candidateOffset=0,batches=0;
+  const errorResult=(message)=>({status:'partial',confirmed,batches,error:message});
+  while(keywordOffset<suggestions.length||candidateOffset<candidates.length){
+    const batch={
+      suggestions:suggestions.slice(keywordOffset,keywordOffset+KEYWORDS_PER_REQUEST),
+      candidates:candidates.slice(candidateOffset,candidateOffset+CANDIDATES_PER_REQUEST)
+    };
+    batches++;
+    try {
+      const response=await fetch(base.replace(/\/$/,'')+'/api/geo/discovery',{
+        method:'POST',headers:{'Content-Type':'application/json','x-geo-api-key':key},
+        body:JSON.stringify(batch),signal:AbortSignal.timeout(30000)
+      });
+      let payload;
+      try {payload=await response.json()}
+      catch{return errorResult('Invalid GEO discovery batch response (HTTP '+response.status+', batch '+batches+')')}
+      const saved=payload?.confirmed;
+      if(!saved||!Number.isInteger(saved.candidates)||!Number.isInteger(saved.keywords)||
+         saved.candidates<0||saved.keywords<0||
+         saved.candidates>batch.candidates.length||saved.keywords>batch.suggestions.length)
+        return errorResult('Invalid GEO discovery confirmation for batch '+batches);
+      // Count only explicit server confirmations, including on a partial 502.
+      confirmed.candidates+=saved.candidates;
+      confirmed.keywords+=saved.keywords;
+      if(!response.ok||payload.ok!==true||
+         saved.candidates!==batch.candidates.length||
+         saved.keywords!==batch.suggestions.length)
+        return errorResult('GEO discovery persistence partial (batch '+batches+'): '+
+          JSON.stringify(payload?.errors||payload?.error||response.status).slice(0,240));
+      keywordOffset+=batch.suggestions.length;
+      candidateOffset+=batch.candidates.length;
+    }catch(e){
+      // A timeout is ambiguous: server-side writes may still complete.
+      // Stop without retrying or fabricating a successful acknowledgement.
+      return errorResult('GEO discovery batch '+batches+' unavailable: '+
+        String(e?.message||e).slice(0,150));
+    }
   }
+  return {status:'success',confirmed,batches,error:null};
 }
 async function stageDiscovery() {
   logStage('DISCOVERY', 'Collecting sourced market evidence (Google Suggest + bounded provider search)...');

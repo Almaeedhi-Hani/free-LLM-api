@@ -21,6 +21,21 @@ const SUGGEST_SHORT_QUERIES=Object.freeze({
  en:'Saudi company formation',
  zh:'沙特公司注册'
 });
+/** Keep raw Google suggestions only when they relate to investor services.
+ * A suggestion is a query idea, not proof of traffic, legal status or rank.
+ * This gate applies to discovery inputs only; manual keyword records remain untouched. */
+function isInvestorKeyword(term,language){
+ const value=String(term||'').normalize('NFKC').trim().toLowerCase();
+ if(!value||value.length>160)return false;
+ // Reject highly recognizable irrelevant autocomplete completions even if
+ // they happen to include words such as "company".
+ if(/\b(?:football|soccer|world cup|formation day|national day|formation year|formation date|sports? team)\b|كرة القدم|كاس العالم|كأس العالم|世界杯|足球/.test(value))
+  return false;
+ if(language==='ar')return /شركة|شركات|شركه|الشركات|استثمار|مستثمر|ترخيص|سجل تجار|فرع أجنبي|منشأة|منشات|إقامة مميزة/.test(value);
+ if(language==='en')return /\b(?:compan(?:y|ies)|business|invest(?:ment|or)?|misa|licen[sc](?:e|ing)?|commercial registr(?:ation|y)|subsidiar(?:y|ies)|corporat(?:e|ion)|incorporat(?:e|ion)|llc|foreign branch|legal entity|premium residency)\b/i.test(value);
+ if(language==='zh')return /公司|投资|注册|企业|外资|执照|分公司|营业|居留/.test(value);
+ return false;
+}
 const decode=s=>String(s||'').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,'$1').replace(/&amp;/gi,'&').replace(/&quot;/gi,'"').replace(/&#39;/g,"'").replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
 const keyword=(s)=>/(company formation|business setup|company registration|company incorporation|investor services|investment licen[sc]|misa licen[sc]|تأسيس شرك|ترخيص استثمار|رخصة استثمار|公司注册|投资许可)/i.test(s);
 const region=(s)=>/(saudi|ksa|misa|السعود|المملكة|沙特)/i.test(s);
@@ -67,17 +82,19 @@ async function collect({fetchFn=fetch,now=new Date()}={}){
     const url='https://suggestqueries.google.com/complete/search?client=firefox&hl='+seed.language+'&q='+encodeURIComponent(query);
     const response=await fetchFn(url,{signal:AbortSignal.timeout(MAX_REQ_MS)});
     if(!response.ok)throw new Error('http_'+response.status);
-    const data=await response.json();let added=0;
-    for(const term of (Array.isArray(data?.[1])?data[1]:[]).slice(0,10)){
+    const data=await response.json();let added=0,rejected=0;
+    const raw=Array.isArray(data?.[1])?data[1].slice(0,10):[];
+    for(const term of raw){
      if(typeof term!=='string')continue;
      const normalized=term.trim();
+     if(!isInvestorKeyword(normalized,seed.language)){rejected++;continue}
      const key=seed.language+':'+normalized.toLowerCase();
      if(!normalized||terms.has(key))continue;
      terms.add(key);added++;localeAdded++;
      suggestions.push({term:normalized,language:seed.language,query,source:'google-suggest',collected_at:new Date().toISOString()});
     }
     diagnostics.push({source:'google-suggest',language:seed.language,status:response.status,count:added,
-     variant,reason:added===0?'empty_suggestions':undefined});
+     variant,rejected,reason:added===0?(raw.length?'no_relevant_suggestions':'empty_suggestions'):undefined});
    }catch(e){diagnostics.push({source:'google-suggest',language:seed.language,status:'unavailable',
     variant,reason:String(e?.name==='TimeoutError'?'timeout':e?.message||'error').slice(0,70),count:0})}
   }
@@ -112,4 +129,4 @@ async function collect({fetchFn=fetch,now=new Date()}={}){
  return {competitors:competitors.slice(0,15),suggestions:suggestions.slice(0,30),diagnostics,
    status:competitors.length?'success':suggestions.length?'partial':'blocked'};
 }
-module.exports={collect,parseRss,selectSeeds};
+module.exports={collect,parseRss,selectSeeds,isInvestorKeyword};

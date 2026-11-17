@@ -4,6 +4,11 @@ on:
     paths:
       - 'scripts/geo-opencode-planner.cjs'
       - 'scripts/opencode-geo-analysis.js'
+      - 'scripts/geo-discovery-sources.cjs'
+      - 'scripts/geo-discovery-persistence.test.cjs'
+      - 'scripts/geo-batched-persistence.test.cjs'
+      - 'scripts/geo-suggest-fallback.test.cjs'
+      - 'package.json'
       - 'scripts/geo-editorial-prompt.test.cjs'
       - 'scripts/geo-provider-fallback.test.cjs'
       - 'scripts/geo-opportunity-contract.cjs'
