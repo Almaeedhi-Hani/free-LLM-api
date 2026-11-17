@@ -1,0 +1,52 @@
+name: GEO PR99 one-time production validation
+
+on:
+  push:
+    branches:
+      - qa/geo-pr99-production-run-once-20261118
+    paths:
+      - '.github/workflows/geo-pr99-production-once.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: geo-analysis
+  cancel-in-progress: false
+
+jobs:
+  geo-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact merged production commit
+        uses: actions/checkout@v4
+        with:
+          ref: 527e06675b3411c8cc971faec77b8a26b77a77f8
+      - name: Verify tested production commit
+        run: test "$(git rev-parse HEAD)" = '527e06675b3411c8cc971faec77b8a26b77a77f8'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install OpenCode
+        run: |
+          curl -fsSL https://opencode.ai/v2/install | bash
+      - name: Run one production GEO pipeline verification
+        env:
+          GEO_API_URL: ${{ secrets.GEO_API_URL }}
+          GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
+          EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          PARALLEL_API_KEY: ${{ secrets.PARALLEL_API_KEY }}
+          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+          OPENCODE_MODEL: opencode/beam-free
+          OPENCODE_BIN: /home/runner/.opencode/bin/opencode
+        run: node scripts/opencode-geo-analysis.js --full-pipeline
+      - name: Upload sanitized run report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: geo-pr99-validation-report
+          path: market-intel/geo-persisted-results.json
+          retention-days: 7
