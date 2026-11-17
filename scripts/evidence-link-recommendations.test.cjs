@@ -7,8 +7,7 @@ assert.equal(recommendLinksForReviewedEvidence(base,'company-documents'),null);
 const r=recommendLinksForReviewedEvidence(base,'company-formation');
 assert(r);
 assert.equal(r.target_route,'/services/company-formation');
-for (const invalidUrl of ['javascript:alert(1)', 'https://user:pass@example.org/a', 'https://', 'http://example.org@evil.test/']) {
-  if (invalidUrl.includes('@evil.test')) continue; // a valid URL, not a credential-bearing URL
+for (const invalidUrl of ['javascript:alert(1)', 'https://user:pass@example.org/a', 'https://']) {
   assert.equal(recommendLinksForReviewedEvidence({...base,url:invalidUrl},'company-formation'),null);
 }
 assert.equal(recommendLinksForReviewedEvidence({...base,url:'HTTPS://EXAMPLE.ORG/a'},'company-formation').competitor_url,'https://example.org/a');
