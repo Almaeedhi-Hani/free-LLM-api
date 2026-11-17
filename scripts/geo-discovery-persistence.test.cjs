@@ -103,5 +103,93 @@ assert.throws(()=>normalizeGeoDiscoveryBatch({candidates:[],suggestions:[]}),/Em
  const failed=await scope.save([candidate()],[suggestion()]);
  assert.equal(failed.status,'partial');
  assert.equal(failed.confirmed.candidates,0);
+ // Execute the ACTUAL Next.js route with isolated fake repository functions.
+ // This covers authentication, read-back, manually curated metadata, replay
+ // and partial database failure without touching live Supabase or network.
+ const ts=require('typescript');
+ const compiled=ts.transpileModule(route,{
+  compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}
+ }).outputText;
+ const fake={
+  keywords:[{term:suggestion().term,language:'ar',source:'manual',search_volume:77,intent:'commercial'}],
+  competitors:new Map([['investor-example.com.sa',{
+   id:'manual-c1',domain:'investor-example.com.sa',name:'Reviewed Company',source:'manual',
+   notes:'Reviewed by analyst',status:'active'
+  }]]),
+  observations:[]
+ };
+ let configured=true,failCandidate=false;
+ const fakeMarket={
+  listKeywords:async({language})=>fake.keywords.filter(k=>k.language===language),
+  upsertKeyword:async item=>{const stored={...item,id:'keyword-'+(fake.keywords.length+1)};fake.keywords.push(stored);return stored},
+  getCompetitor:async domain=>fake.competitors.get(domain)||null,
+  upsertCompetitor:async item=>{const stored={...item,id:'comp-'+(fake.competitors.size+1),status:'active'};fake.competitors.set(item.domain,stored);return stored},
+  listObservations:async id=>fake.observations.filter(o=>o.competitor_id===id),
+  recordObservation:async item=>{
+   if(failCandidate)throw Error('Simulated Supabase write failure');
+   const stored={...item,id:'obs-'+(fake.observations.length+1)};
+   fake.observations.push(stored);return stored;
+  }
+ };
+ const routeModule={exports:{}};
+ const providers={
+  'next/server':{NextResponse:{json:(data,opts={})=>({status:opts.status||200,json:async()=>data})}},
+  'crypto':require('node:crypto'),
+  '@/lib/storage-mode':{getSupabaseCredentials:()=>configured?{url:'https://supabase.invalid',key:'fake'}:null},
+  '@/lib/market-intelligence':fakeMarket,
+  '@/lib/geo-discovery-batch':require('../.geo-ingest-test-build/lib/geo-discovery-batch.js')
+ };
+ vm.runInNewContext(compiled,{
+  exports:routeModule.exports,module:routeModule,require:name=>{
+   if(!Object.prototype.hasOwnProperty.call(providers,name))throw Error('Unexpected import '+name);
+   return providers[name];
+  },
+  Buffer,URL,process:{env:{GEO_API_KEY:'local-test-key'}},
+  console:{error:()=>{}}
+ });
+ const POST=routeModule.exports.POST;
+ assert.equal(typeof POST,'function');
+ const request=(body,key='local-test-key')=>({
+  headers:{get:name=>name==='x-geo-api-key'?key:name==='content-length'?String(JSON.stringify(body).length):null},
+  text:async()=>JSON.stringify(body)
+ });
+ const data={candidates:[candidate(),candidate({url:'https://company.cn/saudi',language:'zh',source:'parallel'})],
+  suggestions:[suggestion(),suggestion({term:'foreign company registration Saudi Arabia',language:'en'})]};
+ let response=await POST(request(data,'wrong-key'));
+ assert.equal(response.status,401,'unauthenticated discovery cannot write');
+ assert.equal(fake.observations.length,0);
+ configured=false;
+ response=await POST(request(data));
+ assert.equal(response.status,503,'missing persistent Supabase must fail closed');
+ configured=true;
+ response=await POST(request(data));
+ assert.equal(response.status,200,'the actual route accepts safe bounded discovery');
+ let body=await response.json();
+ assert.equal(body.confirmed.candidates,2);
+ assert.equal(body.confirmed.keywords,2);
+ assert.equal(fake.observations.length,2);
+ assert.equal(fake.keywords.length,2,'one previously curated keyword and one new suggestion');
+ assert.equal(fake.competitors.size,2,'one curated competitor and one new candidate');
+ assert.equal(fake.competitors.get('investor-example.com.sa').name,'Reviewed Company');
+ assert.equal(fake.competitors.get('investor-example.com.sa').source,'manual');
+ assert.equal(fake.keywords.find(k=>k.language==='ar').search_volume,77,'manual search volumes unchanged');
+ assert(fake.observations.every(o=>o.rank===null&&o.raw.rank_status==='unverified_provider_order'&&o.raw.evidence_status==='candidate'));
+ response=await POST(request(data));
+ assert.equal(response.status,200,'ambiguous replay must be read-back idempotent');
+ assert.equal(fake.observations.length,2);
+ assert.equal(fake.keywords.length,2);
+ response=await POST(request({...data,candidates:[candidate({rank:2})]}));
+ assert.equal(response.status,422,'reject a search-provider rank assertion');
+ response=await POST(request({...data,candidates:[candidate({url:'https://misa.gov.sa/official'})]}));
+ assert.equal(response.status,502,'government pages cannot silently be registered as rivals');
+ assert.equal(fake.competitors.size,2);
+ failCandidate=true;
+ response=await POST(request({candidates:[candidate({url:'https://newfirm.example.com/page'})],suggestions:[]}));
+ assert.equal(response.status,502,'database failure must return partial, not fake success');
+ body=await response.json();
+ assert.equal(body.ok,false);
+ assert.equal(body.confirmed.candidates,0);
+ assert.equal(body.errors.length,1);
+ console.log('PASS actual GEO discovery POST with isolated database mock: auth, read-back, replay, curated records, no ranked SERP, partial failure');
  console.log('PASS bounded trilingual research ingestion, source provenance, idempotence, no fabricated ranks, partial failures and guarded single-attempt GEO bridge');
 })().catch(e=>{console.error(e);process.exitCode=1});
