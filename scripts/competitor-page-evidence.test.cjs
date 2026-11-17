@@ -1,0 +1,15 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {buildCompetitorPageEvidenceBriefs}=require('../.market-test-build/competitor-page-evidence.js');
+const base={id:'a',competitor_id:'c',language:'ar',query:'تأسيس شركة',url:'https://example.com/page',observed_at:'2026-11-16T00:00:00Z',strengths:[],weaknesses:[]};
+const candidate={...base,rank:1,raw:{rank_status:'unverified_provider_order'}};
+const verified={...base,id:'b',rank:2,observed_at:'2026-11-17T00:00:00Z',raw:{rank_status:'verified_serp'},strengths:['documented FAQ']};
+const result=buildCompetitorPageEvidenceBriefs([candidate,verified]);
+assert.equal(result.length,1);
+assert.equal(result[0].verified_rank,2);
+assert.deepEqual(result[0].strengths,['documented FAQ']);
+assert.equal(result[0].review_required,true);
+assert.equal(buildCompetitorPageEvidenceBriefs([candidate])[0].verified_rank,null);
+assert.equal(buildCompetitorPageEvidenceBriefs([{...candidate,url:'javascript:alert(1)'}]).length,0);
+assert.equal(buildCompetitorPageEvidenceBriefs([verified],0).length,0);
+console.log('PASS competitor page evidence brief provenance and review');
