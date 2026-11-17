@@ -1,0 +1,101 @@
+name: System isolated acceptance (no production writes)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/system-acceptance-isolated.cjs'
+      - 'scripts/system-production-readonly.cjs'
+      - 'scripts/admin-dashboard-browser-e2e.cjs'
+      - 'scripts/check-public-seo.cjs'
+      - 'src/**'
+      - '.github/workflows/system-isolated-acceptance.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: isolated-acceptance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  acceptance:
+    name: Local browser + API acceptance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+      ADMIN_SECRET: qa-local-dashboard-secret
+      GEO_API_KEY: qa-local-geo-secret
+      E2E_ADMIN_SECRET: qa-local-dashboard-secret
+      E2E_GEO_KEY: qa-local-geo-secret
+      QA_BASE_URL: http://127.0.0.1:3100
+      SEO_TEST_BASE_URL: http://127.0.0.1:3100
+      SITE_URL: https://free-llm-api-1-didl.onrender.com
+      # Never supply production Supabase credentials to this job.
+      SUPABASE_URL: ''
+      SUPABASE_SERVICE_ROLE_KEY: ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install locked app dependencies
+        run: npm ci
+      - name: Install isolated Chromium browser
+        run: |
+          npm install --no-save playwright@1.57.0
+          npx playwright install --with-deps chromium
+      - name: Start isolated local app with disposable files
+        env:
+          CONTENT_STORE_PATH: ${{ runner.temp }}/qa-acceptance-content.json
+          MARKET_INTEL_PATH: ${{ runner.temp }}/qa-acceptance-market
+        run: |
+          mkdir -p "$MARKET_INTEL_PATH"
+          nohup npm run dev -- --hostname 127.0.0.1 --port 3100 >"${{ runner.temp }}/qa-acceptance.log" 2>&1 &
+          for attempt in $(seq 1 50); do
+            if curl -fsS --max-time 10 http://127.0.0.1:3100/api/health >/dev/null 2>&1; then exit 0; fi
+            sleep 2
+          done
+          tail -100 "${{ runner.temp }}/qa-acceptance.log"
+          exit 1
+      # Hydrate the dashboard before compiling the numerous independent API routes.
+      # Avoid dev-server/Webpack fixture contention, which is not a production condition.
+      - name: Browser interactions for admin editing, review, market CRUD and mobile navigation
+        run: node scripts/admin-dashboard-browser-e2e.cjs
+      - name: API guard, health and malformed input acceptance
+        run: node scripts/system-acceptance-isolated.cjs
+      # Site SEO has a dedicated clean-fixture regression in admin-regression.yml,
+      # plus full 24-route live coverage in the independent GET-only job below.
+      # Reusing the same Next.js dev process after dashboard mutations can leak
+      # rewritten request metadata into later localized SEO requests.
+      - name: Show local Next.js diagnostics on failure
+        if: failure()
+        run: |
+          echo '--- Isolated app diagnostics (no production secrets) ---'
+          tail -100 "${{ runner.temp }}/qa-acceptance.log" || true
+      - name: Upload isolated failure screenshot only
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: isolated-acceptance-failure-screenshot
+          path: /tmp/admin-dashboard-browser-e2e-failure.png
+          if-no-files-found: ignore
+          retention-days: 7
+
+  live-readonly:
+    name: Production public GET-only HTTP smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Verify real Render HTTP, Supabase health and 3-language public routes
+        run: node scripts/system-production-readonly.cjs
+      - name: Cross-check all 24 live localized SEO routes and canonical metadata
+        env:
+          SEO_TEST_BASE_URL: https://free-llm-api-1-didl.onrender.com
+        run: node scripts/check-public-seo.cjs
