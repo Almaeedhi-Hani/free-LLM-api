@@ -2,6 +2,7 @@
 
 import EditorialReviewPanel from '@/components/EditorialReviewPanel';
 import EvidencePriorityReviewPanel from '@/components/EvidencePriorityReviewPanel';
+import type { CompetitorPageEvidenceBrief } from '@/lib/competitor-page-evidence';
 import PackageRequestsAdmin from '@/components/PackageRequestsAdmin';
 import {DataRoleLegend,DataRolePanel,DataRoleTag} from '@/components/AdminDataRoles';
 import { assessGeoDraftCopy, splitGeoDraftReviewText } from "@/lib/geo-draft-quality";
@@ -120,6 +121,7 @@ export default function AdminDashboard() {
   const [lastUpdated, setLastUpdated] = useState<string>('');
   const [evidenceData, setEvidenceData] = useState<any>(null);
   const [evidenceLoading, setEvidenceLoading] = useState(false);
+  const [recordedBriefs, setRecordedBriefs] = useState<CompetitorPageEvidenceBrief[]>([]);
   const [marketLoading,setMarketLoading]=useState(false);
   const [marketSources,setMarketSources]=useState<any[]>([]);
   const [editingMarketKeyword,setEditingMarketKeyword] = useState<{id:string;term:string;language:'ar'|'en'|'zh';intent:string;cluster:string}|null>(null);
@@ -247,6 +249,8 @@ export default function AdminDashboard() {
       const kws = await marketFetch('/api/admin/market/keywords');
       const opps = await marketFetch('/api/admin/market/opportunities');
       const gls = await marketFetch('/api/admin/market/goals');
+      const recorded = await marketFetch('/api/admin/market/evidence-briefs');
+      setRecordedBriefs(Array.isArray(recorded.briefs) ? recorded.briefs : []);
       setEvidenceData({ competitors: comps.competitors || [], keywords: kws.keywords || [], opportunities: opps.opportunities || [], goals: gls.goals || [] });
     } catch (e: any) { setError(e.message); }
     finally { setEvidenceLoading(false); }
@@ -1016,7 +1020,7 @@ export default function AdminDashboard() {
                   </div>
                   {!evidenceData&&!evidenceLoading&&<p className="text-sm text-slate-500">اضغط تحديث لتحميل الأدلة.</p>}
                   {evidenceLoading&&<p className="text-sm text-slate-500">جاري التحميل...</p>}
-                  <EvidencePriorityReviewPanel />
+                  <EvidencePriorityReviewPanel recordedBriefs={recordedBriefs} />
                   {evidenceData&&<div className="min-w-0 space-y-4">
                     <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                       <div className="rounded-xl border border-blue-200 bg-blue-50 p-3"><p className="text-xs font-semibold text-blue-900">منافسون مرصودون</p><p className="text-xl font-bold text-blue-950">{evidenceData.competitors.length}</p></div>
