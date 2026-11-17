@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual,createHash,createDecipheriv } from 'crypto';
+import { summarizeGscPerformance } from '@/lib/gsc-measured-performance';
 
 export const dynamic = 'force-dynamic';
 const BASE = (process.env.SITE_URL || 'https://free-llm-api-1-didl.onrender.com').replace(/\/$/, '');
@@ -87,9 +88,24 @@ export async function GET(req:NextRequest) {
       } catch {
         return NextResponse.json({connected:false,source:'google_search_console',message:'تعذر قراءة بيانات الأداء من Google. تحقق من خاصية الموقع والصلاحيات ثم حاول مجددًا.',rows:[]},{status:502});
       }
-      const summary=totals.rows?.[0];
-      const rows=(details.rows||[]).map(r=>({query:r.keys[0],clicks:r.clicks,impressions:r.impressions,ctr:r.ctr,position:r.position}));
-      return NextResponse.json({connected:true,source:'google_search_console',property,dimension,days:requestedDays,startDate:date(start),endDate:date(end),checked_at:new Date().toISOString(),summary:summary?{clicks:summary.clicks,impressions:summary.impressions,ctr:summary.ctr,position:summary.position}:null,rows,message:rows.length?'':'الاتصال ناجح، لكن لا توجد بيانات أداء لهذه الفترة حتى الآن. قد يحتاج الموقع الجديد إلى وقت ليظهر في نتائج البحث.'});
+      // Validate separately: Google detail rows may be limited to the top 250,
+      // so NEVER use their sum as the site's total performance.
+      const detailRows=(details.rows||[]).map(r=>({...r,keys:r.keys??[]}));
+      summarizeGscPerformance(detailRows,[dimension]);
+      const totalRows=(totals.rows||[]).map(r=>({...r,keys:r.keys??[]}));
+      if(totalRows.length>1)throw Error('Unexpected multi-row ungrouped GSC totals');
+      const measured=summarizeGscPerformance(totalRows,[]);
+      const summary=measured.sampled_rows===0?null:{
+        clicks:measured.clicks,impressions:measured.impressions,
+        ctr:measured.ctr,position:measured.average_position,
+      };
+      const rows=detailRows.map(r=>({query:r.keys[0],clicks:r.clicks,impressions:r.impressions,ctr:r.ctr,position:r.position}));
+      return NextResponse.json({
+        connected:true,source:'google_search_console',property,dimension,days:requestedDays,
+        startDate:date(start),endDate:date(end),checked_at:new Date().toISOString(),
+        summary,rows,details_limit:250,details_may_be_partial:detailRows.length>=250,
+        message:summary===null?'الاتصال ناجح، ولكن Google لم يرجع أي قياسات لهذه الفترة.':!rows.length?'تتوفر بيانات إجمالية، لكن لا توجد تفاصيل لهذا التصنيف.':'',
+      });
 
     } catch {
       return NextResponse.json({connected:false,source:'google_search_console',message:'تعذر الاتصال بخدمة Google Search Console.',rows:[]},{status:502});
