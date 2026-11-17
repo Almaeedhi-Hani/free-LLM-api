@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
-const {recommendLinksForReviewedEvidence}=require('../.market-test-build/evidence-link-recommendations.js');
+const {recommendLinksForReviewedEvidence}=require('../.market-link-build/lib/evidence-link-recommendations.js');
 const base={competitor_id:'c',language:'en',query:'Saudi company formation',url:'https://example.org/formation',title:null,observed_at:'2026-11-17T00:00:00Z',verified_rank:null,evidence_status:'provider_candidate',strengths:[],weaknesses:['No FAQ'],review_required:true};
 assert.equal(recommendLinksForReviewedEvidence(base,'unknown'),null);
 assert.equal(recommendLinksForReviewedEvidence(base,'company-documents'),null);
