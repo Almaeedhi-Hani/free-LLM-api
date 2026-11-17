@@ -12,7 +12,7 @@ export default function VisibilityDashboard({secret}:{secret:string}){
  const [queryDimension,setQueryDimension]=useState<'query'|'page'|'country'|'device'>('query');
  const [queryDays,setQueryDays]=useState(28);
  const [gscConnected,setGscConnected]=useState(false);
- const [querySummary,setQuerySummary]=useState<{clicks:number;impressions:number;ctr:number;position:number}|null>(null);
+ const [querySummary,setQuerySummary]=useState<{clicks:number;impressions:number;ctr:number|null;position:number|null}|null>(null);
  const [gscProperty,setGscProperty]=useState('');
  const [history,setHistory]=useState<{rows:Array<{metric_date:string;clicks:number;impressions:number}>;alerts:Array<{message:string}>;last_sync:string|null;message?:string}|null>(null);
  const [loading,setLoading]=useState(false);
@@ -87,8 +87,9 @@ export default function VisibilityDashboard({secret}:{secret:string}){
      <label>التصنيف <select aria-label="تصنيف بيانات البحث" value={queryDimension} onChange={e=>setQueryDimension(e.target.value as typeof queryDimension)} className="border rounded-lg p-2"><option value="query">الكلمات المفتاحية</option><option value="page">الصفحات</option><option value="country">البلدان</option><option value="device">الأجهزة</option></select></label>
     </div>
     {gscConnected&&<div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-     {([['النقرات',querySummary?.clicks.toLocaleString('ar-SA')??'0'],['مرات الظهور',querySummary?.impressions.toLocaleString('ar-SA')??'0'],['CTR',querySummary?(querySummary.ctr*100).toFixed(2)+'%':'—'],['متوسط الترتيب',querySummary?querySummary.position.toFixed(1):'—']] as const).map(([label,value])=><div key={label} className="rounded-lg bg-slate-50 p-3"><span className="text-xs text-slate-600">{label}</span><strong className="block text-xl">{value}</strong></div>)}
+     {([['النقرات',querySummary?.clicks.toLocaleString('ar-SA')??'—'],['مرات الظهور',querySummary?.impressions.toLocaleString('ar-SA')??'—'],['CTR',querySummary?.ctr!=null?(querySummary.ctr*100).toFixed(2)+'%':'—'],['متوسط الموضع',querySummary?.position!=null?querySummary.position.toFixed(1):'—']] as const).map(([label,value])=><div key={label} className="rounded-lg bg-slate-50 p-3"><span className="text-xs text-slate-600">{label}</span><strong className="block text-xl">{value}</strong></div>)}
     </div>}
+    {gscConnected&&<p className="text-xs text-slate-600">الإجماليات مأخوذة من استعلام Google Search Console غير مقسم حسب الكلمات أو الصفحات. التفاصيل قد تقتصر على أول 250 صفًا، ولا يُستخدم مجموعها بوصفه إجمالي الموقع. «متوسط الموضع» إحصاء GSC، وليس إثباتًا لمركز ثابت في Google.</p>}
     {history&&<div className="rounded-lg border border-slate-200 p-3 space-y-2"><h4 className="font-semibold">المراقبة اليومية المحفوظة</h4><p className="text-xs text-slate-500">آخر مزامنة: {history.last_sync?new Date(history.last_sync).toLocaleString('ar-SA'):'لم تبدأ بعد'}</p>{history.message&&<p className="text-sm">{history.message}</p>}{history.alerts.map((a,i)=><p key={i} role="alert" className="text-amber-800">{a.message}</p>)}{history.rows.length>0&&<div className="overflow-x-auto"><table className="w-full text-sm text-right"><thead><tr><th>اليوم</th><th>النقرات</th><th>الظهور</th></tr></thead><tbody>{history.rows.slice(0,14).map(r=><tr key={r.metric_date}><td>{r.metric_date}</td><td>{r.clicks}</td><td>{r.impressions}</td></tr>)}</tbody></table></div>}</div>}
     {gscConnected&&queryRows.length===0&&<p role="status" className="rounded-lg bg-blue-50 p-3 text-blue-900">الاتصال ناجح، لكن Google لا يعرض بيانات لهذا التصنيف والفترة حتى الآن. هذا طبيعي للمواقع الجديدة.</p>}
    </div>}
