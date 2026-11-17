@@ -15,7 +15,15 @@ const secret=process.env.E2E_ADMIN_SECRET;
  const go=async tab=>page.locator('aside nav button').filter({hasText:tab}).first().click();
  try{
   await page.goto(base+'/admin/dashboard',{waitUntil:'networkidle'});
-  await page.waitForTimeout(850);
+  // Next.js dev may hydrate after late compilation; retry the local-only fixture
+  // instead of confusing a compilation race with a production login regression.
+  for(let attempt=0;attempt<3;attempt++){
+    if(await page.getByPlaceholder('المفتاح السري').isVisible().catch(()=>false))break;
+    await page.waitForTimeout(1000+attempt*800);
+    if(await page.getByPlaceholder('المفتاح السري').isVisible().catch(()=>false))break;
+    if(attempt<2)await page.reload({waitUntil:'networkidle'});
+  }
+  await page.getByPlaceholder('المفتاح السري').waitFor({timeout:10000});
   // Cookie consent is a real bottom overlay, so make the visitor choice first.
   // Reject optional cookies; do not click through or disable the banner.
   const cookieChoice=page.getByRole('button',{name:'رفض الاختيارية'});
