@@ -1,0 +1,11 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {assessGscSyncHealth:assess}=require('../.visibility-test-build/gsc-sync-health.js');
+const now=Date.parse('2026-11-17T12:00:00Z');
+assert.equal(assess(null,now).status,'no_snapshot');
+assert.equal(assess('bad',now).status,'invalid_timestamp');
+assert.equal(assess('2026-11-18T12:00:00Z',now).status,'invalid_timestamp');
+assert.equal(assess('2026-11-17T11:00:00Z',now).status,'recent');
+assert.equal(assess('2026-11-15T11:59:00Z',now).status,'stale');
+assert.equal(assess('2026-11-15T12:00:00Z',now).status,'recent');
+console.log('PASS GSC sync freshness and missing-snapshot safeguards');
