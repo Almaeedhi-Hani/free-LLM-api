@@ -47,7 +47,9 @@ export default function EditorialReviewPanel({items,saving,onSaveItems,adminSecr
  const searchSources=async(item:EditorialItem)=>{
    setError('');setNotice('');setSearching(item.id);
    try{
-     const response=await fetch('/api/admin/editorial-sources',{method:'POST',headers:{'Content-Type':'application/json','x-admin-secret':adminSecret},body:JSON.stringify({title:item.title,lang:item.lang,primary_keyword:item.primary_keyword||'',target:item.target})});
+     // Guides use unpublished article slugs; search the authority for their known parent service.
+     const authorityTarget=item.related_service||item.target;
+     const response=await fetch('/api/admin/editorial-sources',{method:'POST',headers:{'Content-Type':'application/json','x-admin-secret':adminSecret},body:JSON.stringify({title:item.title,lang:item.lang,primary_keyword:item.primary_keyword||'',target:authorityTarget})});
      const data=await response.json();
      if(!response.ok)throw Error(data.error||'تعذر البحث');
      setSourceResults(x=>({...x,[item.id]:data.results||[]}));

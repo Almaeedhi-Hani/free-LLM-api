@@ -96,6 +96,7 @@ assert.equal(editorialPublicationIssues({kind:'guide',body:'Investors can review
 
 const fs=require('node:fs');
 const reviewPanelSource=fs.readFileSync('src/components/EditorialReviewPanel.tsx','utf8');
+assert(reviewPanelSource.includes('const authorityTarget=item.related_service||item.target;'), 'guide and comparison official source searches use their validated service authority rather than the unpublished guide slug');
 assert(reviewPanelSource.includes("const verified=(reviewedSources[item.id]||[]).filter(url=>official.includes(url))"),'approval only uses explicitly selected official candidate URLs');
 assert(reviewPanelSource.includes('editorialPublicationIssues(item)'), 'UI refuses instruction-like content before approval');
 const editorialBlockSource=fs.readFileSync('src/components/EditorialBlock.tsx','utf8');

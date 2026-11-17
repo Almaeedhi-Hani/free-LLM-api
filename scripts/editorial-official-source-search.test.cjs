@@ -15,6 +15,24 @@ assert(queries[0].includes('MISA foreign investment license'));
 assert.equal(officialSourceQueries({title:'Saudi registration',lang:'en',target:'misa-license'}).length,1);
 assert.equal(officialSourceQueries({title:'الاستثمار site:evil.test',lang:'ar'}).every(q=>q.includes('site:gov.sa')&&!q.includes('evil.test')),true);
 assert.equal(officialSourceQueries({title:'Test title',lang:'invalid'}).length,0);
+const arRegistration=officialSourceQueries({
+ title:'دليل خطوات التسجيل الاستثماري للمستثمر الأجنبي',
+ primary_keyword:'تسجيل المستثمرين في السعودية',
+ target:'misa-license',lang:'ar',
+});
+assert(arRegistration[0].includes('وزارة الاستثمار'),'Arabic planned registration guides should search the MISA authority');
+const enDocuments=officialSourceQueries({
+ title:'Guide to company incorporation documents',
+ target:'company-formation',lang:'en',
+});
+assert(enDocuments[0].includes('Ministry of Commerce'),'English company documents should search the Commerce authority');
+const zhDocuments=officialSourceQueries({
+ title:'沙特外资企业设立文件准备指南',
+ target:'company-formation',lang:'zh',
+});
+assert(zhDocuments[0].includes('商业部'),'Chinese company documents should search the Commerce authority');
+assert([...arRegistration,...enDocuments,...zhDocuments].every(q=>q.includes('site:gov.sa')),
+ 'All languages must retain strict gov.sa search scope');
 for(const url of [
  'https://misa.gov.sa.evil.example/faq',
  'https://gov.sa.evil.example/',
