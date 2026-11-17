@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - 'scripts/system-acceptance-isolated.cjs'
+      - 'scripts/system-production-readonly.cjs'
       - 'scripts/admin-dashboard-browser-e2e.cjs'
       - 'scripts/check-public-seo.cjs'
       - 'src/**'
@@ -80,3 +81,15 @@ jobs:
           path: /tmp/admin-dashboard-browser-e2e-failure.png
           if-no-files-found: ignore
           retention-days: 7
+
+  live-readonly:
+    name: Production public GET-only HTTP smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Verify real Render HTTP, Supabase health and 3-language public routes
+        run: node scripts/system-production-readonly.cjs
