@@ -54,6 +54,7 @@ export function officialResultsFromRss(xml:string,limit=5):OfficialSourceResult[
  const result:OfficialSourceResult[]=[];
  if(typeof xml!=='string'||!Number.isFinite(limit))return result;
  const cap=Math.min(5,Math.max(0,Math.trunc(limit)));
+ if(cap===0)return result;
  for(const item of xml.slice(0,250000).matchAll(/<item\b[^>]*>([\s\S]*?)<\/item>/gi)){
   const field=(tag:string)=>decodeSnippet(item[1].match(
     new RegExp('<'+tag+'(?:\\s[^>]*)?>([\\s\\S]*?)<\\/'+tag+'>','i')
