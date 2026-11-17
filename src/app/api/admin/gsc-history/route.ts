@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'crypto';
+import { compareConsecutiveGscDays } from '@/lib/gsc-daily-comparison';
 export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
  const expected = process.env.ADMIN_SECRET || '';
@@ -14,10 +15,16 @@ export async function GET(req: NextRequest) {
   const response = await fetch(endpoint,{headers:{apikey:key,authorization:'Bearer '+key},cache:'no-store'});
   if (!response.ok) throw new Error('storage_' + response.status);
   const rows = await response.json() as Array<{metric_date:string;clicks:number;impressions:number;ctr:number;position:number;captured_at:string}>;
+  if (!Array.isArray(rows)) throw new Error('Invalid GSC history response');
   const latest = rows[0] || null;
-  const previous = rows[1] || null;
-  const change = latest && previous ? { clicks: latest.clicks-previous.clicks, impressions:latest.impressions-previous.impressions, position:latest.position-previous.position } : null;
-  const alerts = change && previous && previous.impressions >= 10 && change.impressions <= -Math.ceil(previous.impressions*0.3) ? [{type:'impressions_drop',message:'انخفاض الظهور اليومي بنسبة 30% أو أكثر مقارنة باليوم السابق'}] : [];
-  return NextResponse.json({source:'supabase_gsc_daily',property,rows,change,alerts,last_sync:latest?.captured_at||null,message:rows.length?'':'لا توجد لقطات محفوظة بعد. يتطلب الجمع الدوري رمز تحديث Google على الخادم.'});
+  const {change,alerts,comparison}=compareConsecutiveGscDays(rows);
+  const message=!rows.length
+    ?'لا توجد لقطات محفوظة بعد. يتطلب الجمع الدوري رمز تحديث Google على الخادم.'
+    :comparison==='nonconsecutive_dates'
+      ?'آخر لقطتين ليستا ليومين متتاليين؛ تم تعليق مقارنة التغير والتنبيهات حتى تتوفر بيانات متصلة.'
+      :comparison==='invalid_metrics'
+        ?'قيم القياس غير صالحة للمقارنة؛ لا توجد تنبيهات موثوقة.'
+        :'';
+  return NextResponse.json({source:'supabase_gsc_daily',property,rows,change,alerts,comparison,last_sync:latest?.captured_at||null,message});
  } catch(e) {return NextResponse.json({error:e instanceof Error?e.message:'storage_error'},{status:502});}
 }
