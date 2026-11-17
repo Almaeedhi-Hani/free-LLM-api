@@ -16,6 +16,14 @@ const secret=process.env.E2E_ADMIN_SECRET;
  try{
   await page.goto(base+'/admin/dashboard',{waitUntil:'networkidle'});
   await page.waitForTimeout(850);
+  // Cookie consent is a real bottom overlay, so make the visitor choice first.
+  // Reject optional cookies; do not click through or disable the banner.
+  const cookieChoice=page.getByRole('button',{name:'رفض الاختيارية'});
+  await cookieChoice.waitFor({timeout:8000}).catch(()=>{});
+  if(await cookieChoice.isVisible().catch(()=>false)){
+    await cookieChoice.click();
+    console.log('PASS cookie consent rejects optional tracking before dashboard controls');
+  }
   const invalid=await page.request.get(base+'/api/admin/content',{headers:{'x-admin-secret':'incorrect-key'}});
   console.log('LOCAL_ADMIN_AUTH_NEGATIVE',invalid.status());
   await page.getByPlaceholder('المفتاح السري').waitFor({timeout:10000}).catch(async e=>{
