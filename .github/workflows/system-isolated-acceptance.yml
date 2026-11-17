@@ -59,10 +59,12 @@ jobs:
           done
           tail -100 "${{ runner.temp }}/qa-acceptance.log"
           exit 1
-      - name: API guard, health and malformed input acceptance
-        run: node scripts/system-acceptance-isolated.cjs
+      # Hydrate the dashboard before compiling the numerous independent API routes.
+      # Avoid dev-server/Webpack fixture contention, which is not a production condition.
       - name: Browser interactions for admin editing, review, market CRUD and mobile navigation
         run: node scripts/admin-dashboard-browser-e2e.cjs
+      - name: API guard, health and malformed input acceptance
+        run: node scripts/system-acceptance-isolated.cjs
       - name: Verify 24 localized pages, sitemap, robots, canonical, hreflang, JSON-LD and packages
         run: node scripts/check-public-seo.cjs
       - name: Show local Next.js diagnostics on failure
