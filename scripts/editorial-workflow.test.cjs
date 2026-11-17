@@ -89,7 +89,15 @@ assert.deepEqual(officialSourceCandidates(refs),['https://misa.gov.sa/en/']);
 assert.deepEqual(officialSourceCandidates([{id:'c',label:'Competitor page',source:'exa',kind:'competitor_candidate',url:'https://commercial.example.com'}]),[],'competitor observations do not become official');
 assert.deepEqual(officialSourceCandidates(undefined),[],'missing research evidence blocks automatic source approval');
 
+assert(editorialPublicationIssues({kind:'home',body:'The homepage should orient investors toward service pages.'}).length,'homepage planning copy cannot publish');
+assert(editorialPublicationIssues({kind:'packages',body:'Package content should state what is included and excluded.'}).length,'package planning copy cannot publish');
+assert(editorialPublicationIssues({kind:'guide',body:'This guide should help investors compare company registration routes.'}).length,'guide writing instructions cannot publish');
+assert.equal(editorialPublicationIssues({kind:'guide',body:'Investors can review the available routes and compare required preparation documents with the relevant authority.'}).length,0,'normal reader-facing copy remains publishable');
+
 const fs=require('node:fs');
+const reviewPanelSource=fs.readFileSync('src/components/EditorialReviewPanel.tsx','utf8');
+assert(reviewPanelSource.includes("const verified=(reviewedSources[item.id]||[]).filter(url=>official.includes(url))"),'approval only uses explicitly selected official candidate URLs');
+assert(reviewPanelSource.includes('editorialPublicationIssues(item)'), 'UI refuses instruction-like content before approval');
 const editorialBlockSource=fs.readFileSync('src/components/EditorialBlock.tsx','utf8');
 assert(editorialBlockSource.includes("route==='/services/'+target"),'published service editorial avoids self-link');
 assert(editorialBlockSource.includes("all.findIndex(other=>other.node_id===link.node_id)"),'published editorial deduplicates link targets');

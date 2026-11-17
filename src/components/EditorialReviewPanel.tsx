@@ -1,7 +1,7 @@
 'use client';
 import React,{useState} from 'react';
 import type {EditorialItem} from '@/lib/editorial-workflow';
-import {validateEditorialItem,officialSourceCandidates} from '@/lib/editorial-workflow';
+import {validateEditorialItem,officialSourceCandidates,editorialPublicationIssues} from '@/lib/editorial-workflow';
 import {topicNodeById} from '@/lib/content-tree';
 import {DataRolePanel,DataRoleTag} from '@/components/AdminDataRoles';
 const NAMES:Record<string,string>={
@@ -23,6 +23,7 @@ export default function EditorialReviewPanel({items,saving,onSaveItems,adminSecr
  const [query,setQuery]=useState('');
  const [page,setPage]=useState(0);
  const [sourceDrafts,setSourceDrafts]=useState<Record<string,string>>({});
+ const [reviewedSources,setReviewedSources]=useState<Record<string,string[]>>({});
  const [sourceResults,setSourceResults]=useState<Record<string,Array<{url:string;title:string;snippet:string}>>>({});
  const [searching,setSearching]=useState<string|null>(null);
  const [notice,setNotice]=useState('');
@@ -38,12 +39,15 @@ export default function EditorialReviewPanel({items,saving,onSaveItems,adminSecr
    try{validateEditorialItem(next)}catch(e){setError(e instanceof Error?e.message:'المحتوى غير مكتمل');return}
    // A new review never unpublishes the old approved page before replacement approval.
    const updated=item.status==='approved'?[...items,next]:items.map(x=>x.id===item.id?next:x);
-   if(await update(updated))setEditing(null);
+   if(await update(updated)){
+     setEditing(null);
+     setReviewedSources(current=>{const copy={...current};delete copy[item.id];return copy;});
+   }
  };
  const searchSources=async(item:EditorialItem)=>{
    setError('');setNotice('');setSearching(item.id);
    try{
-     const response=await fetch('/api/admin/editorial-sources',{method:'POST',headers:{'Content-Type':'application/json','x-admin-secret':adminSecret},body:JSON.stringify({title:item.title,lang:item.lang})});
+     const response=await fetch('/api/admin/editorial-sources',{method:'POST',headers:{'Content-Type':'application/json','x-admin-secret':adminSecret},body:JSON.stringify({title:item.title,lang:item.lang,primary_keyword:item.primary_keyword||'',target:item.target})});
      const data=await response.json();
      if(!response.ok)throw Error(data.error||'تعذر البحث');
      setSourceResults(x=>({...x,[item.id]:data.results||[]}));
@@ -70,8 +74,12 @@ export default function EditorialReviewPanel({items,saving,onSaveItems,adminSecr
  };
  const approve=async(item:EditorialItem)=>{
    if(item.kind==='technical_seo'||item.kind==='internal_link'){setError('المهام التقنية والروابط المقترحة تحتاج تنفيذًا واختبارًا في الكود، وليس نشرًا تلقائيًا.');return;}
-   const verified=officialSourceCandidates(item.evidence_refs);
-   if(!verified.length){setError('لم يرصد النظام رابطًا حكوميًا رسميًا مرتبطًا بهذا المقترح. يبقى بانتظار البحث والمراجعة بدل النشر دون دليل.');return}
+   const official=officialSourceCandidates(item.evidence_refs);
+   if(!official.length){setError('لم يرصد النظام رابطًا حكوميًا رسميًا مرتبطًا بهذا المقترح. يبقى بانتظار البحث والمراجعة بدل النشر دون دليل.');return}
+   const issues=editorialPublicationIssues(item);
+   if(issues.length){setError('النص يتضمن تعليمات للمحرر وليست محتوى صالحًا للنشر. حرر النص أولًا، ثم أعد المراجعة.');return}
+   const verified=(reviewedSources[item.id]||[]).filter(url=>official.includes(url));
+   if(!verified.length){setError('افتح تفاصيل المقترح، ثم حدد المصدر الحكومي الذي راجعت مضمونه بنفسك. لن نعتمد كل الروابط المرصودة تلقائيًا.');return}
    const next={...item,status:'approved' as const,reviewedAt:new Date().toISOString(),updatedAt:new Date().toISOString(),verified_sources:verified};
    try{validateEditorialItem(next)}catch(e){setError(e instanceof Error?e.message:'مصادر المراجعة غير صحيحة');return}
    if(!window.confirm('تأكيد بشري: هل فتحت روابط الجهات الحكومية المرصودة وتحققت أن المعلومات الواردة في المقترح تدعمها هذه الصفحات فعلًا؟ لا يكفي وجود الرابط وحده.'))return;
@@ -150,9 +158,22 @@ export default function EditorialReviewPanel({items,saving,onSaveItems,adminSecr
           <DataRoleTag tone="verification">{officialSourceCandidates(item.evidence_refs).length>0?'رصد آلي لروابط جهات حكومية':'بانتظار رصد مصادر حكومية'}</DataRoleTag>
           {officialSourceCandidates(item.evidence_refs).length===0&&<span className="text-xs text-amber-800">لم يُرفق مصدر رسمي بعد. استخدم البحث الذكي أو أضف رابطًا يدويًا، ثم راجعه قبل النشر.</span>}
         </div>
-        {officialSourceCandidates(item.evidence_refs).length>0&&<ul className="space-y-1">
-          {officialSourceCandidates(item.evidence_refs).map(url=><li key={url} className="text-xs break-all"><a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-800 underline underline-offset-2">{url}</a></li>)}
-        </ul>}
+        {officialSourceCandidates(item.evidence_refs).length>0&&<div className="space-y-2">
+          <p className="text-xs text-amber-900">لا يعني وجود نطاق حكومي صحة أي معلومة. افتح كل مصدر وتحقق من دعم النص، ثم حدد فقط المصادر التي راجعتها قبل الضغط على «اعتماد ونشر».</p>
+          <ul className="space-y-2">
+            {officialSourceCandidates(item.evidence_refs).map(url=><li key={url} className="text-xs break-all">
+              <label className="flex items-start gap-2">
+                <input type="checkbox" aria-label={'راجعت المصدر '+url}
+                  checked={(reviewedSources[item.id]||[]).includes(url)}
+                  onChange={e=>setReviewedSources(current=>{
+                    const selected=current[item.id]||[];
+                    return {...current,[item.id]:e.target.checked?Array.from(new Set([...selected,url])):selected.filter(x=>x!==url)};
+                  })}/>
+                <span>راجعت المصدر وتأكدت من صلته بالمحتوى: <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-800 underline underline-offset-2">{url}</a></span>
+              </label>
+            </li>)}
+          </ul>
+        </div>}
         <div className="flex flex-wrap gap-2">
           <button className="btn-secondary text-xs" disabled={saving} onClick={()=>setEditing({id:item.id,title:item.title,summary:item.summary,body:item.body})}>تحرير المقترح</button>
 
