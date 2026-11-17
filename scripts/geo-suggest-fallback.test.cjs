@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
-const {collect,selectSeeds,isInvestorKeyword}=require('./geo-discovery-sources.cjs');
+const {collect,selectSeeds,selectShortFallback,isInvestorKeyword}=require('./geo-discovery-sources.cjs');
 const provider=require('../src/lib/provider-search.cjs');
 
 (async()=>{
@@ -8,13 +8,13 @@ const provider=require('../src/lib/provider-search.cjs');
  provider.configured=()=>[]; // isolate the no-key Bing RSS branch; never call a paid provider.
  try{
   const at=new Date('2026-11-17T12:00:00Z');
-  const short={ar:'تأسيس شركة في السعودية',en:'Saudi company formation',zh:'沙特公司注册'};
+  const short={ar:'تأسيس شركة في السعودية',en:'Saudi company formation',zh:selectShortFallback({language:'zh'},at)};
   const shortTerm={ar:'تأسيس شركات في المملكة العربية السعودية',en:'Saudi company formation requirements',zh:'沙特公司注册步骤'};
   const calls=[];
   const fakeFetch=async(url)=>{
    const u=new URL(url);
    if(u.hostname==='suggestqueries.google.com'){
-    const lang=u.searchParams.get('hl'),query=u.searchParams.get('q');
+    const lang=u.searchParams.get('hl').replace('-CN',''),query=u.searchParams.get('q');
     calls.push({lang,query});
     return {ok:true,status:200,json:async()=>[query,query===short[lang]?[shortTerm[lang]]:[]]};
    }
@@ -80,7 +80,7 @@ const provider=require('../src/lib/provider-search.cjs');
    const u=new URL(url);
    if(u.hostname==='suggestqueries.google.com'){
     filteredRequests++;
-    const lang=u.searchParams.get('hl'),q=u.searchParams.get('q');
+    const lang=u.searchParams.get('hl').replace('-CN',''),q=u.searchParams.get('q');
     const terms=lang==='en'?(q==='Saudi company formation'?
      ['Saudi company formation cost']:['saudi arabia formation football','saudi arabia formation date']):
      lang==='ar'?['تأسيس شركة في السعودية لغير السعوديين']:
@@ -95,6 +95,19 @@ const provider=require('../src/lib/provider-search.cjs');
   assert.equal(filtered.diagnostics.filter(x=>x.reason==='no_relevant_suggestions').length,1);
   assert.equal(filtered.diagnostics.find(x=>x.reason==='no_relevant_suggestions').rejected,2);
 
+  const shortZh=selectShortFallback({language:'zh'},at);
+  assert(shortZh&&shortZh.length>=4,'Chinese fallback must be nonempty and target investor services');
+  assert(isInvestorKeyword(shortZh,'zh'),'Chinese fallback should relate to investor services');
+  const firstDay=Date.UTC(2026,0,1);
+  const rotated=new Set();
+  for(let day=0;day<8;day++){
+   const date=new Date(firstDay+day*86400000);
+   rotated.add(selectShortFallback({language:'zh'},date));
+  }
+  assert.equal(rotated.size,8,'eight distinct Chinese search intents rotate over eight days');
+  assert.equal(selectShortFallback({language:'zh'},new Date(firstDay)),
+   selectShortFallback({language:'zh'},new Date(firstDay+8*86400000)),'stable eight-day rotation');
+  assert.equal(selectShortFallback({language:'ar'},at),'تأسيس شركة في السعودية','Arabic query budget unchanged');
   const seeds=selectSeeds(at);
   assert.equal(seeds.length,3,'rotating research seeds remain unchanged');
   console.log('PASS bounded multilingual Google Suggest fallback: 3 primary + at most 3 short alternatives, truthful empty diagnostics, no fabricated keyword or paid-provider request');

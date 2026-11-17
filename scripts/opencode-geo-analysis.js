@@ -233,6 +233,25 @@ async function stageDiscovery() {
     persisted_keywords:persistence.confirmed.keywords};
 }
 
+/** Read-only quality gate: exclude only unreviewed Google Suggest noise from
+ * future AI evidence bundles. Never delete existing keywords or hide manually
+ * curated records. Keep exclusion counts visible for human keyword review. */
+function filterUnrelatedKeywordEvidence(items) {
+  const {isInvestorKeyword}=require('./geo-discovery-sources.cjs');
+  const rejected={ar:0,en:0,zh:0,other:0};
+  const accepted=[];
+  for(const e of items){
+    const fromSuggest=(e.type==='keyword_suggestion')||
+      (e.type==='keyword'&&(e.source==='google-suggest'||e.original_source==='google-suggest'));
+    if(fromSuggest && !isInvestorKeyword(e.name||e.term||e.keyword,e.language)){
+      const locale=['ar','en','zh'].includes(e.language)?e.language:'other';
+      rejected[locale]++;
+      continue;
+    }
+    accepted.push(e);
+  }
+  return {items:accepted,excluded:Object.values(rejected).reduce((a,b)=>a+b,0),by_language:rejected};
+}
 async function stageEvidence() {
   logStage('EVIDENCE', 'Building evidence bundle...');
   // Read from local market-intel or Supabase
@@ -288,7 +307,7 @@ async function stageEvidence() {
         const data = await res.json();
         if (data.competitors) evidenceItems.push(...data.competitors.map((c, i) => ({ id: `comp_${c.id || i}`, type: 'competitor', source: 'supabase', name: c.name || c.domain, domain: c.domain, language: c.language || 'ar' })));
         if (data.observations) evidenceItems.push(...data.observations.map((o, i) => ({ id: `obs_${o.id || i}`, type: 'observation', source: 'supabase', name: o.title || o.content?.substring(0, 50), language: o.language || 'ar' })));
-        if (data.keywords) evidenceItems.push(...data.keywords.map((k, i) => ({ id: `kw_${k.id || i}`, type: 'keyword', source: 'supabase', name: k.keyword || k.term, language: k.language || 'ar' })));
+        if (data.keywords) evidenceItems.push(...data.keywords.map((k, i) => ({ id: `kw_${k.id || i}`, type: 'keyword', source: 'supabase', original_source:k.source, name: k.keyword || k.term, language: k.language || 'ar' })));
         logStage('EVIDENCE', `Loaded from GEO API: ${data.counts?.competitors || 0} comps, ${data.counts?.observations || 0} obs, ${data.counts?.keywords || 0} kws`);
       }
     } catch (e) {
@@ -304,11 +323,19 @@ async function stageEvidence() {
       const obs = await sbFetch('competitor_observations?select=*');
       if (obs) evidenceItems.push(...obs.map((o, i) => ({ id: `obs_${o.id || i}`, type: 'observation', source: 'supabase', name: o.title || o.content?.substring(0, 50), language: o.language || 'ar' })));
       const kws = await sbFetch('keywords?select=*');
-      if (kws) evidenceItems.push(...kws.map((k, i) => ({ id: `kw_${k.id || i}`, type: 'keyword', source: 'supabase', name: k.keyword || k.term, language: k.language || 'ar' })));
+      if (kws) evidenceItems.push(...kws.map((k, i) => ({ id: `kw_${k.id || i}`, type: 'keyword', source: 'supabase', original_source:k.source, name: k.keyword || k.term, language: k.language || 'ar' })));
     } catch (e) {
       logStage('EVIDENCE', `Supabase fetch failed: ${e.message}`);
     }
   }
+  // Remove irrelevant historical Google Suggest suggestions from model evidence,
+  // without mutating Supabase or manually curated keywords. All local/API
+  // evidence sources feed through the exact same quality gate.
+  const quality=filterUnrelatedKeywordEvidence(evidenceItems);
+  evidenceItems=quality.items;
+  logStage('EVIDENCE','Unreviewed Google Suggest noise excluded from model: '+
+    JSON.stringify({total:quality.excluded,by_language:quality.by_language}));
+
   // Simplify evidence items for LLM prompt
   evidenceItems = evidenceItems.map((e, i) => ({
     id: e.id || `ev_${i}`,
@@ -322,7 +349,7 @@ async function stageEvidence() {
   }));
   logStage('EVIDENCE', `Built bundle: ${evidenceItems.length} items`);
   const {chooseResearchEvidence}=require('./geo-opencode-planner.cjs');
-  stageResults.evidence = { total: evidenceItems.length, items: chooseResearchEvidence(evidenceItems,60) };
+  stageResults.evidence = { total: evidenceItems.length, keyword_quality:{excluded:quality.excluded,by_language:quality.by_language}, items: chooseResearchEvidence(evidenceItems,60) };
   return { records_processed: evidenceItems.length, status: evidenceItems.length > 0 ? 'success' : 'partial' };
 }
 
