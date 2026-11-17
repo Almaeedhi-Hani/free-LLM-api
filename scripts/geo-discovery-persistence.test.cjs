@@ -127,7 +127,14 @@ assert.throws(()=>normalizeGeoDiscoveryBatch({candidates:[],suggestions:[]}),/Em
   listObservations:async id=>fake.observations.filter(o=>o.competitor_id===id),
   recordObservation:async item=>{
    if(failCandidate)throw Error('Simulated Supabase write failure');
-   const stored={...item,id:'obs-'+(fake.observations.length+1)};
+   // Supabase/PostgREST returns the UTC offset in a different but equivalent
+   // spelling and returns a pre-existing observation on a unique-key conflict.
+   const conflict=fake.observations.find(o=>o.competitor_id===item.competitor_id&&
+    o.language===item.language&&o.query===item.query&&
+    Date.parse(o.observed_at)===Date.parse(item.observed_at));
+   if(conflict)return conflict;
+   const stored={...item,id:'obs-'+(fake.observations.length+1),
+    observed_at:item.observed_at.replace(/Z$/,'+00:00')};
    fake.observations.push(stored);return stored;
   }
  };
@@ -178,6 +185,11 @@ assert.throws(()=>normalizeGeoDiscoveryBatch({candidates:[],suggestions:[]}),/Em
  assert.equal(response.status,200,'ambiguous replay must be read-back idempotent');
  assert.equal(fake.observations.length,2);
  assert.equal(fake.keywords.length,2);
+ assert(fake.observations.every(o=>o.observed_at.endsWith('+00:00')),
+  'fake storage must simulate the actual PostgREST timestamp format');
+ response=await POST(request({candidates:[candidate({url:'https://investor-example.com.sa/different-page'})],suggestions:[]}));
+ assert.equal(response.status,502,'same unique observation key with different URL must remain a conflict');
+ assert.equal(fake.observations.length,2,'conflicting evidence cannot create a new observation');
  response=await POST(request({...data,candidates:[candidate({rank:2})]}));
  assert.equal(response.status,422,'reject a search-provider rank assertion');
  response=await POST(request({...data,candidates:[candidate({url:'https://misa.gov.sa/official'})]}));

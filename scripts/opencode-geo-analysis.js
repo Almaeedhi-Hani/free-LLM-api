@@ -180,8 +180,10 @@ async function stageDiscovery() {
   const persistence=(candidates.length||result.suggestions.length)
     ?await saveGeoDiscovery(candidates,result.suggestions)
     :{status:'partial',confirmed:{candidates:0,keywords:0},error:'No discovery candidates to persist'};
+  const suggestionsMissing=result.suggestions.length===0;
+  const keywordIssue=suggestionsMissing?'No real Google Suggest keywords after bounded short-query fallbacks':null;
   const status=result.status==='blocked'?'blocked':
-    result.status==='success'&&candidates.length>0&&persistence.status==='success'?'success':'partial';
+    result.status==='success'&&candidates.length>0&&persistence.status==='success'&&result.suggestions.length>0?'success':'partial';
   stageResults.discovery = {
     count:results.length,results,sources,suggestions:result.suggestions,
     diagnostics:result.diagnostics,
@@ -189,13 +191,15 @@ async function stageDiscovery() {
     persisted_keywords:persistence.confirmed.keywords,
     persistence_status:persistence.status,
     persistence_error:persistence.error||null,
+    keyword_status:suggestionsMissing?'empty':'collected',
+    keyword_issue:keywordIssue,
     note:'Google Suggest provides keyword ideas, not search ranking. Competitor links are candidates, not verified rankings.'
   };
   logStage('DISCOVERY','Market sources and storage: '+JSON.stringify({
     candidates:results.length,eligible_candidates:candidates.length,keywords:result.suggestions.length,
     confirmed:persistence.confirmed,sources,discovery_status:result.status,persistence_status:persistence.status
   }));
-  return {records_processed:results.length,status,error:persistence.error||undefined,
+  return {records_processed:results.length,status,error:persistence.error||keywordIssue||undefined,
     persisted_candidates:persistence.confirmed.candidates,
     persisted_keywords:persistence.confirmed.keywords};
 }
@@ -303,17 +307,22 @@ async function stageGeoAnalysis() {
   for(const lang of LANGS){
     const sample=selectLocaleEvidence(all,lang,8);
     if(!sample.length){result.languages[lang]={status:'missing_evidence'};failed++;continue}
-    const prompt=promptForLocale(lang,sample);
     let response=null;
-    // Use configured free model first. The fallback list contains free-tier models only.
-    // Maximum 3 free models per locale × 2 retries × 120s remains within the scheduled 45m job ceiling.
-    for(const model of FALLBACK_MODELS.slice(0,3)){
+    const attempts=[];
+    // If the first free model cannot complete the full evidence set, use a
+    // smaller, still locale-prioritized and source-diverse brief for the next
+    // free models. Do not add paid models, retries or a fourth provider call.
+    // At most three allowlisted model selections per locale; all failed locales
+    // remain visibly partial rather than receiving fabricated output.
+    for(const [index,model] of FALLBACK_MODELS.slice(0,3).entries()){
       calls++;
-      const trial=runOpenCode(prompt,model);
+      const evidence=index===0?sample:selectLocaleEvidence(all,lang,4);
+      const trial=runOpenCode(promptForLocale(lang,evidence),model);
       if(trial.data){response=trial;break}
+      attempts.push({model,reason:String(trial.error||'unparseable JSON').slice(0,70)});
       logStage('GEO_ANALYSIS',lang+' free model unavailable: '+model+' '+String(trial.error||'unparseable JSON').slice(0,110));
     }
-    if(!response){result.languages[lang]={status:'model_unavailable',evidence_sampled:sample.length};failed++;continue}
+    if(!response){result.languages[lang]={status:'model_unavailable',evidence_sampled:sample.length,attempts};failed++;continue}
     const data=response.data||{};
     const fields=['opportunities','goals','drafts','editorial_actions'];
     for(const field of fields){

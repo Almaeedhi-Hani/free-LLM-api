@@ -16,6 +16,11 @@ function selectSeeds(now=new Date()){
   q:QUERY_ANGLES[language][((day%8)+8)%8],language,locale
  }));
 }
+const SUGGEST_SHORT_QUERIES=Object.freeze({
+ ar:'تأسيس شركة في السعودية',
+ en:'Saudi company formation',
+ zh:'沙特公司注册'
+});
 const decode=s=>String(s||'').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,'$1').replace(/&amp;/gi,'&').replace(/&quot;/gi,'"').replace(/&#39;/g,"'").replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
 const keyword=(s)=>/(company formation|business setup|company registration|company incorporation|investor services|investment licen[sc]|misa licen[sc]|تأسيس شرك|ترخيص استثمار|رخصة استثمار|公司注册|投资许可)/i.test(s);
 const region=(s)=>/(saudi|ksa|misa|السعود|المملكة|沙特)/i.test(s);
@@ -50,19 +55,32 @@ async function collect({fetchFn=fetch,now=new Date()}={}){
   competitors.push({...hit,url:canonical});
  };
  for(const seed of seeds){
-  try{
-   const url='https://suggestqueries.google.com/complete/search?client=firefox&hl='+seed.language+'&q='+encodeURIComponent(seed.q);
-   const r=await fetchFn(url,{signal:AbortSignal.timeout(MAX_REQ_MS)});
-   if(!r.ok)throw new Error('http_'+r.status);
-   const data=await r.json();let added=0;
-   for(const term of (Array.isArray(data?.[1])?data[1]:[]).slice(0,10)){
-    if(typeof term!=='string')continue;const normalized=term.trim();
-    const key=seed.language+':'+normalized.toLowerCase();
-    if(!normalized||terms.has(key))continue;terms.add(key);added++;
-    suggestions.push({term:normalized,language:seed.language,query:seed.q,source:'google-suggest',collected_at:new Date().toISOString()});
-   }
-   diagnostics.push({source:'google-suggest',language:seed.language,status:r.status,count:added});
-  }catch(e){diagnostics.push({source:'google-suggest',language:seed.language,status:'unavailable',reason:String(e?.name==='TimeoutError'?'timeout':e?.message||'error').slice(0,70),count:0})}
+  // A long-tail query can return HTTP 200 with an empty suggestion list.
+  // Try at most one shorter query for this locale; never invent a keyword.
+  // This changes only the no-key Google Suggest budget (max six requests);
+  // the configured provider-search budget remains three requests total.
+  let localeAdded=0;
+  for(const [index,query] of [seed.q,SUGGEST_SHORT_QUERIES[seed.language]].entries()){
+   if(index>0&&localeAdded>0)break;
+   const variant=index===0?'rotating':'short_fallback';
+   try{
+    const url='https://suggestqueries.google.com/complete/search?client=firefox&hl='+seed.language+'&q='+encodeURIComponent(query);
+    const response=await fetchFn(url,{signal:AbortSignal.timeout(MAX_REQ_MS)});
+    if(!response.ok)throw new Error('http_'+response.status);
+    const data=await response.json();let added=0;
+    for(const term of (Array.isArray(data?.[1])?data[1]:[]).slice(0,10)){
+     if(typeof term!=='string')continue;
+     const normalized=term.trim();
+     const key=seed.language+':'+normalized.toLowerCase();
+     if(!normalized||terms.has(key))continue;
+     terms.add(key);added++;localeAdded++;
+     suggestions.push({term:normalized,language:seed.language,query,source:'google-suggest',collected_at:new Date().toISOString()});
+    }
+    diagnostics.push({source:'google-suggest',language:seed.language,status:response.status,count:added,
+     variant,reason:added===0?'empty_suggestions':undefined});
+   }catch(e){diagnostics.push({source:'google-suggest',language:seed.language,status:'unavailable',
+    variant,reason:String(e?.name==='TimeoutError'?'timeout':e?.message||'error').slice(0,70),count:0})}
+  }
  }
  // Four-provider shared engine; only one bounded search request per language by
  // default. Fallback is automatic when a provider errors or returns no evidence.

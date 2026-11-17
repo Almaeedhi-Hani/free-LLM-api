@@ -65,7 +65,10 @@ export async function POST(req:NextRequest){
    const prior=await listObservations(competitor.id,200);
    const matches=(o:typeof prior[number])=>
     o.language===item.language&&o.query===item.query&&
-    o.observed_at===item.collected_at&&o.url===item.url&&
+    // PostgREST may return +00:00 instead of Z for the exact same instant.
+    // Compare UTC instants, not timestamp spellings, without weakening provenance checks.
+    Number.isFinite(Date.parse(o.observed_at))&&
+    Date.parse(o.observed_at)===Date.parse(item.collected_at)&&o.url===item.url&&
     o.rank===null&&o.raw?.source_id===item.source&&
     o.raw?.rank_status==='unverified_provider_order';
    if(prior.some(matches))return;
