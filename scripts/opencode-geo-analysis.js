@@ -134,23 +134,63 @@ function logStage(name, msg) {
   console.log(`[${name}] ${msg}`);
 }
 
+/** Guarded, single-attempt persistence: unverified research is never a Google rank. */
+async function saveGeoDiscovery(candidates,suggestions) {
+  const base=process.env.GEO_API_URL||process.env.SITE_URL;
+  const key=process.env.GEO_API_KEY;
+  if(!base||!key)return {status:'partial',confirmed:{candidates:0,keywords:0},error:'GEO discovery API not configured'};
+  try {
+    const response=await fetch(base.replace(/\/$/,'')+'/api/geo/discovery',{
+      method:'POST',headers:{'Content-Type':'application/json','x-geo-api-key':key},
+      body:JSON.stringify({candidates,suggestions}),signal:AbortSignal.timeout(30000)
+    });
+    let payload;
+    try {payload=await response.json()}
+    catch{return {status:'partial',confirmed:{candidates:0,keywords:0},error:'Invalid GEO discovery response (HTTP '+response.status+')'}}
+    const confirmed=payload?.confirmed||{candidates:0,keywords:0};
+    const ok=response.ok&&payload?.ok===true&&confirmed.candidates===candidates.length&&
+      confirmed.keywords===suggestions.length;
+    return {status:ok?'success':'partial',confirmed,
+      error:ok?null:'GEO discovery persistence partial: '+JSON.stringify(payload?.errors||payload?.error||response.status).slice(0,260)};
+  }catch(e){
+    return {status:'partial',confirmed:{candidates:0,keywords:0},
+      error:'GEO discovery persistence unavailable: '+String(e?.message||e).slice(0,150)};
+  }
+}
 async function stageDiscovery() {
-  logStage('DISCOVERY', 'Collecting sourced market evidence (Google Suggest + RSS)...');
+  logStage('DISCOVERY', 'Collecting sourced market evidence (Google Suggest + bounded provider search)...');
   const { collect } = require('./geo-discovery-sources.cjs');
   const result = await collect();
   const results = result.competitors;
   const sources = [...new Set(result.diagnostics.filter(d => d.count > 0).map(d => d.source))];
+  // Own-site and government portals are research evidence, not competitors.
+  const candidates=results.filter(item=>{
+    try {
+      const host=new URL(item.url).hostname.toLowerCase().replace(/^www\./,'');
+      return host!=='gov.sa'&&!host.endsWith('.gov.sa')&&host!=='free-llm-api-1-didl.onrender.com';
+    }catch{return false}
+  });
+  const persistence=(candidates.length||result.suggestions.length)
+    ?await saveGeoDiscovery(candidates,result.suggestions)
+    :{status:'partial',confirmed:{candidates:0,keywords:0},error:'No discovery candidates to persist'};
+  const status=result.status==='blocked'?'blocked':
+    result.status==='success'&&candidates.length>0&&persistence.status==='success'?'success':'partial';
   stageResults.discovery = {
-    count: results.length, results, sources,
-    suggestions: result.suggestions,
-    diagnostics: result.diagnostics,
-    note: 'Google Suggest provides keyword ideas, not search ranking. Competitor links are candidates, not verified rankings.'
+    count:results.length,results,sources,suggestions:result.suggestions,
+    diagnostics:result.diagnostics,
+    persisted_candidates:persistence.confirmed.candidates,
+    persisted_keywords:persistence.confirmed.keywords,
+    persistence_status:persistence.status,
+    persistence_error:persistence.error||null,
+    note:'Google Suggest provides keyword ideas, not search ranking. Competitor links are candidates, not verified rankings.'
   };
-  logStage('DISCOVERY', 'Market sources: ' + JSON.stringify({
-    candidates: results.length, keywords: result.suggestions.length,
-    sources, status: result.status
+  logStage('DISCOVERY','Market sources and storage: '+JSON.stringify({
+    candidates:results.length,eligible_candidates:candidates.length,keywords:result.suggestions.length,
+    confirmed:persistence.confirmed,sources,discovery_status:result.status,persistence_status:persistence.status
   }));
-  return { records_processed: results.length, status: result.status };
+  return {records_processed:results.length,status,error:persistence.error||undefined,
+    persisted_candidates:persistence.confirmed.candidates,
+    persisted_keywords:persistence.confirmed.keywords};
 }
 
 async function stageEvidence() {
@@ -505,6 +545,8 @@ async function runFullPipeline() {
   try { fs.rmSync(path.join(process.cwd(), '.opencode-work'), { recursive: true, force: true }); } catch (e) {}
   try { fs.unlinkSync(path.join(process.cwd(), 'market-intel', 'geo-prompt.txt')); } catch (e) {}
 
+  output.summary.persisted_discovery_candidates=stageResults.discovery?.persisted_candidates||0;
+  output.summary.persisted_discovery_keywords=stageResults.discovery?.persisted_keywords||0;
   output.summary.persisted_opportunities=stageResults.opportunities?.persisted||0;
   output.summary.persisted_goals=stageResults.goals?.persisted||0;
   output.summary.persisted_drafts=stageResults.drafts?.persisted||0;
