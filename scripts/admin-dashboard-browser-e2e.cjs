@@ -7,6 +7,9 @@ const secret=process.env.E2E_ADMIN_SECRET;
  if(!secret)throw Error('missing ephemeral E2E admin secret');
  const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
  const page=await browser.newPage({viewport:{width:1280,height:800}});
+ page.on('pageerror',err=>console.error('BROWSER_PAGE_ERROR',err.message.slice(0,1400)));
+ page.on('console',msg=>{if(msg.type()==='error')console.error('BROWSER_CONSOLE_ERROR',msg.text().slice(0,900));});
+ page.on('requestfailed',req=>{if(req.url().includes('/_next/'))console.error('BROWSER_ASSET_FAILURE',req.url().split('?')[0],req.failure()?.errorText);});
  page.on('dialog',async dialog=>{await dialog.accept()});
  const go=async tab=>page.locator('aside nav button').filter({hasText:tab}).first().click();
  try{
@@ -14,6 +17,14 @@ const secret=process.env.E2E_ADMIN_SECRET;
   await page.waitForTimeout(850);
   const invalid=await page.request.get(base+'/api/admin/content',{headers:{'x-admin-secret':'incorrect-key'}});
   console.log('LOCAL_ADMIN_AUTH_NEGATIVE',invalid.status());
+  await page.getByPlaceholder('المفتاح السري').waitFor({timeout:10000}).catch(async e=>{
+    console.error('LOGIN_PAGE_DIAGNOSTICS',JSON.stringify({
+      url:page.url(),
+      body:(await page.locator('body').innerText().catch(()=>'' )).slice(0,850),
+      scriptCount:await page.locator('script[src]').count()
+    }));
+    throw e;
+  });
   await page.getByPlaceholder('المفتاح السري').fill('incorrect-key');
   await page.getByRole('button',{name:'دخول لوحة التحكم'}).click();
   await page.getByText('المفتاح السري غير صحيح').waitFor({timeout:12000}).catch(async e=>{console.error('LOGIN_DOM',JSON.stringify((await page.locator('body').innerText()).slice(0,550)));throw e});
