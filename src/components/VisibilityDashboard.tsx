@@ -1,6 +1,14 @@
 'use client';
 import React,{useEffect,useState} from 'react';
+import {describeGscSyncStatus} from '@/lib/gsc-sync-health';
 type Section='pages'|'queries'|'ai'|'conversions';
+type GscHistory={
+ rows:Array<{metric_date:string;clicks:number;impressions:number}>;
+ alerts:Array<{message:string}>;
+ last_sync:string|null;
+ message?:string;
+ sync_health?:{status:string;age_hours:number|null};
+};
 type QueryResult={query:string;clicks:number;impressions:number;ctr:number;position:number};
 type Result={url:string;language:string;checked_at:string;http_status:number|null;canonical:string|null;hreflang:{lang:string;url:string}[];errors:string[];status:string};
 const sections:[Section,string][]=[['pages','الفهرسة وصحة الصفحات'],['queries','الكلمات والاستعلامات'],['ai','اختبارات إجابات الذكاء الاصطناعي'],['conversions','الاستفسارات والتحويلات']];
@@ -14,7 +22,10 @@ export default function VisibilityDashboard({secret}:{secret:string}){
  const [gscConnected,setGscConnected]=useState(false);
  const [querySummary,setQuerySummary]=useState<{clicks:number;impressions:number;ctr:number|null;position:number|null}|null>(null);
  const [gscProperty,setGscProperty]=useState('');
- const [history,setHistory]=useState<{rows:Array<{metric_date:string;clicks:number;impressions:number}>;alerts:Array<{message:string}>;last_sync:string|null;message?:string}|null>(null);
+ const [history,setHistory]=useState<GscHistory|null>(null);
+  const [historyLoading,setHistoryLoading]=useState(false);
+  const [historyError,setHistoryError]=useState('');
+  const [historyRefreshKey,setHistoryRefreshKey]=useState(0);
  const [loading,setLoading]=useState(false);
  const [error,setError]=useState('');
  const [message,setMessage]=useState('');
@@ -40,15 +51,44 @@ export default function VisibilityDashboard({secret}:{secret:string}){
   finally{setLoading(false)}
  }
  useEffect(()=>{void load(section)},[section,secret,queryDimension,queryDays]);
- useEffect(()=>{if(section!=='queries')return;let active=true;fetch('/api/admin/gsc-history',{headers:{'x-admin-secret':secret},cache:'no-store'}).then(r=>r.ok?r.json():null).then(d=>{if(active)setHistory(d)}).catch(()=>{if(active)setHistory(null)});return()=>{active=false}},[section,secret]);
- const filtered=rows.filter(r=>lang==='all'||r.language===lang);
+ useEffect(()=>{
+   if(section!=='queries')return;
+   let active=true;
+   setHistory(null);setHistoryError('');setHistoryLoading(true);
+   fetch('/api/admin/gsc-history',{headers:{'x-admin-secret':secret},cache:'no-store'})
+    .then(async response=>{
+      if(!response.ok)throw new Error('تعذر تحميل السجل المحفوظ (HTTP '+response.status+').');
+      const data:unknown=await response.json();
+      if(!data||typeof data!=='object'||!('rows' in data)||!Array.isArray(data.rows)||!('alerts' in data)||!Array.isArray(data.alerts))
+        throw new Error('استجابة سجل GSC غير صالحة.');
+      return data as GscHistory;
+    })
+    .then(data=>{if(active)setHistory(data)})
+    .catch(e=>{if(active){setHistory(null);setHistoryError(e instanceof Error?e.message:'تعذر تحميل سجل GSC.')}})
+    .finally(()=>{if(active)setHistoryLoading(false)});
+   return()=>{active=false};
+  },[section,secret,historyRefreshKey]);
+ const refreshSection=()=>{
+    if(section==='queries')setHistoryRefreshKey(current=>current+1);
+    void load(section);
+  };
+  const syncDisplay=history?describeGscSyncStatus(history.sync_health?.status):null;
+  const syncClasses={
+    recent:'border-emerald-200 bg-emerald-50 text-emerald-950',
+    stale:'border-amber-200 bg-amber-50 text-amber-950',
+    no_snapshot:'border-slate-200 bg-slate-50 text-slate-800',
+    invalid_timestamp:'border-rose-200 bg-rose-50 text-rose-950',
+    unavailable:'border-slate-200 bg-slate-50 text-slate-800',
+  };
+  const ageHours=history?.sync_health?.age_hours;
+  const filtered=rows.filter(r=>lang==='all'||r.language===lang);
  const ok=filtered.filter(r=>r.status==='ok').length;
  const issues=filtered.filter(r=>r.status==='issue').length;
  const unverified=filtered.filter(r=>r.status==='unverified').length;
  return <div dir="rtl" className="space-y-5">
   <div className="flex flex-wrap items-start justify-between gap-3">
    <div><h2 className="text-2xl font-bold text-slate-900">SEO & AI Visibility</h2><p className="text-sm text-slate-500">بيانات فعلية فقط، مع مصدر كل قياس وحالة الاتصال.</p></div>
-   <button className="btn-secondary" disabled={loading} onClick={()=>void load(section)}>{loading?'جارٍ الفحص…':'تحديث البيانات'}</button>
+   <button className="btn-secondary" disabled={loading} onClick={refreshSection}>{loading?'جارٍ الفحص…':'تحديث البيانات'}</button>
   </div>
   <nav className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2" aria-label="أقسام الظهور">
    {sections.map(([id,label])=><button key={id} onClick={()=>setSection(id)} aria-current={section===id?'page':undefined} className={`rounded-xl border p-3 text-right font-semibold ${section===id?'bg-slate-900 text-white border-slate-900':'bg-white text-slate-700 border-slate-200 hover:border-slate-400'}`}>{label}</button>)}
@@ -90,7 +130,19 @@ export default function VisibilityDashboard({secret}:{secret:string}){
      {([['النقرات',querySummary?.clicks.toLocaleString('ar-SA')??'—'],['مرات الظهور',querySummary?.impressions.toLocaleString('ar-SA')??'—'],['CTR',querySummary?.ctr!=null?(querySummary.ctr*100).toFixed(2)+'%':'—'],['متوسط الموضع',querySummary?.position!=null?querySummary.position.toFixed(1):'—']] as const).map(([label,value])=><div key={label} className="rounded-lg bg-slate-50 p-3"><span className="text-xs text-slate-600">{label}</span><strong className="block text-xl">{value}</strong></div>)}
     </div>}
     {gscConnected&&<p className="text-xs text-slate-600">الإجماليات مأخوذة من استعلام Google Search Console غير مقسم حسب الكلمات أو الصفحات. التفاصيل قد تقتصر على أول 250 صفًا، ولا يُستخدم مجموعها بوصفه إجمالي الموقع. «متوسط الموضع» إحصاء GSC، وليس إثباتًا لمركز ثابت في Google.</p>}
-    {history&&<div className="rounded-lg border border-slate-200 p-3 space-y-2"><h4 className="font-semibold">المراقبة اليومية المحفوظة</h4><p className="text-xs text-slate-500">آخر مزامنة: {history.last_sync?new Date(history.last_sync).toLocaleString('ar-SA'):'لم تبدأ بعد'}</p>{history.message&&<p className="text-sm">{history.message}</p>}{history.alerts.map((a,i)=><p key={i} role="alert" className="text-amber-800">{a.message}</p>)}{history.rows.length>0&&<div className="overflow-x-auto"><table className="w-full text-sm text-right"><thead><tr><th>اليوم</th><th>النقرات</th><th>الظهور</th></tr></thead><tbody>{history.rows.slice(0,14).map(r=><tr key={r.metric_date}><td>{r.metric_date}</td><td>{r.clicks}</td><td>{r.impressions}</td></tr>)}</tbody></table></div>}</div>}
+    {historyLoading&&<p role="status" className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-slate-700">جارٍ قراءة حالة سجل GSC المحفوظ...</p>}
+     {historyError&&<p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-rose-900">تعذر فحص حداثة سجل GSC: {historyError} لا يعني تعذر القراءة عدم وجود لقطات.</p>}
+     {history&&syncDisplay&&<div className="rounded-lg border border-slate-200 p-3 space-y-3">
+      <h4 className="font-semibold">المراقبة اليومية المحفوظة</h4>
+      <div role="status" data-gsc-sync-status={syncDisplay.tone} className={`rounded-lg border p-3 text-sm ${syncClasses[syncDisplay.tone]}`}>
+       <p className="font-semibold">حالة آخر لقطة: {syncDisplay.label}{typeof ageHours==='number'&&Number.isFinite(ageHours)&&ageHours>=0&&<span className="mr-2 font-normal">· قبل {ageHours.toLocaleString('ar-SA',{maximumFractionDigits:1})} ساعة</span>}</p>
+       <p className="mt-1 text-xs leading-6">{syncDisplay.description}</p>
+      </div>
+      <p className="text-xs text-slate-500">وقت حفظ آخر لقطة: {history.last_sync&&syncDisplay.tone!=='invalid_timestamp'?new Date(history.last_sync).toLocaleString('ar-SA'):syncDisplay.tone==='invalid_timestamp'?'غير صالح':'لا توجد لقطة مؤرخة'}</p>
+      {history.message&&<p className="text-sm">{history.message}</p>}
+      {history.alerts.map((a,i)=><p key={i} role="alert" className="text-amber-800">{a.message}</p>)}
+      {history.rows.length>0&&<div className="overflow-x-auto"><table className="w-full text-sm text-right"><thead><tr><th>اليوم</th><th>النقرات</th><th>الظهور</th></tr></thead><tbody>{history.rows.slice(0,14).map(r=><tr key={r.metric_date}><td>{r.metric_date}</td><td>{r.clicks}</td><td>{r.impressions}</td></tr>)}</tbody></table></div>}
+     </div>}
     {gscConnected&&queryRows.length===0&&<p role="status" className="rounded-lg bg-blue-50 p-3 text-blue-900">الاتصال ناجح، لكن Google لا يعرض بيانات لهذا التصنيف والفترة حتى الآن. هذا طبيعي للمواقع الجديدة.</p>}
    </div>}
    {section==='queries'&&queryRows.length>0&&<div className="overflow-x-auto"><p className="text-xs text-slate-500 mb-2">المصدر: Google Search Console — الفترة: {queryPeriod}</p><table className="w-full text-sm text-right"><thead><tr className="border-b"><th className="p-2">{({query:'الاستعلام',page:'الصفحة',country:'البلد',device:'الجهاز'} as const)[queryDimension]}</th><th className="p-2">النقرات</th><th className="p-2">الظهور</th><th className="p-2">CTR</th><th className="p-2">متوسط الموضع</th></tr></thead><tbody>{queryRows.map((q,i)=><tr key={q.query+'-'+i} className="border-b"><td className="p-2">{q.query}</td><td className="p-2">{q.clicks}</td><td className="p-2">{q.impressions}</td><td className="p-2">{(q.ctr*100).toFixed(2)}%</td><td className="p-2">{q.position.toFixed(1)}</td></tr>)}</tbody></table></div>}
