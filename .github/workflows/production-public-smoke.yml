@@ -1,0 +1,39 @@
+name: Read-only production HTTP smoke
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/production-public-http-smoke.cjs'
+      - 'scripts/check-public-seo.cjs'
+      - '.github/workflows/production-public-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-smoke-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  live-http:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout tested code
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check
+        run: node --check scripts/production-public-http-smoke.cjs
+      - name: Read-only live API and administrative boundary checks
+        run: node scripts/production-public-http-smoke.cjs
+      - name: Validate all 24 production-localized SEO pages
+        if: always()
+        env:
+          SEO_TEST_BASE_URL: https://free-llm-api-1-didl.onrender.com
+          SITE_URL: https://free-llm-api-1-didl.onrender.com
+        run: node scripts/check-public-seo.cjs
