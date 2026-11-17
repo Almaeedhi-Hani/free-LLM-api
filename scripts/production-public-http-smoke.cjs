@@ -56,7 +56,7 @@ async function get(path,{expected=200,retries=2}={}){
 
   const {body:sitemap}=await get('/sitemap.xml');
   for(const path of ['/','/en','/zh','/packages','/en/packages','/zh/packages']){
-    const loc=base+path.replace(/\/$/,'');
+    const loc=base+path;
     assert(sitemap.includes('<loc>'+loc+'</loc>'),'Missing sitemap URL '+loc);
   }
   assert((sitemap.match(/<loc>/g)||[]).length>=24,'Missing multilingual pages from sitemap');
