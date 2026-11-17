@@ -62,9 +62,9 @@ export function prioritizeEvidenceLinkRecommendations(
       typeof recommendation.verified_rank === 'number' &&
       Number.isInteger(recommendation.verified_rank) &&
       recommendation.verified_rank >= 1 && recommendation.verified_rank <= 5;
-    const documentedWeaknesses = [...new Set(
+    const documentedWeaknesses = Array.from(new Set(
       recommendation.documented_weaknesses.map(x => x.trim()).filter(Boolean),
-    )];
+    ));
     const linkCount = new Set(recommendation.suggested_links
       .filter(link => link.route && link.route !== recommendation.target_route)
       .map(link => link.route)).size;
@@ -84,7 +84,7 @@ export function prioritizeEvidenceLinkRecommendations(
       priority_score += 10;
       reasons.push('service_page_target');
     }
-    const priority_band = priority_score >= 65 ? 'high' :
+    const priority_band: 'high' | 'medium' | 'low' = priority_score >= 65 ? 'high' :
       priority_score >= 35 ? 'medium' : 'low';
     return {recommendation, priority_score, priority_band, reasons, review_required: true as const};
   }).sort((a,b) => b.priority_score - a.priority_score ||
