@@ -1,0 +1,15 @@
+'use strict';
+const assert = require('node:assert/strict');
+const {buildReviewedGeoOpportunities}=require('../.market-link-build/lib/reviewed-geo-opportunities.js');
+const recommendation={topic_id:'company-formation',target_route:'/services/company-formation',language:'ar',query:'تأسيس شركة',competitor_url:'https://example.org/',evidence_status:'provider_candidate',verified_rank:1,suggested_links:[],review_required:true};
+const item={recommendation,priority_score:25,priority_band:'low',reasons:['unverified_candidate_requires_validation'],review_required:true};
+const result=buildReviewedGeoOpportunities([item,item]);
+assert.equal(result.length,1);
+assert.equal(result[0].verified_rank,null);
+assert.equal(result[0].evidence_status,'provider_candidate');
+assert.equal(result[0].review_required,true);
+assert.equal(buildReviewedGeoOpportunities([item],0).length,0);
+assert.equal(buildReviewedGeoOpportunities([{...item,recommendation:{...recommendation,query:' '}}]).length,0);
+const verified=buildReviewedGeoOpportunities([{...item,recommendation:{...recommendation,evidence_status:'verified_serp',verified_rank:3}}]);
+assert.equal(verified[0].verified_rank,3);
+console.log('PASS reviewed GEO opportunities provenance, deduplication and bounds');
