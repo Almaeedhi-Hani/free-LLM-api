@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { topicNodes } from '@/lib/content-tree';
 import { recommendLinksForReviewedEvidence, prioritizeEvidenceLinkRecommendations } from '@/lib/evidence-link-recommendations';
+import { evidenceFreshness } from '@/lib/competitor-page-evidence';
 import type { CompetitorPageEvidenceBrief } from '@/lib/competitor-page-evidence';
 
 const liveTopics = topicNodes.filter(node => Boolean(node.route));
@@ -20,13 +21,15 @@ export default function EvidencePriorityReviewPanel({ recordedBriefs = [] }: { r
   const [band, setBand] = useState<'all' | 'high' | 'medium' | 'low'>('all');
   const [error, setError] = useState('');
   const [selectedBrief, setSelectedBrief] = useState('');
+  const selectedRecorded = selectedBrief === '' ? undefined : recordedBriefs[Number(selectedBrief)];
   const results = prioritizeEvidenceLinkRecommendations(items.filter((item): item is NonNullable<typeof item> => item !== null))
     .filter(item => (filter === 'all' || item.recommendation.language === filter) && (band === 'all' || item.priority_band === band));
 
   function addRecordedForReview() {
     setError('');
-    const brief = recordedBriefs[Number(selectedBrief)];
+    const brief = selectedRecorded;
     if (!brief || !topicId) { setError('اختر دليلًا مسجلًا وصفحة منشورة للمراجعة.'); return; }
+    if (evidenceFreshness(brief.observed_at) === 'invalid') { setError('تاريخ رصد الدليل غير صالح؛ لا يمكن إنشاء توصية منه.'); return; }
     const item = recommendLinksForReviewedEvidence(brief, topicId);
     if (!item) { setError('تعذر إنشاء التوصية من الدليل المختار.'); return; }
     setItems(current => [...current, item]);
@@ -66,9 +69,10 @@ export default function EvidencePriorityReviewPanel({ recordedBriefs = [] }: { r
             {recordedBriefs.map((brief, index) => <option key={brief.competitor_id + brief.url + brief.query + index} value={String(index)}>{brief.language} · {brief.query} · {brief.evidence_status === 'verified_serp' ? 'SERP متحقق' : 'مرشح غير متحقق'} · {brief.observed_at.slice(0,10)}</option>)}
           </select>
         </label>
-        {selectedBrief !== '' && recordedBriefs[Number(selectedBrief)] && <div className="mt-2 space-y-1 text-xs text-slate-700">
+        {selectedRecorded && <div className="mt-2 space-y-1 text-xs text-slate-700">
           <p>الرابط: {recordedBriefs[Number(selectedBrief)].url}</p>
-          <p>تاريخ الرصد: {recordedBriefs[Number(selectedBrief)].observed_at}</p>
+          <p>تاريخ الرصد: {selectedRecorded.observed_at}</p>
+          <p className={evidenceFreshness(selectedRecorded.observed_at) === 'recent' ? 'text-green-700' : 'text-amber-800'}>حداثة الدليل: {evidenceFreshness(selectedRecorded.observed_at) === 'recent' ? 'خلال 30 يومًا' : evidenceFreshness(selectedRecorded.observed_at) === 'stale' ? 'أقدم من 30 يومًا — راجعه قبل الاعتماد' : 'تاريخ غير صالح'}</p>
           <p>الترتيب المتحقق: {recordedBriefs[Number(selectedBrief)].verified_rank ?? 'غير متوفر'}</p>
           <p>نقاط الضعف المسجلة: {recordedBriefs[Number(selectedBrief)].weaknesses.join('، ') || 'لا توجد'}</p>
         </div>}

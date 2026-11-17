@@ -28,7 +28,9 @@ export function buildCompetitorPageEvidenceBriefs(
   for (const observation of [...observations].sort((a,b) =>
     b.observed_at.localeCompare(a.observed_at) || a.id.localeCompare(b.id))) {
     if (result.length >= capped) break;
-    if (!['ar','en','zh'].includes(observation.language) || !observation.query?.trim() || !observation.url) continue;
+    if (!observation || !observation.competitor_id?.trim() || !observation.id ||
+        !observation.observed_at || !Number.isFinite(Date.parse(observation.observed_at)) ||
+        !['ar','en','zh'].includes(observation.language) || !observation.query?.trim() || !observation.url) continue;
     let url: URL;
     try { url = new URL(observation.url); } catch { continue; }
     if (!['http:','https:'].includes(url.protocol) || url.username || url.password) continue;
@@ -47,10 +49,17 @@ export function buildCompetitorPageEvidenceBriefs(
       observed_at: observation.observed_at,
       verified_rank: verified ? observation.rank! : null,
       evidence_status: verified ? 'verified_serp' : 'provider_candidate',
-      strengths: observation.strengths || [],
-      weaknesses: observation.weaknesses || [],
+      strengths: Array.isArray(observation.strengths) ? observation.strengths.filter((x): x is string => typeof x === 'string' && Boolean(x.trim())) : [],
+      weaknesses: Array.isArray(observation.weaknesses) ? observation.weaknesses.filter((x): x is string => typeof x === 'string' && Boolean(x.trim())) : [],
       review_required: true,
     });
   }
   return result;
+}
+
+/** Age is a review signal, not a claim about ranking accuracy. */
+export function evidenceFreshness(observedAt: string, now: number = Date.now()): 'recent' | 'stale' | 'invalid' {
+  const timestamp = Date.parse(observedAt);
+  if (!Number.isFinite(timestamp) || !Number.isFinite(now) || timestamp > now + 24 * 60 * 60 * 1000) return 'invalid';
+  return now - timestamp > 30 * 24 * 60 * 60 * 1000 ? 'stale' : 'recent';
 }
