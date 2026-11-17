@@ -43,7 +43,7 @@ export default function EditorialReviewPanel({items,saving,onSaveItems,adminSecr
  const searchSources=async(item:EditorialItem)=>{
    setError('');setNotice('');setSearching(item.id);
    try{
-     const response=await fetch('/api/admin/editorial-sources',{method:'POST',headers:{'Content-Type':'application/json','x-admin-secret':adminSecret},body:JSON.stringify({title:item.title,lang:item.lang})});
+     const response=await fetch('/api/admin/editorial-sources',{method:'POST',headers:{'Content-Type':'application/json','x-admin-secret':adminSecret},body:JSON.stringify({title:item.title,lang:item.lang,primary_keyword:item.primary_keyword||'',target:item.target})});
      const data=await response.json();
      if(!response.ok)throw Error(data.error||'تعذر البحث');
      setSourceResults(x=>({...x,[item.id]:data.results||[]}));
