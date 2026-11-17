@@ -1,6 +1,7 @@
 ﻿'use client';
 
 import EditorialReviewPanel from '@/components/EditorialReviewPanel';
+import EvidencePriorityReviewPanel from '@/components/EvidencePriorityReviewPanel';
 import PackageRequestsAdmin from '@/components/PackageRequestsAdmin';
 import {DataRoleLegend,DataRolePanel,DataRoleTag} from '@/components/AdminDataRoles';
 import { assessGeoDraftCopy, splitGeoDraftReviewText } from "@/lib/geo-draft-quality";
@@ -1015,6 +1016,7 @@ export default function AdminDashboard() {
                   </div>
                   {!evidenceData&&!evidenceLoading&&<p className="text-sm text-slate-500">اضغط تحديث لتحميل الأدلة.</p>}
                   {evidenceLoading&&<p className="text-sm text-slate-500">جاري التحميل...</p>}
+                  <EvidencePriorityReviewPanel />
                   {evidenceData&&<div className="min-w-0 space-y-4">
                     <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                       <div className="rounded-xl border border-blue-200 bg-blue-50 p-3"><p className="text-xs font-semibold text-blue-900">منافسون مرصودون</p><p className="text-xl font-bold text-blue-950">{evidenceData.competitors.length}</p></div>
