@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'crypto';
 import { compareConsecutiveGscDays } from '@/lib/gsc-daily-comparison';
+import { assessGscSyncHealth } from '@/lib/gsc-sync-health';
 export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
  const expected = process.env.ADMIN_SECRET || '';
@@ -18,6 +19,7 @@ export async function GET(req: NextRequest) {
   if (!Array.isArray(rows)) throw new Error('Invalid GSC history response');
   const latest = rows[0] || null;
   const {change,alerts,comparison}=compareConsecutiveGscDays(rows);
+  const sync_health=assessGscSyncHealth(latest?.captured_at);
   const message=!rows.length
     ?'لا توجد لقطات محفوظة بعد. يتطلب الجمع الدوري رمز تحديث Google على الخادم.'
     :comparison==='nonconsecutive_dates'
@@ -25,6 +27,6 @@ export async function GET(req: NextRequest) {
       :comparison==='invalid_metrics'
         ?'قيم القياس غير صالحة للمقارنة؛ لا توجد تنبيهات موثوقة.'
         :'';
-  return NextResponse.json({source:'supabase_gsc_daily',property,rows,change,alerts,comparison,last_sync:latest?.captured_at||null,message});
+  return NextResponse.json({source:'supabase_gsc_daily',property,rows,change,alerts,comparison,sync_health,last_sync:latest?.captured_at||null,message});
  } catch(e) {return NextResponse.json({error:e instanceof Error?e.message:'storage_error'},{status:502});}
 }
