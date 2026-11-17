@@ -10,6 +10,7 @@ const secret=process.env.E2E_ADMIN_SECRET;
  page.on('pageerror',err=>console.error('BROWSER_PAGE_ERROR',err.message.slice(0,1400)));
  page.on('console',msg=>{if(msg.type()==='error')console.error('BROWSER_CONSOLE_ERROR',msg.text().slice(0,900));});
  page.on('requestfailed',req=>{if(req.url().includes('/_next/'))console.error('BROWSER_ASSET_FAILURE',req.url().split('?')[0],req.failure()?.errorText);});
+ page.on('response',response=>{if(response.url().includes('/_next/')&&response.status()>=400)console.error('BROWSER_ASSET_HTTP',response.status(),response.url().split('?')[0]);});
  page.on('dialog',async dialog=>{await dialog.accept()});
  const go=async tab=>page.locator('aside nav button').filter({hasText:tab}).first().click();
  try{
@@ -21,7 +22,10 @@ const secret=process.env.E2E_ADMIN_SECRET;
     console.error('LOGIN_PAGE_DIAGNOSTICS',JSON.stringify({
       url:page.url(),
       body:(await page.locator('body').innerText().catch(()=>'' )).slice(0,850),
-      scriptCount:await page.locator('script[src]').count()
+      scriptCount:await page.locator('script[src]').count(),
+      scripts:await page.locator('script[src]').evaluateAll(nodes=>nodes.map(n=>({src:n.getAttribute('src'),type:n.getAttribute('type')}))),
+      readyState:await page.evaluate(()=>document.readyState),
+      reactRoots:await page.locator('body *').evaluateAll(nodes=>nodes.filter(n=>Object.keys(n).some(key=>key.startsWith('__reactFiber'))).length)
     }));
     throw e;
   });
