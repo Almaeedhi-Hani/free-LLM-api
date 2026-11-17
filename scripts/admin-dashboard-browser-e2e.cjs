@@ -110,7 +110,7 @@ const secret=process.env.E2E_ADMIN_SECRET;
   console.log('PASS market keyword add/delete via actual buttons');
 
   await page.setViewportSize({width:375,height:750});
-  await page.getByLabel('فتح القائمة').click();
+  await page.getByRole('button',{name:'فتح القائمة'}).last().click();
   const menu=page.locator('aside nav');await menu.evaluate(el=>{el.scrollTop=el.scrollHeight});
   await menu.getByRole('button',{name:'الإعدادات'}).click();
   await page.getByRole('heading',{name:'الإعدادات'}).first().waitFor();
