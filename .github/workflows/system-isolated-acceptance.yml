@@ -93,3 +93,7 @@ jobs:
           node-version: '20'
       - name: Verify real Render HTTP, Supabase health and 3-language public routes
         run: node scripts/system-production-readonly.cjs
+      - name: Cross-check all 24 live localized SEO routes and canonical metadata
+        env:
+          SEO_TEST_BASE_URL: https://free-llm-api-1-didl.onrender.com
+        run: node scripts/check-public-seo.cjs
