@@ -1,0 +1,17 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {recommendLinksForReviewedEvidence}=require('../.market-link-build/lib/evidence-link-recommendations.js');
+const base={competitor_id:'c',language:'en',query:'Saudi company formation',url:'https://example.org/formation',title:null,observed_at:'2026-11-17T00:00:00Z',verified_rank:null,evidence_status:'provider_candidate',strengths:[],weaknesses:['No FAQ'],review_required:true};
+assert.equal(recommendLinksForReviewedEvidence(base,'unknown'),null);
+assert.equal(recommendLinksForReviewedEvidence(base,'company-documents'),null);
+const r=recommendLinksForReviewedEvidence(base,'company-formation');
+assert(r);
+assert.equal(r.target_route,'/services/company-formation');
+assert.equal(r.verified_rank,null);
+assert.equal(r.review_required,true);
+assert.deepEqual(r.documented_weaknesses,['No FAQ']);
+assert(r.suggested_links.every(x=>x.route && x.route!==r.target_route && x.route!=='/insights'));
+const verified=recommendLinksForReviewedEvidence({...base,evidence_status:'verified_serp',verified_rank:2},'company-formation');
+assert.equal(verified.verified_rank,2);
+assert.equal(recommendLinksForReviewedEvidence({...base,verified_rank:1},'company-formation').verified_rank,null);
+console.log('PASS review-only evidence link recommendations');
