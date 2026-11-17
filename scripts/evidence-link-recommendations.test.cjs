@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
-const {recommendLinksForReviewedEvidence}=require('../.market-link-build/lib/evidence-link-recommendations.js');
+const {recommendLinksForReviewedEvidence,prioritizeEvidenceLinkRecommendations}=require('../.market-link-build/lib/evidence-link-recommendations.js');
 const base={competitor_id:'c',language:'en',query:'Saudi company formation',url:'https://example.org/formation',title:null,observed_at:'2026-11-17T00:00:00Z',verified_rank:null,evidence_status:'provider_candidate',strengths:[],weaknesses:['No FAQ'],review_required:true};
 assert.equal(recommendLinksForReviewedEvidence(base,'unknown'),null);
 assert.equal(recommendLinksForReviewedEvidence(base,'company-documents'),null);
@@ -14,4 +14,11 @@ assert(r.suggested_links.every(x=>x.route && x.route!==r.target_route && x.route
 const verified=recommendLinksForReviewedEvidence({...base,evidence_status:'verified_serp',verified_rank:2},'company-formation');
 assert.equal(verified.verified_rank,2);
 assert.equal(recommendLinksForReviewedEvidence({...base,verified_rank:1},'company-formation').verified_rank,null);
-console.log('PASS review-only evidence link recommendations');
+const candidate=prioritizeEvidenceLinkRecommendations([r,verified]);
+assert.equal(candidate.length,2);
+assert.equal(candidate[0].recommendation.verified_rank,2);
+assert(candidate[0].priority_score>candidate[1].priority_score);
+assert(candidate[1].reasons.includes('unverified_candidate_requires_validation'));
+assert(candidate.every(x=>x.review_required));
+assert.deepEqual(prioritizeEvidenceLinkRecommendations([r,verified]),candidate);
+console.log('PASS review-only evidence link recommendations and priority provenance');
