@@ -164,10 +164,17 @@ async function stageDiscovery() {
   const results = result.competitors;
   const sources = [...new Set(result.diagnostics.filter(d => d.count > 0).map(d => d.source))];
   // Own-site and government portals are research evidence, not competitors.
+  // Store at most one page per domain/query/locale; duplicate pages may share a
+  // millisecond timestamp and the existing observation key intentionally forbids that.
+  const observedDomains=new Set();
   const candidates=results.filter(item=>{
     try {
       const host=new URL(item.url).hostname.toLowerCase().replace(/^www\./,'');
-      return host!=='gov.sa'&&!host.endsWith('.gov.sa')&&host!=='free-llm-api-1-didl.onrender.com';
+      if(host==='gov.sa'||host.endsWith('.gov.sa')||host==='free-llm-api-1-didl.onrender.com')return false;
+      const key=item.language+'|'+item.query+'|'+host;
+      if(observedDomains.has(key))return false;
+      observedDomains.add(key);
+      return true;
     }catch{return false}
   });
   const persistence=(candidates.length||result.suggestions.length)
