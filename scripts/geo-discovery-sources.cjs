@@ -18,9 +18,20 @@ function selectSeeds(now=new Date()){
 }
 const SUGGEST_SHORT_QUERIES=Object.freeze({
  ar:'تأسيس شركة في السعودية',
- en:'Saudi company formation',
- zh:'沙特公司注册'
+ en:'Saudi company formation'
 });
+// Shorter intent-specific Chinese prompts rotate with the existing eight
+// keyword angles; this broadens research over successive scheduled runs
+// without additional provider calls, ranking assertions, or fabricated terms.
+const ZH_SUGGEST_SHORT_QUERIES=Object.freeze([
+ '沙特公司注册','沙特外资公司注册','沙特投资许可证','沙特商业登记',
+ '沙特子公司注册','沙特分公司设立','沙特投资执照','中国企业赴沙特投资'
+]);
+function selectShortFallback(seed,now=new Date()){
+ if(seed.language!=='zh')return SUGGEST_SHORT_QUERIES[seed.language];
+ const day=Math.floor(now.getTime()/86400000);
+ return ZH_SUGGEST_SHORT_QUERIES[((day%ZH_SUGGEST_SHORT_QUERIES.length)+ZH_SUGGEST_SHORT_QUERIES.length)%ZH_SUGGEST_SHORT_QUERIES.length];
+}
 /** Keep raw Google suggestions only when they relate to investor services.
  * A suggestion is a query idea, not proof of traffic, legal status or rank.
  * This gate applies to discovery inputs only; manual keyword records remain untouched. */
@@ -75,11 +86,11 @@ async function collect({fetchFn=fetch,now=new Date()}={}){
   // This changes only the no-key Google Suggest budget (max six requests);
   // the configured provider-search budget remains three requests total.
   let localeAdded=0;
-  for(const [index,query] of [seed.q,SUGGEST_SHORT_QUERIES[seed.language]].entries()){
+  for(const [index,query] of [seed.q,selectShortFallback(seed,now)].entries()){
    if(index>0&&localeAdded>0)break;
    const variant=index===0?'rotating':'short_fallback';
    try{
-    const url='https://suggestqueries.google.com/complete/search?client=firefox&hl='+seed.language+'&q='+encodeURIComponent(query);
+    const url='https://suggestqueries.google.com/complete/search?client=firefox&hl='+(seed.language==='zh'?'zh-CN':seed.language)+(seed.language==='zh'?'&gl=sa':'')+'&q='+encodeURIComponent(query);
     const response=await fetchFn(url,{signal:AbortSignal.timeout(MAX_REQ_MS)});
     if(!response.ok)throw new Error('http_'+response.status);
     const data=await response.json();let added=0,rejected=0;
@@ -129,4 +140,4 @@ async function collect({fetchFn=fetch,now=new Date()}={}){
  return {competitors:competitors.slice(0,15),suggestions:suggestions.slice(0,30),diagnostics,
    status:competitors.length?'success':suggestions.length?'partial':'blocked'};
 }
-module.exports={collect,parseRss,selectSeeds,isInvestorKeyword};
+module.exports={collect,parseRss,selectSeeds,selectShortFallback,isInvestorKeyword};
