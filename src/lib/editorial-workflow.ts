@@ -36,6 +36,7 @@ export function editorialPublicationIssues(item:Pick<EditorialItem,'body'|'secti
  const parts=[item.body,...(item.sections||[]).flatMap(s=>[s.body,...(s.subsections||[]).map(h=>h.body)])];
  const patterns=[
   /\b(?:the|this) (?:home\s?page|service page|page|guide|article|section|package (?:page|content)|insights hub) should \b/i,
+  /\bpackage (?:content|page) should\b/i,
   /\b(?:this is (?:a )?(?:content|navigation) proposal|the primary keyword (?:comes|is inferred)|this is (?:a )?technical SEO task)\b/i,
   /\b(?:this|the) (?:service )?page should (?:explain|describe|include|cover|list|discuss)\b/i,
   /\b(?:this|the) (?:section|article|guide) should (?:explain|describe|include|cover|list|discuss)\b/i,
