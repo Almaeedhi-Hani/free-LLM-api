@@ -26,7 +26,11 @@ export function recommendLinksForReviewedEvidence(
   const node = topicNodeById(selectedTopicId);
   const target_route = siteTopicPath(selectedTopicId);
   if (!node || !target_route || !['ar','en','zh'].includes(brief.language)) return null;
-  if (!brief.query.trim() || !brief.url.startsWith('https://') && !brief.url.startsWith('http://')) return null;
+  if (!brief.query?.trim() || !brief.url) return null;
+  let evidenceUrl: URL;
+  try { evidenceUrl = new URL(brief.url); } catch { return null; }
+  if (!['http:', 'https:'].includes(evidenceUrl.protocol) || !evidenceUrl.hostname ||
+      evidenceUrl.username || evidenceUrl.password) return null;
   // Avoid treating provider-order positions as verified Google rankings.
   const verified_rank = brief.evidence_status === 'verified_serp' &&
     typeof brief.verified_rank === 'number' && Number.isInteger(brief.verified_rank) &&
@@ -35,7 +39,7 @@ export function recommendLinksForReviewedEvidence(
     topic_id: selectedTopicId,
     language: brief.language,
     target_route,
-    competitor_url: brief.url,
+    competitor_url: evidenceUrl.href,
     query: brief.query,
     evidence_status: verified_rank !== null ? 'verified_serp' : 'provider_candidate',
     verified_rank,
