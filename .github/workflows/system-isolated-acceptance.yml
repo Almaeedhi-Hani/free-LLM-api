@@ -65,6 +65,11 @@ jobs:
         run: node scripts/admin-dashboard-browser-e2e.cjs
       - name: Verify 24 localized pages, sitemap, robots, canonical, hreflang, JSON-LD and packages
         run: node scripts/check-public-seo.cjs
+      - name: Show local Next.js diagnostics on failure
+        if: failure()
+        run: |
+          echo '--- Isolated app diagnostics (no production secrets) ---'
+          tail -100 "${{ runner.temp }}/qa-acceptance.log" || true
       - name: Upload isolated failure screenshot only
         if: failure()
         uses: actions/upload-artifact@v4
