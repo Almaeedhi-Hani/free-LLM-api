@@ -44,7 +44,7 @@ function isInvestorKeyword(term,language){
   return false;
  if(language==='ar')return /شركة|شركات|شركه|الشركات|استثمار|مستثمر|ترخيص|سجل تجار|فرع أجنبي|منشأة|منشات|إقامة مميزة/.test(value);
  if(language==='en')return /\b(?:compan(?:y|ies)|business|invest(?:ment|or)?|misa|licen[sc](?:e|ing)?|commercial registr(?:ation|y)|subsidiar(?:y|ies)|corporat(?:e|ion)|incorporat(?:e|ion)|llc|foreign branch|legal entity|premium residency)\b/i.test(value);
- if(language==='zh')return /公司|投资|注册|企业|外资|执照|分公司|营业|居留/.test(value);
+ if(language==='zh')return /公司|投资|注册|企业|外资|执照|分公司|营业|商业登记|工商登记|居留/.test(value);
  return false;
 }
 const decode=s=>String(s||'').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,'$1').replace(/&amp;/gi,'&').replace(/&quot;/gi,'"').replace(/&#39;/g,"'").replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
