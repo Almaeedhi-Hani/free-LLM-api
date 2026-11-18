@@ -79,7 +79,7 @@
 
 ## Other already-published editorial pages
 
-No independently indexed editorial pages yet. The canonical feed lists approved content when available.
+- https://free-llm-api-1-didl.onrender.com/insights/foreign-investor-company-documents
 
 ## Attribution and update policy
 - This list is deterministic from the public feed; it does not generate legal claims or unapproved editorial copy.
