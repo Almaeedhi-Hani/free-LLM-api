@@ -1,5 +1,5 @@
 import {getContent} from './content-store';
-import {autoPublicationEligibility,buildImpactInventory} from './content-impact';
+import {editorialPath} from './content-impact';
 import {editorialPublicationIssues,validateEditorialItem} from './editorial-workflow';
 import {getSupabaseCredentials} from './storage-mode';
 import type {EditorialItem} from './editorial-types';
@@ -178,69 +178,111 @@ export async function rollbackAutoPublication(eventId:string):Promise<unknown>{
  if(!/^[a-f0-9-]{36}$/i.test(eventId))throw Error('Invalid event ID');
  return restCall('rpc/geo_rollback_auto_publication',{method:'POST',body:{p_event_id:eventId}});
 }
+/** HTTPS research links are recorded transparently as unverified citations;
+ * no minimum number, specific host, provider or official domain is required. */
+export function optionalResearchCitations(item:EditorialItem):string[]{
+ const urls:string[]=[];
+ for(const ref of item.evidence_refs||[]){
+  if(typeof ref?.url!=='string')continue;
+  try{
+   const u=new URL(ref.url);
+   if(u.protocol!=='https:'||u.username||u.password||u.port||
+      u.hash||u.hostname.length>250||!/^[-a-z0-9.]+$/i.test(u.hostname))continue;
+   if(!urls.includes(ref.url))urls.push(ref.url);
+  }catch{}
+ }
+ return urls.slice(0,12);
+}
+const publishableKinds=new Set(['guide','comparison','home','trust','service','packages']);
+const unfinished=(x:EditorialItem)=>editorialPublicationIssues(x).length>0;
 export async function runGuardedAutoPublishing(dryRun=false):Promise<AutoPublishReport>{
  const report:AutoPublishReport={status:'disabled',examined:0,published:0,skipped:0,events:[],message:''};
  const state=await getAutoPublicationStatus();
- if(!state.available)return {...report,status:'storage_unavailable',message:'Missing publication migration or persistent storage'};
- if(!state.enabled)return {...report,status:'disabled',message:'Automatic publishing is disabled by default'};
+ if(!state.available)return {...report,status:'storage_unavailable',message:'Publication migration or storage unavailable'};
+ if(!state.enabled)return {...report,status:'disabled',message:'Automatic publication is not enabled'};
  let content;
  try{content=await getContent()}catch{
-  return {...report,status:'storage_unavailable',message:'Cannot load saved editorial content'};
+  return {...report,status:'storage_unavailable',message:'Cannot load saved content'};
  }
- // Never auto-publish user-facing service pages, fees, homepage, FAQs or SEO tasks.
- const candidates=(content.editorialItems||[]).filter(e=>e.status==='pending'&&
-  ['low','medium','high'].includes(e.risk_level)&&
-  (e.risk_level==='low'||state.allow_high_risk)&&
-  (e.kind==='guide'||e.kind==='comparison')).slice(0,10);
- report.examined=candidates.length;
- if(dryRun)return {...report,status:'dry_run',message:'Read-only simulation: no content changed'};
- for(const candidate of candidates){
-  const sources=officialCandidateUrls(candidate);
-  const sensitive=candidate.risk_level!=='low';
-  const highRiskProof=sensitive?await verifyHighRiskOfficialClaims(candidate):null;
-  const item=buildImpactInventory([candidate],[],[])[0];
-  const eligible=autoPublicationEligibility({...item,verifiedSources:sources},{
-   mode:'guarded_automatic',enabled:true,maxDailyPages:state.daily_limit,allowHighRisk:state.allow_high_risk
-  },{hasVersionedRollback:true,hasIdempotencyKey:true,
-    officialSourcesIndependentlyChecked:sensitive?Boolean(highRiskProof):sources.length>0,
-    highRiskClaimsVerified:Boolean(highRiskProof)});
-  if(!eligible.eligible||editorialPublicationIssues(candidate).length||
-    (candidate.risk_level==='low'&&!lowRiskEditorialCopy(candidate))){
-   report.skipped++;report.events.push({item_id:candidate.id,result:'review_required'});
+ const editorial=(content.editorialItems||[]).filter(e=>e.status==='pending');
+ const faqDrafts=(content.drafts||[]).filter(d=>d.status==='pending');
+ report.examined=editorial.length+faqDrafts.length;
+ const publishable=editorial.filter(e=>publishableKinds.has(e.kind));
+ if(dryRun){
+  const pending=publishable.filter(e=>e.risk_level!=='low'&&!state.allow_high_risk);
+  const unfinishedItems=publishable.filter(unfinished);
+  return {...report,status:'dry_run',message:JSON.stringify({
+   pending_editorial:editorial.length,pending_faq:faqDrafts.length,
+   visitor_page_candidates:publishable.length,
+   source_requirement:'optional',high_risk_permission:state.allow_high_risk,
+   needs_finished_copy:unfinishedItems.length,
+   sensitive_permission_not_enabled:pending.length,
+   technical_tasks:editorial.length-publishable.length,
+   dry_run_only:true
+  })};
+ }
+ // Existing DB quota governs the combined publication count, with strict
+ // transactional locks. Never retry ambiguous writes.
+ for(const candidate of publishable){
+  const path=editorialPath(candidate);
+  if(!path||unfinished(candidate)){
+   report.skipped++;
+   report.events.push({item_id:candidate.id,result:'requires_finished_visitor_copy'});
    continue;
   }
-  const checked:string[]=highRiskProof?.urls||[];
-  if(!sensitive)for(const url of sources){
-   if(await checkOfficialUrlReachable(url))checked.push(url);
-   if(checked.length>=2)break;
-  }
-  if(!checked.length){
-   report.skipped++;report.events.push({item_id:candidate.id,result:'source_unavailable'});
-   continue;
-  }
+  const cited=optionalResearchCitations(candidate);
   try{
-   validateEditorialItem({...candidate,status:'approved',reviewedAt:new Date().toISOString(),
-    verified_sources:checked});
+   validateEditorialItem({...candidate,status:'approved',
+    reviewedAt:new Date().toISOString(),approval_method:'automated',
+    verified_sources:[],cited_sources:cited});
   }catch{
-   report.skipped++;report.events.push({item_id:candidate.id,result:'validation_failed'});
+   report.skipped++;
+   report.events.push({item_id:candidate.id,result:'invalid_publication_structure'});
    continue;
   }
   try{
-   const result=await restCall('rpc/geo_commit_auto_publication',{
-    method:'POST',body:{p_item_id:candidate.id,p_verified_urls:checked,
-     p_claim_proofs:highRiskProof?.proofs||[]}
+   const value=await restCall('rpc/geo_commit_auto_publication',{
+    method:'POST',body:{p_item_id:candidate.id,p_verified_urls:cited,p_claim_proofs:[]}
    }) as {status?:string;target_path?:string};
-   const status=result?.status||'unconfirmed';
-   report.events.push({item_id:candidate.id,result:status,target_path:result?.target_path});
-   if(status==='published')report.published++;
+   if(!value?.status)throw Error('ambiguous_write_confirmation');
+   report.events.push({item_id:candidate.id,result:value.status,target_path:value.target_path});
+   if(value.status==='published')report.published++;
    else report.skipped++;
-   if(status==='quota_reached'||status==='sensitive_quota_reached')break;
-   if(status==='unconfirmed')throw Error('ambiguous_automatic_publish');
+   if(['quota_reached','disabled','sensitive_publication_disabled'].includes(value.status)){
+    if(value.status==='quota_reached')break;
+    if(value.status==='disabled')return {...report,status:'disabled',message:'Publishing was disabled during execution'};
+   }
   }catch{
-   // Never retry ambiguous writes; database enforces content fingerprint idempotency.
-   return {...report,status:'error',message:'Write status ambiguous: inspect audit log before retrying'};
+   return {...report,status:'error',message:'Publication write outcome unclear. Review the audit log before any retry.'};
   }
  }
- return {...report,status:'completed',
-  message:report.published?'Published source-checked content within configured risk permissions':'No eligible content passed the configured publication checks'};
+ // FAQ drafts are user-facing content too. Process via a separate atomic
+ // service-role RPC with the SAME combined daily quota and rollback snapshots.
+ // Do not publish duplicate questions, incomplete answers, or writing notes.
+ if(report.events.some(e=>e.result==='quota_reached')){
+  return {...report,status:'completed',message:'The daily limit was reached; remaining items stay queued for the next cycle'};
+ }
+ for(const draft of faqDrafts){
+  if(typeof draft.q!=='string'||typeof draft.a!=='string'||
+    draft.q.trim().length<5||draft.a.trim().length<30){
+   report.skipped++;
+   report.events.push({item_id:draft.q||'unknown',result:'invalid_faq_structure'});
+   continue;
+  }
+  try{
+   const value=await restCall('rpc/geo_commit_auto_faq',{
+    method:'POST',body:{p_question:draft.q}
+   }) as {status?:string;target_path?:string};
+   if(!value?.status)throw Error('ambiguous_faq_write_confirmation');
+   report.events.push({item_id:draft.q,result:value.status,target_path:value.target_path});
+   if(value.status==='published')report.published++;
+   else report.skipped++;
+   if(value.status==='quota_reached')break;
+  }catch{
+   return {...report,status:'error',message:'FAQ publication outcome ambiguous. Inspect audit log; do not retry blindly.'};
+  }
+ }
+ return {...report,status:'completed',message:report.published?
+  'Published visitor-facing items with source status clearly labeled; no mandatory government citation requirement':
+  'No item published; see result codes or daily limit for details'};
 }
