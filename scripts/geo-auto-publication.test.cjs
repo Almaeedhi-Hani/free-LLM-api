@@ -3,8 +3,8 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const {
  officialCandidateUrls,checkOfficialUrlReachable,verifyHighRiskOfficialClaims,runGuardedAutoPublishing
-}=require('../.impact-test-build/geo-auto-publication.js');
-const {autoPublicationEligibility}=require('../.impact-test-build/content-impact.js');
+}=require('../.impact-test-build/lib/geo-auto-publication.js');
+const {autoPublicationEligibility}=require('../.impact-test-build/lib/content-impact.js');
 
 (async()=>{
  const base={
