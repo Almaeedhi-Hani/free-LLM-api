@@ -34,7 +34,7 @@ function exactDraft(faq:ContentFAQ,drafts:readonly ContentDraft[]):{draft:Conten
 }
 /** Inventory uses the existing persisted site content; no assumptions about analytics or author attribution. */
 export function buildImpactInventory(editorial:readonly EditorialItem[],faqs:readonly ContentFAQ[],drafts:readonly ContentDraft[]):ImpactItem[]{
- const rows:ImpactItem[]=editorial.map(e=>({
+ const rows:ImpactItem[]=editorial.map((e):ImpactItem=>({
    id:'editorial:'+e.id,kind:e.kind,category:e.kind==='technical_seo'||e.kind==='internal_link'?'task':'page',
    lang:e.lang,title:e.title,summary:e.summary,body:e.body,
    status:e.status==='approved'?'published':e.status,
