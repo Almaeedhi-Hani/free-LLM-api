@@ -42,8 +42,8 @@ const vm=require('node:vm');
  assert.equal(output.geo_analysis.opportunities.length,2);
  assert.deepEqual(requests.filter(x=>x.lang==='ar').map(x=>x.model),models.slice(0,3));
  assert.deepEqual(requests.filter(x=>x.lang==='en').map(x=>x.model),[models[3]],'skip all failed prior providers for English');
- assert.deepEqual(requests.filter(x=>x.lang==='zh').map(x=>x.model),[models[4]],
-  'use the remaining fresh free model, rather than re-timeout earlier providers');
+ assert.deepEqual(requests.filter(x=>x.lang==='zh').map(x=>x.model),[models[3],models[4]],
+  'retry a successful model with Chinese evidence first, then rotate to the remaining fresh free provider');
  assert.deepEqual(requests.filter(x=>x.lang==='ar').map(x=>x.length),[8,4,2]);
  assert.deepEqual(requests.filter(x=>x.lang==='ar').map(x=>x.deadline),[90000,60000,45000]);
  assert.equal(requests.filter(x=>x.lang==='zh')[0].deadline,90000);
