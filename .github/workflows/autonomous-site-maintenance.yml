@@ -1,0 +1,86 @@
+name: Autonomous Site Maintenance (bounded)
+on:
+  schedule:
+    - cron: '40 5 * * 1' # Monday 08:40 Saudi Arabia
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+concurrency:
+  group: autonomous-site-maintenance
+  cancel-in-progress: false
+
+jobs:
+  low-risk-development:
+    if: github.ref == 'refs/heads/main' && vars.AUTODEV_PAUSED != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CI: 'true'
+      NODE_ENV: test
+    steps:
+      - name: Checkout main without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Apply at most one source-backed live-service SEO improvement
+        id: task
+        shell: bash
+        run: |
+          node scripts/autodev-safe-topic.test.cjs
+          node scripts/autodev-safe-topic.cjs --apply
+          if git diff --quiet -- src/data/content-tree.json; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+            echo 'No additional safe technical work. No empty PR.'
+          else
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+            node scripts/autodev-safe-topic.cjs --verify
+          fi
+      - name: Verify exact file scope and no untracked edits
+        if: steps.task.outputs.changed == 'true'
+        shell: bash
+        run: |
+          git diff --check
+          test "$(git diff --name-only)" = 'src/data/content-tree.json'
+          test -z "$(git ls-files --others --exclude-standard)"
+      - name: Run complete relevant regressions and build before any repository write token is used
+        if: steps.task.outputs.changed == 'true'
+        shell: bash
+        run: |
+          npm run test:market
+          npm run test:editorial
+          npm run test:impact
+          npm run test:packages
+          npm run build
+      - name: Open a bounded PR and merge after successful tests
+        if: steps.task.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.AUTODEV_GITHUB_TOKEN || github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch="autodev/live-links-$GITHUB_RUN_ID"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git checkout -b "$branch"
+          git add -- src/data/content-tree.json
+          git commit -m 'seo: add one verified reciprocal live-service link'
+          gh auth setup-git
+          git push origin "$branch"
+          pr_url="$(gh pr create --base main --head "$branch" \
+            --title 'Autonomous low-risk SEO: one live service connection' \
+            --body 'One reciprocal internal link between existing service pages. The strict guard, market/editorial/impact/package test suites and production build passed before this PR was created. No legal facts, publication policy, pricing, database, security settings, scripts or application source files changed. GitHub Actions-created PRs do not necessarily trigger separate CI; all tests ran in the creating workflow. If merge policy blocks the PR, it must remain unmerged.')"
+          echo "Auto-maintenance PR: $pr_url"
+          gh pr merge "$pr_url" --squash --delete-branch
+          deployed_sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
+          echo "Merged into main: $deployed_sha"
+          gh workflow run production-readonly-acceptance.yml --ref main -f expected_sha="$deployed_sha"
