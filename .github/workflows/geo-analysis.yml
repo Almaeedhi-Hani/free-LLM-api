@@ -6,7 +6,7 @@ on:
   push:
     branches: [main]
     paths:
-      - '.github/workflows/geo-analysis.yml' # One-time high-quota free-model IDs smoke; normal Saudi cadence unchanged
+      - '.github/workflows/geo-analysis.yml' # One-time persistence-contract smoke after schema guard fix; Saudi cadence unchanged
   workflow_dispatch:  # Manual trigger
 
 permissions:

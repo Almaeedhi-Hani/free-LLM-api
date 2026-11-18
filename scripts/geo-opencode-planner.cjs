@@ -106,8 +106,13 @@ function promptForDirectLocale(lang,evidence){
   'Cite actual evidence_ids only. If inadequate sources, provide a research goal rather than fabricated FAQ or legal content.',
   'Use only existing live pages for internal links; do not invent pages, sources or URLs.',
   'Output JSON ONLY with arrays opportunities, goals, drafts, editorial_actions; use empty arrays if not justified.',
-  'At most 2 opportunities, 2 goals, 1 draft FAQ, 1 editorial action. Each opportunity: title, type gap|content|keyword, score number 0..100, evidence_ids.',
-  'Each proposed editorial action must include lang, kind, target, topic_node_id, title, summary, primary_keyword, body, sections with full h2/body/subsections. Omit it if evidence does not justify complete original prose.'
+  'At most 2 opportunities, 2 goals, 1 draft FAQ, 1 editorial action. Each opportunity MUST have title, type one of gap|content|keyword, numerical score 0..100 and actual evidence_ids.',
+  'Each goal MUST have title and priority EXACTLY one of high|medium|low. Use medium for an unranked research goal. It may also include a grounded description or related_opportunity. Never omit priority.',
+  'Editorial kind MUST be one of home|service|packages|guide|comparison|trust|technical_seo|internal_link. NEVER use page or article.',
+  'Editorial target MUST be an existing service slug for service, / for home/trust, /packages for packages, OR a NEW valid lowercase English hyphenated slug identical to slug for guide/comparison. Technical targets must be an existing live / route. Never use Arabic words, investor-hub IDs, page labels, or arbitrary evidence IDs as targets.',
+  'topic_node_id, when supplied, MUST be an actual node_id from live_site_routes. Never use a research evidence ID as topic_node_id. If unsure about target, kind, route or content, return editorial_actions:[] instead of a guessed proposal.',
+  'Each proposed editorial action must include lang, allowed kind, valid target, title, original complete summary (30-360 chars), full body (at least 100 chars, zh at least 80), risk_level high, and evidence_ids from actual research_evidence. Use plain text without HTML tags or internal writing instructions.',
+  'Any sections must contain substantive h2/body and complete h3/body text rather than plans or placeholders. Omit the optional editorial action entirely when content cannot be made valid and factual.'
  ];
  const sources=evidence.map(e=>({
   id:asText(e.id,100),language:asText(e.language,12),kind:asText(e.type,40),

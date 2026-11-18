@@ -531,11 +531,16 @@ async function stageOpportunities() {
 }
 
 async function stageGoals() {
- const items=stageResults.geo_analysis?.goals||[];
+ const generated=stageResults.geo_analysis?.goals||[];
+ const {accepted:items,rejected,defaulted}=require('./geo-generated-output-guard.cjs').prepareGoals(generated);
  const saved=await saveGEOStage('goals',items);
- stageResults.goals={count:items.length,items,saved_to_api:saved.status==='success',persisted:saved.saved,error:saved.error||null};
- console.log('[GOALS] Generated',items.length,'persisted',saved.saved,saved.status);
- return {records_processed:saved.saved,status:saved.status,error:saved.error};
+ const status=rejected.length?'partial':saved.status;
+ const error=rejected.length?'Rejected '+rejected.length+' malformed goal(s)'+(saved.error?'; '+saved.error:''):saved.error;
+ stageResults.goals={count:generated.length,items,saved_to_api:status==='success',persisted:saved.saved,
+  defaulted_priorities:defaulted,rejected_count:rejected.length,error:error||null};
+ console.log('[GOALS] Generated',generated.length,'valid',items.length,'neutral priorities',defaulted,
+  'rejected',rejected.length,'persisted',saved.saved,status);
+ return {records_processed:saved.saved,status,error};
 }
 
 async function stageDrafts() {
@@ -561,11 +566,19 @@ async function stageDrafts() {
 }
 
 async function stageEditorialActions() {
- const items=stageResults.geo_analysis?.editorial_actions||[];
+ const generated=stageResults.geo_analysis?.editorial_actions||[];
+ const screened=require('./geo-generated-output-guard.cjs').screenEditorial(generated);
+ const items=screened.accepted;
+ if(screened.rejected.length)console.warn('[EDITORIAL] Rejected unsupported model proposals:',
+  JSON.stringify(screened.rejected).slice(0,500));
  if(!items.length){
-  stageResults.editorial_actions={count:0,persisted:0,reason:'No supported cross-site proposals in this evidence batch'};
-  console.log('[EDITORIAL] No evidence-backed cross-site proposals generated');
-  return {records_processed:0,status:'partial',error:'No evidence-backed editorial proposals generated; inspect model output'};
+  stageResults.editorial_actions={count:generated.length,persisted:0,rejected_count:screened.rejected.length,
+    reason:'No valid cross-site proposals in this evidence batch'};
+  console.log('[EDITORIAL] No valid evidence-backed cross-site proposals to persist');
+  return {records_processed:0,status:'partial',
+    error:generated.length
+      ?'Rejected '+screened.rejected.length+' malformed editorial proposal(s)'
+      :'No evidence-backed editorial proposals generated; inspect model output'};
  }
  const byId=new Map((stageResults.evidence?.items||[]).map(e=>[e.id,e]));
  const crypto=require('node:crypto');
@@ -583,9 +596,15 @@ async function stageEditorialActions() {
   return {id,kind:item.kind,lang:item.lang,target:item.target,slug:item.slug,related_service:item.related_service,topic_node_id:item.topic_node_id,primary_keyword:item.primary_keyword,secondary_keywords:item.secondary_keywords,h1_suggestion:item.h1_suggestion,sections:item.sections,internal_links:item.internal_links,schema_suggestions:schemas,title:item.title,summary:item.summary,body:item.body,risk_level:item.risk_level==='low'||item.risk_level==='medium'?'high':item.risk_level,status:'pending',createdAt:new Date().toISOString(),evidence_ids:ids,evidence_refs:refs};
  });
  const saved=await saveGEOStage('editorial_actions',proposed);
- stageResults.editorial_actions={count:proposed.length,persisted:saved.saved,status:saved.status,error:saved.error||null};
- console.log('[EDITORIAL] Generated',proposed.length,'persisted',saved.saved,saved.status);
- return {records_processed:saved.saved,status:saved.status,error:saved.error};
+ const status=screened.rejected.length?'partial':saved.status;
+ const error=screened.rejected.length
+  ?'Rejected '+screened.rejected.length+' invalid editorial proposal(s)'+(saved.error?'; '+saved.error:'')
+  :saved.error;
+ stageResults.editorial_actions={count:generated.length,persisted:saved.saved,
+  rejected_count:screened.rejected.length,status,error:error||null};
+ console.log('[EDITORIAL] Generated',generated.length,'eligible',proposed.length,
+  'rejected',screened.rejected.length,'persisted',saved.saved,status);
+ return {records_processed:saved.saved,status,error};
 }
 
 // --- Main pipeline ---
