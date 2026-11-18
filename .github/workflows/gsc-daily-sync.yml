@@ -1,13 +1,27 @@
 name: GSC daily metrics sync
 on:
   schedule:
-    - cron: '20 7 * * *'
+    - cron: '0 0-22/2 * * *' # Saudi 01:00,03:00,... then 01:00,05:00,... from Nov 22
   workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: gsc-measured-sync
+  cancel-in-progress: false
 jobs:
   sync:
     runs-on: ubuntu-latest
+    timeout-minutes: 8
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Select current Saudi cadence
+        id: cadence
+        run: node scripts/scheduled-cadence-gate.cjs --slot=odd >> "$GITHUB_OUTPUT"
       - name: Verify secrets and collect GSC metrics
+        if: steps.cadence.outputs.run == 'true'
         env:
           GSC_SYNC_URL: ${{ secrets.GSC_SYNC_URL }}
           GSC_CRON_SECRET: ${{ secrets.GSC_CRON_SECRET }}
