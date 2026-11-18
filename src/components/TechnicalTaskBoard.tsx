@@ -1,7 +1,7 @@
 'use client';
 import React,{useEffect,useState} from 'react';
 import type {EditorialItem} from '@/lib/editorial-types';
-type Handoff={item_id:string;status:'queued'|'issue_open'|'blocked';github_issue_url:string|null;github_issue_number:number|null;failure_code:string|null};
+type Handoff={item_id:string;status:'queued'|'issue_open'|'blocked';github_issue_url:string|null;github_issue_number:number|null;failure_code:string|null;github_observation?:string;github_pr_number?:number|null;github_pr_url?:string|null;github_pr_state?:string|null;render_deploy_status?:'verified'|'pending'|'unverified'};
 export default function TechnicalTaskBoard({secret,items,onOpenDetails}:{secret:string;items:EditorialItem[];onOpenDetails:()=>void}){
  const tasks=items.filter(x=>x.status==='pending'&&['technical_seo','internal_link'].includes(x.kind));
  const [history,setHistory]=useState<Handoff[]>([]);
@@ -57,7 +57,14 @@ export default function TechnicalTaskBoard({secret,items,onOpenDetails}:{secret:
      </div>
      <div className="flex items-center gap-2">
       {saved?.status==='issue_open'&&saved.github_issue_url?.startsWith('https://github.com/')?
-       <a className="btn-secondary text-xs" href={saved.github_issue_url} rel="noopener noreferrer" target="_blank">تذكرة GitHub #{saved.github_issue_number} — بانتظار التنفيذ</a>:
+       <div className="flex flex-wrap items-center gap-2">
+        <a className="btn-secondary text-xs" href={saved.github_issue_url} rel="noopener noreferrer" target="_blank">تذكرة GitHub #{saved.github_issue_number} — بانتظار التنفيذ</a>
+        {saved.github_pr_url&&saved.github_pr_url.startsWith('https://github.com/Almaeedhi-Hani/free-LLM-api/pull/')&&
+         <a className="text-xs text-blue-700 underline" href={saved.github_pr_url} target="_blank" rel="noopener noreferrer">PR #{saved.github_pr_number} · {saved.github_pr_state==='merged'?'مدمج':saved.github_pr_state==='open'?'قيد المراجعة':'مغلق'}</a>}
+        {saved.render_deploy_status==='verified'?<span className="text-xs font-semibold text-emerald-700">تم التحقق من وصول PR إلى إصدار Render</span>:
+         saved.github_pr_state==='merged'?<span className="text-xs text-amber-800">الدمج مثبت؛ النشر لم يتأكد</span>:
+         saved.github_observation==='unavailable'?<span className="text-xs text-amber-800">تعذر التحقق المباشر من GitHub</span>:null}
+       </div>:
        saved?<span className="text-xs text-amber-800">التسليم غير مؤكد؛ راجع GitHub قبل إعادة الطلب</span>:
        <button type="button" className="btn-primary text-xs" disabled={!available||busy!==null}
         onClick={()=>void create(item)}>{busy===item.id?'جارٍ التسليم':'إنشاء تذكرة تنفيذ'}</button>}

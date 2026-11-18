@@ -27,10 +27,64 @@ async function readRows(){
 }
 export async function GET(req:NextRequest){
  if(!authorized(req))return NextResponse.json({error:'unauthorized'},{status:401});
- try{return NextResponse.json({status:'available',tasks:await readRows()},
-   {headers:{'Cache-Control':'no-store'}})}
- catch{return NextResponse.json({status:'unavailable',tasks:[],error:'technical_handoffs_unavailable'},{status:503})}
+ try{
+  const rows=await readRows() as HandoffRow[];
+  const tasks=await Promise.all(rows.map((row,i)=>i<15?observeProgress(row):Promise.resolve({...row,github_observation:'not_checked',render_deploy_status:'unverified'})));
+  return NextResponse.json({status:'available',tasks},{headers:{'Cache-Control':'no-store'}});
+ }catch{return NextResponse.json({status:'unavailable',tasks:[],error:'technical_handoffs_unavailable'},{status:503})}
 }
+
+/** Read GitHub and current Render revision; never write an inferred 'completed' DB status. */
+type HandoffRow={item_id:string;status:string;github_issue_number:number|null;github_issue_url:string|null;[key:string]:unknown};
+type PrEvidence={number:number;html_url:string;state:string;merged_at:string|null;merge_commit_sha:string|null;base?:{ref?:string}};
+async function githubRead(path:string):Promise<any>{
+ const token=(process.env.GEO_GITHUB_TOKEN||'').trim();
+ const response=await fetch('https://api.github.com/repos/'+repo+'/'+path,{
+  headers:{Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28',...(token?{Authorization:'Bearer '+token}:{})},
+  cache:'no-store',signal:AbortSignal.timeout(6500)
+ });
+ if(!response.ok)throw Error('github_observation_'+response.status);
+ return response.json();
+}
+async function observeProgress(task:HandoffRow){
+ const unknown={github_observation:'unavailable',github_issue_state:null,github_pr_state:null,
+  github_pr_number:null,github_pr_url:null,render_deploy_status:'unverified'};
+ const number=task.github_issue_number;
+ if(!Number.isInteger(number)||!number||number<=0||number>100000000||
+    task.github_issue_url!=='https://github.com/'+repo+'/issues/'+number)
+  return {...task,...unknown};
+ try{
+  const issue=await githubRead('issues/'+number);
+  if(issue.number!==number||!['open','closed'].includes(issue.state))throw Error('invalid_issue');
+  const timeline:unknown=await githubRead('issues/'+number+'/timeline?per_page=100');
+  if(!Array.isArray(timeline))throw Error('invalid_timeline');
+  const prIds=Array.from(new Set(timeline.filter((event:any)=>event?.event==='cross-referenced')
+   .map((event:any)=>event?.source?.issue?.html_url)
+   .filter((url:unknown)=>typeof url==='string'&&
+     /^https:\/\/github\.com\/Almaeedhi-Hani\/free-LLM-api\/pull\/[1-9]\d*$/.test(url))
+   .map((url:any)=>Number(url.split('/').pop())))).slice(0,6) as number[];
+  const pullResults=await Promise.allSettled(prIds.map(id=>githubRead('pulls/'+id)));
+  const pulls=pullResults.filter((x):x is PromiseFulfilledResult<PrEvidence>=>x.status==='fulfilled')
+   .map(x=>x.value).filter(x=>x.base?.ref==='main'&&x.number>0&&
+    x.html_url==='https://github.com/'+repo+'/pull/'+x.number);
+  const chosen=pulls.find(x=>Boolean(x.merged_at))||pulls.find(x=>x.state==='open')||pulls[0];
+  let render_deploy_status:'verified'|'pending'|'unverified'='unverified';
+  const renderRevision=process.env.RENDER_GIT_COMMIT||'';
+  if(chosen?.merged_at&&chosen.merge_commit_sha&&/^[a-f0-9]{40}$/.test(renderRevision)){
+   if(chosen.merge_commit_sha===renderRevision)render_deploy_status='verified';
+   else{
+    try{
+     const comparison=await githubRead('compare/'+chosen.merge_commit_sha+'...'+renderRevision);
+     render_deploy_status=comparison.status==='ahead'||comparison.status==='identical'?'verified':'pending';
+    }catch{render_deploy_status='unverified'}
+   }
+  }else if(chosen?.merged_at)render_deploy_status='unverified';
+  return {...task,github_observation:'observed',github_issue_state:issue.state,
+   github_pr_state:chosen?(chosen.merged_at?'merged':chosen.state):'none',
+   github_pr_number:chosen?.number||null,github_pr_url:chosen?.html_url||null,render_deploy_status};
+ }catch{return {...task,...unknown}}
+}
+
 /** Explicit operator handoff only. Issues need coding work, code review, CI and
  * a verified deploy. This route cannot pretend an editorial proposal was implemented. */
 export async function POST(req:NextRequest){
