@@ -81,4 +81,46 @@ function promptForLocale(lang,evidence){
  };
  return [rules.join("\n"),"\nACTUAL SITE CONTENT TREE:\n"+JSON.stringify(topics),"\nOBSERVED RESEARCH INPUT:\n"+JSON.stringify(evidence),"\nOUTPUT JSON SHAPE (replace examples with real evidence, omit unsupported objects):\n"+JSON.stringify(schema)].join("\n\n");
 }
-module.exports={LANGS,SCHEMA_TYPES,supportedSchemaSuggestions,chooseResearchEvidence,selectLocaleEvidence,promptForLocale};
+/**
+ * Quota-conscious prompt for direct free-tier HTTP inference.
+ * Preserve the real evidence IDs, source origins, live routes, locale and
+ * original/legal/financial claims policy while using far fewer tokens.
+ * The full OpenCode legacy prompt remains unchanged for its own tests.
+ */
+function promptForDirectLocale(lang,evidence){
+ if(!LANGS.includes(lang))throw Error('Unsupported analysis language');
+ if(!Array.isArray(evidence)||!evidence.length||evidence.length>8)
+  throw Error('Evidence must contain 1-8 records');
+ const asText=(v,n=160)=>String(v==null?'':v).slice(0,n);
+ const liveRoutes=manifest.nodes.filter(n=>n.route).slice(0,14).map(n=>({
+  node_id:n.id,url:n.route,kind:n.kind,
+  keyword:asText(n.primary_keyword?.[lang],70),
+  question:asText(n.main_question?.[lang],100)
+ }));
+ const rules=[
+  'You are a conservative Saudi investor GEO researcher/editor. Use only SOURCE EVIDENCE below; never invent data.',
+  'All user-facing text must be natural '+({ar:'Arabic',en:'English',zh:'Simplified Chinese'}[lang])+'.',
+  'The independent private site is NOT a Saudi government agency. Legal, immigration, banking and official costs require verification.',
+  'Competitor search results are unverified candidate pages, not evidence of rankings, actual search traffic or legal rules.',
+  'Government taxes, official fees and third-party charges are separate from our professional services. No price or outcome guarantees.',
+  'Cite actual evidence_ids only. If inadequate sources, provide a research goal rather than fabricated FAQ or legal content.',
+  'Use only existing live pages for internal links; do not invent pages, sources or URLs.',
+  'Output JSON ONLY with arrays opportunities, goals, drafts, editorial_actions; use empty arrays if not justified.',
+  'At most 2 opportunities, 2 goals, 1 draft FAQ, 1 editorial action. Each opportunity: title, type gap|content|keyword, score number 0..100, evidence_ids.',
+  'Each proposed editorial action must include lang, kind, target, topic_node_id, title, summary, primary_keyword, body, sections with full h2/body/subsections. Omit it if evidence does not justify complete original prose.'
+ ];
+ const sources=evidence.map(e=>({
+  id:asText(e.id,100),language:asText(e.language,12),kind:asText(e.type,40),
+  source:asText(e.source,60),title:asText(e.title||e.name||e.query,160),
+  url:asText(e.url,330),summary:asText(e.snippet||e.description||e.content||e.text,290)
+ }));
+ const encode=n=>JSON.stringify({language:lang,instructions:rules,live_site_routes:liveRoutes,
+  research_evidence:sources.slice(0,n),
+  output_shape:{opportunities:[],goals:[],drafts:[],editorial_actions:[]}});
+ for(let n=sources.length;n>=1;n--){
+  const prompt=encode(n);
+  if(prompt.length<=15500)return prompt;
+ }
+ throw Error('Evidence metadata exceeds quota-conscious prompt budget');
+}
+module.exports={LANGS,SCHEMA_TYPES,supportedSchemaSuggestions,chooseResearchEvidence,selectLocaleEvidence,promptForLocale,promptForDirectLocale};
