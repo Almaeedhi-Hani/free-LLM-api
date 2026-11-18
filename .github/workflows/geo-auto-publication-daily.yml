@@ -2,7 +2,7 @@ name: GEO Daily Auto Publication
 
 on:
   schedule:
-    - cron: '20 6 * * *'  # 09:20 Saudi Arabia; after first 08:43 KSA publication + rolling 24h quota
+    - cron: '50 1-23/2 * * *'  # Saudi 00:50,02:50,...; every 4h from Nov 22, rolling 24h cap preserved
   workflow_dispatch:
 
 permissions:
@@ -18,7 +18,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Select current Saudi cadence
+        id: cadence
+        run: node scripts/scheduled-cadence-gate.cjs --slot=even >> "$GITHUB_OUTPUT"
       - name: Verify endpoint configuration
+        if: steps.cadence.outputs.run == 'true'
         env:
           GEO_API_URL: ${{ secrets.GEO_API_URL }}
           GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
@@ -28,6 +36,7 @@ jobs:
             exit 1
           fi
       - name: Run source-optional, audit-logged publication
+        if: steps.cadence.outputs.run == 'true'
         env:
           GEO_API_URL: ${{ secrets.GEO_API_URL }}
           GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
