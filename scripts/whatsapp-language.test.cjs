@@ -31,7 +31,8 @@ for(const value of ['usePathname','pathname.startsWith(\'/admin/\')','aria-expan
  assert(float.includes(value),'missing floating UI behavior: '+value);
 const admin=fs.readFileSync('src/app/admin/dashboard/page.tsx','utf8');
 for(const value of ['whatsappAr','whatsappEn','whatsappZh','whatsappNumbers:',
- 'رقم واتساب العربية','رقم واتساب الإنجليزية','رقم واتساب الصينية','contactToForm'])
+ "['whatsappAr','المستشار العربي'","['whatsappEn','English-speaking advisor'",
+ "['whatsappZh','中文顾问'","'رقم واتساب '+caption",'contactToForm'])
  assert(admin.includes(value),'missing admin configuration: '+value);
 const route=fs.readFileSync('src/app/api/admin/content/route.ts','utf8');
 assert(route.includes('normalizeWhatsAppNumber(numbers[lang])'));
