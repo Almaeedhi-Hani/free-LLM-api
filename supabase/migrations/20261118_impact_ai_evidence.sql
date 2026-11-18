@@ -21,3 +21,14 @@ CREATE INDEX IF NOT EXISTS impact_ai_observations_date
 ALTER TABLE public.impact_ai_observations ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.impact_ai_observations FROM PUBLIC,anon,authenticated;
 GRANT SELECT,INSERT ON public.impact_ai_observations TO service_role;
+
+-- Conservative origin of reliable per-page lead tracking; no historical
+-- events are backfilled as if their conversion attribution were known.
+CREATE TABLE IF NOT EXISTS public.impact_measurement_epochs(
+ id integer PRIMARY KEY CHECK(id=1),
+ lead_tracking_started_at timestamptz NOT NULL DEFAULT now()
+);
+INSERT INTO public.impact_measurement_epochs(id) VALUES(1) ON CONFLICT (id) DO NOTHING;
+ALTER TABLE public.impact_measurement_epochs ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.impact_measurement_epochs FROM PUBLIC,anon,authenticated;
+GRANT SELECT ON public.impact_measurement_epochs TO service_role;
