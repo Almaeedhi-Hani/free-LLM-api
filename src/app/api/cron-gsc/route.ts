@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'crypto';
+import {collectGscDimensionRows} from '@/lib/gsc-sync-collector';
+import type {GscDimension,GscRow} from '@/lib/gsc-sync-collector';
 
 export const dynamic = 'force-dynamic';
 const property = process.env.GSC_PROPERTY_URL || 'https://free-llm-api-1-didl.onrender.com/';
 const dimensions = ['query', 'page', 'country', 'device'] as const;
-type Row = { keys?: string[]; clicks: number; impressions: number; ctr: number; position: number };
 function authorized(req: NextRequest) {
  const expected = process.env.CRON_SECRET || '';
  const given = (req.headers.get('authorization') || '').replace(/^Bearer /i, '');
@@ -23,24 +24,33 @@ export async function GET(req: NextRequest) {
   const day = new Date(); day.setUTCDate(day.getUTCDate() - 3);
   const date = day.toISOString().slice(0, 10);
   const endpoint = 'https://www.googleapis.com/webmasters/v3/sites/' + encodeURIComponent(property) + '/searchAnalytics/query';
-  const getRows = async (dimension: string | null): Promise<Row[]> => {
-   const response = await fetch(endpoint, { method: 'POST', headers: { authorization: 'Bearer ' + token.access_token, 'content-type': 'application/json' }, body: JSON.stringify({ startDate: date, endDate: date, dimensions: dimension ? [dimension] : [], rowLimit: dimension ? 250 : 1 }), cache: 'no-store' });
+  const getRows = async (dimension:GscDimension,startRow:number,rowLimit:number):Promise<GscRow[]> => {
+   const response = await fetch(endpoint, { method: 'POST', headers: { authorization: 'Bearer ' + token.access_token, 'content-type': 'application/json' },
+    body: JSON.stringify({ startDate: date, endDate: date, dimensions: dimension ? [dimension] : [], rowLimit, startRow }), cache: 'no-store' });
    if (!response.ok) throw new Error('google_search_' + response.status);
-   const data = await response.json() as { rows?: Row[] };
+   const data = await response.json() as { rows?: GscRow[] };
+   if(data.rows!==undefined&&!Array.isArray(data.rows))throw Error('google_search_invalid_rows');
    return data.rows || [];
   };
-  const results = await Promise.all([getRows(null), ...dimensions.map(d => getRows(d))]);
+  // Complete every dimension before writing a single measurement.
+  const results = await Promise.all(([null,...dimensions] as GscDimension[]).map(
+   dimension => collectGscDimensionRows(getRows,dimension)
+  ));
   const records = results.flatMap((rows, index) => rows.map(row => ({
    property, metric_date: date, dimension: index === 0 ? 'total' : dimensions[index - 1],
    dimension_value: index === 0 ? '' : (row.keys?.[0] || ''),
    clicks: row.clicks, impressions: row.impressions, ctr: row.ctr, position: row.position,
    captured_at: new Date().toISOString()
   })));
-  if (records.length) {
-   const response = await fetch(url.replace(/\/$/, '') + '/rest/v1/gsc_daily_metrics?on_conflict=property,metric_date,dimension,dimension_value', { method: 'POST', headers: { apikey: key, authorization: 'Bearer ' + key, 'content-type': 'application/json', prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify(records), cache: 'no-store' });
+  // Bounded idempotent batches; a failed write cannot return success.
+  for(let i=0;i<records.length;i+=500){
+   const response = await fetch(url.replace(/\/$/, '') + '/rest/v1/gsc_daily_metrics?on_conflict=property,metric_date,dimension,dimension_value', { method: 'POST', headers: { apikey: key, authorization: 'Bearer ' + key, 'content-type': 'application/json', prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify(records.slice(i,i+500)), cache: 'no-store' });
    if (!response.ok) throw new Error('supabase_write_' + response.status);
   }
-  return NextResponse.json({ status: 'success', property, date, stored: records.length, empty: records.length === 0, checked_at: new Date().toISOString() });
+  return NextResponse.json({ status: 'success', property, date, stored: records.length,
+   page_rows:results[2].length,
+   page_data_status:results[2].length?'observed_rows':'no_page_rows_from_google',
+   empty: records.length === 0, checked_at: new Date().toISOString() });
  } catch (error) {
   return NextResponse.json({ status: 'error', error: error instanceof Error ? error.message : 'unknown_error' }, { status: 502 });
  }
