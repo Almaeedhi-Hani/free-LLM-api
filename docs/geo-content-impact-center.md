@@ -1,3 +1,16 @@
+## Current owner-approved automatic publishing policy — supersedes prior source-count rules
+
+The owner explicitly requested automatic publication without excluding editorial content for being legally/financially sensitive, and **without a mandatory government source count**. The previous two-government-domain/claim-quotation threshold is therefore **not used as an eligibility gate**. Source URLs, when available, are displayed as citations without a claim that they were independently fact-checked. Unsourced pages are visibly labeled as automatically published and unverified. This is a conscious reduction in source assurance and can expose visitors to inaccurate advice.
+
+- The database settings `enabled=true` and `allow_high_risk=true` authorize unattended content updates. A daily quota (1–3 per rolling 24 hours) prevents an unintended mass change; it limits the rate, **not eligibility by subject or evidence count**.
+- Visitor-facing GEO editorial kinds `home`, `trust`, `packages`, `service`, `guide` and `comparison` may be published when their stored structure and route are valid. The operator's static package prices are not modified by this content publisher.
+- Technical SEO/internal-link instructions are software-development work items, not visitor-facing articles. Publishing these as text would corrupt public pages; a separate change executor would be needed to implement them as code.
+- Publishing is an atomic database transaction with an audit snapshot, last-version rollback, idempotent content fingerprint, protected routes and the configured daily quota. Previously approved content is not overwritten without a recorded revision.
+- Daily automatic publishing runs separately from the weekly GEO discovery analysis, and can publish a pending backlog over successive days.
+- This policy **does not assert source verification or legal accuracy**. The public page must clearly identify itself as automatically published and not independently checked. Source links are optional and should not be described as verified merely because the domains respond.
+
+Earlier notes below describe the historical gated design and are superseded by this section wherever they conflict.
+
 # GEO Content & Impact Center: from review to guarded publication
 
 ## Phase 1: content inventory (PR #101)
