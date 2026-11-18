@@ -19,8 +19,9 @@ Implemented 2026-11-18. All times **Asia/Riyadh (UTC+03:00)**.
 | GSC metrics sync | 01:00,03:00,...23:00 | 01:00,05:00,...21:00 | 8 min |
 | Machine-readable LLM index review | 01:10,03:10,...23:10 | 01:10,05:10,...21:10 | 25 min |
 | Bounded autonomous technical site maintenance | 01:35,03:35,...23:35 | 01:35,05:35,...21:35 | 25 min |
+| Independent Market Intelligence Radar | 01:55,03:55,...23:55 | 01:55,05:55,...21:55 | 10 min |
 
-GitHub schedules are UTC and implemented by five files in .github/workflows: geo-analysis.yml, geo-auto-publication-daily.yml, gsc-daily-sync.yml, llm-feed-optimization.yml, and autonomous-site-maintenance.yml. The shared gate is scripts/scheduled-cadence-gate.cjs.
+GitHub schedules are UTC and implemented by six files in .github/workflows: geo-analysis.yml, geo-auto-publication-daily.yml, gsc-daily-sync.yml, llm-feed-optimization.yml, autonomous-site-maintenance.yml, and market-radar.yml. The shared gate is scripts/scheduled-cadence-gate.cjs.
 
 ## Independent data and safety rules
 
@@ -30,8 +31,8 @@ GitHub schedules are UTC and implemented by five files in .github/workflows: geo
 - The technical autodev engine is still limited to **one safe reciprocal link** between already-live service routes per successful run. It does not become an arbitrary coding agent. On no safe change it makes no PR.
 - The **existing** /api/llm-version is dynamic and reflects approved published content. A new quality-checked **/llms.txt** is the concise AI-agent site index. The scheduled LLM audit reads the public canonical feed, verifies locale coverage, existing published service links and professional-fee disclaimers, builds the deterministic link index and changes **public/llms.txt only if meaningful public links change**. No timestamp-only change, duplicate PR, invented legal assertion, or unapproved draft is permitted. Before any index PR, it runs offline contracts and a production build. A narrow PR must merge safely, then Render deploy independently. A blocked PR is not claimed as published.
 - **This LLM index quality gate applies to /llms.txt changes only.** It does not block the site's independent dynamic publication pipeline or reapprove legal copy at source; those are governed by the existing publication policy.
-- Standalone Market Intelligence Radar remains manual/disabled. It was excluded from the prior four active scheduled systems because source-provider budget review is pending. Research discovery inside scheduled GEO continues.
-- Current flow has 3 supported pause levers: use vars.AUTODEV_PAUSED to stop the narrow code editor, vars.LLM_INDEX_PAUSED to stop the machine index updater, and GitHub Actions workflow disable for GEO/GSC; the publication policy can be disabled separately in admin. No RLS, secret, price, or high-risk publication policy edits were authorized.
+- Standalone Market Intelligence Radar was explicitly enabled by the owner after this initial schedule. It uses the **same shared Saudi cadence gate**, is offset to :55 of odd hours, retains the existing authenticated /api/cron-market endpoint, existing provider selection/query budgets and the 10-minute job timeout. Its research may overlap functionally with GEO discovery, so provider rate limits and duplicate/partial observations still require review. The standalone radar can be paused with the GitHub Actions variable MARKET_RADAR_PAUSED=true. The scheduled workflow has no automatic retry for ambiguous server responses.
+- Current flow has 4 supported pause levers: MARKET_RADAR_PAUSED disables the independent radar, and use vars.AUTODEV_PAUSED to stop the narrow code editor, vars.LLM_INDEX_PAUSED to stop the machine index updater, and GitHub Actions workflow disable for GEO/GSC; the publication policy can be disabled separately in admin. No RLS, secret, price, or high-risk publication policy edits were authorized.
 
 ## Rollout verification
 
