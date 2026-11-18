@@ -50,7 +50,10 @@ const {autoPublicationEligibility}=require('../.impact-test-build/lib/content-im
  const context={hasVersionedRollback:true,hasIdempotencyKey:true,officialSourcesIndependentlyChecked:true};
  assert.equal(autoPublicationEligibility(candidate,policy,context).eligible,true);
  assert.equal(autoPublicationEligibility({...candidate,risk:'high'},policy,context).eligible,false);
- assert.equal(autoPublicationEligibility({...candidate,verifiedSources:[]},policy,context).eligible,false);
+ assert.equal(autoPublicationEligibility({...candidate,risk:'high',sourceIds:[],verifiedSources:[]},
+  {...policy,allowHighRisk:true},context).eligible,true,
+  'user-enabled high-risk auto publication has no government source minimum');
+ assert.equal(autoPublicationEligibility({...candidate,verifiedSources:[]},policy,context).eligible,true,'zero sources do not block automated publication');
  assert.equal(autoPublicationEligibility(candidate,{...policy,enabled:false},context).eligible,false);
  assert.equal(autoPublicationEligibility(candidate,policy,{...context,hasVersionedRollback:false}).eligible,false);
  const highBody=[
