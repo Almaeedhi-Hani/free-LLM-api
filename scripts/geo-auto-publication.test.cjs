@@ -152,8 +152,10 @@ const {autoPublicationEligibility}=require('../.impact-test-build/lib/content-im
   'daily publication should not invoke the GEO research provider');
  assert(daily.includes("curl --fail-with-body --retry 0"),'never retry ambiguous network publication');
  const publicPage=fs.readFileSync('src/app/insights/[slug]/page.tsx','utf8');
- assert(publicPage.includes('not independently verified')&&publicPage.includes('page.cited_sources'),
-  'source-free articles must disclose unverified status, never imply source verification');
+ assert(!publicPage.includes('not independently verified') &&
+  publicPage.includes('page.cited_sources') &&
+  publicPage.includes('lang==="ar"?"المراجع"'),
+  'articles should retain real citation links under a neutral heading without a visitor-facing verification notice or false verified status');
  const scheduled=fs.readFileSync('.github/workflows/geo-analysis.yml','utf8');
  assert(scheduled.includes('Guarded automatic publication after a successful GEO cycle'));
  assert(scheduled.includes('curl --fail-with-body --retry 0'),'never retry ambiguous publication');
