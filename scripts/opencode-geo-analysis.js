@@ -34,7 +34,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // --- OpenCode runner ---
-function runOpenCode(prompt, model) {
+function runOpenCode(prompt, model, timeoutMs=120000) {
   const chosenModel = model || MODEL;
   if (!FREE_MODEL_ALLOWLIST.includes(chosenModel) || !/^[a-z0-9/:.-]+$/i.test(chosenModel))return {error:'Only an explicitly allowlisted free-tier OpenCode model is allowed for this workflow'};
   // Each attempt receives a new workspace, session DB, and short AGENTS.md.
@@ -52,7 +52,7 @@ function runOpenCode(prompt, model) {
       }
       Object.assign(safeEnv,runtimeEnv);
       const output = execFileSync(OC_BIN,runArgs, {
-        timeout: 120000,
+        timeout: timeoutMs,
         encoding: 'utf-8',
         maxBuffer: 20 * 1024 * 1024,
         cwd: workDir,
@@ -139,6 +139,7 @@ async function saveGeoDiscovery(candidates,suggestions) {
   const base=process.env.GEO_API_URL||process.env.SITE_URL;
   const key=process.env.GEO_API_KEY;
   const confirmed={candidates:0,keywords:0};
+  const keywordChanges={inserted:0,existing:0,complete:true};
   if(!base||!key)return {status:'partial',confirmed,error:'GEO discovery API not configured'};
   // The production endpoint persists every record sequentially, so a single
   // 10-candidate/21-keyword request can exceed its 30s deadline after writing.
@@ -147,7 +148,7 @@ async function saveGeoDiscovery(candidates,suggestions) {
   const KEYWORDS_PER_REQUEST=3;
   const CANDIDATES_PER_REQUEST=2;
   let keywordOffset=0,candidateOffset=0,batches=0;
-  const errorResult=(message)=>({status:'partial',confirmed,batches,error:message});
+  const errorResult=(message)=>({status:'partial',confirmed,batches,keyword_changes:keywordChanges.complete?{inserted:keywordChanges.inserted,existing:keywordChanges.existing}:null,error:message});
   while(keywordOffset<suggestions.length||candidateOffset<candidates.length){
     const batch={
       suggestions:suggestions.slice(keywordOffset,keywordOffset+KEYWORDS_PER_REQUEST),
@@ -170,6 +171,12 @@ async function saveGeoDiscovery(candidates,suggestions) {
       // Count only explicit server confirmations, including on a partial 502.
       confirmed.candidates+=saved.candidates;
       confirmed.keywords+=saved.keywords;
+      const counts=payload.keyword_persistence;
+      if(counts&&Number.isInteger(counts.inserted)&&Number.isInteger(counts.existing)&&
+         counts.inserted>=0&&counts.existing>=0&&counts.inserted+counts.existing===saved.keywords){
+        keywordChanges.inserted+=counts.inserted;
+        keywordChanges.existing+=counts.existing;
+      }else if(saved.keywords)keywordChanges.complete=false;
       if(!response.ok||payload.ok!==true||
          saved.candidates!==batch.candidates.length||
          saved.keywords!==batch.suggestions.length)
@@ -184,7 +191,7 @@ async function saveGeoDiscovery(candidates,suggestions) {
         String(e?.message||e).slice(0,150));
     }
   }
-  return {status:'success',confirmed,batches,error:null};
+  return {status:'success',confirmed,batches,keyword_changes:keywordChanges.complete?{inserted:keywordChanges.inserted,existing:keywordChanges.existing}:null,error:null};
 }
 async function stageDiscovery() {
   logStage('DISCOVERY', 'Collecting sourced market evidence (Google Suggest + bounded provider search)...');
@@ -218,6 +225,8 @@ async function stageDiscovery() {
     diagnostics:result.diagnostics,
     persisted_candidates:persistence.confirmed.candidates,
     persisted_keywords:persistence.confirmed.keywords,
+    new_keywords:persistence.keyword_changes?.inserted??null,
+    existing_keywords:persistence.keyword_changes?.existing??null,
     persistence_status:persistence.status,
     persistence_error:persistence.error||null,
     keyword_status:suggestionsMissing?'empty':'collected',
@@ -226,7 +235,7 @@ async function stageDiscovery() {
   };
   logStage('DISCOVERY','Market sources and storage: '+JSON.stringify({
     candidates:results.length,eligible_candidates:candidates.length,keywords:result.suggestions.length,
-    confirmed:persistence.confirmed,sources,discovery_status:result.status,persistence_status:persistence.status
+    confirmed:persistence.confirmed,keyword_changes:persistence.keyword_changes||null,sources,discovery_status:result.status,persistence_status:persistence.status
   }));
   return {records_processed:results.length,status,error:persistence.error||keywordIssue||undefined,
     persisted_candidates:persistence.confirmed.candidates,
@@ -360,23 +369,31 @@ async function stageGeoAnalysis() {
   if(!all.length)return {records_processed:0,status:'partial',error:'No verified research inputs'};
   const result={opportunities:[],goals:[],drafts:[],editorial_actions:[],languages:{},models_used:[],tokens_used:null};
   let failed=0,calls=0;
+  const unavailableModels=new Set();
   for(const lang of LANGS){
     const sample=selectLocaleEvidence(all,lang,8);
     if(!sample.length){result.languages[lang]={status:'missing_evidence'};failed++;continue}
     let response=null;
     const attempts=[];
-    // If the first free model cannot complete the full evidence set, use a
-    // smaller, still locale-prioritized and source-diverse brief for the next
-    // free models. Do not add paid models, retries or a fourth provider call.
-    // At most three allowlisted model selections per locale; all failed locales
-    // remain visibly partial rather than receiving fabricated output.
-    for(const [index,model] of FALLBACK_MODELS.slice(0,3).entries()){
+    // Three attempts at most, all free. Avoid reusing previously timed-out
+    // alternative models across locales; give the default model a fresh
+    // chance because performance depends on the source language.
+    const fallbackOrder=[
+      FALLBACK_MODELS[0],
+      ...FALLBACK_MODELS.slice(1).filter(model=>!unavailableModels.has(model)),
+      ...FALLBACK_MODELS.slice(1).filter(model=>unavailableModels.has(model))
+    ].slice(0,3);
+    for(const [index,model] of fallbackOrder.entries()){
       calls++;
-      const evidence=index===0?sample:selectLocaleEvidence(all,lang,4);
-      const trial=runOpenCode(promptForLocale(lang,evidence),model);
-      if(trial.data){response=trial;break}
-      attempts.push({model,reason:String(trial.error||'unparseable JSON').slice(0,70)});
-      logStage('GEO_ANALYSIS',lang+' free model unavailable: '+model+' '+String(trial.error||'unparseable JSON').slice(0,110));
+      const evidence=selectLocaleEvidence(all,lang,index===0?8:index===1?4:2);
+      const trial=runOpenCode(promptForLocale(lang,evidence),model,index===0?120000:75000);
+      const data=trial.data;
+      const valid=data&&['opportunities','goals','drafts','editorial_actions'].every(field=>Array.isArray(data[field]));
+      if(valid){response=trial;break}
+      const reason=String(trial.error||(data?'invalid_model_response':'unparseable JSON')).slice(0,70);
+      attempts.push({model,reason});
+      if(reason==='timeout'||reason==='rate_limited')unavailableModels.add(model);
+      logStage('GEO_ANALYSIS',lang+' free model unavailable: '+model+' '+reason);
     }
     if(!response){result.languages[lang]={status:'model_unavailable',evidence_sampled:sample.length,attempts};failed++;continue}
     const data=response.data||{};
@@ -467,7 +484,10 @@ async function updateGEOAgentRun(outcome) {
   if(!base||!key)return false;
   try{
     const status=Object.values(outcome.stages).every(s=>s.status==='success')?'success':'partial';
-    const last_result=['discovery','evidence','geo_analysis','opportunities','goals','drafts','editorial_actions'].map(stage=>stage+':'+(outcome.stages[stage]?.status||'not_run')).join(' | ');
+    const statuses=outcome.stage_results?.geo_analysis?.languages||{};
+    const localeSummary=['ar','en','zh'].map(lang=>lang+':'+(statuses[lang]?.status||'not_run')).join(',');
+    const last_result=['discovery','evidence','geo_analysis','opportunities','goals','drafts','editorial_actions'].map(stage=>stage+':'+(outcome.stages[stage]?.status||'not_run')).join(' | ')+
+      ' | locales='+localeSummary;
     const response=await fetch(base.replace(/\/$/,'')+'/api/geo/results',{
       method:'POST',headers:{'Content-Type':'application/json','x-geo-api-key':key},
       body:JSON.stringify({run_report:{run_at:outcome.pipeline_run,status,last_result}}),
@@ -619,6 +639,8 @@ async function runFullPipeline() {
 
   output.summary.persisted_discovery_candidates=stageResults.discovery?.persisted_candidates||0;
   output.summary.persisted_discovery_keywords=stageResults.discovery?.persisted_keywords||0;
+  output.summary.new_discovery_keywords=stageResults.discovery?.new_keywords??null;
+  output.summary.existing_discovery_keywords=stageResults.discovery?.existing_keywords??null;
   output.summary.persisted_opportunities=stageResults.opportunities?.persisted||0;
   output.summary.persisted_goals=stageResults.goals?.persisted||0;
   output.summary.persisted_drafts=stageResults.drafts?.persisted||0;
