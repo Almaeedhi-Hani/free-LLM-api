@@ -109,6 +109,7 @@ export default function ContentImpactCenter({
  const sumClicks=measuredPages.reduce((a,v)=>a+v.clicks,0);
  const sumViews=measuredPages.reduce((a,v)=>a+v.impressions,0);
  const counted=measuredPages.length>0;
+ const confirmedLeads=measurement?.leads?.status==='available'?measurement.leads.total:null;
  const facts=[
   {name:'المقترحات والصفحات',value:rows.filter(x=>x.category==='page').length},
   {name:'الأسئلة والمسودات',value:rows.filter(x=>x.category==='faq').length},
@@ -216,13 +217,13 @@ export default function ContentImpactCenter({
       {label:'مرات الظهور المرصودة',value:counted?number(sumViews):'—'},
       {label:'النقرات المرصودة',value:counted?number(sumClicks):'—'},
       {label:'CTR للصفحات المقاسة',value:counted&&sumViews>0?(100*sumClicks/sumViews).toFixed(2)+'%':'—'},
-      {label:'التحويلات / العملاء',value:'—'}
+      {label:'طلبات العملاء المحفوظة',value:metric(confirmedLeads)}
      ].map(card=><div key={card.label} className="rounded-xl bg-slate-100 p-3">
       <p className="text-xs text-slate-600">{card.label}</p><p className="mt-1 text-xl font-bold">{card.value}</p></div>)}
    </div>
    {loading&&<p className="mt-3 text-sm text-slate-600" role="status">جارٍ قراءة القياسات المحفوظة...</p>}
    {measureError&&<p className="mt-3 text-sm text-amber-900" role="status">{measureError}؛ لا نعرض صفرًا بديلًا عن البيانات المفقودة.</p>}
-   {measurement&&<p className="mt-3 text-sm text-slate-600" role="status">{measurement.message} قياسات العملاء وظهور AI غير متصلة بهذه الشاشة بعد، ولا ننسب أداء الصفحة لسؤال FAQ منفرد.</p>}
+   {measurement&&<p className="mt-3 text-sm text-slate-600" role="status">{measurement.message} {measurement.leads?.message||'بيانات الطلبات غير متاحة.'} قياسات ظهور AI لم تتصل بعد، ولا ننسب أداء الصفحة إلى سؤال FAQ منفرد.</p>}
   </section>
   <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
    <div className="mb-4 grid grid-cols-1 gap-2 md:grid-cols-4">
@@ -242,7 +243,7 @@ export default function ContentImpactCenter({
     <table className="w-full min-w-[800px] text-right text-sm">
      <thead className="border-b bg-slate-50 text-slate-700"><tr>
       <th className="p-3">المحتوى</th><th className="p-3">النوع / اللغة</th><th className="p-3">الحالة</th>
-      <th className="p-3">نقرات / ظهور</th><th className="p-3">إنشاء / تعديل</th><th className="p-3">الإجراءات</th>
+      <th className="p-3">نقرات / ظهور</th><th className="p-3">طلبات مؤكدة</th><th className="p-3">إنشاء / تعديل</th><th className="p-3">الإجراءات</th>
      </tr></thead>
      <tbody>{filtered.map(item=>{
       const m=visibleMeasure(item);
@@ -251,6 +252,9 @@ export default function ContentImpactCenter({
        <td className="p-3">{kinds[item.kind]||item.kind}<p className="text-xs text-slate-500">{langs[item.lang]}</p></td>
        <td className="p-3">{statuses[item.status]||item.status}<p className="text-xs text-slate-500">{item.origin==='manual_or_legacy'?'يدوي / قديم':'مقترح GEO'}</p></td>
        <td className="p-3">{m?metric(m.clicks)+' / '+metric(m.impressions):'—'}<p className="text-xs text-slate-500">{m?'قياسات صفحة':'لا توجد بيانات منسوبة'}</p></td>
+       <td className="p-3">{measurement?.leads?.status==='available'&&item.status==='published'&&item.category==='page'&&item.targetPath?
+        metric(measurement.leads.byPage[item.targetPath]?.total||0):'—'}
+        <p className="text-xs text-slate-500">إحالة المتصفح؛ ليست دليل سببية</p></td>
        <td className="p-3 text-xs">{date(item.createdAt)}<p className="text-slate-500">{date(item.updatedAt)}</p></td>
        <td className="p-3">
         <div className="flex flex-wrap gap-2">
@@ -282,7 +286,7 @@ export default function ContentImpactCenter({
       <p><strong>المرجع / اللغة:</strong> {selected.targetPath||'غير منشور'} — {langs[selected.lang]}</p>
       <p><strong>المصادر الموثقة:</strong> {selected.verifiedSources.length||'لا توجد'}</p>
       <p><strong>أدلة الإنشاء:</strong> {selected.sourceIds.length||'لا توجد'}</p>
-      <p><strong>التحويلات المنسوبة:</strong> غير مقاسة</p>
+      <p><strong>طلبات الباقات المسجلة:</strong> {selected.targetPath&&measurement?.leads?.status==='available'?metric(measurement.leads.byPage[selected.targetPath]?.total||0):'غير متاحة'} (إسناد مساعد من المتصفح، وليس عملاء مدفوعين)</p>
     </div>
     {selected.verifiedSources.length>0&&<ul className="mt-2 space-y-1 text-xs">{selected.verifiedSources.map((url,i)=><li key={i}><a href={url} target="_blank" rel="noopener noreferrer" className="break-all text-blue-700 underline">{url}</a></li>)}</ul>}
     {mutationError&&<p role="alert" className="mt-3 text-sm text-red-700">{mutationError}</p>}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseCredentials } from "@/lib/storage-mode";
 import { packageOffers } from "@/lib/package-offers";
+import {canonicalImpactOrigin} from "@/lib/impact-attribution";
 
 export const dynamic = "force-dynamic";
 const text = (v: unknown, max: number) => typeof v === "string" ? v.trim().slice(0, max) : "";
@@ -29,7 +30,8 @@ export async function POST(req: NextRequest) {
     const credentials = getSupabaseCredentials();
     if (!credentials) return NextResponse.json({ error: "Storage unavailable" }, { status: 503 });
     const id = crypto.randomUUID();
-    const record = { id, package_slug: packageSlug, package_price: offer.price, locale, name, email, phone, country, activity, company, budget, notes, status: "saved" };
+    const originPath=canonicalImpactOrigin(data.sourcePath);
+    const record = { id, package_slug: packageSlug, package_price: offer.price, locale, name, email, phone, country, activity, company, budget, notes, status: "saved", origin_path:originPath };
     const saved = await fetch(credentials.url + "/rest/v1/package_requests", {
       method: "POST", cache: "no-store",
       headers: { apikey: credentials.key, Authorization: "Bearer " + credentials.key, "Content-Type": "application/json", Prefer: "return=representation" },

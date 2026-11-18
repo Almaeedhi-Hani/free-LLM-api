@@ -14,7 +14,7 @@ export interface ImpactItem {
  itemId:string|null; draftIndex:number|null; faqIndex:number|null;
 }
 export type ImpactStats={clicks:number;impressions:number;ctr:number|null;position:number|null;observedDays:number;capturedAt:string|null};
-export type ImpactMeasurement={source:'gsc_daily_page';days:7|28|90;status:'available'|'no_page_rows'|'unavailable';pages:Record<string,ImpactStats>;message:string};
+export type ImpactMeasurement={source:'gsc_daily_page';days:7|28|90;status:'available'|'no_page_rows'|'unavailable';pages:Record<string,ImpactStats>;message:string;leads?:{status:'available'|'unavailable';total:number|null;byPage:Record<string,{total:number;clientReported:number;formPage:number}>;message:string};leadPeriod?:{from:string;to:string};aiVisibilityStatus?:string};
 
 const localePrefix=(lang:EditorialLocale)=>lang==='ar'?'':'/'+lang;
 export function editorialPath(item:EditorialItem):string|null {
