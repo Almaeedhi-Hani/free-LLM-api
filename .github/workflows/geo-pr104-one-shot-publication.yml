@@ -1,0 +1,35 @@
+name: GEO PR104 one-time live publisher proof
+
+on:
+  push:
+    branches:
+      - qa/geo-pr104-one-shot-publication-20261118
+    paths:
+      - '.github/workflows/geo-pr104-one-shot-publication.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: geo-auto-publication-daily
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 0d9ad19174ba2982f9619b37178add83489a641e
+      - name: Confirm exact production code
+        run: test "$(git rev-parse HEAD)" = '0d9ad19174ba2982f9619b37178add83489a641e'
+      - name: Run source-optional production publisher once
+        env:
+          GEO_API_URL: ${{ secrets.GEO_API_URL }}
+          GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
+        run: |
+          test -n "$GEO_API_URL" && test -n "$GEO_API_KEY"
+          curl --fail-with-body --retry 0 --max-time 120 -sS \
+            -X POST -H "x-geo-api-key: $GEO_API_KEY" \
+            "${GEO_API_URL%/}/api/geo/auto-publication"
