@@ -2,7 +2,11 @@ name: GEO Intelligence Analysis
 
 on:
   schedule:
-    - cron: '0 2 * * 0'  # Sunday 02:00 UTC = 05:00 Saudi
+    - cron: '0 2 * * *'  # Daily 05:00 Saudi (02:00 UTC)
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/geo-analysis.yml' # First rollout test
   workflow_dispatch:  # Manual trigger
 
 permissions:
@@ -44,8 +48,8 @@ jobs:
           node scripts/opencode-geo-analysis.js --full-pipeline
 
       - name: Guarded automatic publication after a successful GEO cycle
-        # The database policy defaults to OFF. Only low-risk, official-source-
-        # checked guides can publish after the operator enables this explicitly.
+        # Use independently approved DB policy (including high-risk permission, quota).
+        # Separate daily auto-publication continues if research is only partial.
         env:
           GEO_API_URL: ${{ secrets.GEO_API_URL }}
           GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
