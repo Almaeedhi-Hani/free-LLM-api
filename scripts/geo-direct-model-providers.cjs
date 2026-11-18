@@ -77,7 +77,7 @@ function errorName(status){
  if(status===429)return 'rate_limited';
  if(status===402)return 'quota_exhausted';
  if(status===401||status===403)return 'auth_error';
- if(status===404)return 'model_unavailable';
+ if(status===404||status===410)return 'model_unavailable';
  return status>=500?'provider_unavailable':'http_'+status;
 }
 async function generate(prompt,selected,{env=process.env,fetchFn=fetch,timeoutMs=60000}={}){
