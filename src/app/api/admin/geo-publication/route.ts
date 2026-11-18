@@ -45,7 +45,8 @@ export async function POST(req:NextRequest){
   if(body.action==='rollback'){
    if(body.confirm!=='ROLLBACK_GEO_PUBLICATION'||typeof body.event_id!=='string')
     return NextResponse.json({error:'explicit_rollback_confirmation_required'},{status:422});
-   const result=await rollbackAutoPublication(body.event_id) as {status?:string};
+   if(body.kind!==undefined&&!['editorial','faq'].includes(body.kind))return NextResponse.json({error:'invalid_event_kind'},{status:400});
+   const result=await rollbackAutoPublication(body.event_id,body.kind==='faq'?'faq':'editorial') as {status?:string};
    return NextResponse.json(result,{status:result.status==='rolled_back'?200:409});
   }
   return NextResponse.json({error:'unknown_action'},{status:400});
