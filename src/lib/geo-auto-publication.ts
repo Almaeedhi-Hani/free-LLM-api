@@ -126,12 +126,17 @@ export async function getAutoPublicationStatus():Promise<{
  enabled:boolean;daily_limit:number;allow_high_risk:boolean;events:unknown[];available:boolean
 }>{
  try{
-  const [policy,events]=await Promise.all([
+  const [policy,editorial,faq]=await Promise.all([
    restCall('geo_publication_settings?select=enabled,daily_limit,allow_high_risk&id=eq.1&limit=1'),
-   restCall('geo_publication_events?select=id,item_id,target_path,language,risk_level,status,published_at,rolled_back_at&order=published_at.desc&limit=30')
+   restCall('geo_publication_events?select=id,item_id,target_path,language,risk_level,status,published_at,rolled_back_at&order=published_at.desc&limit=30'),
+   restCall('geo_faq_publication_events?select=id,item_id,risk_level,status,published_at,rolled_back_at&order=published_at.desc&limit=30')
   ]);
   const row=(policy as Policy[])[0];
-  if(!row||!Array.isArray(events))throw Error('auto_publish_schema_missing');
+  if(!row||!Array.isArray(editorial)||!Array.isArray(faq))throw Error('auto_publish_schema_missing');
+  const events=[
+   ...(editorial as Array<Record<string,unknown>>).map(e=>({...e,kind:'editorial'})),
+   ...(faq as Array<Record<string,unknown>>).map(e=>({...e,kind:'faq',target_path:'/'}))
+  ].sort((a,b)=>String(b.published_at||'').localeCompare(String(a.published_at||''))).slice(0,30);
   return {enabled:row.enabled===true,allow_high_risk:row.allow_high_risk===true,daily_limit:row.daily_limit,events,available:true};
  }catch{return {enabled:false,allow_high_risk:false,daily_limit:1,events:[],available:false}}
 }
@@ -174,9 +179,10 @@ export async function saveSensitiveAutomaticPermission(allow:boolean):Promise<bo
   throw Error('sensitive_policy_confirmation_failed');
  return rows[0].allow_high_risk;
 }
-export async function rollbackAutoPublication(eventId:string):Promise<unknown>{
- if(!/^[a-f0-9-]{36}$/i.test(eventId))throw Error('Invalid event ID');
- return restCall('rpc/geo_rollback_auto_publication',{method:'POST',body:{p_event_id:eventId}});
+export async function rollbackAutoPublication(eventId:string,kind:'editorial'|'faq'='editorial'):Promise<unknown>{
+ if(!/^[a-f0-9-]{36}$/i.test(eventId)||!['editorial','faq'].includes(kind))throw Error('Invalid event ID or type');
+ return restCall(kind==='faq'?'rpc/geo_rollback_auto_faq':'rpc/geo_rollback_auto_publication',{
+  method:'POST',body:{p_event_id:eventId}});
 }
 /** HTTPS research links are recorded transparently as unverified citations;
  * no minimum number, specific host, provider or official domain is required. */
