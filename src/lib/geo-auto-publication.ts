@@ -155,6 +155,25 @@ export async function saveAutoPublicationSettings(enabled:boolean,dailyLimit:num
    rows[0].daily_limit!==dailyLimit)throw Error('auto_publish_policy_confirmation_failed');
  return {enabled:rows[0].enabled,daily_limit:rows[0].daily_limit};
 }
+/** Separate opt-in for medium/high-risk automated content. Turning the
+ * global publisher on does not enable this permission by default.
+ */
+export async function saveSensitiveAutomaticPermission(allow:boolean):Promise<boolean>{
+ const cfg=getSupabaseCredentials();
+ if(!cfg)throw Error('storage_not_configured');
+ const endpoint=cfg.url.replace(/\/$/,'')+'/rest/v1/geo_publication_settings?id=eq.1';
+ const res=await fetch(endpoint,{
+  method:'PATCH',headers:{apikey:cfg.key,Authorization:'Bearer '+cfg.key,
+   'Content-Type':'application/json',Prefer:'return=representation'},
+  body:JSON.stringify({allow_high_risk:allow,updated_at:new Date().toISOString()}),
+  cache:'no-store',signal:AbortSignal.timeout(12000)
+ });
+ if(!res.ok)throw Error('sensitive_policy_write_'+res.status);
+ const rows=await res.json() as Policy[];
+ if(!Array.isArray(rows)||rows.length!==1||rows[0].allow_high_risk!==allow)
+  throw Error('sensitive_policy_confirmation_failed');
+ return rows[0].allow_high_risk;
+}
 export async function rollbackAutoPublication(eventId:string):Promise<unknown>{
  if(!/^[a-f0-9-]{36}$/i.test(eventId))throw Error('Invalid event ID');
  return restCall('rpc/geo_rollback_auto_publication',{method:'POST',body:{p_event_id:eventId}});
