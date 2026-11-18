@@ -1,7 +1,7 @@
 'use client';
 import React,{useEffect,useState} from 'react';
 import {describeGscSyncStatus} from '@/lib/gsc-sync-health';
-type Section='pages'|'queries'|'ai'|'conversions';
+type Section='pages'|'queries';
 type GscHistory={
  rows:Array<{metric_date:string;clicks:number;impressions:number}>;
  alerts:Array<{message:string}>;
@@ -11,8 +11,8 @@ type GscHistory={
 };
 type QueryResult={query:string;clicks:number;impressions:number;ctr:number;position:number};
 type Result={url:string;language:string;checked_at:string;http_status:number|null;canonical:string|null;hreflang:{lang:string;url:string}[];errors:string[];status:string};
-const sections:[Section,string][]=[['pages','الفهرسة وصحة الصفحات'],['queries','الكلمات والاستعلامات'],['ai','اختبارات إجابات الذكاء الاصطناعي'],['conversions','الاستفسارات والتحويلات']];
-export default function VisibilityDashboard({secret}:{secret:string}){
+const sections:[Section,string][]=[['pages','الفهرسة وصحة الصفحات'],['queries','الكلمات والاستعلامات']];
+export default function VisibilityDashboard({secret,onOpenImpact}:{secret:string;onOpenImpact?:()=>void}){
  const [section,setSection]=useState<Section>('pages');
  const [rows,setRows]=useState<Result[]>([]);
  const [queryRows,setQueryRows]=useState<QueryResult[]>([]);
@@ -90,10 +90,14 @@ export default function VisibilityDashboard({secret}:{secret:string}){
    <div><h2 className="text-2xl font-bold text-slate-900">SEO & AI Visibility</h2><p className="text-sm text-slate-500">بيانات فعلية فقط، مع مصدر كل قياس وحالة الاتصال.</p></div>
    <button className="btn-secondary" disabled={loading} onClick={refreshSection}>{loading?'جارٍ الفحص…':'تحديث البيانات'}</button>
   </div>
-  <nav className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2" aria-label="أقسام الظهور">
+  <nav className="grid grid-cols-1 sm:grid-cols-2 gap-2" aria-label="أقسام الظهور">
    {sections.map(([id,label])=><button key={id} onClick={()=>setSection(id)} aria-current={section===id?'page':undefined} className={`rounded-xl border p-3 text-right font-semibold ${section===id?'bg-slate-900 text-white border-slate-900':'bg-white text-slate-700 border-slate-200 hover:border-slate-400'}`}>{label}</button>)}
   </nav>
   {section==='queries'&&<div className="rounded-xl border border-slate-200 bg-white p-4"><button className="btn-secondary" onClick={()=>void connectGoogle()}>ربط حساب Google Search Console</button><p className="mt-2 text-xs text-slate-600">ستنتقل إلى Google لمنح صلاحية القراءة فقط. التفويض محفوظ مشفرًا في متصفح الإدارة لمدة تصل إلى 30 يومًا؛ يجب الربط مجددًا عند تغيير المتصفح أو حذف الكوكيز.</p></div>}
+  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+   <p>تم توحيد قياس الاستشهادات في AI وتحويلات العملاء مع نتائج المقالات المنشورة داخل مركز المحتوى والأثر. هذه الشاشة مخصصة لفحص SEO واستعلامات Google.</p>
+   <button type="button" onClick={onOpenImpact} disabled={!onOpenImpact} className="mt-2 rounded-lg bg-navy-900 px-3 py-2 text-white disabled:opacity-50">الانتقال إلى قياسات المحتوى والتحويلات</button>
+  </div>
   {error&&<p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-red-800">{error}</p>}
   {section==='pages'?<section className="rounded-2xl bg-white border border-slate-200 p-4 sm:p-6 space-y-4">
    <div className="flex flex-wrap gap-3 justify-between items-center">
@@ -147,8 +151,7 @@ export default function VisibilityDashboard({secret}:{secret:string}){
    </div>}
    {section==='queries'&&queryRows.length>0&&<div className="overflow-x-auto"><p className="text-xs text-slate-500 mb-2">المصدر: Google Search Console — الفترة: {queryPeriod}</p><table className="w-full text-sm text-right"><thead><tr className="border-b"><th className="p-2">{({query:'الاستعلام',page:'الصفحة',country:'البلد',device:'الجهاز'} as const)[queryDimension]}</th><th className="p-2">النقرات</th><th className="p-2">الظهور</th><th className="p-2">CTR</th><th className="p-2">متوسط الموضع</th></tr></thead><tbody>{queryRows.map((q,i)=><tr key={q.query+'-'+i} className="border-b"><td className="p-2">{q.query}</td><td className="p-2">{q.clicks}</td><td className="p-2">{q.impressions}</td><td className="p-2">{(q.ctr*100).toFixed(2)}%</td><td className="p-2">{q.position.toFixed(1)}</td></tr>)}</tbody></table></div>}
    {section==='queries'&&<p className="text-xs text-slate-500">المصدر: Google Search Console API. البيانات قد تتأخر عدة أيام. فحص HTTP لا يثبت الفهرسة؛ تقارير فهرسة Google تُراجع من Search Console.</p>}
-   {section==='ai'&&<p className="text-sm text-slate-600">سجل الاختبار المطلوب: السؤال، اللغة، المحرك، وقت الاختبار، الإجابة، روابط الاستشهاد، حالة التحقق، ومعرّف الدليل.</p>}
-   {section==='conversions'&&<p className="text-sm text-slate-600">ستُفصل نقرات واتساب والهاتف عن إرسال النماذج وعن العملاء المحتملين المؤكدين. لا يُحسب النقر عميلًا.</p>}
+   
   </section>}
  </div>;
 }
