@@ -19,7 +19,8 @@ assert(geo.includes("if: always() && steps.cadence.outputs.run == 'true'"),'Part
 assert(geo.includes('POST -H "x-geo-api-key: $GEO_API_KEY"'),'Authenticated publishing preserved');
 assert(publisher.includes("- cron: '50 1-23/2 * * *'"),'Publisher checks every two hours, then four hours');
 assert(gsc.includes("- cron: '0 0-22/2 * * *'"),'GSC reads every two hours, then four hours');
-assert(!/^\s*-\s*cron:/m.test(radar),'Standalone market radar must remain manual');
+assert(radar.includes("cron: '55 0-22/2 * * *'"),'Standalone market radar follows same 2h to 4h cadence');
+assert(radar.includes('scheduled-cadence-gate.cjs --slot=odd'),'Independent market radar uses shared gate');
 assert(gsc.includes('scheduled-cadence-gate.cjs --slot=odd'),'GSC uses gate');
 assert(geo.includes('scheduled-cadence-gate.cjs --slot=even'),'GEO uses gate');
 assert(api.includes("github('/actions/workflows/' + workflow)"),'Real GitHub workflow status must be read');
