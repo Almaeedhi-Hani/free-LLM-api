@@ -20,6 +20,10 @@ on:
       - 'src/lib/editorial-workflow.ts'
       - 'src/lib/content-tree.ts'
       - '.github/workflows/geo-pr-regression.yml'
+      - '.github/workflows/geo-analysis.yml'
+      - 'src/app/api/admin/geo-engine/route.ts'
+      - 'src/components/GeoEngineMonitor.tsx'
+      - 'scripts/geo-secret-weapon-schedule.test.cjs'
   workflow_dispatch:
 permissions:
   contents: read
@@ -40,6 +44,8 @@ jobs:
           node --check scripts/opencode-geo-analysis.js
           node --check scripts/geo-editorial-prompt.test.cjs
           node --check scripts/geo-provider-fallback.test.cjs
+      - name: Verify GEO autopilot schedule and independent publishing
+        run: node scripts/geo-secret-weapon-schedule.test.cjs
       - name: Multilingual editorial prompt
         run: node scripts/geo-editorial-prompt.test.cjs
       - name: Free-model fallback safety

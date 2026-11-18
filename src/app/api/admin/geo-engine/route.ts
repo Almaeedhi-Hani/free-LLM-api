@@ -22,10 +22,18 @@ export async function GET(req: NextRequest) {
   if (!authorized(req)) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   if (!githubToken()) return NextResponse.json({ configured: false, message: 'GEO_GITHUB_TOKEN is not configured' });
   try {
-    const response = await github('/actions/workflows/' + workflow + '/runs?per_page=5');
+    const [response, detailsResponse] = await Promise.all([
+      github('/actions/workflows/' + workflow + '/runs?per_page=5'),
+      github('/actions/workflows/' + workflow),
+    ]);
     if (!response.ok) return NextResponse.json({ configured: true, message: 'GitHub status unavailable' }, { status: 502 });
     const data = await response.json();
-    return NextResponse.json({ configured: true, runs: (data.workflow_runs || []).map((run: any) => ({
+    const details = detailsResponse.ok ? await detailsResponse.json() : null;
+    const state = typeof details?.state === 'string' ? details.state : 'unknown';
+    return NextResponse.json({ configured: true,
+      schedule: { cadence: 'daily', cron_utc: '0 2 * * *', saudi_time: '05:00', time_zone: 'Asia/Riyadh',
+        state, active: state === 'unknown' ? null : state === 'active' },
+      runs: (data.workflow_runs || []).map((run: any) => ({
       id: run.id, status: run.status, conclusion: run.conclusion, created_at: run.created_at, html_url: run.html_url
     })) });
   } catch { return NextResponse.json({ message: 'GitHub connection unavailable' }, { status: 502 }); }
