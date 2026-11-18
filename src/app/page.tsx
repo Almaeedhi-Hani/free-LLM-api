@@ -1,6 +1,7 @@
 import ArrowUpRight from "@/components/ArrowUpRight";
 import { pageMetadata, siteUrl } from "@/lib/site-seo";
 import { getLocale, localizedPath } from "@/lib/site-language";
+import {whatsAppUrlForLanguage} from "@/lib/whatsapp-contacts";
 import { copy, services } from "@/lib/service-catalog";
 import { getContent } from "@/lib/content-store";
 import { EditorialBlock } from "@/components/EditorialBlock";
@@ -300,7 +301,7 @@ export default async function HomePage() {
         <div className="contact-actions">
           <a
             className="action-primary"
-            href={content.contact.whatsapp}
+            href={whatsAppUrlForLanguage(content.contact,lang)||"#contact"}
             target="_blank"
             rel="noopener noreferrer"
           >

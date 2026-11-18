@@ -3,6 +3,7 @@ import { getContent, setContent } from '@/lib/content-store';
 import {validateEditorialBatch,officialSourceCandidates,editorialPublicationIssues} from '@/lib/editorial-workflow';
 import { assessGeoDraftCopy, splitGeoDraftReviewText } from "@/lib/geo-draft-quality";
 import { StorageConflictError, StorageUnavailableError } from '@/lib/storage-mode';
+import {normalizeWhatsAppNumber} from '@/lib/whatsapp-contacts';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,6 +53,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ status: 'error', message: 'Invalid content patch' }, { status: 400 });
     }
     const { expectedUpdatedAt, ...patch } = body as Record<string, unknown>;
+    if (patch.contact !== undefined) {
+      const c=patch.contact as Record<string,unknown>;
+      if(!c||typeof c!=='object'||Array.isArray(c))
+        return NextResponse.json({status:'error',message:'Invalid contact settings'},{status:400});
+      if(c.whatsapp!==undefined &&
+        (typeof c.whatsapp!=='string'||
+         (c.whatsapp.trim()!==''&&!/^https:\/\/wa\.me\/[1-9]\d{7,14}(?:\?[^#]*)?$/.test(c.whatsapp.trim()))))
+        return NextResponse.json({status:'error',message:'Invalid general WhatsApp URL'},{status:400});
+      if(c.whatsappNumbers!==undefined){
+        const numbers=c.whatsappNumbers as Record<string,unknown>;
+        if(!numbers||typeof numbers!=='object'||Array.isArray(numbers)||
+          Object.keys(numbers).some(key=>!['ar','en','zh'].includes(key))||
+          ['ar','en','zh'].some(lang=>numbers[lang]!==undefined&&
+            (typeof numbers[lang]!=='string'||
+              (String(numbers[lang]).trim()!==''&&!normalizeWhatsAppNumber(numbers[lang])))))
+          return NextResponse.json({status:'error',message:'WhatsApp advisor numbers must contain international phone numbers for ar/en/zh only'},{status:400});
+      }
+    }
     if (patch.searchIntegrations !== undefined) {
       const v = patch.searchIntegrations as Record<string, unknown>;
       if (!v || typeof v !== 'object' || Array.isArray(v) ||

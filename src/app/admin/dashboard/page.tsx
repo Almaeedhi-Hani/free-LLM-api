@@ -35,6 +35,21 @@ type Tab =
   | 'cookies'
   | 'integrations';
 
+type ContactForm={phone:string;phoneDisplay:string;whatsapp:string;email:string;whatsappAr:string;whatsappEn:string;whatsappZh:string};
+const contactToForm=(raw?:{
+ phone?:string;phoneDisplay?:string;whatsapp?:string;email?:string;
+ whatsappNumbers?:{ar?:string;en?:string;zh?:string}
+}):ContactForm=>({
+ phone:raw?.phone||'',phoneDisplay:raw?.phoneDisplay||'',
+ whatsapp:raw?.whatsapp||'',email:raw?.email||'',
+ whatsappAr:raw?.whatsappNumbers?.ar||'',
+ whatsappEn:raw?.whatsappNumbers?.en||'',
+ whatsappZh:raw?.whatsappNumbers?.zh||''
+});
+const numberValid=(raw:string)=>!raw.trim()||/^\+?[0-9()\s-]+$/.test(raw.trim())&&
+ /^[1-9][0-9]{7,14}$/.test(raw.trim().replace(/[\s()+-]/g,''));
+const digitsOnly=(raw:string)=>raw.trim().replace(/[\s()+-]/g,'');
+
 const LABELS: Record<string, string> = {
   idle:'بانتظار التشغيل',running:'قيد التشغيل',success:'نجح',completed:'مكتمل',failed:'فشل',
   pending:'بانتظار المراجعة',approved:'معتمد',rejected:'مرفوض',active:'نشط',
@@ -132,7 +147,7 @@ export default function AdminDashboard() {
   const [keywordSearch,setKeywordSearch]=useState('');
   const [competitorFilter,setCompetitorFilter]=useState('all');
   const [goldenDraft, setGoldenDraft] = useState('');
-  const [contactForm, setContactForm] = useState({ phone: '', phoneDisplay: '', whatsapp: '', email: '' });
+  const [contactForm, setContactForm] = useState<ContactForm>(()=>contactToForm());
   const [saving, setSaving] = useState(false);
   const [competitors, setCompetitors] = useState<any[]>([]);
   const [keywords, setKeywords] = useState<any[]>([]);
@@ -181,7 +196,7 @@ export default function AdminDashboard() {
         if (!active) return;
         setSecret(saved);
         setContent(data);
-        if (data.contact) setContactForm(data.contact);
+        if (data.contact) setContactForm(contactToForm(data.contact));
         setGoldenDraft(data.goldenParagraph || '');
         setAuthed(true);
       } catch {
@@ -208,7 +223,7 @@ export default function AdminDashboard() {
       }
       if (!r.ok) throw new Error(d.message || `فشل التحميل (${r.status})`);
       setContent(d);
-      if (d.contact) setContactForm(d.contact);
+      if (d.contact) setContactForm(contactToForm(d.contact));
       setGoldenDraft(d.goldenParagraph || '');
       setLastUpdated(new Date().toLocaleString('ar-SA'));
       setError('');
@@ -333,7 +348,7 @@ export default function AdminDashboard() {
       }
       if (!r.ok) throw new Error(d.message || `فشل الحفظ (${r.status})`);
       setContent(d.content);
-      if (d.content?.contact) setContactForm(d.content.contact);
+      if (d.content?.contact) setContactForm(contactToForm(d.content.contact));
       if (d.content?.goldenParagraph !== undefined) setGoldenDraft(d.content.goldenParagraph);
       setLastUpdated(new Date().toLocaleString('ar-SA'));
       setNotice('تم حفظ التغييرات بنجاح');
@@ -423,10 +438,22 @@ export default function AdminDashboard() {
 
   const saveGolden = () => {if (!goldenDraft.trim()) {setError('الفقرة الرئيسية لا يمكن أن تكون فارغة.');return;} void save({ goldenParagraph: goldenDraft.trim() });};
   const saveContact = () => {
+    if (saving) return;
     if (contactForm.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactForm.email.trim())) {setError('صيغة البريد الإلكتروني غير صحيحة.');return;}
-    if (contactForm.whatsapp && !/^https:\/\/wa\.me\/[0-9]+(?:\?.*)?$/.test(contactForm.whatsapp.trim())) {setError('رابط واتساب يجب أن يبدأ بـ https://wa.me/ متبوعًا بالرقم الدولي.');return;}
+    if (contactForm.whatsapp && !/^https:\/\/wa\.me\/[1-9][0-9]{7,14}(?:\?[^#]*)?$/.test(contactForm.whatsapp.trim())) {setError('رابط واتساب العام يجب أن يكون بصيغة https://wa.me/ مع رمز الدولة.');return;}
+    if (![contactForm.whatsappAr,contactForm.whatsappEn,contactForm.whatsappZh].every(numberValid)) {
+      setError('أدخل رقم واتساب دوليًا صحيحًا (مثل +9665XXXXXXXX) أو اتركه فارغًا لاستخدام الرقم العام.');return;
+    }
     setError('');
-    void save({contact: Object.fromEntries(Object.entries(contactForm).map(([key,value])=>[key,value.trim()]))});
+    void save({contact:{
+      phone:contactForm.phone.trim(),phoneDisplay:contactForm.phoneDisplay.trim(),
+      whatsapp:contactForm.whatsapp.trim(),email:contactForm.email.trim(),
+      whatsappNumbers:{
+        ar:digitsOnly(contactForm.whatsappAr),
+        en:digitsOnly(contactForm.whatsappEn),
+        zh:digitsOnly(contactForm.whatsappZh)
+      }
+    }});
   };
 
   if (restoringSession) {
@@ -572,6 +599,26 @@ export default function AdminDashboard() {
                   <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="رقم الهاتف المعروض للزوار" aria-label="الهاتف المعروض" value={contactForm.phoneDisplay} onChange={(e) => setContactForm({ ...contactForm, phoneDisplay: e.target.value })} />
                   <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="https://wa.me/9665XXXXXXXX" aria-label="رابط واتساب" value={contactForm.whatsapp} onChange={(e) => setContactForm({ ...contactForm, whatsapp: e.target.value })} />
                   <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="name@example.com" aria-label="البريد الإلكتروني" type="email" value={contactForm.email} onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })} />
+                </div>
+                <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/40 p-4">
+                  <h3 className="font-bold text-emerald-950">أرقام مستشاري واتساب حسب اللغة</h3>
+                  <p className="mt-1 text-sm text-slate-600">لكل لغة رقم مستقل. إذا تركت رقمًا فارغًا، يستخدم الزائر رابط واتساب العام أعلاه. يظهر الزر العائم للزوار فقط، ويتيح اختيار لغة المستشار.</p>
+                  <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    {([
+                      ['whatsappAr','المستشار العربي','العربية'],
+                      ['whatsappEn','English-speaking advisor','الإنجليزية'],
+                      ['whatsappZh','中文顾问','الصينية']
+                    ] as const).map(([key,title,caption])=>
+                      <label key={key} className="flex flex-col gap-1 text-sm font-semibold text-emerald-950">
+                        {title} <span className="text-xs font-normal text-slate-600">{caption}</span>
+                        <input type="tel" dir="ltr" inputMode="tel" autoComplete="off"
+                          aria-label={'رقم واتساب '+caption}
+                          placeholder="+9665XXXXXXXX" value={contactForm[key]}
+                          onChange={e=>setContactForm({...contactForm,[key]:e.target.value})}
+                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm" />
+                      </label>
+                    )}
+                  </div>
                 </div>
                 <button onClick={saveContact} className="btn-primary mt-4" disabled={saving}>حفظ التواصل</button>
                 <p className="text-xs text-slate-500 mt-2">أدخل رابط WhatsApp كاملاً بصيغة https://wa.me/966... حتى يعمل زر التواصل في الموقع.</p>

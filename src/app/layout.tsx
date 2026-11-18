@@ -2,6 +2,8 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import MobileFloatingNav from "@/components/MobileFloatingNav";
+import {WhatsAppFloat} from "@/components/WhatsAppFloat";
+import {whatsAppUrlForLanguage} from "@/lib/whatsapp-contacts";
 import { CookieConsent } from "@/components/CookieConsent";
 import { getContent } from "@/lib/content-store";
 import { approvedEditorial } from "@/lib/editorial-workflow";
@@ -25,6 +27,7 @@ export default async function RootLayout({
   const t = copy[lang];
   const content = await getContent();
   const { contact } = content;
+  const whatsappHref=whatsAppUrlForLanguage(contact,lang);
   const hasGuides=approvedEditorial(content.editorialItems,lang).some(e=>e.kind==="guide"||e.kind==="comparison");
   const verification = content.searchIntegrations?.googleVerification || "9DD9bimLxrjoQrAMYZB4Icwz_0lnfnb2idwXBqqBK4w";
   const serviceList = services;
@@ -103,13 +106,7 @@ export default async function RootLayout({
                 {contact.phoneDisplay}
               </a>
               {contact.email ? <a href={`mailto:${contact.email}`}>{contact.email}</a> : null}
-              <a
-                href={contact.whatsapp}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                WhatsApp
-              </a>
+              {whatsappHref&&<a href={whatsappHref} target="_blank" rel="noopener noreferrer">WhatsApp</a>}
             </div>
           </div>
           <div className="footer-bottom">
@@ -119,6 +116,7 @@ export default async function RootLayout({
             <span>{t.foot}</span>
           </div>
         </footer>
+        <WhatsAppFloat locale={lang} contact={contact}/>
         <CookieConsent locale={lang} policy={content.cookiePolicy} />
       </body>
     </html>
