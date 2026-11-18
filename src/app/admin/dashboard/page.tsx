@@ -14,6 +14,7 @@ import SearchIntegrationsAdmin from '@/components/SearchIntegrationsAdmin';
 import GeoEngineMonitor from '@/components/GeoEngineMonitor';
 import UnifiedRunHistory from '@/components/UnifiedRunHistory';
 import TechnicalTaskBoard from '@/components/TechnicalTaskBoard';
+import {validWhatsAppAdvisorField} from '@/lib/whatsapp-contacts';
 
 type Tab =
   | 'home'
@@ -35,16 +36,21 @@ type Tab =
   | 'cookies'
   | 'integrations';
 
-type ContactForm={phone:string;phoneDisplay:string;whatsapp:string;email:string;whatsappAr:string;whatsappEn:string;whatsappZh:string};
+type ContactForm={phone:string;phoneDisplay:string;whatsapp:string;email:string;whatsappAr:string;whatsappEn:string;whatsappZh:string;
+ advisorNameAr:string;advisorTitleAr:string;advisorNameEn:string;advisorTitleEn:string;advisorNameZh:string;advisorTitleZh:string};
 const contactToForm=(raw?:{
  phone?:string;phoneDisplay?:string;whatsapp?:string;email?:string;
- whatsappNumbers?:{ar?:string;en?:string;zh?:string}
+ whatsappNumbers?:{ar?:string;en?:string;zh?:string};
+ whatsappAdvisors?:Partial<Record<'ar'|'en'|'zh',{name:string;title:string}>>
 }):ContactForm=>({
  phone:raw?.phone||'',phoneDisplay:raw?.phoneDisplay||'',
  whatsapp:raw?.whatsapp||'',email:raw?.email||'',
  whatsappAr:raw?.whatsappNumbers?.ar||'',
  whatsappEn:raw?.whatsappNumbers?.en||'',
- whatsappZh:raw?.whatsappNumbers?.zh||''
+ whatsappZh:raw?.whatsappNumbers?.zh||'',
+ advisorNameAr:raw?.whatsappAdvisors?.ar?.name||'',advisorTitleAr:raw?.whatsappAdvisors?.ar?.title||'',
+ advisorNameEn:raw?.whatsappAdvisors?.en?.name||'',advisorTitleEn:raw?.whatsappAdvisors?.en?.title||'',
+ advisorNameZh:raw?.whatsappAdvisors?.zh?.name||'',advisorTitleZh:raw?.whatsappAdvisors?.zh?.title||''
 });
 const numberValid=(raw:string)=>!raw.trim()||/^\+?[0-9()\s-]+$/.test(raw.trim())&&
  /^[1-9][0-9]{7,14}$/.test(raw.trim().replace(/[\s()+-]/g,''));
@@ -444,6 +450,12 @@ export default function AdminDashboard() {
     if (![contactForm.whatsappAr,contactForm.whatsappEn,contactForm.whatsappZh].every(numberValid)) {
       setError('أدخل رقم واتساب دوليًا صحيحًا (مثل +9665XXXXXXXX) أو اتركه فارغًا لاستخدام الرقم العام.');return;
     }
+    const nameFields=[contactForm.advisorNameAr,contactForm.advisorNameEn,contactForm.advisorNameZh];
+    const titleFields=[contactForm.advisorTitleAr,contactForm.advisorTitleEn,contactForm.advisorTitleZh];
+    if(!nameFields.every(value=>validWhatsAppAdvisorField(value,80))||
+       !titleFields.every(value=>validWhatsAppAdvisorField(value,100))){
+      setError('اسم المسؤول أو المنصب طويل جدًا أو يحتوي رموزًا غير مدعومة. الحد 80 حرفًا للاسم و100 حرف للمنصب.');return;
+    }
     setError('');
     void save({contact:{
       phone:contactForm.phone.trim(),phoneDisplay:contactForm.phoneDisplay.trim(),
@@ -452,6 +464,11 @@ export default function AdminDashboard() {
         ar:digitsOnly(contactForm.whatsappAr),
         en:digitsOnly(contactForm.whatsappEn),
         zh:digitsOnly(contactForm.whatsappZh)
+      },
+      whatsappAdvisors:{
+        ar:{name:contactForm.advisorNameAr.trim(),title:contactForm.advisorTitleAr.trim()},
+        en:{name:contactForm.advisorNameEn.trim(),title:contactForm.advisorTitleEn.trim()},
+        zh:{name:contactForm.advisorNameZh.trim(),title:contactForm.advisorTitleZh.trim()}
       }
     }});
   };
@@ -600,23 +617,43 @@ export default function AdminDashboard() {
                   <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="https://wa.me/9665XXXXXXXX" aria-label="رابط واتساب" value={contactForm.whatsapp} onChange={(e) => setContactForm({ ...contactForm, whatsapp: e.target.value })} />
                   <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="name@example.com" aria-label="البريد الإلكتروني" type="email" value={contactForm.email} onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })} />
                 </div>
-                <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/40 p-4">
-                  <h3 className="font-bold text-emerald-950">أرقام مستشاري واتساب حسب اللغة</h3>
-                  <p className="mt-1 text-sm text-slate-600">لكل لغة رقم مستقل. إذا تركت رقمًا فارغًا، يستخدم الزائر رابط واتساب العام أعلاه. يظهر الزر العائم للزوار فقط، ويتيح اختيار لغة المستشار.</p>
-                  <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="mt-5 rounded-2xl border border-[#d7d5c4] bg-[#fafaf5] p-4 sm:p-5">
+                  <h3 className="text-lg font-bold text-[#193e37]">المستشارون والمتحدثون باللغات</h3>
+                  <p className="mt-1 text-sm leading-7 text-slate-600">أدخل اسم المسؤول، منصبه، ورقم واتساب الخاص به لكل لغة. ستظهر البيانات في بطاقة مستقلة بالقائمة العائمة. يمكن ترك الاسم أو المنصب فارغًا حتى إدخال البيانات الحقيقية. رقم اللغة الفارغ يستخدم الرقم العام.</p>
+                  <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-3">
                     {([
-                      ['whatsappAr','المستشار العربي','العربية'],
-                      ['whatsappEn','English-speaking advisor','الإنجليزية'],
-                      ['whatsappZh','中文顾问','الصينية']
-                    ] as const).map(([key,title,caption])=>
-                      <label key={key} className="flex flex-col gap-1 text-sm font-semibold text-emerald-950">
-                        {title} <span className="text-xs font-normal text-slate-600">{caption}</span>
-                        <input type="tel" dir="ltr" inputMode="tel" autoComplete="off"
-                          aria-label={'رقم واتساب '+caption}
-                          placeholder="+9665XXXXXXXX" value={contactForm[key]}
-                          onChange={e=>setContactForm({...contactForm,[key]:e.target.value})}
-                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm" />
-                      </label>
+                      {lang:'العربية',nameKey:'advisorNameAr',titleKey:'advisorTitleAr',numberKey:'whatsappAr',accent:'AR'},
+                      {lang:'English',nameKey:'advisorNameEn',titleKey:'advisorTitleEn',numberKey:'whatsappEn',accent:'EN'},
+                      {lang:'中文',nameKey:'advisorNameZh',titleKey:'advisorTitleZh',numberKey:'whatsappZh',accent:'ZH'}
+                    ] as const).map(({lang,nameKey,titleKey,numberKey,accent})=>
+                      <div key={accent} className="rounded-xl border border-[#d7dfd6] bg-white p-4 shadow-sm">
+                        <div className="mb-3 flex items-center gap-2">
+                          <span className="rounded-lg bg-[#173f38] px-2 py-1 text-xs font-bold text-white">{accent}</span>
+                          <strong className="text-sm text-[#173f38]">متحدث باللغة {lang}</strong>
+                        </div>
+                        <label className="block text-xs font-semibold text-[#426056]">
+                          اسم المسؤول
+                          <input type="text" maxLength={80} aria-label={'اسم المسؤول - '+lang}
+                            placeholder="اسم المستشار" value={contactForm[nameKey]}
+                            onChange={e=>setContactForm({...contactForm,[nameKey]:e.target.value})}
+                            className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900" />
+                        </label>
+                        <label className="mt-3 block text-xs font-semibold text-[#426056]">
+                          المنصب / المسمى الوظيفي
+                          <input type="text" maxLength={100} aria-label={'منصب المسؤول - '+lang}
+                            placeholder="مثال: مستشار خدمات المستثمرين" value={contactForm[titleKey]}
+                            onChange={e=>setContactForm({...contactForm,[titleKey]:e.target.value})}
+                            className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900" />
+                        </label>
+                        <label className="mt-3 block text-xs font-semibold text-[#426056]">
+                          رقم واتساب الدولي
+                          <input type="tel" dir="ltr" inputMode="tel" autoComplete="off"
+                            aria-label={'رقم واتساب '+lang} placeholder="+9665XXXXXXXX"
+                            value={contactForm[numberKey]}
+                            onChange={e=>setContactForm({...contactForm,[numberKey]:e.target.value})}
+                            className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-left text-sm text-slate-900" />
+                        </label>
+                      </div>
                     )}
                   </div>
                 </div>
