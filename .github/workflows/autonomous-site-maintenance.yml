@@ -1,7 +1,7 @@
 name: Autonomous Site Maintenance (bounded)
 on:
   schedule:
-    - cron: '40 5 * * 1' # Monday 08:40 Saudi Arabia
+    - cron: '35 0-22/2 * * *' # Saudi 01:35,03:35,... then 01:35,05:35,... from Nov 22
   push:
     branches: [main]
     paths:
@@ -36,8 +36,13 @@ jobs:
         with:
           node-version: '20'
           cache: npm
+      - name: Select current Saudi cadence
+        id: cadence
+        run: node scripts/scheduled-cadence-gate.cjs --slot=odd >> "$GITHUB_OUTPUT"
       - run: npm ci
+        if: steps.cadence.outputs.run == 'true'
       - name: Apply at most one source-backed live-service SEO improvement
+        if: steps.cadence.outputs.run == 'true'
         id: task
         shell: bash
         run: |

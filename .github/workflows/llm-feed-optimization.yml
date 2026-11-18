@@ -1,0 +1,150 @@
+name: LLM Agent Feed Quality & Index
+
+on:
+  schedule:
+    - cron: '10 0-22/2 * * *' # Saudi odd hours :10; four-hour effective after Nov 22
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/llm-feed-optimization.yml' # One-time rollout audit
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+concurrency:
+  group: llm-agent-index-optimization
+  cancel-in-progress: false
+
+jobs:
+  verify-and-optimize:
+    if: github.ref == 'refs/heads/main' && vars.LLM_INDEX_PAUSED != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CI: 'true'
+      NODE_ENV: test
+    steps:
+      - name: Checkout source without stored credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Select current Saudi cadence
+        id: cadence
+        run: node scripts/scheduled-cadence-gate.cjs --slot=odd >> "$GITHUB_OUTPUT"
+
+      - name: Run offline machine-index quality and schedule checks
+        if: steps.cadence.outputs.run == 'true'
+        run: |
+          node scripts/llm-agent-index.test.cjs
+          node scripts/scheduled-cadence-gate.test.cjs
+          node scripts/llm-feed-contract.test.cjs
+
+      - name: Read canonical public LLM feed and detect meaningful index updates
+        if: steps.cadence.outputs.run == 'true'
+        id: index
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Strict public GET with three languages, fee disclaimers, and own-domain URLs.
+          node scripts/llm-agent-index.cjs --update
+          git add -N public/llms.txt
+          if git diff --quiet -- public/llms.txt; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+            echo 'No meaningful machine-index changes; no PR.'
+          else
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Reject any unrelated file edit
+        if: steps.index.outputs.changed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          test "$(git diff --name-only)" = 'public/llms.txt'
+          test -z "$(git ls-files --others --exclude-standard)"
+          test "$(wc -c < public/llms.txt)" -le 80000
+
+      - name: Run all required quality checks and production build before PR
+        if: steps.index.outputs.changed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          node scripts/llm-agent-index.test.cjs
+          node scripts/llm-feed-contract.test.cjs
+          npm run test:packages
+          npm run test:editorial
+          npm run test:impact
+          npm run build
+
+      - name: Create and merge a verified narrow index PR without duplicates
+        if: steps.index.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.AUTODEV_GITHUB_TOKEN || github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch='bot/llm-agent-index'
+          if git ls-remote --exit-code --heads origin "refs/heads/$branch" >/dev/null 2>&1; then
+            echo '::error::Existing index PR branch must be resolved first; no duplicate PR.'
+            exit 1
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git checkout -b "$branch"
+          git add -- public/llms.txt
+          git commit -m 'llm: synchronize quality-verified multilingual AI agent site index'
+          gh auth setup-git
+          git push origin "$branch"
+          pr_url="$(gh pr create --base main --head "$branch" \
+            --title 'LLM agents: verified public site index update' \
+            --body 'Deterministic index from already-published /api/llm-version. Exact file scope public/llms.txt, all three locales, service URLs, professional-fee disclosures, source fidelity, and full local tests/build verified before PR. No model-generated legal copy, pricing changes, unapproved drafts, or new claims.')"
+          echo "LLM index PR: $pr_url"
+          expected_base="$(git rev-parse HEAD^)"
+          merged=false
+          for attempt in 1 2 3; do
+            current_base="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
+            if [ "$current_base" != "$expected_base" ]; then
+              echo "::error::main changed after tests: refuse stale merge."
+              exit 1
+            fi
+            if gh pr merge "$pr_url" --squash --delete-branch; then
+              merged=true
+              break
+            fi
+            if [ "$attempt" -lt 3 ]; then sleep "$((attempt * 4))"; fi
+          done
+          if [ "$merged" != 'true' ]; then
+            echo '::error::Merge not confirmed; leave PR open for inspection.'
+            exit 1
+          fi
+          deployed_sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
+          echo "Index merged into main: $deployed_sha"
+          gh workflow run production-readonly-acceptance.yml --ref main -f expected_sha="$deployed_sha"
+
+      - name: Record validated index decision
+        if: always()
+        shell: bash
+        env:
+          GATE: ${{ steps.cadence.outputs.run }}
+          CHANGED: ${{ steps.index.outputs.changed }}
+        run: |
+          {
+            echo '## LLM agent index audit'
+            echo "- Cadence gate: ${GATE:-unknown}"
+            echo "- Meaningful index change: ${CHANGED:-not_checked}"
+            echo '- No index change means no PR or redeployment.'
+            echo '- Existing canonical API feed is dynamic; validation gates this generated /llms.txt index only.'
+            echo "- Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          } >> "$GITHUB_STEP_SUMMARY"

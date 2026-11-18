@@ -31,6 +31,7 @@ export async function GET() {
   const text = [
     "# Independent Saudi investor services — services, professional fees and source references",
     "Canonical machine-readable version: " + siteUrl + "/api/llm-version",
+    "Concise AI-agent discovery index (quality-checked before index updates): " + siteUrl + "/llms.txt",
     "Last package price review: " + packageUpdatedAt,
     "This site is an independent private service provider, not the Ministry of Investment or a government agency.",
     "Official approvals, requirements and government fees are determined by Saudi authorities.",

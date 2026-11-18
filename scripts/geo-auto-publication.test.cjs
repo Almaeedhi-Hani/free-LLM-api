@@ -147,9 +147,11 @@ const {autoPublicationEligibility}=require('../.impact-test-build/lib/content-im
   'High-risk publishing must remain explicitly owner-enabled');
  assert(upgrade.includes('geo_faq_publication_events'),'Auditable FAQ publication and rollback required');
  const daily=fs.readFileSync('.github/workflows/geo-auto-publication-daily.yml','utf8');
- assert(/cron:\s*['"]20 6 \* \* \*['"]/.test(daily),'daily publishing cadence must respect the existing rolling 24-hour publication limit');
+ assert(/cron:\s*['"]50 1-23\/2 \* \* \*['"]/.test(daily),'schedule must check every two hours during burst and defer to four-hour gate afterward');
+ assert(daily.includes('scheduled-cadence-gate.cjs --slot=even'),'publisher skips alternating 4-hour slots after Sunday');
+ assert(worker.includes('daily_limit'),'increased checks must continue to use the existing DB rolling 24-hour quota');
  assert(daily.includes('/api/geo/auto-publication')&&!daily.includes('opencode-geo-analysis.js'),
-  'daily publication should not invoke the GEO research provider');
+  'publication polling should not invoke the GEO research provider');
  assert(daily.includes("curl --fail-with-body --retry 0"),'never retry ambiguous network publication');
  const publicPage=fs.readFileSync('src/app/insights/[slug]/page.tsx','utf8');
  assert(!publicPage.includes('not independently verified') &&

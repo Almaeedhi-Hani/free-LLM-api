@@ -2,7 +2,7 @@ name: GEO Intelligence Analysis
 
 on:
   schedule:
-    - cron: '0 2 * * *'  # Daily 05:00 Saudi (02:00 UTC)
+    - cron: '0 1-23/2 * * *' # Saudi 00:00,02:00,... during burst; every 4h from Nov 22
   push:
     branches: [main]
     paths:
@@ -30,11 +30,17 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Select current Saudi cadence
+        id: cadence
+        run: node scripts/scheduled-cadence-gate.cjs --slot=even >> "$GITHUB_OUTPUT"
+
       - name: Install OpenCode
+        if: steps.cadence.outputs.run == 'true'
         run: |
           curl -fsSL https://opencode.ai/v2/install | bash
 
       - name: Run GEO Analysis
+        if: steps.cadence.outputs.run == 'true'
         env:
           GEO_API_URL: ${{ secrets.GEO_API_URL }}
           GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
@@ -48,6 +54,7 @@ jobs:
           node scripts/opencode-geo-analysis.js --full-pipeline
 
       - name: Guarded automatic publication after a successful GEO cycle
+        if: steps.cadence.outputs.run == 'true'
         # Use independently approved DB policy (including high-risk permission, quota).
         # Separate daily auto-publication continues if research is only partial.
         env:
@@ -63,7 +70,7 @@ jobs:
             "${GEO_API_URL%/}/api/geo/auto-publication"
 
       - name: Upload Sanitized Report
-        if: always()
+        if: always() && steps.cadence.outputs.run == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: geo-analysis-report
