@@ -8,6 +8,18 @@
 - Page-level Google Search Console metrics use **only** saved `dimension=page` rows, never site-total rows or SEO guesses; missing pages show **unavailable**, not zero. FAQ-specific traffic and lead conversions remain **unknown** until an independently supported measurement integration is added.
 - This release does not change public pages, prices, GSC schedules, SEO JSON-LD, database schema, or lead forms.
 
+## Phase 2 development: explicitly opted-in sensitive automatic publishing
+
+The owner approved including high/medium-risk investment and regulatory editorial **guides/comparisons** in unattended publishing. It is no longer a blanket human-only category, but it is **never enabled by default**.
+
+- Global `enabled=false` and independent `allow_high_risk=false` are persisted in Supabase. The admin must explicitly confirm both permissions. Global daily cap 1–3, plus a hard limit of one sensitive item in the rolling 24-hour window.
+- Sensitive candidates must have at least two explicit claim-to-source mappings `claim_evidence` (`claim`, `quote`, `url`) that occur within article body and on live official government HTML respectively. Two different government authorities are required, and every checked quotation must match the current page text. Failed fetch, missing quote, orphaned claim or non-government link blocks publication.
+- The worker passes fresh verification proofs to an atomic service-role-only Supabase publication function; SQL rechecks saved source/claim relations and freshness, daily quota, route conflict, fingerprint idempotency, and records pre/post snapshots with risk level. The content is labeled as automatically checked rather than editor-reviewed.
+- **Important limitation:** quote presence does not prove that a legal interpretation is accurate. The mechanism may miss implied or uncited assertions. Auto-published pages must identify the automated process and advise users to confirm current regulatory requirements with the agency. No promise of zero legal/commercial error.
+- The 36 pre-existing high-risk proposals do not contain sufficient verified claim evidence. They remain pending and cannot be auto-published merely because a toggle was enabled. The generator/source-enrichment pipeline will need to produce grounded claim evidence for new high-risk proposals.
+- Pricing pages, the home page, customer-facing packages, FAQ answers and technical SEO modifications remain outside the autonomous publish executor; this permission covers only approved routes for `guide` and `comparison` editorial pages.
+- The existing weekly GEO job calls the publisher only after completing the GEO analysis stage successfully. No additional scheduled background run is added.
+
 ## Phase 2: future guarded automatic publication (NOT active in PR #101)
 
 Automatic publication is part of the approved product direction. The policy foundation exists in `src/lib/content-impact.ts` but **no scheduled runner, endpoint or admin toggle invokes it yet**. A later rollout should provide:
@@ -15,7 +27,7 @@ Automatic publication is part of the approved product direction. The policy foun
 1. A versioned publish candidate with a deterministic idempotency key (source record + language + target URL + normalized content digest), deduplication and an append-only revision/audit log.
 2. Per-locale page allowlists, quota of at most 1–10 changes per day, preview, rollback, kill switch and strict separation of generated candidate vs. published version.
 3. Mandatory real, independently checked official references for all claims, plus plagiarism/structural checks and published price/brand/route invariants. SEO tasks and internal links remain code-review changes, not visitor content.
-4. **High/medium-risk investment, legal, government-fee or banking claims continue to require specialist approval.** Automatic publication must be limited to separately approved low-risk content classes until a stronger review protocol is proven; never silently promote AI-generated regulatory statements or competitor research to official facts.
+4. **Sensitive investment and regulatory guidance may be automatically published only after independent owner opt-in and strict quote-to-claim checks against two distinct current official authority websites.** Merely labeling a source as official is insufficient. All unresolved content remains in pending review.
 5. Persist publication attribution `candidate_id`, `content_version`, `published_at`, `source_refs`, `rollback_version`, and the actual deployment/source URL.
 6. Observe 7/28/90-day GSC clicks, impressions, CTR and weighted average position for a page, measured Google indexing and verified AI citation samples separately; use independently captured lead/conversion events. Never infer a conversion from a click or infer causation from a simple before/after correlation.
 

@@ -65,15 +65,20 @@ export function buildImpactInventory(editorial:readonly EditorialItem[],faqs:rea
 /** Future autopublication decisions are intentionally fail-closed.
  * The scheduled GEO runner and admin APIs do not invoke this function yet.
  * High-risk legal/investment/fee copy must retain specialist review. */
-export type PublicationPolicy={mode:'manual'|'guarded_automatic';enabled:boolean;maxDailyPages:number};
+export type PublicationPolicy={mode:'manual'|'guarded_automatic';enabled:boolean;maxDailyPages:number;allowHighRisk?:boolean};
 export function autoPublicationEligibility(item:ImpactItem,policy:PublicationPolicy,context:{
   hasVersionedRollback:boolean;hasIdempotencyKey:boolean;officialSourcesIndependentlyChecked:boolean;
+  highRiskClaimsVerified?:boolean;
 }):{eligible:boolean;reasons:string[]}{
  const reasons:string[]=[];
  if(!policy.enabled||policy.mode!=='guarded_automatic')reasons.push('Automatic publication is disabled');
  if(!Number.isSafeInteger(policy.maxDailyPages)||policy.maxDailyPages<1||policy.maxDailyPages>10)reasons.push('Invalid bounded daily quota');
  if(item.status!=='pending'||item.category!=='page'||!item.targetPath)reasons.push('No eligible pending page target');
- if(item.risk!=='low')reasons.push('Medium/high or unclassified risk requires human approval');
+ if(item.risk!=='low'){
+  if(item.risk!=='high'&&item.risk!=='medium')reasons.push('Unclassified risk requires review');
+  else if(!policy.allowHighRisk)reasons.push('Sensitive automatic publication requires separate opt-in');
+  else if(!context.highRiskClaimsVerified)reasons.push('High-risk claims require live official quote verification');
+ }
  if(!item.sourceIds.length||!item.verifiedSources.length||!context.officialSourcesIndependentlyChecked)reasons.push('Independently checked official sources required');
  if(!context.hasIdempotencyKey||!context.hasVersionedRollback)reasons.push('Idempotency and rollback required');
  return {eligible:reasons.length===0,reasons};

@@ -43,6 +43,21 @@ jobs:
         run: |
           node scripts/opencode-geo-analysis.js --full-pipeline
 
+      - name: Guarded automatic publication after a successful GEO cycle
+        # The database policy defaults to OFF. Only low-risk, official-source-
+        # checked guides can publish after the operator enables this explicitly.
+        env:
+          GEO_API_URL: ${{ secrets.GEO_API_URL }}
+          GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
+        run: |
+          if [ -z "$GEO_API_URL" ] || [ -z "$GEO_API_KEY" ]; then
+            echo "::error::Missing GEO API endpoint/key"
+            exit 1
+          fi
+          curl --fail-with-body --retry 0 --max-time 120 -sS \
+            -X POST -H "x-geo-api-key: $GEO_API_KEY" \
+            "${GEO_API_URL%/}/api/geo/auto-publication"
+
       - name: Upload Sanitized Report
         if: always()
         uses: actions/upload-artifact@v4
