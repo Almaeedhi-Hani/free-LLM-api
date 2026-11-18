@@ -170,7 +170,8 @@ BEGIN
   RETURN jsonb_build_object('status','already_processed'); END IF;
  v_after:=v_before||jsonb_build_object('status','approved','approval_method','automated',
   'auto_published_at',v_now::text,'source_verification','not_independently_checked');
- v_faq:=jsonb_build_object('q',v_before->>'q','a',v_before->>'a');
+ v_faq:=jsonb_build_object('q',v_before->>'q','a',v_before->>'a',
+  'approval_method','automated','source_verification','not_independently_checked');
  UPDATE public.content_store SET content=pg_catalog.jsonb_set(
   pg_catalog.jsonb_set(v_content,'{drafts}',pg_catalog.jsonb_set(v_drafts,ARRAY[v_index::text],v_after)),
   '{faqs}',v_faqs||pg_catalog.jsonb_build_array(v_faq)),updated_at=v_now WHERE id=1;
