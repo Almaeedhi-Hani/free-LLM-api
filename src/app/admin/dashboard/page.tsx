@@ -46,9 +46,9 @@ const contactToForm=(raw?:{
  whatsappEn:raw?.whatsappNumbers?.en||'',
  whatsappZh:raw?.whatsappNumbers?.zh||''
 });
-const numberValid=(raw:string)=>!raw.trim()||/^\\+?[0-9()\\s-]+$/.test(raw.trim())&&
- /^[1-9][0-9]{7,14}$/.test(raw.trim().replace(/[\\s()+-]/g,''));
-const digitsOnly=(raw:string)=>raw.trim().replace(/[\\s()+-]/g,'');
+const numberValid=(raw:string)=>!raw.trim()||/^\+?[0-9()\s-]+$/.test(raw.trim())&&
+ /^[1-9][0-9]{7,14}$/.test(raw.trim().replace(/[\s()+-]/g,''));
+const digitsOnly=(raw:string)=>raw.trim().replace(/[\s()+-]/g,'');
 
 const LABELS: Record<string, string> = {
   idle:'بانتظار التشغيل',running:'قيد التشغيل',success:'نجح',completed:'مكتمل',failed:'فشل',
