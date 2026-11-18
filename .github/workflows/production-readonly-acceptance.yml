@@ -1,0 +1,36 @@
+name: Production read-only acceptance
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-readonly-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Check production GET-only script
+        run: node --check scripts/prod-readonly-acceptance.cjs
+      - name: Verify Render deploy revision and protected live endpoints
+        env:
+          EXPECTED_DEPLOY_SHA: ${{ github.event_name == 'push' && github.sha || '' }}
+          PRODUCTION_BASE_URL: https://free-llm-api-1-didl.onrender.com
+        run: node scripts/prod-readonly-acceptance.cjs
+      - name: Verify live multilingual pages and every indexed guide
+        env:
+          SEO_TEST_BASE_URL: https://free-llm-api-1-didl.onrender.com
+          SITE_URL: https://free-llm-api-1-didl.onrender.com
+        run: node scripts/check-public-seo.cjs

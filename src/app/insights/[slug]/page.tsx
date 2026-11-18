@@ -18,6 +18,8 @@ export default async function InsightDetail({params}:{params:{slug:string}}){
  const lang=getLocale(),content=await getContent(),page=publicGuide(content.editorialItems,lang,params.slug);
  if(!page)return notFound();
  const url=siteUrl+localizedPath(lang,"/insights/"+page.slug);
+ const hasLiveHub=approvedEditorial(content.editorialItems,lang).some(e=>e.kind==="guide"||e.kind==="comparison");
+ const safeLiveTopicRoute=(route:string|null)=>Boolean(route&&(route!=="/insights"||hasLiveHub));
  const article={"@type":"Article",headline:page.title,description:page.summary,inLanguage:lang==="zh"?"zh-Hans":lang,url,datePublished:page.reviewedAt,...(page.verified_sources?.length?{citation:page.verified_sources}:{})};
  const breadcrumbs={"@type":"BreadcrumbList",itemListElement:[
   {"@type":"ListItem",position:1,name:lang==="ar"?"الرئيسية":lang==="zh"?"首页":"Home",item:siteUrl+localizedPath(lang)},
@@ -36,8 +38,8 @@ export default async function InsightDetail({params}:{params:{slug:string}}){
    {(page.internal_links?.length||page.topic_node_id)&&<nav aria-label={lang==="ar"?"مواضيع مرتبطة":lang==="zh"?"相关主题":"Related investor topics"}>
     <h2>{lang==="ar"?"مسارات مرتبطة":lang==="zh"?"相关服务":"Related investor services"}</h2>
     {(page.internal_links?.length
-      ?page.internal_links.slice(0,5).filter(link=>Boolean(siteTopicPath(link.node_id))).map(link=>({id:link.node_id,href:siteTopicPath(link.node_id)!,anchor:link.anchor}))
-      :topicRelatedLiveNodes(page.topic_node_id||"").filter(node=>node.route!=="/insights").slice(0,4).map(node=>({id:node.id,href:node.route!,anchor:node.primary_keyword[lang]}))
+      ?page.internal_links.slice(0,5).filter(link=>safeLiveTopicRoute(siteTopicPath(link.node_id))).map(link=>({id:link.node_id,href:siteTopicPath(link.node_id)!,anchor:link.anchor}))
+      :topicRelatedLiveNodes(page.topic_node_id||"").filter(node=>safeLiveTopicRoute(node.route)).slice(0,4).map(node=>({id:node.id,href:node.route!,anchor:node.primary_keyword[lang]}))
     ).map(link=><p key={link.id}><a href={localizedPath(lang,link.href)}>{link.anchor}</a></p>)}
    </nav>}
    <p className="service-decision-disclaimer">{lang==="ar"?"هذه معلومات إرشادية. تحقّق من متطلبات الجهات الرسمية الحالية قبل اتخاذ القرار.":lang==="zh"?"仅供参考；请核对主管部门当前要求。":"Planning guidance only; verify current authority requirements before acting."}</p>

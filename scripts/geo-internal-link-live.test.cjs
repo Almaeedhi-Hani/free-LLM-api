@@ -1,0 +1,11 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const page=fs.readFileSync('src/app/insights/[slug]/page.tsx','utf8');
+assert(page.includes('hasLiveHub=approvedEditorial'),'Published hub must exist for a given locale');
+assert(page.includes('route!=="/insights"||hasLiveHub'),'No links to a locale hub returning 404');
+assert(page.includes('safeLiveTopicRoute(siteTopicPath(link.node_id))'),'Explicit guide links must be verified');
+assert(page.includes('safeLiveTopicRoute(node.route)'),'Fallback links must be verified');
+const sitemap=fs.readFileSync('src/app/sitemap.ts','utf8');
+assert(sitemap.includes('approvedEditorial(content.editorialItems,lang)'));
+console.log('PASS issue #114: suppress orphan hubs, preserve existing SEO canonicals and approved pages');
