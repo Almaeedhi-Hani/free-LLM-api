@@ -2,12 +2,17 @@
 // Direct provider HTTP inference for the research-only GEO pipeline.
 // Credential-gated bounded calls; no provider auto-discovery or paid-model fallback.
 // An API key alone does not prove the associated account is on a free plan.
+// Prefer high *verified* no-charge account quotas, not discontinued models:
+// Groq active GPT-OSS-20B Free: up to 1K requests/day, 200K tokens/day.
+// Gemini Flash-Lite: published free-tier pricing, account/project limits vary.
+// NVIDIA NIM: developer preview access, quota and model availability vary.
+// OpenRouter free router: normally 50 requests/day without credit purchases.
 const PROVIDERS=Object.freeze([
- {id:'gemini',key:'GEMINI_API_KEY',model:'gemini-2.5-flash-lite',
-  endpoint:'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent'},
  {id:'groq',key:'GROQ_API_KEY',model:'openai/gpt-oss-20b',
   endpoint:'https://api.groq.com/openai/v1/chat/completions'},
- {id:'nvidia',key:'NVIDIA_API_KEY',model:'meta/llama-3.1-8b-instruct',
+ {id:'gemini',key:'GEMINI_API_KEY',model:'gemini-3.1-flash-lite-preview',
+  endpoint:'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent'},
+ {id:'nvidia',key:'NVIDIA_API_KEY',model:'nvidia/nvidia-nemotron-nano-9b-v2',
   endpoint:'https://integrate.api.nvidia.com/v1/chat/completions'},
  {id:'openrouter',key:'OPENROUTER_API_KEY',model:'openrouter/free',
   endpoint:'https://openrouter.ai/api/v1/chat/completions'}
@@ -56,15 +61,23 @@ function requestSpec(provider,prompt,key){
   messages:[{role:'system',content:'Return only a single JSON object with opportunities, goals, drafts, editorial_actions arrays. Never invent evidence, legal certainty, statistics, or sources.'},
    {role:'user',content:prompt}],
   temperature:0.2,stream:false};
- if(provider.id==='groq')body.max_completion_tokens=6000;
- else body.max_tokens=6000;
+ if(provider.id==='groq'){
+  // Free GPT-OSS 20B supports JSON Object Mode. Keep reasoning out of output
+  // to avoid spending the limited free tokens on thoughts rather than JSON.
+  body.response_format={type:'json_object'};
+  body.reasoning_format='hidden';
+  body.reasoning_effort='low';
+  body.max_completion_tokens=4500;
+ }else{
+  body.max_tokens=4500;
+ }
  return {url:provider.endpoint,headers,body};
 }
 function errorName(status){
  if(status===429)return 'rate_limited';
  if(status===402)return 'quota_exhausted';
  if(status===401||status===403)return 'auth_error';
- if(status===404)return 'model_unavailable';
+ if(status===404||status===410)return 'model_unavailable';
  return status>=500?'provider_unavailable':'http_'+status;
 }
 async function generate(prompt,selected,{env=process.env,fetchFn=fetch,timeoutMs=60000}={}){

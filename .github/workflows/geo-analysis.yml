@@ -6,7 +6,7 @@ on:
   push:
     branches: [main]
     paths:
-      - '.github/workflows/geo-analysis.yml' # One-time four-provider rollout smoke; normal schedule unaffected
+      - '.github/workflows/geo-analysis.yml' # One-time high-quota free-model IDs smoke; normal Saudi cadence unchanged
   workflow_dispatch:  # Manual trigger
 
 permissions:

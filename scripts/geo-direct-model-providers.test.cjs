@@ -4,11 +4,11 @@ const fs=require('node:fs');
 const gateway=require('./geo-direct-model-providers.cjs');
 (async()=>{
  const {PROVIDERS,available,generate,parseAnswer}=gateway;
- assert.deepEqual(PROVIDERS.map(p=>p.id),['gemini','groq','nvidia','openrouter']);
+ assert.deepEqual(PROVIDERS.map(p=>p.id),['groq','gemini','nvidia','openrouter']);
  const env=Object.fromEntries(PROVIDERS.map(p=>[p.key,'fictional-key-for-tests-'+p.id]));
  const ids=available(env);
  assert.equal(ids.length,4,'all four connected provider names should be eligible');
- assert.deepEqual(available({GEMINI_API_KEY:'test'}),['gemini:gemini-2.5-flash-lite']);
+ assert.deepEqual(available({GEMINI_API_KEY:'test'}),['gemini:gemini-3.1-flash-lite-preview']);
  assert.deepEqual(available({}),[],'missing secrets do not fall back to paid endpoints');
  assert(PROVIDERS.every(p=>p.endpoint.startsWith('https://')));
  assert(PROVIDERS.some(p=>p.model==='openrouter/free'),'router may select only free models');
@@ -42,11 +42,18 @@ const gateway=require('./geo-direct-model-providers.cjs');
    assert.equal(headers['x-goog-api-key'],env[provider.key]);
    assert.equal(JSON.parse(calls[0].options.body).generationConfig.responseMimeType,'application/json');
   }else{
+   if(provider.id==='groq'){
+    const body=JSON.parse(calls[0].options.body);
+    assert.equal(body.response_format.type,'json_object','Groq explicit JSON for free tokens');
+    assert.equal(body.reasoning_format,'hidden','Hide GPT-OSS reasoning, reserve free output tokens');
+    assert.equal(body.reasoning_effort,'low','Keep free-tier reasoning token spending bounded');
+   }
    assert.equal(headers.authorization,'Bearer '+env[provider.key]);
    assert.equal(JSON.parse(calls[0].options.body).model,provider.model);
   }
   const failures=[{status:401,name:'auth_error'},{status:402,name:'quota_exhausted'},
-   {status:429,name:'rate_limited'},{status:503,name:'provider_unavailable'}];
+   {status:429,name:'rate_limited'},{status:410,name:'model_unavailable'},
+   {status:503,name:'provider_unavailable'}];
   for(const failure of failures){
    const result=await generate('public',provider.id+':'+provider.model,{
     env,fetchFn:async()=>({ok:false,status:failure.status})});
