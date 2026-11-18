@@ -1,21 +1,75 @@
-name: Market Intelligence Radar (Daily)
+name: Market Intelligence Radar (Independent)
 
 on:
-  # Periodic schedule intentionally DISABLED until data-source review and limits are approved.
-  # workflow_dispatch remains available for manual, bounded runs.
+  schedule:
+    - cron: '55 0-22/2 * * *' # Saudi 01:55,03:55,... until Sat 21 Nov; 01:55,05:55,... from Sun 22 Nov
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/market-radar.yml' # One-time rollout verification only
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: market-intelligence-radar
+  cancel-in-progress: false
 
 jobs:
   run-radar:
+    if: github.ref == 'refs/heads/main' && vars.MARKET_RADAR_PAUSED != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Trigger market radar endpoint
+      - name: Checkout shared scheduling gate
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js for the schedule gate
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Select the same Saudi two-hour then four-hour cadence
+        id: cadence
+        run: node scripts/scheduled-cadence-gate.cjs --slot=odd >> "$GITHUB_OUTPUT"
+
+      - name: Validate bounded radar job and schedule
+        if: steps.cadence.outputs.run == 'true'
+        run: |
+          node scripts/market-radar-schedule.test.cjs
+          node scripts/scheduled-cadence-gate.test.cjs
+
+      - name: Trigger existing independent market radar, preserving existing provider limits
+        if: steps.cadence.outputs.run == 'true'
         env:
           SITE_URL: https://free-llm-api-1-didl.onrender.com
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        shell: bash
         run: |
-          if [ -z "${CRON_SECRET}" ]; then echo "CRON_SECRET secret is missing"; exit 1; fi
-          echo "Triggering: ${SITE_URL}/api/cron-market"
-          curl -fsS -X GET "${SITE_URL}/api/cron-market" \
+          set -euo pipefail
+          if [ -z "${CRON_SECRET}" ]; then
+            echo "::error::CRON_SECRET secret is missing; no unauthenticated request sent."
+            exit 1
+          fi
+          # The GET endpoint itself persists market observations. Never retry
+          # requests with ambiguous outcomes. A completed GitHub job is not
+          # proof of an accepted / persisted radar result unless HTTP succeeds.
+          curl --fail-with-body --retry 0 --connect-timeout 15 --max-time 480 \
+            --silent --show-error \
+            -X GET "${SITE_URL%/}/api/cron-market" \
             -H "Authorization: Bearer ${CRON_SECRET}"
+
+      - name: Explain skipped or completed schedule
+        if: always()
+        env:
+          CADENCE_RUN: ${{ steps.cadence.outputs.run }}
+        run: |
+          {
+            echo '## Independent Market Intelligence Radar'
+            echo "- Shared 2h / 4h Saudi cadence: ${CADENCE_RUN:-unknown}"
+            echo '- Two-hour through Sat Nov 21; four-hour from Sun Nov 22 00:00 KSA.'
+            echo '- Bounded original /api/cron-market endpoint; market providers and source quotas unchanged.'
+            echo '- Existing GEO workflow remains separate; provider quotas can still cause failures.'
+            echo "- Actual GitHub run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          } >> "$GITHUB_STEP_SUMMARY"
