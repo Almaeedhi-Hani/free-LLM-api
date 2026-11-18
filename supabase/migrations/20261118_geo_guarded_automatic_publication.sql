@@ -128,8 +128,8 @@ begin
          or coalesce(length(v_claim->>'claim'),0) not between 25 and 450
          or coalesce(length(v_claim->>'quote'),0) not between 28 and 500
          or (v_claim->>'url') not in (select value from jsonb_array_elements_text(p_verified_urls))
-         or pg_catalog.position(pg_catalog.lower(v_claim->>'claim') in
-            pg_catalog.lower(coalesce(v_item->>'body',''))) = 0
+         or pg_catalog.strpos(pg_catalog.lower(coalesce(v_item->>'body','')),
+            pg_catalog.lower(v_claim->>'claim')) = 0
          then return jsonb_build_object('status','invalid_sensitive_claim'); end if;
       select (proof->>'checked_at')::timestamptz into v_proof_at
         from jsonb_array_elements(p_claim_proofs) proof
