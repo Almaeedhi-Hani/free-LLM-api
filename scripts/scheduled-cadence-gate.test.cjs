@@ -1,0 +1,33 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const {shouldRun,SWITCH_UTC}=require('./scheduled-cadence-gate.cjs');
+const d=(s)=>new Date(s);
+assert.equal(SWITCH_UTC,'2026-11-21T21:00:00.000Z','Sunday 22 Nov 00:00 KSA');
+assert(shouldRun({now:d('2026-11-18T17:00:00Z'),slot:'even'}),'Wednesday 20:00 KSA');
+assert(shouldRun({now:d('2026-11-18T18:00:00Z'),slot:'odd'}),'Wednesday 21:00 KSA');
+assert(shouldRun({now:d('2026-11-21T19:00:00Z'),slot:'even'}),'Saturday 22:00 KSA');
+assert(shouldRun({now:d('2026-11-21T20:00:00Z'),slot:'odd'}),'Saturday 23:00 KSA');
+assert(!shouldRun({now:d('2026-11-21T20:00:00Z'),slot:'even'}),'Saturday wrong slot');
+assert(shouldRun({now:d(SWITCH_UTC),slot:'even'}),'Sunday 00:00 KSA');
+assert(!shouldRun({now:d('2026-11-21T23:00:00Z'),slot:'even'}),'Sunday 02:00 KSA skip');
+assert(shouldRun({now:d('2026-11-22T01:00:00Z'),slot:'even'}),'Sunday 04:00 KSA');
+assert(shouldRun({now:d('2026-11-21T22:00:00Z'),slot:'odd'}),'Sunday 01:00 KSA');
+assert(!shouldRun({now:d('2026-11-22T00:00:00Z'),slot:'odd'}),'Sunday 03:00 KSA skip');
+assert(shouldRun({now:d('2026-11-22T02:00:00Z'),slot:'odd'}),'Sunday 05:00 KSA');
+assert(shouldRun({now:d('2026-11-29T13:00:00Z'),slot:'even'}),'four-hour mode persists');
+assert(shouldRun({now:d('2026-11-25T05:00:00Z'),slot:'even',event:'workflow_dispatch'}),'manual may override cadence');
+assert(shouldRun({now:d('2026-11-25T05:00:00Z'),slot:'even',event:'push'}),'workflow-file rollout may override');
+assert.throws(()=>shouldRun({slot:'foo'}),/Invalid cadence slot/);
+for(const path of ['geo-analysis.yml','geo-auto-publication-daily.yml','gsc-daily-sync.yml','autonomous-site-maintenance.yml','llm-feed-optimization.yml']){
+ const src=fs.readFileSync('.github/workflows/'+path,'utf8');
+ assert(src.includes('scheduled-cadence-gate.cjs'),'Missing 2h->4h self-switch in '+path);
+ assert(src.includes('steps.cadence.outputs.run'),'Missing gated job steps in '+path);
+ assert(/cron: ['"](?:0 1-23\/2|50 1-23\/2|0 0-22\/2|10 0-22\/2|35 0-22\/2)/.test(src),'Unexpected cadence cron in '+path);
+}
+const llm=fs.readFileSync('.github/workflows/llm-feed-optimization.yml','utf8');
+assert(llm.includes('node scripts/llm-agent-index.cjs --update'));
+assert(llm.includes('node scripts/llm-agent-index.test.cjs'));
+assert(llm.includes('gh pr create')&&llm.includes('gh pr merge'));
+assert(llm.includes('npm run build'),'publish only after build passes');
+console.log('PASS Saudi time switch Nov22, 2h burst->4h persistent cadence, five gated automations and LLM quality guard');
