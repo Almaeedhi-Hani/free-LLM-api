@@ -127,8 +127,24 @@ const {autoPublicationEligibility}=require('../.impact-test-build/lib/content-im
   "to service_role"
  ])assert(sql.includes(required),'Missing atomic publication security invariant: '+required);
  const worker=fs.readFileSync('src/lib/geo-auto-publication.ts','utf8');
- assert(worker.includes("if(!checked.length)")&&worker.includes("validateEditorialItem("));
- assert(worker.includes("editorialPublicationIssues(candidate).length"));
+ assert(worker.includes("optionalEditorialSources(candidate)")&&worker.includes("validateEditorialItem("));
+ assert(worker.includes("const publishable=new Set(['home','trust','packages','service','guide','comparison'])"));
+ assert(!worker.includes("if(!checked.length)"),'source count is never a publication gate');
+ assert(!worker.includes("verifyHighRiskOfficialClaims(candidate)"),'two official quote checks no longer required');
+ const nextSql=fs.readFileSync('supabase/migrations/20261118_geo_no_government_minimum_automatic_publication.sql','utf8');
+ assert(nextSql.includes("('home','trust','packages','service','guide','comparison')"));
+ assert(nextSql.includes("Source presence does not imply factual verification")||
+        nextSql.includes("source presence does not imply factual verification"));
+ assert(nextSql.includes("v_risk<>'low' AND NOT COALESCE(v_allow_sensitive,false)"));
+ assert(nextSql.includes("v_sources jsonb:='[]'::jsonb"));
+ assert(!nextSql.includes("sensitive_evidence_missing"));
+ assert(!nextSql.includes("independent_official_sources_required"));
+ assert(nextSql.includes("geo_publication_events"));
+ assert(nextSql.includes("quota_reached"));
+ assert(nextSql.includes("already_processed"));
+ assert(nextSql.includes("REVOKE ALL ON FUNCTION public.geo_commit_auto_publication"));
+ assert(nextSql.includes("GRANT EXECUTE ON FUNCTION public.geo_commit_auto_publication"));
+
  assert(!worker.includes("method:'DELETE'"),'autopublisher never destroys user content');
  const scheduled=fs.readFileSync('.github/workflows/geo-analysis.yml','utf8');
  assert(scheduled.includes('Guarded automatic publication after a successful GEO cycle'));
@@ -141,5 +157,5 @@ const {autoPublicationEligibility}=require('../.impact-test-build/lib/content-im
  assert(admin.includes("body.confirm!=='ROLLBACK_GEO_PUBLICATION'"));
  assert(admin.includes("ENABLE_AUTONOMOUS_SENSITIVE_CONTENT"));
  assert(admin.includes("UNDERSTAND_SOURCE_VERIFICATION_LIMITS"));
- console.log('PASS guarded GEO autopublishing: separately authorized sensitive eligibility with exact official quote verification, external-source URL isolation, official reachability, idempotent atomic SQL, daily cap, rollback and admin controls');
+ console.log('PASS guarded GEO autopublishing: separately authorized sensitive eligibility with optional sources with no government requirement, external-source URL isolation, official reachability, idempotent atomic SQL, daily cap, rollback and admin controls');
 })().catch(error=>{console.error(error);process.exitCode=1});
