@@ -31,7 +31,7 @@ export function summarizePageImpact(rows:readonly GscPageRecord[],days:7|28|90,p
   byPath.set(path,value);
  }
  const pages:Record<string,ImpactStats>={};
- for(const [path,v] of byPath)pages[path]={
+ for(const [path,v] of Array.from(byPath.entries()))pages[path]={
   clicks:v.clicks,impressions:v.impressions,
   ctr:v.impressions?v.clicks/v.impressions:null,
   position:v.impressions?v.weighted/v.impressions:null,
