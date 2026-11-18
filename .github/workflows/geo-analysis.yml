@@ -6,7 +6,7 @@ on:
   push:
     branches: [main]
     paths:
-      - '.github/workflows/geo-analysis.yml' # First rollout test
+      - '.github/workflows/geo-analysis.yml' # One-time provider recovery smoke run; only workflow changes trigger on push
   workflow_dispatch:  # Manual trigger
 
 permissions:
