@@ -118,7 +118,7 @@ const groups={
   const faqPreviewRow=page.locator('tr').filter({hasText:'سؤال تدقيق الإدارة المعزول'}).first();
   await faqPreviewRow.getByRole('button',{name:'معاينة وتفاصيل'}).click();
   const preview=page.locator('section[aria-label="معاينة المحتوى التفصيلية"]');
-  await preview.getByText('إجابة اختبار محفوظة داخل بيئة معزولة.',{exact:true}).waitFor();
+  await preview.getByText('إجابة اختبار محفوظة داخل بيئة معزولة.',{exact:true}).first().waitFor();
   await preview.getByRole('button',{name:'إغلاق المعاينة'}).click();
   checkpoint('FAQ full-detail preview opens and closes in Content Impact Center');
   await navigate('محتوى الموقع');
