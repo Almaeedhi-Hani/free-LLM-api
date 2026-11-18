@@ -38,7 +38,13 @@ assert.equal(autoPublicationEligibility(inventory[1],policy,goodContext).eligibl
 const eligible={...inventory[1],sourceIds:['reference'],verifiedSources:['https://misa.gov.sa/']};
 assert.equal(autoPublicationEligibility(eligible,policy,goodContext).eligible,true,'a future guarded low-risk candidate can qualify only when all proofs exist');
 assert.equal(autoPublicationEligibility(eligible,{...policy,enabled:false},goodContext).eligible,false,'default disabled');
-assert.equal(autoPublicationEligibility({...eligible,risk:'high'},policy,goodContext).eligible,false,'high-risk never auto-publishes');
+assert.equal(autoPublicationEligibility({...eligible,risk:'high'},policy,goodContext).eligible,false,'high-risk requires separate opt-in');
+assert.equal(autoPublicationEligibility({...eligible,risk:'high'},
+ {...policy,allowHighRisk:true},{...goodContext,highRiskClaimsVerified:false}).eligible,false,
+ 'high-risk requires real claim verification');
+assert.equal(autoPublicationEligibility({...eligible,risk:'high'},
+ {...policy,allowHighRisk:true},{...goodContext,highRiskClaimsVerified:true}).eligible,true,
+ 'independently verified sensitive content may publish under explicit permission');
 assert.equal(autoPublicationEligibility(eligible,{...policy,maxDailyPages:100},goodContext).eligible,false,'unbounded daily quota blocked');
 assert.equal(autoPublicationEligibility(eligible,policy,{...goodContext,hasVersionedRollback:false}).eligible,false,'rollback required');
 
@@ -72,7 +78,7 @@ assert(!route.includes("method:'POST'"),'metrics API read-only');
 const center=fs.readFileSync('src/components/ContentImpactCenter.tsx','utf8');
 assert(center.includes('معاينة وتفاصيل')&&center.includes('حذف نهائي')&&center.includes('إلغاء النشر / أرشفة'));
 assert(center.includes("counted?number(sumViews):'—'"),'missing GSC data must never render zero');
-assert(center.includes('لا يعمل تلقائيًا'),'future automatic publishing must be visibly disabled');
+assert(center.includes('النشر الآلي للمحتوى الحساس وعالي المخاطر')&&center.includes('ENABLE_AUTONOMOUS_SENSITIVE_CONTENT'),'separate sensitive auto-publication permission shown');
 const dashboard=fs.readFileSync('src/app/admin/dashboard/page.tsx','utf8');
 assert(dashboard.includes("key: 'impact'")&&dashboard.includes('<ContentImpactCenter'));
 console.log('PASS GEO Impact Center inventory, safe preview, no duplicated FAQ, unknown metrics, read-only GSC, fail-closed guarded auto publication and versioned admin controls');
