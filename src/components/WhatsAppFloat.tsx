@@ -2,63 +2,108 @@
 
 import {useEffect,useId,useRef,useState} from 'react';
 import {usePathname} from 'next/navigation';
-import {WhatsAppContact,WhatsAppLanguage,whatsAppUrlForLanguage} from '@/lib/whatsapp-contacts';
+import type {WhatsAppContact,WhatsAppLanguage} from '@/lib/whatsapp-contacts';
+import {whatsAppUrlForLanguage} from '@/lib/whatsapp-contacts';
 
 const labels={
- ar:{button:'تواصل عبر واتساب',choose:'اختر لغة المحادثة',close:'إغلاق قائمة واتساب'},
- en:{button:'WhatsApp chat',choose:'Choose your advisor language',close:'Close WhatsApp options'},
- zh:{button:'WhatsApp 咨询',choose:'选择顾问语言',close:'关闭 WhatsApp 菜单'}
+ ar:{button:'تواصل عبر واتساب',heading:'تحدث مع مستشارينا',caption:'اختر المستشار حسب لغة المحادثة',close:'إغلاق قائمة المستشارين',
+      openChat:'التواصل مع',foot:'سينقلك الاختيار مباشرة إلى واتساب',eyebrow:'INVESTOR SERVICES',genericTitle:'خدمات المستثمرين'},
+ en:{button:'WhatsApp consultation',heading:'Speak to our advisors',caption:'Choose an advisor by spoken language',close:'Close advisor list',
+      openChat:'Chat with',foot:'Your conversation opens directly in WhatsApp',eyebrow:'INVESTOR SERVICES',genericTitle:'Investor services'},
+ zh:{button:'WhatsApp 咨询',heading:'联系投资顾问',caption:'选择会说您所需语言的顾问',close:'关闭顾问列表',
+      openChat:'联系',foot:'点击后直接打开 WhatsApp',eyebrow:'INVESTOR SERVICES',genericTitle:'投资者服务'}
 } as const;
-const languages=[
- {key:'ar',name:'العربية',subtitle:'Arabic'},
- {key:'en',name:'English',subtitle:'English'},
- {key:'zh',name:'中文',subtitle:'Chinese'}
-] as const;
 
-/** All visitors may choose an advisor language; never expose this UI on /admin. */
+const languages=[
+ {key:'ar',tag:'AR',fallback:'المستشار العربي',mark:'ع'},
+ {key:'en',tag:'EN',fallback:'English advisor',mark:'EN'},
+ {key:'zh',tag:'中文',fallback:'中文顾问',mark:'中'}
+] as const;
+const spoken={
+ ar:{ar:'يتحدث العربية',en:'يتحدث الإنجليزية',zh:'يتحدث الصينية'},
+ en:{ar:'Speaks Arabic',en:'Speaks English',zh:'Speaks Chinese'},
+ zh:{ar:'讲阿拉伯语',en:'讲英语',zh:'讲中文'}
+} as const;
+
+/** One floating entry point; named advisors and contact numbers are owned by the admin. */
 export function WhatsAppFloat({contact,locale}:{contact:WhatsAppContact;locale:WhatsAppLanguage}){
  const pathname=usePathname()||'/';
  const [open,setOpen]=useState(false);
  const id=useId();
  const wrapper=useRef<HTMLDivElement>(null);
- const options=languages.map(lang=>({...lang,href:whatsAppUrlForLanguage(contact,lang.key)}))
-   .filter((lang):lang is typeof lang & {href:string}=>Boolean(lang.href));
  const t=labels[locale];
+ const options=languages.map(lang=>{
+  const profile=contact.whatsappAdvisors?.[lang.key];
+  const name=profile?.name?.trim()||lang.fallback;
+  const title=profile?.title?.trim()||t.genericTitle;
+  return {...lang,href:whatsAppUrlForLanguage(contact,lang.key),name,title};
+ }).filter(option=>Boolean(option.href));
  useEffect(()=>{
   if(!open)return;
-  const handleKey=(event:KeyboardEvent)=>{if(event.key==='Escape')setOpen(false)};
-  const handleOutside=(event:PointerEvent)=>{
+  const closeOnEscape=(event:KeyboardEvent)=>{if(event.key==='Escape')setOpen(false)};
+  const closeOutside=(event:PointerEvent)=>{
    if(wrapper.current&&!wrapper.current.contains(event.target as Node))setOpen(false);
   };
-  document.addEventListener('keydown',handleKey);
-  document.addEventListener('pointerdown',handleOutside);
+  document.addEventListener('keydown',closeOnEscape);
+  document.addEventListener('pointerdown',closeOutside);
   return ()=>{
-   document.removeEventListener('keydown',handleKey);
-   document.removeEventListener('pointerdown',handleOutside);
+   document.removeEventListener('keydown',closeOnEscape);
+   document.removeEventListener('pointerdown',closeOutside);
   };
  },[open]);
  useEffect(()=>setOpen(false),[pathname]);
- if(pathname==='/admin'||pathname.startsWith('/admin/')||options.length===0)return null;
+ if(pathname==='/admin'||pathname.startsWith('/admin/')||!options.length)return null;
  return <div ref={wrapper} className="fixed bottom-5 left-4 z-[65] sm:bottom-7 sm:left-7" dir={locale==='ar'?'rtl':'ltr'}>
-  {open&&<div id={id} className="absolute bottom-[calc(100%+12px)] left-0 w-[min(88vw,310px)] rounded-2xl border border-[#d8dbc9] bg-[#fffdf7] p-3 shadow-2xl" role="group" aria-label={t.choose}>
-   <p className="mb-2 px-1 text-sm font-semibold text-[#183f39]">{t.choose}</p>
-   <div className="flex flex-col gap-1">
-    {options.map(option=><a key={option.key} lang={option.key}
-      href={option.href} target="_blank" rel="noopener noreferrer"
-      onClick={()=>setOpen(false)}
-      className={`flex min-h-12 items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-semibold text-[#1b443a] transition hover:bg-[#edf5ed] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1c7651] ${option.key===locale?'bg-[#e7f1e7]':'bg-white'}`}>
-      <span>{option.name}</span><span className="text-xs text-[#5e756b]">{option.subtitle}</span>
-     </a>)}
-   </div>
-  </div>}
+  {open&&<section id={id} aria-label={t.heading}
+    className="absolute bottom-[calc(100%+14px)] left-0 w-[min(90vw,365px)] overflow-hidden rounded-[26px] border border-[#e6dcc6] bg-[#fcfbf7] shadow-[0_18px_65px_rgba(11,45,38,0.25)]">
+    <header className="relative overflow-hidden bg-[#143b36] px-5 pb-5 pt-5 text-white">
+     <span className="absolute -right-10 -top-16 h-36 w-36 rounded-full border border-[#d8bf86]/25" aria-hidden="true"/>
+     <span className="absolute -right-2 -top-14 h-28 w-28 rounded-full border border-[#d8bf86]/20" aria-hidden="true"/>
+     <p className="text-[10px] font-bold tracking-[0.16em] text-[#d9c28c]">{t.eyebrow}</p>
+     <div className="relative mt-2 flex items-start justify-between gap-3">
+      <div className="min-w-0">
+       <h2 className="text-lg font-bold leading-snug text-[#fffdf6]">{t.heading}</h2>
+       <p className="mt-1 text-xs leading-relaxed text-[#d4e1d7]">{t.caption}</p>
+      </div>
+      <button type="button" onClick={()=>setOpen(false)} aria-label={t.close}
+       className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-white/25 text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e4c786]">
+       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
+        <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round"/>
+       </svg>
+      </button>
+     </div>
+    </header>
+    <div className="space-y-2 p-3">
+     {options.map(option=><a key={option.key} lang={option.key}
+       href={option.href||undefined} target="_blank" rel="noopener noreferrer"
+       aria-label={t.openChat+' '+option.name+' — '+spoken[locale][option.key]}
+       onClick={()=>setOpen(false)}
+       className={`group flex min-h-[82px] items-center gap-3 rounded-[17px] border px-3 py-3 transition hover:-translate-y-0.5 hover:border-[#bdd7c6] hover:bg-[#f0f7f1] hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#187950] ${option.key===locale?'border-[#d8d8c3] bg-[#f6f8f0]':'border-[#ece9e0] bg-white'}`}>
+       <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-[#d9cfb4] bg-[#ebf0e6] text-sm font-bold text-[#1c5143]" aria-hidden="true">
+         {option.name===option.fallback?option.mark:option.name.slice(0,2)}
+       </div>
+       <div className="min-w-0 flex-1">
+         <div className="flex flex-wrap items-center gap-1.5">
+          <span className="min-w-0 break-words text-[14px] font-bold leading-5 text-[#153f35]">{option.name}</span>
+          <span className="rounded-full border border-[#d8d4c4] bg-[#fcfaf2] px-1.5 py-0.5 text-[9px] font-bold text-[#6a5b3c]">{option.tag}</span>
+         </div>
+         <p className="mt-0.5 break-words text-xs text-[#597267]">{option.title}</p>
+         <p className="mt-1 text-[11px] font-medium text-[#16704f]">{spoken[locale][option.key]}</p>
+       </div>
+       <svg className="h-5 w-5 shrink-0 text-[#9d8b60] transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" fill="none" aria-hidden="true">
+        <path d="M5 19 19 5M8 5h11v11" strokeLinecap="round" strokeLinejoin="round"/>
+       </svg>
+      </a>)}
+    </div>
+    <p className="border-t border-[#e8e4d7] bg-[#f7f5ee] px-4 py-3 text-center text-[11px] text-[#64766b]">{t.foot}</p>
+   </section>}
   <button type="button" aria-controls={id} aria-expanded={open} aria-label={open?t.close:t.button}
-   onClick={()=>setOpen(v=>!v)}
-   className="inline-flex min-h-14 min-w-14 items-center justify-center gap-2 rounded-full border border-[#d8e6cb] bg-[#147d53] px-4 py-3 text-white shadow-xl transition hover:bg-[#106642] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d4ab60]">
-   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6" aria-hidden="true">
-    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
-   </svg>
-   <span className="hidden text-sm font-semibold sm:inline">{t.button}</span>
-   <span className="sr-only">{t.choose}</span>
-  </button>
+    onClick={()=>setOpen(value=>!value)}
+    className="inline-flex min-h-14 min-w-14 items-center justify-center gap-2 rounded-full border border-[#c8c6a6] bg-[#16794f] px-4 py-3 text-white shadow-[0_8px_25px_rgba(10,68,44,0.28)] transition hover:-translate-y-0.5 hover:bg-[#105f41] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d4ab60]">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6" aria-hidden="true">
+     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+    </svg>
+    <span className="hidden text-sm font-semibold sm:inline">{t.button}</span>
+   </button>
  </div>;
 }
