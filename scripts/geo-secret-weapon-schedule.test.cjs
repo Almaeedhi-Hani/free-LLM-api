@@ -15,11 +15,13 @@ assert(geo.includes("      - '.github/workflows/geo-analysis.yml'"),'One-time ma
 assert(geo.includes('group: geo-analysis')&&geo.includes('cancel-in-progress: false'),'No overlapping analyses');
 assert(geo.includes('node scripts/opencode-geo-analysis.js --full-pipeline'),'Actual GEO pipeline preserved');
 assert(geo.includes('opencode/beam-free'),'Free default model preserved');
-assert(geo.includes('if: always()'),'Partial-run reports must still upload');
+assert(geo.includes("if: always() && steps.cadence.outputs.run == 'true'"),'Partial-run reports must upload only when engine ran');
 assert(geo.includes('POST -H "x-geo-api-key: $GEO_API_KEY"'),'Authenticated publishing preserved');
 assert(publisher.includes("- cron: '50 1-23/2 * * *'"),'Publisher checks every two hours, then four hours');
 assert(gsc.includes("- cron: '0 0-22/2 * * *'"),'GSC reads every two hours, then four hours');
 assert(!/^\s*-\s*cron:/m.test(radar),'Standalone market radar must remain manual');
+assert(gsc.includes('scheduled-cadence-gate.cjs --slot=odd'),'GSC uses gate');
+assert(geo.includes('scheduled-cadence-gate.cjs --slot=even'),'GEO uses gate');
 assert(api.includes("github('/actions/workflows/' + workflow)"),'Real GitHub workflow status must be read');
 assert(api.includes("state === 'unknown' ? null : state === 'active'"),'Unknown not displayed as active');
 assert(api.includes("cron_utc: '0 1-23/2 * * *'"),'Dashboard schedule matches workflow');
