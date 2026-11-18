@@ -532,7 +532,7 @@ export default function AdminDashboard() {
                     { label: 'الفرص (منافسون)', value: competitorBackedOpps, color: 'text-emerald-700' },
                     { label: 'الأهداف', value: goals.length, color: 'text-gold-600' },
                     { label: 'المسودات المعلقة', value: pendingDrafts, color: 'text-amber-600' },
-                    { label: 'سجلات التحليل', value: runs.length, color: 'text-slate-700' },
+                    { label: 'سجلات التحليل القديم', value: runs.length, color: 'text-slate-700' },
                     { label: 'أسئلة شائعة', value: content.faqs?.length || 0, color: 'text-slate-700' },
                   ].map((c, i) => (
                     <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
@@ -631,6 +631,26 @@ export default function AdminDashboard() {
             {tab === 'agent' && (
               <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
                 <h2 className="text-xl font-bold mb-4">وكيل GEO — حالة النظام</h2>
+                <details className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <summary className="cursor-pointer text-sm font-semibold">خيارات تشغيل الرادار والتحليل القديم (متقدمة)</summary>
+                  <p className="my-2 text-xs text-slate-600">هذه وظائف قديمة منفصلة عن سير عمل GEO الموحد في GitHub. لا تشغلها بالتزامن مع المحرك الحديث إلا بعد التحقق من الحاجة والموارد.</p>
+                  <div className="flex gap-2">
+                      <button className="btn-primary text-xs" disabled={saving} onClick={async () => {
+                        if(!window.confirm('بدء تحليل السوق وحفظ النتائج؟'))return;
+                        setSaving(true);
+                         setError('');try { await marketFetch('/api/admin/market/analyze', { method: 'POST', body: JSON.stringify({ triggered_by: 'admin' }) }); await refreshMarketCollection('opportunities'); await refreshMarketCollection('goals'); await refreshMarketCollection('runs');setNotice('اكتمل تحليل السوق'); }
+                        catch (e: any) { setError(e.message); }
+                        finally { setSaving(false); }
+                      }}>تشغيل التحليل</button>
+                      <button className="btn-secondary text-xs" disabled={saving} onClick={async () => {
+                        if(!window.confirm('تشغيل الرادار وجمع بيانات بحث خارجية وحفظها؟'))return;
+                        setSaving(true);
+                         setError('');try { await marketFetch('/api/admin/market/radar', { method: 'POST', body: JSON.stringify({ triggered_by: 'admin' }) }); await refreshMarketCollection('opportunities'); await refreshMarketCollection('goals'); await refreshMarketCollection('keywords'); await refreshMarketCollection('competitors'); await refreshMarketCollection('runs');setNotice('اكتمل تشغيل الرادار'); }
+                        catch (e: any) { setError(e.message); }
+                        finally { setSaving(false); }
+                      }}>تشغيل الرادار</button>
+                    </div>
+                </details>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="bg-slate-50 rounded-lg p-4">
                     <p className="text-xs text-slate-500">الحالة</p>
@@ -894,22 +914,7 @@ export default function AdminDashboard() {
                 <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
                   <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
                     <h2 className="text-xl font-bold">الفرص السوقية</h2>
-                    <div className="flex gap-2">
-                      <button className="btn-primary text-xs" disabled={saving} onClick={async () => {
-                        if(!window.confirm('بدء تحليل السوق وحفظ النتائج؟'))return;
-                        setSaving(true);
-                         setError('');try { await marketFetch('/api/admin/market/analyze', { method: 'POST', body: JSON.stringify({ triggered_by: 'admin' }) }); await refreshMarketCollection('opportunities'); await refreshMarketCollection('goals'); await refreshMarketCollection('runs');setNotice('اكتمل تحليل السوق'); }
-                        catch (e: any) { setError(e.message); }
-                        finally { setSaving(false); }
-                      }}>تشغيل التحليل</button>
-                      <button className="btn-secondary text-xs" disabled={saving} onClick={async () => {
-                        if(!window.confirm('تشغيل الرادار وجمع بيانات بحث خارجية وحفظها؟'))return;
-                        setSaving(true);
-                         setError('');try { await marketFetch('/api/admin/market/radar', { method: 'POST', body: JSON.stringify({ triggered_by: 'admin' }) }); await refreshMarketCollection('opportunities'); await refreshMarketCollection('goals'); await refreshMarketCollection('keywords'); await refreshMarketCollection('competitors'); await refreshMarketCollection('runs');setNotice('اكتمل تشغيل الرادار'); }
-                        catch (e: any) { setError(e.message); }
-                        finally { setSaving(false); }
-                      }}>تشغيل الرادار</button>
-                    </div>
+                    <button type="button" className="btn-primary text-xs" onClick={()=>setTab('agent')}>تشغيل المحرك من وكيل GEO</button>
                   </div>
                   {editingOpportunity && <section className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
                     <h3 className="font-bold mb-2">تعديل الفرصة</h3>
