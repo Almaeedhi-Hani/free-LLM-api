@@ -188,6 +188,9 @@ const groups={
     drafts:[...(content.drafts||[]),pending],expectedUpdatedAt:content.updatedAt
   });
   assert(seed.content?.drafts?.some(x=>x.q===pending.q));
+  // An API seed does not update the already-mounted React content state.
+  // Reload to exercise real session recovery and persisted draft readback.
+  await page.reload({waitUntil:'domcontentloaded'});
   await navigate('اعتماد المسودات');
   await page.getByText(pending.q,{exact:true}).waitFor({timeout:16000});
   const draftRow=page.locator('li').filter({hasText:pending.q}).first();
