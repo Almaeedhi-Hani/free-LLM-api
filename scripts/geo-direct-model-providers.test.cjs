@@ -52,7 +52,8 @@ const gateway=require('./geo-direct-model-providers.cjs');
    assert.equal(JSON.parse(calls[0].options.body).model,provider.model);
   }
   const failures=[{status:401,name:'auth_error'},{status:402,name:'quota_exhausted'},
-   {status:429,name:'rate_limited'},{status:503,name:'provider_unavailable'}];
+   {status:429,name:'rate_limited'},{status:410,name:'model_unavailable'},
+   {status:503,name:'provider_unavailable'}];
   for(const failure of failures){
    const result=await generate('public',provider.id+':'+provider.model,{
     env,fetchFn:async()=>({ok:false,status:failure.status})});
