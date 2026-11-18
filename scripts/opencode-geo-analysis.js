@@ -363,13 +363,26 @@ async function stageEvidence() {
 }
 
 async function stageGeoAnalysis() {
-  logStage('GEO_ANALYSIS', 'OpenCode: topic architecture, market evidence and editorial improvements in AR/EN/ZH');
+  // Production uses direct HTTP inference: no OpenCode Console, CLI, or stored
+  // model session. Existing CLI path remains for isolated legacy regression tests.
+  const direct=(typeof process!=='undefined'&&process.env?.GEO_LLM_MODE==='direct')
+    ?require('./geo-direct-model-providers.cjs'):null;
+  logStage('GEO_ANALYSIS', (direct?'Direct provider HTTP':'OpenCode')+': topic architecture and evidence-backed AR/EN/ZH analysis');
   const {LANGS,selectLocaleEvidence,promptForLocale}=require('./geo-opencode-planner.cjs');
   const all=stageResults.evidence?.items||[];
   if(!all.length)return {records_processed:0,status:'partial',error:'No verified research inputs'};
   const result={opportunities:[],goals:[],drafts:[],editorial_actions:[],languages:{},models_used:[],tokens_used:null};
   let failed=0,calls=0;
   const unavailableModels=new Set();
+  const candidateModels=direct?direct.available():FALLBACK_MODELS;
+  // If no provider is connected, fail visibly without invoking any paid model
+  // or accidentally falling back to the OpenCode free session path.
+  if(direct&&!candidateModels.length){
+    for(const lang of LANGS)result.languages[lang]={status:'model_unavailable',error:'No configured direct model provider'};
+    stageResults.geo_analysis=result;
+    return {records_processed:0,status:'partial',languages_analyzed:0,models_used:[],
+      error:'No direct model provider configured in GitHub Actions'};
+  }
   for(const lang of LANGS){
     const sample=selectLocaleEvidence(all,lang,8);
     if(!sample.length){result.languages[lang]={status:'missing_evidence'};failed++;continue}
@@ -381,20 +394,24 @@ async function stageGeoAnalysis() {
     // instead of burning 3 x 120s on the identical unavailable provider.
     // If all free models failed, still give the next locale one shortened
     // fresh request: provider availability may recover or differ by locale.
-    const freshModels=FALLBACK_MODELS.filter(model=>!unavailableModels.has(model));
-    const fallbackOrder=(freshModels.length?freshModels:[FALLBACK_MODELS[0]]).slice(0,3);
+    const freshModels=candidateModels.filter(model=>!unavailableModels.has(model));
+    const fallbackOrder=(freshModels.length?freshModels:[candidateModels[0]]).slice(0,3);
     for(const [index,model] of fallbackOrder.entries()){
       calls++;
       const recovered=freshModels.length===0;
       const evidence=selectLocaleEvidence(all,lang,recovered?2:index===0?8:index===1?4:2);
       const timeoutMs=recovered?45000:index===0?90000:index===1?60000:45000;
-      const trial=runOpenCode(promptForLocale(lang,evidence),model,timeoutMs);
+      const prompt=promptForLocale(lang,evidence);
+      const trial=direct
+        ?await direct.generate(prompt,model,{timeoutMs})
+        :runOpenCode(prompt,model,timeoutMs);
       const data=trial.data;
       const valid=data&&['opportunities','goals','drafts','editorial_actions'].every(field=>Array.isArray(data[field]));
       if(valid){response=trial;break}
       const reason=String(trial.error||(data?'invalid_model_response':'unparseable JSON')).slice(0,70);
       attempts.push({model,reason});
-      if(reason==='timeout'||reason==='rate_limited'||reason.startsWith('Command failed'))unavailableModels.add(model);
+      if(direct||reason==='timeout'||reason==='rate_limited'||reason.startsWith('Command failed'))
+        unavailableModels.add(model);
       logStage('GEO_ANALYSIS',lang+' free model unavailable: '+model+' '+reason);
     }
     if(!response){result.languages[lang]={status:'model_unavailable',evidence_sampled:sample.length,attempts};failed++;continue}
@@ -411,7 +428,7 @@ async function stageGeoAnalysis() {
   }
   // Generated claims must never be confused with independently verified outcomes.
   stageResults.geo_analysis=result;
-  logStage('GEO_ANALYSIS','OpenCode calls='+calls+', languages='+JSON.stringify(result.languages)+', editorial proposals='+result.editorial_actions.length);
+  logStage('GEO_ANALYSIS',(direct?'Direct HTTP':'OpenCode')+' calls='+calls+', languages='+JSON.stringify(result.languages)+', editorial proposals='+result.editorial_actions.length);
   const count=result.opportunities.length+result.goals.length+result.drafts.length+result.editorial_actions.length;
   return {records_processed:count,status:failed?'partial':'success',languages_analyzed:LANGS.length-failed,models_used:result.models_used,
     error:failed?(failed+' language analysis segment(s) unavailable') : undefined};
