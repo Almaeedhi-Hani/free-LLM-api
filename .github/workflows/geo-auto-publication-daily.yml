@@ -2,7 +2,7 @@ name: GEO Daily Auto Publication
 
 on:
   schedule:
-    - cron: '35 3 * * *'  # 06:35 Saudi Arabia; only publication, no paid GEO analysis
+    - cron: '20 6 * * *'  # 09:20 Saudi Arabia; after first 08:43 KSA publication + rolling 24h quota
   workflow_dispatch:
 
 permissions:
