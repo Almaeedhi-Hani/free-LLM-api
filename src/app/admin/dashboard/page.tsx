@@ -1020,7 +1020,7 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {tab === 'visibility' && <VisibilityDashboard key={visibilityRefreshKey} secret={secret} />}
+            {tab === 'visibility' && <VisibilityDashboard key={visibilityRefreshKey} secret={secret} onOpenImpact={()=>setTab('impact')} />}
             {tab === 'cookies' && <CookiePolicyAdmin policy={content?.cookiePolicy} saving={saving} onSave={async cookiePolicy => save({cookiePolicy})} />}
             {tab === 'integrations' && <SearchIntegrationsAdmin settings={content?.searchIntegrations} saving={saving} onSave={async searchIntegrations => save({searchIntegrations})} />}
 
