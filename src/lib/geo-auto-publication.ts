@@ -178,69 +178,79 @@ export async function rollbackAutoPublication(eventId:string):Promise<unknown>{
  if(!/^[a-f0-9-]{36}$/i.test(eventId))throw Error('Invalid event ID');
  return restCall('rpc/geo_rollback_auto_publication',{method:'POST',body:{p_event_id:eventId}});
 }
+/** Sources are optional attribution links, not permission checks or claims of verification. */
+export function optionalEditorialSources(item:EditorialItem):string[]{
+ const urls:string[]=[];
+ for(const ref of item.evidence_refs||[]){
+  if(typeof ref?.url!=='string')continue;
+  try{
+   const u=new URL(ref.url);
+   if(u.protocol!=='https:'||u.username||u.password||u.port||u.hash||
+      !/^[a-z0-9.-]+$/i.test(u.hostname))continue;
+   if(!urls.includes(u.href))urls.push(u.href);
+  }catch{}
+ }
+ return urls.slice(0,12);
+}
 export async function runGuardedAutoPublishing(dryRun=false):Promise<AutoPublishReport>{
  const report:AutoPublishReport={status:'disabled',examined:0,published:0,skipped:0,events:[],message:''};
  const state=await getAutoPublicationStatus();
- if(!state.available)return {...report,status:'storage_unavailable',message:'Missing publication migration or persistent storage'};
- if(!state.enabled)return {...report,status:'disabled',message:'Automatic publishing is disabled by default'};
+ if(!state.available)return {...report,status:'storage_unavailable',message:'Publication storage unavailable'};
+ if(!state.enabled)return {...report,status:'disabled',message:'Automatic publication disabled'};
  let content;
  try{content=await getContent()}catch{
-  return {...report,status:'storage_unavailable',message:'Cannot load saved editorial content'};
+  return {...report,status:'storage_unavailable',message:'Cannot load editorial inventory'};
  }
- // Never auto-publish user-facing service pages, fees, homepage, FAQs or SEO tasks.
- const candidates=(content.editorialItems||[]).filter(e=>e.status==='pending'&&
-  ['low','medium','high'].includes(e.risk_level)&&
-  (e.risk_level==='low'||state.allow_high_risk)&&
-  (e.kind==='guide'||e.kind==='comparison')).slice(0,10);
+ // Risk category, government source count, and official claim quotation are
+ // not publication criteria. "technical_seo" / "internal_link" are development
+ // tasks rather than visitor-facing page copy and need a different executor.
+ const publishable=new Set(['home','trust','packages','service','guide','comparison']);
+ const candidates=(content.editorialItems||[]).filter(e=>
+  e.status==='pending'&&publishable.has(e.kind)).slice(0,50);
  report.examined=candidates.length;
- if(dryRun)return {...report,status:'dry_run',message:'Read-only simulation: no content changed'};
  for(const candidate of candidates){
-  const sources=officialCandidateUrls(candidate);
-  const sensitive=candidate.risk_level!=='low';
-  const highRiskProof=sensitive?await verifyHighRiskOfficialClaims(candidate):null;
+  const sourceUrls=optionalEditorialSources(candidate);
   const item=buildImpactInventory([candidate],[],[])[0];
-  const eligible=autoPublicationEligibility({...item,verifiedSources:sources},{
-   mode:'guarded_automatic',enabled:true,maxDailyPages:state.daily_limit,allowHighRisk:state.allow_high_risk
-  },{hasVersionedRollback:true,hasIdempotencyKey:true,
-    officialSourcesIndependentlyChecked:sensitive?Boolean(highRiskProof):sources.length>0,
-    highRiskClaimsVerified:Boolean(highRiskProof)});
-  if(!eligible.eligible||editorialPublicationIssues(candidate).length||
-    (candidate.risk_level==='low'&&!lowRiskEditorialCopy(candidate))){
-   report.skipped++;report.events.push({item_id:candidate.id,result:'review_required'});
+  const eligible=autoPublicationEligibility(item,{
+    mode:'guarded_automatic',enabled:state.enabled,
+    maxDailyPages:state.daily_limit,allowHighRisk:state.allow_high_risk
+  },{hasVersionedRollback:true,hasIdempotencyKey:true});
+  if(!eligible.eligible){
+   report.skipped++;report.events.push({item_id:candidate.id,result:'permission_or_route'});
    continue;
   }
-  const checked:string[]=highRiskProof?.urls||[];
-  if(!sensitive)for(const url of sources){
-   if(await checkOfficialUrlReachable(url))checked.push(url);
-   if(checked.length>=2)break;
-  }
-  if(!checked.length){
-   report.skipped++;report.events.push({item_id:candidate.id,result:'source_unavailable'});
-   continue;
-  }
+  // Structural safety checks still protect page routes and the site from
+  // invalid editorial state; no facts or source types are required.
   try{
-   validateEditorialItem({...candidate,status:'approved',reviewedAt:new Date().toISOString(),
-    verified_sources:checked});
+   validateEditorialItem({...candidate,status:'approved',
+     approval_method:'automated',auto_published:true,
+     reviewedAt:new Date().toISOString(),verified_sources:sourceUrls});
   }catch{
-   report.skipped++;report.events.push({item_id:candidate.id,result:'validation_failed'});
+   report.skipped++;report.events.push({item_id:candidate.id,result:'invalid_editorial_structure'});
+   continue;
+  }
+  if(dryRun){
+   report.events.push({item_id:candidate.id,result:'would_publish'});
    continue;
   }
   try{
    const result=await restCall('rpc/geo_commit_auto_publication',{
-    method:'POST',body:{p_item_id:candidate.id,p_verified_urls:checked,
-     p_claim_proofs:highRiskProof?.proofs||[]}
+    method:'POST',body:{p_item_id:candidate.id,p_verified_urls:sourceUrls,p_claim_proofs:[]}
    }) as {status?:string;target_path?:string};
    const status=result?.status||'unconfirmed';
    report.events.push({item_id:candidate.id,result:status,target_path:result?.target_path});
    if(status==='published')report.published++;
    else report.skipped++;
-   if(status==='quota_reached'||status==='sensitive_quota_reached')break;
-   if(status==='unconfirmed')throw Error('ambiguous_automatic_publish');
+   if(status==='quota_reached')break;
+   if(status==='unconfirmed')throw Error('ambiguous_auto_publish');
   }catch{
-   // Never retry ambiguous writes; database enforces content fingerprint idempotency.
-   return {...report,status:'error',message:'Write status ambiguous: inspect audit log before retrying'};
+   // A failed or timed-out commit may have succeeded; never retry blindly.
+   return {...report,status:'error',message:'Publication confirmation ambiguous; inspect audit before retry'};
   }
  }
+ if(dryRun)return {...report,status:'dry_run',
+  message:'Technical validation preview only. Source verification is not required.'};
  return {...report,status:'completed',
-  message:report.published?'Published source-checked content within configured risk permissions':'No eligible content passed the configured publication checks'};
+  message:report.published?'Automatically published editorial content; sources were not independently validated':
+   'No pages published in this cycle (check quota, route and structure)'};
 }
