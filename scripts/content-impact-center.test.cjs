@@ -1,8 +1,8 @@
 'use strict';
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
-const {buildImpactInventory,editorialPath,autoPublicationEligibility}=require('../.impact-test-build/content-impact.js');
-const {summarizePageImpact}=require('../.impact-test-build/content-impact-metrics.js');
+const {buildImpactInventory,editorialPath,autoPublicationEligibility}=require('../.impact-test-build/lib/content-impact.js');
+const {summarizePageImpact}=require('../.impact-test-build/lib/content-impact-metrics.js');
 const published={
  id:'ed-published',kind:'guide',lang:'en',target:'investor-documents',slug:'investor-documents',
  title:'Foreign investor documents',summary:'A guide to official sources',body:'A useful detailed guide',
