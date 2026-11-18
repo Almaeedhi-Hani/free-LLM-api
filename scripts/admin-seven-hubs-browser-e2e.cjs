@@ -21,6 +21,10 @@ const hubs=[
   await page.getByPlaceholder('المفتاح السري').waitFor({timeout:30000});
   await page.getByPlaceholder('المفتاح السري').fill(secret);
   await page.getByRole('button',{name:'دخول لوحة التحكم'}).click();
+  // Exercise the public consent dismissal instead of forcing clicks through
+  // an overlapping cookie banner; this keeps the logout test realistic.
+  const rejectCookies=page.getByRole('button',{name:'رفض الاختيارية'});
+  if(await rejectCookies.isVisible())await rejectCookies.click();
   const groups=page.locator('aside nav > div > button');
   await groups.first().waitFor({timeout:30000});
   assert.equal(await groups.count(),7,'Exactly seven visible top-level groups');
