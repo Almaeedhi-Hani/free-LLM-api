@@ -23,11 +23,11 @@ const vm=require('node:vm');
    assert.equal(module,'./geo-opencode-planner.cjs');
    return planner;
   },
-  FALLBACK_MODELS:['opencode/beam-free','opencode/big-pickle','opencode/glm-5.3-flash-free'],
+  FALLBACK_MODELS:['opencode/beam-free','opencode/big-pickle','opencode/glm-5.3-flash-free','opencode/deepseek-v4.1-flash-free'],
   runOpenCode:(prompt,model)=>{
    const info=JSON.parse(prompt);
    requests.push({...info,model});
-   if((info.lang==='en'&&model==='opencode/beam-free')||
+   if((info.lang==='en'&&model==='opencode/big-pickle')||
       (info.lang==='ar'&&model==='opencode/big-pickle'&&info.evidence_count===4)){
     return {data:{
      opportunities:[{title:info.lang+' supported proposal',type:'content',score:42}],
@@ -55,6 +55,8 @@ const vm=require('node:vm');
  assert.equal(english.length,1,'successful first model avoids unnecessary calls');
  assert.equal(chinese.length,3,'three models maximum, even if all fail');
  assert.equal(chinese[0].evidence_count,8);
+ assert.deepEqual(chinese.map(x=>x.model),['opencode/big-pickle','opencode/glm-5.3-flash-free','opencode/deepseek-v4.1-flash-free'],
+  'an already timed-out default model is not selected again for the next locale');
  assert(requests.every(r=>[8,4,2].includes(r.evidence_count)),'all prompts use source-backed bounded evidence');
  assert.equal(chinese[1].evidence_count,4);
  assert.equal(chinese[2].evidence_count,2,'last free-model fallback uses the briefest locale-grounded evidence');
