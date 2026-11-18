@@ -23,6 +23,20 @@ function RequestCard({r,secret,onChange,onDelete}:{r:RequestRow;secret:string;on
  const [actionError,setActionError]=useState("");
  const state = r.share_opened_at ? "تم الضغط على المشاركة" : r.viewed_at ? "تمت المشاهدة" : "جديد · لم يُفتح";
  const stateStyle = r.share_opened_at ? "border-[#9cac9d] bg-[#e4eee6] text-[#275e43]" : r.viewed_at ? "border-[#cbd6c8] bg-[#edf1ed] text-[#49665f]" : "border-[#d4ad66] bg-[#fff0cf] text-[#81551c]";
+ async function updateStatus(next:"saved"|"contacted"|"closed"){
+  if(next===r.status||busy)return;
+  setBusy(true);setActionError("");
+  try{
+    const response=await fetch("/api/admin/package-requests",{
+      method:"PATCH",headers:{"x-admin-secret":secret,"Content-Type":"application/json"},
+      body:JSON.stringify({id:r.id,action:"update_status",status:next})
+    });
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok||result.status!==next)throw Error("تعذر تغيير حالة العميل");
+    onChange(r.id,{status:next});
+  }catch(e){setActionError(e instanceof Error?e.message:"تعذر تحديث العميل")}
+  finally{setBusy(false)}
+ }
  async function mark(action:"viewed"|"share_opened"){
   try {
    const response=await fetch("/api/admin/package-requests",{method:"PATCH",headers:{"x-admin-secret":secret,"Content-Type":"application/json"},body:JSON.stringify({id:r.id,action})});
@@ -41,7 +55,7 @@ function RequestCard({r,secret,onChange,onDelete}:{r:RequestRow;secret:string;on
   void mark("share_opened");
  }
   async function remove(){
-  if(!window.confirm("هل تريد حذف طلب "+display(r.name)+" نهائيًا؟ لا يمكن التراجع عن الحذف."))return;
+  if(!window.confirm("هل تريد حذف بيانات طلب "+display(r.name)+" نهائيًا؟ سيبقى فقط حدث تحويل مجهول الهوية للإحصاءات، ولن يمكن استرجاع معلومات العميل."))return;
   setBusy(true);setActionError("");
   try{
    const response=await fetch("/api/admin/package-requests",{method:"DELETE",headers:{"x-admin-secret":secret,"Content-Type":"application/json"},body:JSON.stringify({id:r.id})});
@@ -56,6 +70,7 @@ function RequestCard({r,secret,onChange,onDelete}:{r:RequestRow;secret:string;on
     <div className="min-w-0">
      <p className="text-xs text-[#647e77]">رقم الطلب <span dir="ltr" className="inline-block font-mono">{requestRef(r.request_number)}</span></p>
      <h3 className="mt-1 text-lg font-bold break-words">{display(r.name)}</h3>
+     <p className="mt-1 text-xs text-[#647e77]">متابعة العميل: {labels[r.status]||r.status}</p>
     </div>
     <span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold ${stateStyle}`}>{state}</span>
    </div>
@@ -73,6 +88,16 @@ function RequestCard({r,secret,onChange,onDelete}:{r:RequestRow;secret:string;on
     <dt className="min-w-0 flex-1 text-right text-sm leading-relaxed text-[#647e77]" title={label}>{label}</dt>
     <dd className="min-w-0 max-w-[55%] shrink-0 whitespace-pre-wrap break-words text-left font-medium leading-relaxed" dir={label==="البريد الإلكتروني"||label==="رقم الهاتف"?"ltr":undefined} title={display(value)}>{display(value)}</dd>
    </div>)}</dl>
+   <label className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#d9d9cd] p-3 text-sm font-semibold">
+    حالة متابعة العميل
+    <select aria-label={"حالة متابعة العميل "+requestRef(r.request_number)}
+      className="rounded-lg border border-[#9cac9d] bg-white px-3 py-2" value={r.status}
+      disabled={busy} onChange={e=>void updateStatus(e.target.value as "saved"|"contacted"|"closed")}>
+      <option value="saved">جديد</option>
+      <option value="contacted">تم التواصل</option>
+      <option value="closed">مغلق</option>
+    </select>
+   </label>
    <div className="mt-3 flex shrink-0 flex-wrap items-center justify-between gap-3">
     <button type="button" onClick={()=>setExpanded(false)} className="rounded-full border border-[#9cac9d] px-5 py-2">إغلاق التفاصيل</button>
     <button type="button" onClick={remove} disabled={busy} className="rounded-full border border-red-300 px-5 py-2 text-red-800 hover:bg-red-50 disabled:opacity-50">{busy?"جارٍ الحذف...":"حذف البطاقة"}</button>
