@@ -96,12 +96,30 @@ const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'settings', label: 'الإعدادات', icon: '⚙️' },
 ];
 
+type AdminHub='overview'|'market'|'strategy'|'contentHub'|'measurement'|'customers'|'operations';
+/** Seven visible top-level destinations, preserving every existing editable
+ * screen as a subordinate tab. No records or API endpoints are deleted. */
+const NAV_HUBS:{key:AdminHub;label:string;icon:string;landing:Tab;tabs:Tab[]}[]=[
+  {key:'overview',label:'الرئيسية',icon:'📊',landing:'home',tabs:['home']},
+  {key:'market',label:'السوق والمنافسون',icon:'🏢',landing:'competitors',tabs:['competitors','keywords','evidence']},
+  {key:'strategy',label:'الفرص وخطة العمل',icon:'🎯',landing:'opportunities',tabs:['opportunities','goals']},
+  {key:'contentHub',label:'المحتوى والنشر',icon:'📝',landing:'impact',tabs:['impact','editorial','reviews','content']},
+  {key:'measurement',label:'القياس والظهور',icon:'📈',landing:'visibility',tabs:['visibility']},
+  {key:'customers',label:'طلبات العملاء',icon:'👥',landing:'package_requests',tabs:['package_requests']},
+  {key:'operations',label:'التشغيل والإعدادات',icon:'⚙️',landing:'agent',tabs:['agent','runs','settings','contact','cookies','integrations']}
+];
+
 export default function AdminDashboard() {
   const [secret, setSecret] = useState('');
   const [authed, setAuthed] = useState(false);
   const [content, setContent] = useState<any>(null);
   const [error, setError] = useState('');
   const [tab, setTab] = useState<Tab>('home');
+  const [openHub,setOpenHub]=useState<AdminHub>('overview');
+  useEffect(()=>{
+    const hub=NAV_HUBS.find(group=>group.tabs.includes(tab));
+    if(hub)setOpenHub(hub.key);
+  },[tab]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [newFaq, setNewFaq] = useState({ q: '', a: '' });
   const [editingFaq, setEditingFaq] = useState<{ index: number; q: string; a: string } | null>(null);
@@ -447,16 +465,33 @@ export default function AdminDashboard() {
             <p className="text-xs text-slate-400 mt-1">GEO Intelligence</p>
           </div>
           <nav className="flex-1 overflow-y-auto p-3 space-y-1" aria-label="أقسام لوحة التحكم">
-            {TABS.map((t) => (
-              <button
-                key={t.key}
-                onClick={() => { setTab(t.key); setSidebarOpen(false); }}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition ${tab === t.key ? 'bg-gold-600 text-white' : 'text-slate-300 hover:bg-navy-800'}`}
-              >
-                <span>{t.icon}</span>
-                <span>{t.label}</span>
-              </button>
-            ))}
+            {NAV_HUBS.map(hub=>{
+              const active=hub.tabs.includes(tab);
+              const expanded=openHub===hub.key;
+              return <div key={hub.key} className="space-y-1">
+                <button type="button" aria-expanded={expanded} aria-controls={'admin-hub-'+hub.key}
+                  onClick={()=>{
+                    setOpenHub(hub.key);
+                    if(!active)setTab(hub.landing);
+                    if(hub.tabs.length===1)setSidebarOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between gap-2 rounded-xl px-3 py-3 text-sm font-semibold transition ${active?'bg-gold-600 text-white':'text-slate-200 hover:bg-navy-800'}`}>
+                  <span className="flex items-center gap-2"><span aria-hidden="true">{hub.icon}</span>{hub.label}</span>
+                  {hub.tabs.length>1&&<span aria-hidden="true" className="text-xs">{expanded?'▾':'◂'}</span>}
+                </button>
+                {expanded&&hub.tabs.length>1&&<div id={'admin-hub-'+hub.key} className="mr-4 space-y-1 border-r border-slate-600/50 pr-2">
+                  {hub.tabs.map(key=>{
+                    const item=TABS.find(t=>t.key===key)!;
+                    return <button type="button" key={key}
+                      onClick={()=>{setTab(key);setSidebarOpen(false)}}
+                      aria-current={tab===key?'page':undefined}
+                      className={`w-full rounded-lg px-3 py-2 text-right text-xs transition ${tab===key?'bg-navy-700 text-gold-300 font-bold':'text-slate-300 hover:bg-navy-800 hover:text-white'}`}>
+                      {item.icon} {item.label}
+                    </button>;
+                  })}
+                </div>}
+              </div>;
+            })}
           </nav>
           <div className="shrink-0 p-4 border-t border-navy-800">
             <button onClick={logout} className="w-full text-sm text-slate-300 hover:text-white">تسجيل الخروج</button>
@@ -548,21 +583,11 @@ export default function AdminDashboard() {
                   <textarea className="w-full border border-slate-300 rounded-lg px-4 py-2 min-h-[120px]" value={goldenDraft} onChange={(e) => setGoldenDraft(e.target.value)} />
                   <button onClick={saveGolden} className="btn-primary mt-3" disabled={saving}>حفظ</button>
                 </section>
-                <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                  <h2 className="text-xl font-bold mb-2">كلمات محتوى الموقع</h2><p className="text-sm text-slate-500 mb-3">هذه قائمة خاصة بمحتوى الموقع، وليست قائمة كلمات البحث السوقية.</p>
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {content.keywords.map((k: string, i: number) => (
-                      <span key={i} className="bg-gold-100 text-gold-800 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-2">
-                        {k}
-                        <button onClick={() => deleteKeyword(i)} className="text-gold-700 hover:text-red-600" aria-label="حذف">✕</button>
-                      </span>
-                    ))}
-                  </div>
-                  <div className="flex gap-2">
-                    <input className="border border-slate-300 rounded-lg px-4 py-2 flex-1" placeholder="كلمة جديدة" value={newKeyword} onChange={(e) => setNewKeyword(e.target.value)} />
-                    <button onClick={addKeyword} className="btn-primary" disabled={saving}>إضافة</button>
-                  </div>
-                </section>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+                  أصبحت الكلمات البحثية المعتمدة في <button className="text-blue-700 underline" onClick={()=>setTab('keywords')}>السوق والمنافسون ← كلمات البحث السوقية</button>.
+                  أُخفيت القائمة القديمة المنفصلة دون حذف بياناتها.
+                </div>
+
                 <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
                   <h2 className="text-xl font-bold mb-4">الأسئلة الشائعة</h2>
                   <ul className="space-y-3">
