@@ -12,6 +12,8 @@ import {
 export interface ContentFAQ {
   q: string;
   a: string;
+  approval_method?: 'human' | 'automated';
+  source_verification?: 'not_independently_checked' | 'independently_checked';
 }
 
 export interface ContentDraft {

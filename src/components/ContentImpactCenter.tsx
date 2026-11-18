@@ -36,7 +36,7 @@ export default function ContentImpactCenter({
  const [measureError,setMeasureError]=useState('');
  const [mutationError,setMutationError]=useState('');
  const [autoStatus,setAutoStatus]=useState<{enabled:boolean;allow_high_risk:boolean;daily_limit:number;available:boolean;events:Array<{
-   id:string;item_id:string;target_path:string;risk_level:string;status:string;published_at:string;rolled_back_at:string|null
+   id:string;item_id:string;target_path:string;risk_level:string;kind:'faq'|'editorial';status:string;published_at:string;rolled_back_at:string|null
  }> }|null>(null);
  const [autoBusy,setAutoBusy]=useState(false);
  const [autoNotice,setAutoNotice]=useState('');
@@ -80,7 +80,7 @@ export default function ContentImpactCenter({
  const changeSensitive=async(allow:boolean)=>{
   if(allow){
    if(!window.confirm('السماح بالنشر التلقائي لمحتوى استثماري أو نظامي حساس قد يؤثر على قرارات العملاء. هل تريد تفعيله؟'))return;
-   if(!window.confirm('تأكيد إضافي: المطابقة النصية مع مصادر رسمية لا تضمن دقة التفسير القانوني. سيُنشر فقط المحتوى الذي يحقق الشروط، بحد مادة حساسة واحدة خلال 24 ساعة، مع إمكانية التراجع.'))return;
+   if(!window.confirm('تأكيد إضافي: سيُنشر المحتوى الحساس آليًا حتى دون مرجع حكومي إلزامي، مع توضيح حالة التوثيق للمستخدم وإمكانية التراجع وحد النشر اليومي.'))return;
   }else if(!window.confirm('إيقاف النشر التلقائي للمحتوى الحساس؟ يبقى النشر منخفض المخاطر وفق الإعداد الآخر.'))return;
   await autoAction({action:'configure_sensitive',allow_high_risk:allow,
    ...(allow?{confirm:'ENABLE_AUTONOMOUS_SENSITIVE_CONTENT',
@@ -145,7 +145,7 @@ export default function ContentImpactCenter({
   <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6" aria-label="التحكم بالنشر الآلي">
    <div className="flex flex-wrap items-center justify-between gap-3">
     <div><h3 className="font-bold text-navy-900">النشر الآلي المحكوم بالمصادر</h3>
-     <p className="mt-1 text-sm text-slate-600">بعد كل دورة GEO ناجحة، ينشر النظام الأدلة المؤهلة بعد فحص المصادر. ويمكنك السماح منفصلًا بالنشر الآلي للمحتوى متوسط وعالي المخاطر بشرط تطابق مقتطفات الادعاءات مع مصدرين حكوميين مستقلين، وبحد قطعة حساسة واحدة خلال 24 ساعة.</p></div>
+     <p className="mt-1 text-sm text-slate-600">النشر التلقائي يشمل صفحات المحتوى والأسئلة الجاهزة، دون اشتراط مصدرين حكوميين أو منع المحتوى بسبب مستوى المخاطر. الروابط البحثية اختيارية وتظهر بوضوح كمراجع غير متحققة، مع سجل للإصدارات والتراجع.</p></div>
     <span className={autoStatus?.enabled?'text-sm font-bold text-emerald-800':'text-sm font-bold text-amber-800'}>
      {autoStatus?.enabled?'مفعّل':'متوقف'}
     </span>
@@ -169,7 +169,7 @@ export default function ContentImpactCenter({
    <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
     <div className="min-w-0 flex-1">
      <p className="text-sm font-semibold text-amber-950">النشر الآلي للمحتوى الحساس وعالي المخاطر</p>
-     <p className="text-xs text-amber-900">إذن مستقل، مع مقتطفات موثقة من موقعين حكوميين مختلفين. هذا تحقق مقتطفات وليس ضمانًا لصحة التفسير القانوني.</p>
+     <p className="text-xs text-amber-900">إذن مستقل للمحتوى الحساس؛ لا يلزم مصدران حكوميان. قد تكون المصادر غير متحققة، لذلك يُوضح ذلك صراحة لزوار الموقع.</p>
     </div>
     <button className="btn-secondary text-xs" disabled={!autoStatus?.available||autoBusy}
      onClick={()=>void changeSensitive(!autoStatus?.allow_high_risk)}>
@@ -181,10 +181,10 @@ export default function ContentImpactCenter({
    <div className="mt-4 space-y-2"><h4 className="font-semibold text-sm">سجل النشر الآلي والاستعادة</h4>
     {(autoStatus?.events||[]).slice(0,10).map(ev=><div key={ev.id} className="rounded-lg border bg-slate-50 p-3 text-xs flex flex-wrap items-center justify-between gap-2">
       <div><span dir="ltr" className="inline-block">{ev.target_path}</span>
-       <p className="text-slate-600">{ev.status==='rolled_back'?'تم التراجع':'منشور تلقائيًا'} · مستوى المخاطر: {ev.risk_level||'غير محدد'} · {date(ev.published_at)}</p></div>
+       <p className="text-slate-600">{ev.status==='rolled_back'?'تم التراجع':'منشور تلقائيًا'} · {ev.kind==='faq'?'سؤال شائع':'صفحة محتوى'} · مستوى المخاطر: {ev.risk_level||'غير محدد'} · {date(ev.published_at)}</p></div>
       {ev.status==='published'&&<button className="btn-secondary text-xs" disabled={autoBusy}
        onClick={()=>{if(window.confirm('استعادة النسخة السابقة لهذا المحتوى فقط؟ سيرفض النظام العملية إذا تغيرت النسخة بعد نشرها.'))
-        void autoAction({action:'rollback',event_id:ev.id,confirm:'ROLLBACK_GEO_PUBLICATION'});}}>تراجع عن النشر</button>}
+        void autoAction({action:'rollback',event_id:ev.id,kind:ev.kind,confirm:'ROLLBACK_GEO_PUBLICATION'});}}>تراجع عن النشر</button>}
     </div>)}
     {autoStatus?.events.length===0&&<p className="text-sm text-slate-500">لا توجد عمليات نشر تلقائي مسجلة بعد.</p>}
    </div>
@@ -196,7 +196,7 @@ export default function ContentImpactCenter({
     <button className="btn-secondary text-sm" onClick={()=>onNavigate('visibility')}>لوحة Google والظهور</button>
    </div>
    <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
-    <strong>حالة النشر: {autoStatus?.enabled?'النشر الآلي المحكوم مفعّل':'المراجعة البشرية — النشر الآلي متوقف'}.</strong> المحتوى الحساس {autoStatus?.allow_high_risk?'مسموح تلقائيًا بعد التحقق المشدد':'يتطلب مراجعة بشرية حتى تفعّل صلاحية مستقلة'}؛ وتبقى المواد غير الموثقة محجوبة عن النشر.
+    <strong>حالة النشر: {autoStatus?.enabled?'النشر الآلي المحكوم مفعّل':'المراجعة البشرية — النشر الآلي متوقف'}.</strong> المحتوى الحساس {autoStatus?.allow_high_risk?'مسموح بالنشر الآلي دون شرط مرجع حكومي':'يتطلب تفعيل إذن مستقل'}؛ مع توضيح حالة التوثيق وإبقاء المحتوى غير المكتمل كمسودة.
    </div>
    <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
     {facts.map(f=><div key={f.name} className="rounded-xl border border-slate-200 bg-slate-50 p-3">

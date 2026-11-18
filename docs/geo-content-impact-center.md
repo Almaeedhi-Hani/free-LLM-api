@@ -43,3 +43,40 @@ Automatic publication is part of the approved product direction. The policy foun
 - `npm run test:impact` (inventory, preview routes, idempotency prerequisites, high-risk policy, GSC factual metrics, and UI contracts).
 - Existing Admin, GSC, GEO and SQL CI suites plus Next.js production build.
 - Verify admin route requires secret, no missing GSC data is shown as zero, and no automatic publishing mutation is available.
+
+## Updated owner policy — source-flexible, unattended GEO publishing (18 Nov 2026)
+
+The owner explicitly removed the two-government-source requirement and requested that
+risk level alone never suppress or hide automatically generated content.
+
+The live publishing pipeline now distinguishes **publication eligibility** from
+**source verification**:
+- Visitor-ready guides, comparisons, home/trust/service/package editorial blocks and
+  completed Arabic FAQ drafts may publish automatically after the separately enabled
+  automatic-publishing switches are on. Existing service offers and numeric package
+  pricing stay in their original code-backed components and are not overwritten.
+- One, two or **zero** government source links are acceptable; none is mandatory.
+  Saved HTTPS research references may be displayed, but they are labeled
+  **not independently verified**, and no schema citation claims verification.
+- Low/medium/high risk levels stay visible and are recorded in publication history;
+  a separate high-risk permission controls unattended sensitive material, already
+  owner-authorized. This is an optional *permission*, not a two-source threshold.
+- The SQL transaction enforces the 24-hour combined editorial+FAQ limit, prevents
+  duplicate publication and conflicting article routes, snapshots before/after
+  content, records source status, and preserves exact-version rollback.
+- A lightweight daily GitHub Actions publisher attempts to publish queued items
+  at 06:35 Saudi time without rerunning the paid/research GEO intelligence model.
+  The existing weekly GEO pipeline also invokes the same publisher, with DB
+  quota/locking to prevent double publication.
+- Technical SEO and internal-link implementation tasks are not visitor pages.
+  They remain visible as actionable admin tasks. Placeholder instructions such as
+  "This page should explain..." are drafts to be finished rather than statements
+  presented as factual public advice. No article is hidden for missing a citation.
+- Public pages and FAQs identify automated and unverified material explicitly.
+  Source absence is never rewritten into fabricated source references.
+
+**Important:** source-flexible publishing cannot guarantee factual or legal
+accuracy. Readers must confirm current legal, licensing, banking and investment
+requirements directly with the responsible institutions. The automatic publisher
+does not change the original service fee/pricing constants.
+
