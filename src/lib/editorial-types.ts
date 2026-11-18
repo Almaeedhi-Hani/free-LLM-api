@@ -14,4 +14,5 @@ export type EditorialItem={
  evidence_ids:string[];evidence_refs:EditorialRef[];verified_sources?:string[];
  claim_evidence?:EditorialClaimEvidence[];approval_method?:'human'|'automated';
  auto_published?:boolean;auto_published_at?:string;
+ cited_sources?:string[];source_verification?:'not_independently_checked'|'independently_checked';
 };
