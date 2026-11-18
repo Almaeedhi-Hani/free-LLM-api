@@ -717,7 +717,7 @@ export default function AdminDashboard() {
                 <h2 className="text-xl font-bold mb-4">وكيل GEO — حالة النظام</h2>
                 <details className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
                   <summary className="cursor-pointer text-sm font-semibold">خيارات تشغيل الرادار والتحليل القديم (متقدمة)</summary>
-                  <p className="my-2 text-xs text-slate-600">هذه وظائف قديمة منفصلة عن سير عمل GEO الموحد في GitHub. لا تشغلها بالتزامن مع المحرك الحديث إلا بعد التحقق من الحاجة والموارد.</p>
+                  <p className="my-2 text-xs text-slate-600">الرادار المستقل أصبح مجدولًا كل ساعتين حتى السبت 21 نوفمبر، ثم كل 4 ساعات من الأحد 22 نوفمبر، ويعمل منفصلًا عن محرك GEO الحديث. التشغيل اليدوي هنا يضيف دورة أخرى وقد يستهلك حدود مصادر البحث.</p>
                   <div className="flex gap-2">
                       <button className="btn-primary text-xs" disabled={saving} onClick={async () => {
                         if(!window.confirm('بدء تحليل السوق وحفظ النتائج؟'))return;
