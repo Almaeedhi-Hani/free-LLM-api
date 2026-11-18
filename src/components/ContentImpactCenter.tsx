@@ -81,7 +81,7 @@ export default function ContentImpactCenter({
  const changeSensitive=async(allow:boolean)=>{
   if(allow){
    if(!window.confirm('السماح بالنشر التلقائي لمحتوى استثماري أو نظامي حساس قد يؤثر على قرارات العملاء. هل تريد تفعيله؟'))return;
-   if(!window.confirm('تأكيد إضافي: سيُنشر المحتوى الحساس آليًا حتى دون مرجع حكومي إلزامي، مع توضيح حالة التوثيق للمستخدم وإمكانية التراجع وحد النشر اليومي.'))return;
+   if(!window.confirm('تأكيد إضافي: سيُنشر المحتوى الحساس آليًا حتى دون مرجع حكومي إلزامي، مع حفظ حالة التوثيق داخليًا وإمكانية التراجع وحد النشر اليومي.'))return;
   }else if(!window.confirm('إيقاف النشر التلقائي للمحتوى الحساس؟ يبقى النشر منخفض المخاطر وفق الإعداد الآخر.'))return;
   await autoAction({action:'configure_sensitive',allow_high_risk:allow,
    ...(allow?{confirm:'ENABLE_AUTONOMOUS_SENSITIVE_CONTENT',
@@ -171,7 +171,7 @@ export default function ContentImpactCenter({
    <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
     <div className="min-w-0 flex-1">
      <p className="text-sm font-semibold text-amber-950">النشر الآلي للمحتوى الحساس وعالي المخاطر</p>
-     <p className="text-xs text-amber-900">إذن مستقل للمحتوى الحساس؛ لا يلزم مصدران حكوميان. قد تكون المصادر غير متحققة، لذلك يُوضح ذلك صراحة لزوار الموقع.</p>
+     <p className="text-xs text-amber-900">إذن مستقل للمحتوى الحساس؛ لا يلزم مصدران حكوميان. قد تكون المصادر غير متحققة؛ تُحفظ حالة التوثيق وسجل النشر داخل لوحة الإدارة للمراجعة الداخلية.</p>
     </div>
     <button className="btn-secondary text-xs" disabled={!autoStatus?.available||autoBusy}
      onClick={()=>void changeSensitive(!autoStatus?.allow_high_risk)}>

@@ -319,7 +319,7 @@ export default function AdminDashboard() {
     try{const response=await fetch('/api/admin/content',{headers:{'x-admin-secret':key}});
       if(!response.ok)throw new Error(response.status===401?'المفتاح السري غير صحيح':`تعذر تسجيل الدخول (${response.status})`);
       const data=await response.json();setSecret(key);setContent(data);
-      if(data.contact)setContactForm(data.contact);setGoldenDraft(data.goldenParagraph||'');
+      if(data.contact)setContactForm(contactToForm(data.contact));setGoldenDraft(data.goldenParagraph||'');
       sessionStorage.setItem('admin_secret',key);setAuthed(true);
     }catch(e:any){setError(e.message||'فشل تسجيل الدخول');}finally{setSaving(false);}
   };

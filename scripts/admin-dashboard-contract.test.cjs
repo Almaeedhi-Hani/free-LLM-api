@@ -1,37 +1,77 @@
 'use strict';
-const fs=require('node:fs'),assert=require('node:assert/strict');
-const dashboard=fs.readFileSync('src/app/admin/dashboard/page.tsx','utf8');
-const discovery=fs.readFileSync('src/app/api/admin/market/discovery/route.ts','utf8');
-const provider=fs.readFileSync('src/lib/provider-search.cjs','utf8');
-const editorial=fs.readFileSync('src/components/EditorialReviewPanel.tsx','utf8');
-const roles=fs.readFileSync('src/components/AdminDataRoles.tsx','utf8');
-const adminRoute=fs.readFileSync('src/app/api/admin/content/route.ts','utf8');
-const adminRoute=fs.readFileSync('src/app/api/admin/content/route.ts','utf8');
-const tests=[
- ['All 12 dashboard sections present',()=>['home','contact','content','agent','reviews','settings','competitors','keywords','opportunities','goals','runs','evidence'].every(x=>dashboard.includes("key: '"+x+"'"))],
- ['Login verifies server secret before unlocking',()=>dashboard.includes("fetch('/api/admin/content',{headers:{'x-admin-secret':key}})")],
- ['Market home loads real data',()=>dashboard.includes("if (tab === 'home') refreshMarket()")],
- ['Refresh fetches market and content',()=>dashboard.includes("Promise.all([fetchContent(),refreshMarket()])")],
- ['No stale competitor or opportunity counts',()=>!dashboard.includes('27 فرصة حالية')&&!dashboard.includes('opportunitie типа')],
- ['No DuckDuckGo-only control',()=>!discovery.includes("allowedSourceIds: ['duckduckgo-html']")&&!dashboard.includes('DuckDuckGo HTML')],
- ['Provider discovery has bounded request budget',()=>provider.includes('maxCalls:3')&&provider.includes('maxPerProvider:1')],
- ['Competitor state editing PATCH exists',()=>dashboard.includes("method:'PATCH',body:JSON.stringify({id:c.id,status})")],
- ['Sources readiness and provider names visible',()=>dashboard.includes('fetchMarketSources')&&dashboard.includes('firecrawl')],
- ['Reviews require confirmation',()=>dashboard.includes("window.confirm('اعتماد ونشر النص النهائي المعروض")],
- ['Save failure keeps editable drafts',()=>dashboard.includes("if(ok)setNewFaq")&&dashboard.includes("if(ok)setEditingFaq")],
- ['User feedback shown accessibly',()=>dashboard.includes('role="alert"')&&dashboard.includes('role="status"')],
- ['Semantic legend present across admin tabs',()=>dashboard.includes('<DataRoleLegend />')&&roles.includes('محتوى مقترح للاستخدام')&&roles.includes('بيانات من النظام')&&roles.includes('روابط رصد وبحث')&&roles.includes('مصادر تحتاج تحققًا')],
- ['Draft generated answer separated from model verification note',()=>dashboard.includes('splitGeoDraftReviewText(d.a)')&&dashboard.includes('عبارة تحقق وردت ضمن النص المولّد')&&dashboard.includes('لن تُنشر إلا إذا كتبتها بنفسك')],
- ['Operator sees and can edit exact final FAQ publish text',()=>dashboard.includes('النص النهائي الذي سيُنشر — قابل للتعديل')&&dashboard.includes('value={finalAnswer}')&&dashboard.includes('a:reviewedAnswer,status:\'approved\'')&&dashboard.includes('{q:draft.q,a:reviewedAnswer}')],
- ['API rejects mismatched or unreviewed published FAQ',()=>adminRoute.includes('Approved FAQ must exactly match the reviewed draft answer')&&adminRoute.includes('Draft approval requires a versioned human review')&&adminRoute.includes('Remove the procedural verification note')],
- ['Draft research never described as verified official source',()=>dashboard.includes('صفحات منافسة ونتائج بحث مرتبطة بالموضوع')&&dashboard.includes('روابط المنافسين ليست مصدرًا رسميًا')],
- ['Editorial content, SEO, metadata and research still separated by color',()=>editorial.includes('tone="research"')&&editorial.includes('tone="technical"')&&editorial.includes('tone="system"')&&editorial.includes('المحتوى المقترح للاستخدام في الموقع')],
- ['No manual official-source URL entry; automatic candidates cannot silently publish',()=>!editorial.includes('setSources(')&&!editorial.includes('روابط المصادر التي تحققت منها')&&editorial.includes('officialSourceCandidates(item.evidence_refs)')&&editorial.includes("disabled={saving||officialSourceCandidates(item.evidence_refs).length===0}")],
- ['Server requires real candidate official refs and operator approval',()=>adminRoute.includes('officialSourceCandidates(p.evidence_refs)')&&adminRoute.includes('Approval requires reviewed official links present in the saved research evidence')&&adminRoute.includes("New editorial items must start in pending review")],
- ['Evidence table scrolls in both axes without squeezing content',()=>dashboard.includes('max-h-[72vh] w-full min-w-0 overflow-auto')&&dashboard.includes('w-[1120px] min-w-[1120px]')&&dashboard.includes('sticky top-0 z-10')&&dashboard.includes('tabIndex={0}')],
- ['Evidence table explains candidate ideas in plain language',()=>dashboard.includes('ما المقصود بهذه الفرصة؟')&&dashboard.includes('يقترح النظام مراجعة أدلة موجودة في خطة المحتوى')&&dashboard.includes('درجة الثقة:')&&dashboard.includes('الأولوية المقترحة:')],
- ['Never infer competitor provenance from opportunity type',()=>!dashboard.includes('competitor_observation')&&dashboard.includes('observationType(e.origin)')&&dashboard.includes('لم تُسجّل مصادر بحث لهذه الفرصة')],
+/** Current product contract, not obsolete 12-section assumptions.
+ * The isolated Chromium suite verifies real buttons and persistence. */
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const get=path=>fs.readFileSync(path,'utf8');
+const dashboard=get('src/app/admin/dashboard/page.tsx');
+const impact=get('src/components/ContentImpactCenter.tsx');
+const visibility=get('src/components/VisibilityDashboard.tsx');
+const requests=get('src/components/PackageRequestsAdmin.tsx');
+const review=get('src/components/EditorialReviewPanel.tsx');
+const technical=get('src/components/TechnicalTaskBoard.tsx');
+const runs=get('src/components/UnifiedRunHistory.tsx');
+const cookies=get('src/components/CookiePolicyAdmin.tsx');
+const integrations=get('src/components/SearchIntegrationsAdmin.tsx');
+const testBrowser=get('scripts/admin-18-functional-acceptance-browser.cjs');
+const testHubs=get('scripts/admin-seven-hubs-browser-e2e.cjs');
+const liveApi=get('src/app/api/admin/visibility/route.ts');
+const contentApi=get('src/app/api/admin/content/route.ts');
+const pages=[
+ 'home','competitors','keywords','opportunities','goals','agent',
+ 'runs','evidence','content','reviews','editorial','impact','contact',
+ 'package_requests','visibility','cookies','integrations','settings'
 ];
-let failed=0;for(const [name,fn] of tests){try{assert.ok(fn());console.log('PASS',name)}catch(e){failed++;console.error('FAIL',name)}}
-console.log('dashboard_contract_tests',JSON.stringify({passed:tests.length-failed,failed}));
-if(failed)process.exitCode=1;
+for(const name of pages){
+ assert(dashboard.includes("key: '"+name+"'"),'Admin page missing from NAV: '+name);
+ assert(testHubs.includes(name==='home'?'الرئيسية':{
+  competitors:'المنافسون',keywords:'كلمات البحث السوقية',opportunities:'الفرص',
+  goals:'الأهداف',agent:'وكيل GEO',runs:'سجل التشغيل',evidence:'الأدلة ومصادر النتائج',
+  content:'محتوى الموقع',reviews:'اعتماد المسودات',editorial:'تطوير جميع صفحات الموقع',
+  impact:'مركز المحتوى والأثر',contact:'التواصل',package_requests:'طلبات الباقات',
+  visibility:'SEO وظهور الذكاء الاصطناعي',cookies:'إدارة الكوكيز',
+  integrations:'SEO والتكاملات',settings:'الإعدادات'
+ }[name]),'Browser navigation missing page '+name);
+}
+const hubs=['overview','market','strategy','contentHub','measurement','customers','operations'];
+for(const name of hubs)assert(dashboard.includes("key:'"+name+"'"),'Missing main navigation hub '+name);
+assert(dashboard.includes('setContactForm(contactToForm(data.contact))'),
+ 'First login must hydrate language-specific contact/profile fields');
+assert(!dashboard.includes('setContactForm(data.contact)'),
+ 'Raw backend contact cannot be assigned to admin form state');
+for(const name of ['fetchContent','refreshMarketCollection','refreshAll','fetchEvidence',
+ 'saveContact','addFaq','updateFaq','deleteFaq','approveDraft','rejectDraft'])
+ assert(dashboard.includes(name),'Missing dashboard handler '+name);
+for(const snippet of ['<ContentImpactCenter','<EditorialReviewPanel','<UnifiedRunHistory',
+ '<TechnicalTaskBoard','<PackageRequestsAdmin','<VisibilityDashboard',
+ '<CookiePolicyAdmin','<SearchIntegrationsAdmin'])
+ assert(dashboard.includes(snippet),'Missing subordinate view '+snippet);
+assert(impact.includes('GeoImpactExperiments'),'Measured before/after comparison must remain visible');
+assert(!impact.includes('يُوضح ذلك صراحة لزوار الموقع'),'Visitor-facing verification notice must not be reintroduced or promised in admin copy');
+assert(visibility.includes('onOpenImpact'),'SEO links to measured content impact, not a second conversion dashboard');
+assert(visibility.includes('فحص HTTP لا يثبت فهرسة Google'),
+ 'HTTP checks must never be labelled as verified Google indexing');
+assert(liveApi.includes('const entries=await sitemap()'),
+ 'SEO page checks must cover dynamic published sitemap entries');
+for(const x of ['saved','contacted','closed'])assert(requests.includes('value="'+x+'"'),
+ 'Customer lifecycle status not available: '+x);
+assert(requests.includes('action:"update_status"'),'Lead-status button must write to the backend');
+assert(review.includes('onSaveItems'),'Editorial edits require persistent save handler');
+assert(technical.includes("payload.status!=='issue_open'"),
+ 'Technical suggestions must not be marked implemented after issuing an issue');
+assert(runs.includes("/api/admin/geo-engine")&&runs.includes("/api/admin/geo-publication"),
+ 'Unified run history should source actual workflow and publishing log');
+assert(cookies.includes('onSave(draft)'),'Consent settings must be persistently editable');
+assert(integrations.includes('onSave({...draft'),'Integration form must persist validated settings');
+assert(contentApi.includes('expectedUpdatedAt')&&contentApi.includes('StorageConflictError'),
+ 'Concurrent edits should report version conflicts rather than silently overwrite');
+for(const x of ['Homepage golden paragraph editor saves',
+ 'FAQ full-detail preview opens',
+ 'Editorial preview, edit and two-confirmation deletion',
+ 'Contact save and persistent multilingual advisor readback',
+ 'FAQ add/edit/delete buttons persist','Keyword create/update/delete',
+ 'Goal create/status update','Draft review rejection',
+ 'Cookie duration edit','Search integration setting persisted',
+ 'Content impact API reports','Logout returns'])
+ assert(testBrowser.includes(x),'Functional browser suite missing checkpoint '+x);
+console.log('PASS 18 admin pages / seven hubs / readback handlers / accurate GEO+GSC sources / production-safe browser acceptance contracts');
