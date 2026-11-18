@@ -28,6 +28,7 @@ export async function GET(req:NextRequest){
   dimension:'eq.page',metric_date:'gte.'+startDate,
   order:'metric_date.desc',limit:'5000'
  });
+ query.append('metric_date','lte.'+endDate);
  try{
   const res=await fetch(url.replace(/\/$/,'')+'/rest/v1/gsc_daily_metrics?'+query.toString(),{
    headers:{apikey:key,authorization:'Bearer '+key},cache:'no-store',
