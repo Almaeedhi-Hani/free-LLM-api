@@ -1,0 +1,23 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const {auditPublicSitemap}=require('./public-sitemap-audit.cjs');
+const origin='https://example.test';
+const slugs=['misa-license','company-formation','corporate-banking','contract-drafting','premium-residency','investment-funds'];
+const baseline=['','/packages',...slugs.map(x=>'/services/'+x)]
+ .flatMap(route=>['ar','en','zh'].map(lang=>(lang==='ar'?'':'/'+lang)+route||'/'));
+const extras=['/insights','/insights/saudi-company-formation'];
+const sitemap=paths=>'<urlset>'+paths.map(path=>'<url><loc>'+origin+path+'</loc></url>').join('')+'</urlset>';
+const result=auditPublicSitemap(sitemap([...baseline,...extras]),origin,baseline);
+assert.equal(result.baseline,24);
+assert.equal(result.total,26);
+assert.deepEqual(result.extra.map(x=>x.path),extras);
+assert.throws(()=>auditPublicSitemap(sitemap([...baseline.slice(1),...extras]),origin,baseline),/Missing baseline/);
+assert.throws(()=>auditPublicSitemap(sitemap([...baseline,'/admin/dashboard']),origin,baseline),/non-editorial/);
+assert.throws(()=>auditPublicSitemap(sitemap([...baseline,...extras,...extras]),origin,baseline),/Duplicate/);
+assert.throws(()=>auditPublicSitemap(sitemap([...baseline,'https://evil.test/hijack']),origin,baseline),/Sitemap must contain only canonical-origin/);
+const smoke=fs.readFileSync('scripts/check-public-seo.cjs','utf8');
+assert(smoke.includes('auditPublicSitemap(sitemap,canonicalBase,baselinePaths)'));
+assert(smoke.includes('for(const extra of audited.extra)'),'every extra URL must receive a real HTTP validation');
+assert(!smoke.includes('length, 24'),'no hardcoded sitemap total');
+console.log('PASS dynamic sitemap: 24 base URLs + growing published insights, no duplicates, no external URLs, all extra URLs must be HTTP checked');

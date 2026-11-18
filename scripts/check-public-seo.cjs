@@ -1,4 +1,5 @@
 const assert = require("node:assert/strict");
+const {auditPublicSitemap}=require("./public-sitemap-audit.cjs");
 const base = (process.env.SEO_TEST_BASE_URL || "http://127.0.0.1:3000").replace(
   /\/$/,
   "",
@@ -76,7 +77,25 @@ const slugs = [
     );
   }
   const sitemap = await (await fetch(base + "/sitemap.xml")).text();
-  assert.equal((sitemap.match(/<loc>/g) || []).length, 24);
+  const baselinePaths=["", "/packages", ...slugs.map(slug=>"/services/"+slug)]
+    .flatMap(route=>["ar","en","zh"].map(lang=>(lang==="ar"?"":"/"+lang)+route||"/"));
+  const audited=auditPublicSitemap(sitemap,canonicalBase,baselinePaths);
+  for(const extra of audited.extra){
+    const response=await fetch(base+extra.path);
+    assert.equal(response.status,200,extra.path+" published page");
+    const html=await response.text();
+    const lang=extra.path.startsWith("/en/")||extra.path==="/en/insights"?"en":
+      extra.path.startsWith("/zh/")||extra.path==="/zh/insights"?"zh":"ar";
+    assert(html.includes('lang="'+(lang==="zh"?"zh-Hans":lang)+'"'),extra.path+" language");
+    assert.equal((html.match(/<h1(?:\s|>)/g)||[]).length,1,extra.path+" heading");
+    const canonical=(html.match(/<link rel="canonical" href="([^"]+)"/)||[])[1];
+    assert.equal(new URL(canonical).href,extra.url,extra.path+" canonical");
+    assert(!/<meta name="robots" content="[^"]*noindex/i.test(html),extra.path+" indexable");
+    const title=(html.match(/<title>(.*?)<\/title>/)||[])[1];
+    assert(title,extra.path+" title");
+    assert(!titles.has(title),extra.path+" duplicate title");
+    titles.add(title);
+  }
   const robots = await (await fetch(base + "/robots.txt")).text();
   assert(robots.includes("Disallow: /admin/"));
   assert(/User-agent:\s*OAI-SearchBot/i.test(robots),"OAI Search crawler discoverability");
@@ -85,7 +104,7 @@ const slugs = [
   console.log(
     `PASS ${pages} localized pages: titles, descriptions, single H1, heading structure, canonicals, reciprocal hreflang, JSON-LD and hidden QA text`,
   );
-  console.log("PASS 24-entry sitemap, robots exclusions and admin noindex");
+  console.log(`PASS ${audited.total}-entry dynamic sitemap (${audited.baseline} baseline + ${audited.extra.length} editorial), robots exclusions and admin noindex`);
 })().catch((e) => {
   console.error(e.message);
   process.exitCode = 1;

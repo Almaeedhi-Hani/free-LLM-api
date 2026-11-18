@@ -1,0 +1,34 @@
+name: Live SEO and expanding GEO sitemap smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/check-public-seo.cjs'
+      - 'scripts/public-sitemap-audit.cjs'
+      - '.github/workflows/seo-live-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: geo-seo-live-smoke
+  cancel-in-progress: false
+
+jobs:
+  live-seo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Verify dynamic public SEO smoke script syntax
+        run: node --check scripts/check-public-seo.cjs
+      - name: Validate live 24 canonical baseline pages and every current GEO sitemap article
+        env:
+          SEO_TEST_BASE_URL: https://free-llm-api-1-didl.onrender.com
+          SITE_URL: https://free-llm-api-1-didl.onrender.com
+        run: node scripts/check-public-seo.cjs
