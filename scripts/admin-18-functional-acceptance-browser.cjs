@@ -106,6 +106,14 @@ const groups={
   await page.getByText('سؤال تدقيق الإدارة المعزول',{exact:true}).waitFor();
   content=await request('GET','/api/admin/content');
   assert(content.faqs.some(f=>f.q==='سؤال تدقيق الإدارة المعزول'));
+  await navigate('مركز المحتوى والأثر');
+  const faqPreviewRow=page.locator('tr').filter({hasText:'سؤال تدقيق الإدارة المعزول'}).first();
+  await faqPreviewRow.getByRole('button',{name:'معاينة وتفاصيل'}).click();
+  const preview=page.locator('section[aria-label="معاينة المحتوى التفصيلية"]');
+  await preview.getByText('إجابة اختبار محفوظة داخل بيئة معزولة.',{exact:true}).waitFor();
+  await preview.getByRole('button',{name:'إغلاق المعاينة'}).click();
+  checkpoint('FAQ full-detail preview opens and closes in Content Impact Center');
+  await navigate('محتوى الموقع');
   const faqRow=page.locator('li').filter({hasText:'سؤال تدقيق الإدارة المعزول'}).first();
   await faqRow.getByRole('button',{name:'تعديل'}).click();
   // Once editing, the question moves from a text node into an input value.
@@ -170,10 +178,10 @@ const groups={
   await page.getByRole('textbox',{name:'عنوان هدف جديد'}).fill('QA follow-up goal');
   await page.getByRole('textbox',{name:'وصف هدف جديد'}).fill('Temporary test objective');
   await page.getByRole('button',{name:'إضافة هدف'}).click();
-  await page.getByText('QA follow-up goal',{exact:true}).waitFor();
   const goals=(await request('GET','/api/admin/market/goals')).goals;
   const goal=goals.find(x=>x.title==='QA follow-up goal');
-  assert(goal?.id);
+  assert(goal?.id,'New goal must persist in local market storage');
+  await page.locator('tr').filter({hasText:'QA follow-up goal'}).first().waitFor({timeout:15000});
   updated=await request('PATCH','/api/admin/market/goals',{
     id:goal.id,status:'done',title:'QA follow-up goal'
   });
