@@ -1,10 +1,15 @@
 name: GEO NVIDIA + OpenRouter Free Capability Probe
 
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/geo-provider-capability-smoke.yml'
+      - 'scripts/geo-provider-capability-smoke.cjs'
+      - 'scripts/geo-provider-capability-smoke.test.cjs'
   push:
     branches: [main]
     paths:
-      - '.github/workflows/geo-provider-capability-smoke.yml'
+      - '.github/workflows/geo-provider-capability-smoke.yml' # Rerun one production-safe smoke after catalog/deprecated-model fix
   workflow_dispatch:
 
 permissions:
@@ -33,6 +38,7 @@ jobs:
           node scripts/geo-provider-capability-smoke.test.cjs
 
       - name: Probe NVIDIA free-hosted prototypes and live zero-priced OpenRouter models
+        if: github.event_name != 'pull_request'
         env:
           NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
@@ -40,7 +46,7 @@ jobs:
           node scripts/geo-provider-capability-smoke.cjs
 
       - name: Upload sanitized result (no prompt or key values)
-        if: always()
+        if: always() && github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: geo-provider-capability-probe

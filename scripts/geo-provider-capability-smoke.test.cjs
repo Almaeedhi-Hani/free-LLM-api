@@ -34,6 +34,10 @@ const {PROVIDERS,freeOpenRouterModels,capability,statusClass,probe,run}=require(
  assert.equal(r.results.filter(x=>x.outcome==='pass').length,4,'two NVIDIA and two verified free OpenRouter models');
  assert.equal(r.catalog.status,'ok');
  assert.equal(calls.length,4,'no duplicate paid calls or retries');
+ assert(calls.slice(0,2).every(x=>x.chat_template_kwargs?.enable_thinking===false),
+  'NVIDIA model must use direct answer instead of exhausting free tokens on reasoning');
+ assert(calls.slice(2).every(x=>!x.chat_template_kwargs),
+  'Do not send NVIDIA-specific options to OpenRouter');
  assert(calls.every(x=>x.messages.every(m=>!m.content.includes('API_KEY'))));
  assert(!JSON.stringify(r).includes(env.NVIDIA_API_KEY));
  assert(!JSON.stringify(r).includes(env.OPENROUTER_API_KEY));

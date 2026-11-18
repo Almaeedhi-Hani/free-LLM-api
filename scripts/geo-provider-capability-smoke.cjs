@@ -6,7 +6,7 @@
 const fs=require('node:fs');
 const PROVIDERS={
  nvidia:{secret:'NVIDIA_API_KEY',endpoint:'https://integrate.api.nvidia.com/v1/chat/completions',
-  models:['nvidia/nemotron-3.5-lightning-30b-a3b','nvidia/nemotron-3-super-120b-a12b']},
+  models:['nvidia/nemotron-3.5-lightning-30b-a3b','nvidia/nemotron-3.5-super-vl-120b-a12b']},
  openrouter:{secret:'OPENROUTER_API_KEY',endpoint:'https://openrouter.ai/api/v1/chat/completions',
   catalog:'https://openrouter.ai/api/v1/models',maxModels:3}
 };
@@ -77,15 +77,20 @@ async function getRouterCatalog(fetchFn,secret){
   const response=await fetchFn(PROVIDERS.openrouter.catalog,{
    method:'GET',headers:{Authorization:'Bearer '+secret},signal:AbortSignal.timeout(20000)});
   if(!response.ok)return {models:[],status:statusClass(response.status)};
-  const payload=await limitedJSON(response);
+  // The catalog contains thousands of entries; it is much larger than any
+  // individual completion body. Cap at 8 MB, not the 120 KB completion limit.
+  const body=await response.text();
+  if(body.length>8_000_000)return {models:[],status:'catalog_oversize'};
+  const payload=JSON.parse(body);
   return {models:freeOpenRouterModels(payload?.data),status:'ok'};
- }catch{return {models:[],status:'catalog_unavailable'}}
+ }catch(e){return {models:[],status:e?.name==='TimeoutError'?'catalog_timeout':'catalog_unavailable'}}
 }
 async function probe(fetchFn,id,model,secret){
  const config=PROVIDERS[id],start=Date.now();
  const body={model,messages:[
   {role:'system',content:'Return only the requested synthetic JSON, no prose outside JSON.'},
   {role:'user',content:TEST_PROMPT}],max_tokens:850,temperature:0.1,stream:false};
+ if(id==='nvidia')body.chat_template_kwargs={enable_thinking:false};
  const headers={Authorization:'Bearer '+secret,'Content-Type':'application/json'};
  if(id==='openrouter'){
   headers['HTTP-Referer']='https://free-llm-api-1-didl.onrender.com';
