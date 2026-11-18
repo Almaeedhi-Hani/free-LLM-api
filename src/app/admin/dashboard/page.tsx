@@ -12,6 +12,7 @@ import VisibilityDashboard from '@/components/VisibilityDashboard';
 import CookiePolicyAdmin from '@/components/CookiePolicyAdmin';
 import SearchIntegrationsAdmin from '@/components/SearchIntegrationsAdmin';
 import GeoEngineMonitor from '@/components/GeoEngineMonitor';
+import UnifiedRunHistory from '@/components/UnifiedRunHistory';
 
 type Tab =
   | 'home'
@@ -1024,30 +1025,7 @@ export default function AdminDashboard() {
             {tab === 'cookies' && <CookiePolicyAdmin policy={content?.cookiePolicy} saving={saving} onSave={async cookiePolicy => save({cookiePolicy})} />}
             {tab === 'integrations' && <SearchIntegrationsAdmin settings={content?.searchIntegrations} saving={saving} onSave={async searchIntegrations => save({searchIntegrations})} />}
 
-            {tab === 'runs' && (
-              <div className="space-y-6">
-                <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                  <h2 className="text-xl font-bold mb-2">سجل تشغيل عمليات GEO</h2><p className="text-sm text-slate-500 mb-4">سجل تدقيق للتشغيل والأخطاء. يُحتفظ به لضمان تتبع القرارات.</p>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead><tr className="text-right border-b"><th className="py-2">النوع</th><th>الحالة</th><th>البداية</th><th>النهاية</th><th>المُشغّل</th></tr></thead>
-                      <tbody>
-                        {runs.map((r: any) => (
-                          <tr key={r.id} className="border-b">
-                            <td className="py-2">{r.run_type}</td>
-                            <td>{readable(r.status)}</td>
-                            <td className="text-xs text-slate-400">{formatDate(r.started_at)}</td>
-                            <td className="text-xs text-slate-400">{formatDate(r.finished_at)}</td>
-                            <td>{readable(r.triggered_by)}</td>
-                          </tr>
-                        ))}
-                        {runs.length === 0 && <tr><td colSpan={5} className="py-4 text-slate-400 text-center">لا توجد سجلات بعد.</td></tr>}
-                      </tbody>
-                    </table>
-                  </div>
-                </section>
-              </div>
-            )}
+            {tab === 'runs' && <UnifiedRunHistory secret={secret} legacyRuns={runs} />}
 
             {tab === 'evidence' && (
               <div className="min-w-0 space-y-6">
