@@ -55,47 +55,47 @@ export function WhatsAppFloat({contact,locale}:{contact:WhatsAppContact;locale:W
  if(pathname==='/admin'||pathname.startsWith('/admin/')||!options.length)return null;
  return <div ref={wrapper} className="fixed bottom-5 left-4 z-[65] sm:bottom-7 sm:left-7" dir={locale==='ar'?'rtl':'ltr'}>
   {open&&<section id={id} aria-label={t.heading}
-    className="absolute bottom-[calc(100%+14px)] left-0 w-[min(90vw,365px)] overflow-hidden rounded-[26px] border border-[#e6dcc6] bg-[#fcfbf7] shadow-[0_18px_65px_rgba(11,45,38,0.25)]">
-    <header className="relative overflow-hidden bg-[#143b36] px-5 pb-5 pt-5 text-white">
+    className="absolute bottom-[calc(100%+12px)] left-0 flex h-[315px] max-h-[calc(100dvh-112px)] w-[280px] max-w-[calc(100vw-32px)] flex-col overflow-hidden rounded-[20px] border border-[#e6dcc6] bg-[#fcfbf7] shadow-[0_18px_65px_rgba(11,45,38,0.25)]">
+    <header className="relative shrink-0 overflow-hidden bg-[#143b36] px-3.5 pb-3 pt-3 text-white">
      <span className="absolute -right-10 -top-16 h-36 w-36 rounded-full border border-[#d8bf86]/25" aria-hidden="true"/>
      <span className="absolute -right-2 -top-14 h-28 w-28 rounded-full border border-[#d8bf86]/20" aria-hidden="true"/>
-     <p className="text-[10px] font-bold tracking-[0.16em] text-[#d9c28c]">{t.eyebrow}</p>
-     <div className="relative mt-2 flex items-start justify-between gap-3">
+     <p className="text-[8px] font-bold tracking-[0.15em] text-[#d9c28c]">{t.eyebrow}</p>
+     <div className="relative mt-1.5 flex items-start justify-between gap-2">
       <div className="min-w-0">
-       <h2 className="text-lg font-bold leading-snug text-[#fffdf6]">{t.heading}</h2>
-       <p className="mt-1 text-xs leading-relaxed text-[#d4e1d7]">{t.caption}</p>
+       <h2 className="text-[14px] font-bold leading-[19px] text-[#fffdf6]">{t.heading}</h2>
+       <p className="mt-0.5 text-[10px] leading-[14px] text-[#d4e1d7]">{t.caption}</p>
       </div>
       <button type="button" onClick={()=>setOpen(false)} aria-label={t.close}
-       className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-white/25 text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e4c786]">
+       className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-white/25 text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e4c786]">
        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
         <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round"/>
        </svg>
       </button>
      </div>
     </header>
-    <div className="space-y-2 p-3">
+    <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto overscroll-contain p-2 [scrollbar-width:thin]" tabIndex={0} aria-label={t.caption}>
      {options.map(option=><a key={option.key} lang={option.key}
        href={option.href||undefined} target="_blank" rel="noopener noreferrer"
        aria-label={t.openChat+' '+option.name+' — '+spoken[locale][option.key]}
        onClick={()=>setOpen(false)}
-       className={`group flex min-h-[82px] items-center gap-3 rounded-[17px] border px-3 py-3 transition hover:-translate-y-0.5 hover:border-[#bdd7c6] hover:bg-[#f0f7f1] hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#187950] ${option.key===locale?'border-[#d8d8c3] bg-[#f6f8f0]':'border-[#ece9e0] bg-white'}`}>
-       <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-[#d9cfb4] bg-[#ebf0e6] text-sm font-bold text-[#1c5143]" aria-hidden="true">
+       className={`group flex min-h-[62px] min-w-0 items-center gap-2 rounded-xl border px-2 py-2 transition hover:border-[#bdd7c6] hover:bg-[#f0f7f1] hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#187950] ${option.key===locale?'border-[#d8d8c3] bg-[#f6f8f0]':'border-[#ece9e0] bg-white'}`}>
+       <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-[#d9cfb4] bg-[#ebf0e6] text-[11px] font-bold text-[#1c5143]" aria-hidden="true">
          {option.name===option.fallback?option.mark:option.name.slice(0,2)}
        </div>
        <div className="min-w-0 flex-1">
-         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="min-w-0 break-words text-[14px] font-bold leading-5 text-[#153f35]">{option.name}</span>
-          <span className="rounded-full border border-[#d8d4c4] bg-[#fcfaf2] px-1.5 py-0.5 text-[9px] font-bold text-[#6a5b3c]">{option.tag}</span>
+         <div className="flex min-w-0 items-center gap-1">
+          <span className="min-w-0 truncate text-[12px] font-bold leading-[16px] text-[#153f35]">{option.name}</span>
+          <span className="shrink-0 rounded-full border border-[#d8d4c4] bg-[#fcfaf2] px-1 py-0.5 text-[8px] leading-none font-bold text-[#6a5b3c]">{option.tag}</span>
          </div>
-         <p className="mt-0.5 break-words text-xs text-[#597267]">{option.title}</p>
-         <p className="mt-1 text-[11px] font-medium text-[#16704f]">{spoken[locale][option.key]}</p>
+         <p className="mt-0.5 truncate text-[10px] leading-[14px] text-[#597267]">{option.title}</p>
+         <p className="mt-0.5 truncate text-[10px] leading-[14px] font-medium text-[#16704f]">{spoken[locale][option.key]}</p>
        </div>
-       <svg className="h-5 w-5 shrink-0 text-[#9d8b60] transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" fill="none" aria-hidden="true">
+       <svg className="h-4 w-4 shrink-0 text-[#9d8b60] transition group-hover:-translate-y-0.5" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" fill="none" aria-hidden="true">
         <path d="M5 19 19 5M8 5h11v11" strokeLinecap="round" strokeLinejoin="round"/>
        </svg>
       </a>)}
     </div>
-    <p className="border-t border-[#e8e4d7] bg-[#f7f5ee] px-4 py-3 text-center text-[11px] text-[#64766b]">{t.foot}</p>
+    <p className="shrink-0 border-t border-[#e8e4d7] bg-[#f7f5ee] px-2.5 py-2 text-center text-[9px] leading-[13px] text-[#64766b]">{t.foot}</p>
    </section>}
   <button type="button" aria-controls={id} aria-expanded={open} aria-label={open?t.close:t.button}
     onClick={()=>setOpen(value=>!value)}
