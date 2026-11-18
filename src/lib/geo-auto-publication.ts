@@ -128,7 +128,7 @@ export async function getAutoPublicationStatus():Promise<{
  try{
   const [policy,events]=await Promise.all([
    restCall('geo_publication_settings?select=enabled,daily_limit,allow_high_risk&id=eq.1&limit=1'),
-   restCall('geo_publication_events?select=id,item_id,target_path,language,status,published_at,rolled_back_at&order=published_at.desc&limit=30')
+   restCall('geo_publication_events?select=id,item_id,target_path,language,risk_level,status,published_at,rolled_back_at&order=published_at.desc&limit=30')
   ]);
   const row=(policy as Policy[])[0];
   if(!row||!Array.isArray(events))throw Error('auto_publish_schema_missing');
