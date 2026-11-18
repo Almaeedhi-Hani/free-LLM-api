@@ -3,6 +3,7 @@
  */
 import type {GscPageRecord} from './content-impact-metrics';
 import {canonicalImpactOrigin} from './impact-attribution';
+import type {ConfirmedLeadEvent} from './impact-attribution';
 export type ImpactDays=7|28|90;
 export type PublicationRevision={
  id:string;item_id:string;target_path:string;published_at:string;
@@ -96,4 +97,33 @@ export function rankObservedRevisions(revisions:readonly ImpactDelta[]):ImpactDe
   if(bv===null)return -1;
   return bv-av||b.publishedAt.localeCompare(a.publishedAt);
  });
+}
+
+// A separately measured lead signal. Even with full coverage, browser-submitted
+// source paths can be misattributed; this is ASSISTED attribution only.
+export type LeadImpactComparison={
+ status:'measured'|'unavailable';before:number|null;after:number|null;change:number|null;
+ message:string;source:'browser_reported_requests';
+};
+export function compareRevisionLeads(
+ event:PublicationRevision,leads:readonly ConfirmedLeadEvent[],days:ImpactDays,
+ trackingStartedAt:string|null,asOf=new Date()
+):LeadImpactComparison{
+ const unavailable=(message:string):LeadImpactComparison=>({status:'unavailable',before:null,
+  after:null,change:null,source:'browser_reported_requests',message});
+ const published=Date.parse(event.published_at);
+ const tracked=trackingStartedAt?Date.parse(trackingStartedAt):NaN;
+ const path=canonicalImpactOrigin(event.target_path);
+ if(!path||!Number.isFinite(published)||!Number.isFinite(tracked))
+  return unavailable('لم يثبت تاريخ بداية تسجيل التحويلات؛ لا يمكن مقارنة القيم القديمة.');
+ const d=new Date(published),firstDay=Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate());
+ const preStart=firstDay-days*DAY,postEnd=firstDay+(days+1)*DAY;
+ if(tracked>preStart)return unavailable('بدأ قياس الطلبات بعد بداية نافذة ما قبل النشر؛ لا يُفترض أن عددها صفر.');
+ if(asOf.getTime()<postEnd)return unavailable('لم تنته فترة قياس الطلبات بعد النشر بعد.');
+ const valid=leads.filter(x=>x.source_path===path&&x.attribution==='client_reported'&&
+  Number.isFinite(Date.parse(x.occurred_at)));
+ const before=valid.filter(x=>{const t=Date.parse(x.occurred_at);return t>=preStart&&t<firstDay}).length;
+ const after=valid.filter(x=>{const t=Date.parse(x.occurred_at);return t>=firstDay+DAY&&t<postEnd}).length;
+ return {status:'measured',before,after,change:after-before,source:'browser_reported_requests',
+  message:'طلبات استفسار محفوظة وربطها العميل بمسار الصفحة عبر المتصفح، دون إثبات السببية أو الأهلية التجارية.'};
 }
