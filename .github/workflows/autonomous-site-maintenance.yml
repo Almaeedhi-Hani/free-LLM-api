@@ -85,7 +85,29 @@ jobs:
             --title 'Autonomous low-risk SEO: one live service connection' \
             --body 'One reciprocal internal link between existing service pages. The strict guard, market/editorial/impact/package test suites and production build passed before this PR was created. No legal facts, publication policy, pricing, database, security settings, scripts or application source files changed. GitHub Actions-created PRs do not necessarily trigger separate CI; all tests ran in the creating workflow. If merge policy blocks the PR, it must remain unmerged.')"
           echo "Auto-maintenance PR: $pr_url"
-          gh pr merge "$pr_url" --squash --delete-branch
+          # GitHub may briefly reject a freshly created PR while its base mergeability settles.
+          # Never retry across a real main-branch change: pre-merge tests covered this exact base.
+          expected_base="$(git rev-parse HEAD^)"
+          merged=false
+          for attempt in 1 2 3; do
+            current_base="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
+            if [ "$current_base" != "$expected_base" ]; then
+              echo "::error::main changed after validation ($expected_base -> $current_base); refusing stale merge"
+              exit 1
+            fi
+            if gh pr merge "$pr_url" --squash --delete-branch; then
+              merged=true
+              break
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "::warning::PR merge temporarily unavailable; rechecking unchanged main before retry"
+              sleep "$((attempt * 4))"
+            fi
+          done
+          if [ "$merged" != "true" ]; then
+            echo "::error::PR merge remained unavailable; leaving PR open for inspection"
+            exit 1
+          fi
           deployed_sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
           echo "Merged into main: $deployed_sha"
           gh workflow run production-readonly-acceptance.yml --ref main -f expected_sha="$deployed_sha"
