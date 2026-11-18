@@ -12,13 +12,14 @@ const base='http://127.0.0.1:3100';
   ]){
    const page=await browser.newPage({viewport:{width:size.width,height:size.height}});
    try{
-    await page.goto(base+'/en',{waitUntil:'domcontentloaded',timeout:45000});
-    const trigger=page.getByRole('button',{name:'WhatsApp consultation'});
+    const response=await page.goto(base+'/packages',{waitUntil:'domcontentloaded',timeout:45000});
+    assert(response&&response.status()===200,'Arabic public package route should render');
+    const trigger=page.getByRole('button',{name:'تواصل عبر واتساب'});
     await trigger.waitFor({timeout:25000});
     // Wait for React hydration before interacting with the public floating control.
     await page.waitForTimeout(600);
     await trigger.click();
-    const panel=page.locator('section[aria-label="Speak to our advisors"]');
+    const panel=page.locator('section[aria-label="تحدث مع مستشارينا"]');
     await panel.waitFor({timeout:10000});
     const box=await panel.evaluate(element=>{
      const bounds=element.getBoundingClientRect();
