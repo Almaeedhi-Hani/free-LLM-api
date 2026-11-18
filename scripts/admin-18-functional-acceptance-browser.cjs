@@ -100,6 +100,14 @@ const groups={
   checkpoint('Search integration setting persisted without inventing GSC connection');
 
   await navigate('محتوى الموقع');
+  const goldenSection=page.getByRole('heading',{name:'الفقرة الذهبية'}).locator('xpath=..');
+  const goldenText='محتوى اختباري مؤقت لفحص حفظ فقرة الموقع واستعادتها بعد تحديث واجهة الإدارة.';
+  await goldenSection.locator('textarea').fill(goldenText);
+  await goldenSection.getByRole('button',{name:'حفظ',exact:true}).click();
+  await page.getByText('تم حفظ التغييرات بنجاح').waitFor({timeout:15000});
+  content=await request('GET','/api/admin/content');
+  assert.equal(content.goldenParagraph,goldenText);
+  checkpoint('Homepage golden paragraph editor saves and reloads real stored copy');
   await page.getByPlaceholder('السؤال',{exact:true}).fill('سؤال تدقيق الإدارة المعزول');
   await page.getByPlaceholder('الإجابة',{exact:true}).fill('إجابة اختبار محفوظة داخل بيئة معزولة.');
   await page.getByRole('button',{name:'إضافة سؤال'}).click();
