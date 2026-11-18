@@ -28,10 +28,10 @@ async function urls() {
     seen.add(address.href);
     const language=address.pathname.startsWith('/en/')||address.pathname==='/en'?'en':
       address.pathname.startsWith('/zh/')||address.pathname==='/zh'?'zh':'ar';
-    return {language,url:address.href};
+    return {language,url:address.href,expectedLanguages:Object.keys(entry.alternates?.languages||{})};
   });
 }
-async function inspect(item: {url:string;language:string}) {
+async function inspect(item: {url:string;language:string;expectedLanguages:string[]}) {
   const checked_at = new Date().toISOString();
   try {
     // Fixed allowlist: no user-provided URL is fetched.
@@ -52,7 +52,7 @@ async function inspect(item: {url:string;language:string}) {
     if(response.status !== 200) errors.push(`HTTP ${response.status}`);
     if(!canonical) errors.push('Canonical غير موجود');
     else if(canonical !== item.url) errors.push('Canonical لا يطابق الرابط');
-    for(const lang of ['ar','en','zh-Hans']) if(!hreflang.some(h=>h.lang===lang)) errors.push(`Hreflang ${lang} مفقود`);
+    for(const lang of item.expectedLanguages) if(!hreflang.some(h=>h.lang===lang)) errors.push(`Hreflang ${lang} مفقود`);
     if(robots && /noindex/i.test(robots)) errors.push('noindex');
     return {...item,checked_at,http_status:response.status,canonical,hreflang,robots,errors,status:errors.length?'issue':'ok'};
   } catch(e) {
