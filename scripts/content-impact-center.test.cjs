@@ -34,14 +34,14 @@ assert.equal(published.status,'approved','inventory is read-only');
 
 const policy={mode:'guarded_automatic',enabled:true,maxDailyPages:3};
 const goodContext={hasVersionedRollback:true,hasIdempotencyKey:true,officialSourcesIndependentlyChecked:true};
-assert.equal(autoPublicationEligibility(inventory[1],policy,goodContext).eligible,false,'pending page lacks reviewed verified sources');
+assert.equal(autoPublicationEligibility(inventory[1],policy,goodContext).eligible,true,'sources are optional; valid page can publish');
 const eligible={...inventory[1],sourceIds:['reference'],verifiedSources:['https://misa.gov.sa/']};
 assert.equal(autoPublicationEligibility(eligible,policy,goodContext).eligible,true,'a future guarded low-risk candidate can qualify only when all proofs exist');
 assert.equal(autoPublicationEligibility(eligible,{...policy,enabled:false},goodContext).eligible,false,'default disabled');
 assert.equal(autoPublicationEligibility({...eligible,risk:'high'},policy,goodContext).eligible,false,'high-risk requires separate opt-in');
 assert.equal(autoPublicationEligibility({...eligible,risk:'high'},
- {...policy,allowHighRisk:true},{...goodContext,highRiskClaimsVerified:false}).eligible,false,
- 'high-risk requires real claim verification');
+ {...policy,allowHighRisk:true},{...goodContext,highRiskClaimsVerified:false}).eligible,true,
+ 'no mandatory government-claim verification after owner opt-in');
 assert.equal(autoPublicationEligibility({...eligible,risk:'high'},
  {...policy,allowHighRisk:true},{...goodContext,highRiskClaimsVerified:true}).eligible,true,
  'independently verified sensitive content may publish under explicit permission');
