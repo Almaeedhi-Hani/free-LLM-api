@@ -16,8 +16,9 @@ assert(admin.includes('NAV_HUBS.map(hub=>'),'Grouped sidebar must actually rende
 assert(admin.includes('aria-expanded={expanded}'),'Accessible menu state');
 assert(admin.includes("setSidebarOpen(false)"),'Mobile child menu must close after selecting destination');
 assert(admin.includes('<UnifiedRunHistory secret={secret} legacyRuns={runs} />'));
-assert(admin.includes('content.keywords')&&!admin.includes('كلمات محتوى الموقع'),
- 'Legacy keyword data is not deleted but its duplicated editor is removed');
+const store=fs.readFileSync('src/lib/content-store.ts','utf8');
+assert(store.includes('keywords:')&&!admin.includes('كلمات محتوى الموقع'),
+ 'Legacy keyword data still exists in persistent content schema; duplicate UI editor is removed');
 const impact=fs.readFileSync('src/components/ContentImpactCenter.tsx','utf8');
 assert(impact.includes('<GeoImpactExperiments adminSecret={adminSecret} days={days}/>'),
  'Live conversion and AI impact center remains accessible');
