@@ -42,8 +42,9 @@ export default async function InsightDetail({params}:{params:{slug:string}}){
    </nav>}
    <p className="service-decision-disclaimer">{lang==="ar"?"هذه معلومات إرشادية. تحقّق من متطلبات الجهات الرسمية الحالية قبل اتخاذ القرار.":lang==="zh"?"仅供参考；请核对主管部门当前要求。":"Planning guidance only; verify current authority requirements before acting."}</p>
   </section><aside className="source-panel service-reference-panel">
-   <h2>{lang==="ar"?"المراجع التي راجعها المحرر":lang==="zh"?"经编辑审阅的资料":"Editor-reviewed references"}</h2>
+   <h2>{page.approval_method==="automated"?(lang==="ar"?"مصادر رسمية تم فحصها آليًا":lang==="zh"?"经自动核对的官方资料":"Automatically checked official sources"):(lang==="ar"?"المراجع التي راجعها المحرر":lang==="zh"?"经编辑审阅的资料":"Editor-reviewed references")}</h2>
    {(page.verified_sources||[]).map((source,i)=><a key={source} href={source} target="_blank" rel="noopener noreferrer">{lang==="ar"?"المصدر":lang==="zh"?"来源":"Source"} {i+1} <ArrowUpRight /></a>)}
+   {page.approval_method==="automated"&&<p className="text-sm">{lang==="ar"?"نُشر هذا الدليل آليًا بعد فحص روابط أو مقتطفات رسمية. لا تغني المطابقة النصية عن التحقق من أحدث الاشتراطات لدى الجهات المختصة.":lang==="zh"?"本指南经自动化官方来源检查后发布。请向主管机关核实最新要求。":"Published automatically after checking official sources or excerpts. Verify current requirements directly with the responsible authorities."}</p>}
    <a className="action-primary" href={content.contact.whatsapp} target="_blank" rel="noopener noreferrer">{lang==="ar"?"استفسر عن خدمتك":lang==="zh"?"咨询服务":"Ask about our services"} <ArrowUpRight /></a>
   </aside></div>
   <a href={localizedPath(lang,"/packages")}>{lang==="ar"?"قارن الباقات والأتعاب":lang==="zh"?"比较套餐费用":"Compare service packages"} <ArrowUpRight /></a>
