@@ -9,6 +9,8 @@ on:
       - 'src/components/VisibilityDashboard.tsx'
       - 'src/components/ContentImpactCenter.tsx'
       - 'src/components/PackageRequestsAdmin.tsx'
+      - 'src/components/WhatsAppFloat.tsx'
+      - 'scripts/whatsapp-responsive-browser-e2e.cjs'
       - 'scripts/admin-seven-hubs-browser-e2e.cjs'
       - '.github/workflows/admin-seven-hubs-browser.yml'
   workflow_dispatch:
@@ -52,6 +54,8 @@ jobs:
           exit 1
       - name: Verify all seven hub groups, 18 child pages, mobile and logout
         run: node scripts/admin-seven-hubs-browser-e2e.cjs
+      - name: Verify 280x315 responsive WhatsApp panel in headless Chromium
+        run: node scripts/whatsapp-responsive-browser-e2e.cjs
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

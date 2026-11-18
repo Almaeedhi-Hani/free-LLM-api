@@ -40,6 +40,15 @@ for(const value of ['usePathname','pathname.startsWith(\'/admin/\')','aria-expan
  'contact.whatsappAdvisors?.[lang.key]','profile?.name?.trim()','profile?.title?.trim()',
  'spoken[locale][option.key]','option.title','aria-label={t.openChat'])
  assert(float.includes(value),'missing floating UI behavior: '+value);
+// Approved pixel dimensions with intrinsic responsive viewport limits.
+for(const className of [
+ 'h-[315px]','w-[280px]','max-w-[calc(100vw-32px)]',
+ 'max-h-[calc(100dvh-112px)]','min-h-0 flex-1','overflow-y-auto',
+ 'overscroll-contain','tabIndex={0}','shrink-0','min-h-[62px]',
+ 'h-9 w-9','truncate text-[12px]','truncate text-[10px]'
+])assert(float.includes(className),'Missing compact 280x315 responsive feature: '+className);
+assert(!float.includes('w-[min(90vw,365px)]'),'Old fixed-width list must be removed');
+assert(!float.includes('min-h-[82px]'),'Old large advisor card spacing must be removed');
 const admin=fs.readFileSync('src/app/admin/dashboard/page.tsx','utf8');
 for(const value of ['whatsappAr','whatsappEn','whatsappZh','whatsappNumbers:',
  "numberKey:'whatsappAr'","numberKey:'whatsappEn'","numberKey:'whatsappZh'",
