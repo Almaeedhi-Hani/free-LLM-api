@@ -108,8 +108,11 @@ const groups={
   assert(content.faqs.some(f=>f.q==='سؤال تدقيق الإدارة المعزول'));
   const faqRow=page.locator('li').filter({hasText:'سؤال تدقيق الإدارة المعزول'}).first();
   await faqRow.getByRole('button',{name:'تعديل'}).click();
-  await faqRow.locator('textarea').fill('إجابة اختبار بعد التعديل.');
-  await faqRow.getByRole('button',{name:'حفظ'}).click();
+  // Once editing, the question moves from a text node into an input value.
+  // A text-filtered Playwright locator would stop matching that same <li>.
+  const faqEditor=page.locator('li').filter({has:page.locator('textarea')}).first();
+  await faqEditor.locator('textarea').fill('إجابة اختبار بعد التعديل.');
+  await faqEditor.getByRole('button',{name:'حفظ'}).click();
   await page.getByText('إجابة اختبار بعد التعديل.',{exact:true}).waitFor();
   content=await request('GET','/api/admin/content');
   assert.equal(content.faqs.find(f=>f.q==='سؤال تدقيق الإدارة المعزول').a,'إجابة اختبار بعد التعديل.');
