@@ -2,7 +2,7 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const {
- officialCandidateUrls,checkOfficialUrlReachable,runGuardedAutoPublishing
+ officialCandidateUrls,checkOfficialUrlReachable,verifyHighRiskOfficialClaims,runGuardedAutoPublishing
 }=require('../.impact-test-build/geo-auto-publication.js');
 const {autoPublicationEligibility}=require('../.impact-test-build/content-impact.js');
 
@@ -53,6 +53,52 @@ const {autoPublicationEligibility}=require('../.impact-test-build/content-impact
  assert.equal(autoPublicationEligibility({...candidate,verifiedSources:[]},policy,context).eligible,false);
  assert.equal(autoPublicationEligibility(candidate,{...policy,enabled:false},context).eligible,false);
  assert.equal(autoPublicationEligibility(candidate,policy,{...context,hasVersionedRollback:false}).eligible,false);
+ const highBody=[
+  'An investor should use official government pages to verify applicable business registrations before relying on information published by third parties.',
+  'An investor should confirm operational filing requirements from the responsible authority directly rather than treating summary guides as legal advice.'
+ ].join(' ');
+ const highClaims=[
+  {url:'https://misa.gov.sa/en/',claim:'An investor should use official government pages to verify applicable business registrations',quote:'Always review the latest official investment guidance before submitting a business request.'},
+  {url:'https://mc.gov.sa/en/',claim:'An investor should confirm operational filing requirements from the responsible authority directly',quote:'The responsible authority publishes current company filing instructions on its government website.'}
+ ];
+ const highCandidate={...base,risk_level:'high',body:highBody,
+  evidence_refs:[
+   {id:'official1',source:'research',kind:'official_candidate',url:highClaims[0].url},
+   {id:'official2',source:'research',kind:'official_candidate',url:highClaims[1].url}
+  ],claim_evidence:highClaims};
+ let remoteCalls=0;
+ const officialFetch=async(url,options)=>{
+  remoteCalls++;
+  assert.equal(options.redirect,'manual');
+  const quote=highClaims.find(x=>x.url===url)?.quote;
+  assert(quote);
+  return {ok:true,headers:{get:(name)=>name==='content-type'?'text/html':'2048'},
+   text:async()=>'<html><main><p>'+quote+'</p></main></html>'};
+ };
+ const verified=await verifyHighRiskOfficialClaims(highCandidate,officialFetch);
+ assert(verified&&verified.proofs.length===2&&verified.urls.length===2);
+ assert.equal(verified.proofs[0].verified_by,'live_official_exact_quote');
+ assert.equal(remoteCalls,2);
+ assert.equal(await verifyHighRiskOfficialClaims({...highCandidate,claim_evidence:[
+   highClaims[0],{...highClaims[1],quote:'This quote is fabricated and not present on any official page.'}
+ ]},officialFetch),null,'fabricated government quotes must fail');
+ assert.equal(await verifyHighRiskOfficialClaims({...highCandidate,claim_evidence:[
+   highClaims[0],{...highClaims[1],url:'https://misa.gov.sa/en/'}
+ ]},officialFetch),null,'one government authority is insufficient');
+ assert.equal(await verifyHighRiskOfficialClaims({...highCandidate,claim_evidence:[
+   highClaims[0],{...highClaims[1],url:'https://mc.gov.sa.evil.com/'}
+ ]},officialFetch),null,'lookalike host cannot be fetched');
+ assert.equal(await verifyHighRiskOfficialClaims({...highCandidate,claim_evidence:[
+   {...highClaims[0],claim:'This claim is not written in the published article'},highClaims[1]
+ ]},officialFetch),null,'the verified claim must be present in article body');
+ assert.equal(await verifyHighRiskOfficialClaims({...highCandidate,claim_evidence:[]},officialFetch),null,
+  'legacy high-risk content without quotes remains blocked');
+ const highPolicy={...policy,allowHighRisk:true};
+ assert.equal(autoPublicationEligibility({...candidate,risk:'high'},highPolicy,
+  {...context,highRiskClaimsVerified:true}).eligible,true,
+  'high-risk content is eligible after explicit opt-in and real claim verification');
+ assert.equal(autoPublicationEligibility({...candidate,risk:'high'},highPolicy,context).eligible,false,
+  'high-risk content without verification still blocked');
  const sql=fs.readFileSync('supabase/migrations/20261118_geo_guarded_automatic_publication.sql','utf8');
  for(const required of [
   "enabled boolean not null default false",
@@ -60,7 +106,12 @@ const {autoPublicationEligibility}=require('../.impact-test-build/content-impact
   "from public.geo_publication_settings where id=1 for update",
   "from public.content_store where id=1 for update",
   "v_item->>'status'<>'pending'",
-  "v_item->>'risk_level'<>'low'",
+  "v_risk not in ('low','medium','high')",
+  "allow_high_risk boolean not null default false",
+  "sensitive_evidence_missing",
+  "independent_official_sources_required",
+  "sensitive_quota_reached",
+  "missing_fresh_claim_verification",
   "v_item->>'kind' not in ('guide','comparison')",
   "geo_publication_events",
   "content_fingerprint",
@@ -88,5 +139,7 @@ const {autoPublicationEligibility}=require('../.impact-test-build/content-impact
  const admin=fs.readFileSync('src/app/api/admin/geo-publication/route.ts','utf8');
  assert(admin.includes("body.confirm!=='ENABLE_GUARDED_AUTOMATIC_PUBLICATION'"));
  assert(admin.includes("body.confirm!=='ROLLBACK_GEO_PUBLICATION'"));
- console.log('PASS guarded GEO autopublishing: strict low-risk eligibility, external-source URL isolation, official reachability, idempotent atomic SQL, daily cap, rollback and admin controls');
+ assert(admin.includes("ENABLE_AUTONOMOUS_SENSITIVE_CONTENT"));
+ assert(admin.includes("UNDERSTAND_SOURCE_VERIFICATION_LIMITS"));
+ console.log('PASS guarded GEO autopublishing: separately authorized sensitive eligibility with exact official quote verification, external-source URL isolation, official reachability, idempotent atomic SQL, daily cap, rollback and admin controls');
 })().catch(error=>{console.error(error);process.exitCode=1});
