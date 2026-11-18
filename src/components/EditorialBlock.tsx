@@ -6,7 +6,7 @@ import {localizedPath} from "@/lib/site-language";
 export function EditorialBlock({items,lang,kind,target,inside=false}:{items:EditorialItem[]|undefined;lang:EditorialLocale;kind:EditorialKind;target:string;inside?:boolean}){
  const active=approvedEditorial(items,lang,kind,target);
  if(active.length===0)return null;
- return <section className={inside?"service-context-band":"editorial-note section-wrap"} aria-label={lang==='ar'?'محتوى تحريري موثّق':lang==='zh'?'已审核的编辑资料':'Reviewed editorial guidance'}>
+ return <section className={inside?"service-context-band":"editorial-note section-wrap"} aria-label={lang==='ar'?'محتوى تحريري وإرشادي':lang==='zh'?'编辑与参考资料':'Editorial guidance'}>
   {active.map(e=><article key={e.id}>
    <p className="eyebrow">{lang==='ar'?'دليل عملي':lang==='zh'?'实用指南':'PRACTICAL GUIDANCE'}</p>
    <h2>{e.title}</h2><p>{e.summary}</p>
@@ -19,8 +19,10 @@ export function EditorialBlock({items,lang,kind,target,inside=false}:{items:Edit
      return true;
    }).slice(0,4).map(link=><p key={link.node_id}><a href={localizedPath(lang,siteTopicPath(link.node_id)!)}>{link.anchor}</a></p>)}
    {(!e.internal_links||e.internal_links.length===0)&&e.topic_node_id&&topicRelatedLiveNodes(e.topic_node_id).filter(node=>node.route!==target&&node.route!=='/services/'+target&&(node.route!=='/insights'||approvedEditorial(items,lang).some(a=>a.kind==='guide'||a.kind==='comparison'))).slice(0,3).map(node=><p key={node.id}><a href={localizedPath(lang,node.route!)}>{node.primary_keyword[lang]}</a></p>)}
-   <p><small>{lang==='ar'?'مراجع تمت مراجعتها قبل النشر؛ تحقّق من المتطلبات الحالية لدى الجهة المختصة.':lang==='zh'?'发布前已审核相关参考资料；请再次核对主管部门的现行要求。':'References reviewed before publishing; verify current rules with the competent authority.'}</small></p>
-   {(e.verified_sources||[]).map((url,i)=><p key={url}><a href={url} target="_blank" rel="noopener noreferrer">{lang==='ar'?'المصدر المراجع':lang==='zh'?'已审核来源':'Reviewed source'} {i+1}</a></p>)}
+   <p><small>{e.approval_method==='automated'?
+    (lang==='ar'?'نُشر هذا المحتوى آليًا، وقد لا تكون مصادره متحققة استقلاليًا. تحقّق من الجهات الرسمية قبل اتخاذ أي قرار استثماري.':lang==='zh'?'本文由自动系统发布，参考资料可能未经独立核实；决策前请咨询主管机关。':'Automatically published; references may not be independently verified. Check with official authorities before investment decisions.'):
+    (lang==='ar'?'مراجع تمت مراجعتها قبل النشر؛ تحقّق من المتطلبات الحالية لدى الجهة المختصة.':lang==='zh'?'发布前已审核相关参考资料；请再次核对主管部门的现行要求。':'References reviewed before publishing; verify current rules with the competent authority.')}</small></p>
+   {(e.approval_method==='automated'?(e.cited_sources||[]):(e.verified_sources||[])).map((url,i)=><p key={url}><a href={url} target="_blank" rel="noopener noreferrer nofollow">{e.approval_method==='automated'?(lang==='ar'?'مرجع مرتبط غير متحقق':lang==='zh'?'未经核验的参考资料':'Unverified related reference'):(lang==='ar'?'المصدر المراجع':lang==='zh'?'已审核来源':'Reviewed source')} {i+1}</a></p>)}
   </article>)}
  </section>;
 }
