@@ -1,8 +1,9 @@
 import {NextRequest,NextResponse} from 'next/server';
 import {timingSafeEqual} from 'crypto';
-import {compareRevisionImpact,rankObservedRevisions} from '@/lib/geo-impact-experiments';
+import {compareRevisionImpact,compareRevisionLeads,rankObservedRevisions} from '@/lib/geo-impact-experiments';
 import type {PublicationRevision,ImpactDays} from '@/lib/geo-impact-experiments';
 import type {GscPageRecord} from '@/lib/content-impact-metrics';
+import type {ConfirmedLeadEvent} from '@/lib/impact-attribution';
 
 export const dynamic='force-dynamic';
 function authorized(req:NextRequest):boolean{
@@ -28,10 +29,11 @@ export async function GET(req:NextRequest){
   return data;
  }
  try{
-  const published=await read('geo_publication_events?select=id,item_id,target_path,language,status,published_at&order=published_at.desc&limit=200') as PublicationRevision[];
+  const published=await read('geo_publication_events?select=id,item_id,target_path,language,status,published_at&order=published_at.desc&limit=5000') as PublicationRevision[];
   if(!published.length)return NextResponse.json({status:'no_publications',days,revisions:[],source:'geo_publication_events',
    message:'لا توجد إصدارات منشورة مسجلة يمكن مقارنتها.'},{headers:{'Cache-Control':'no-store'}});
   const valid=published.filter(e=>Number.isFinite(Date.parse(e.published_at)));
+  if(!valid.length)return NextResponse.json({status:'invalid_publication_dates',days,revisions:[],message:'تواريخ النشر غير صالحة للمقارنة.'});
   const oldest=Math.min(...valid.map(e=>Date.parse(e.published_at)))-days*86400000;
   const startDate=new Date(oldest).toISOString().slice(0,10);
   const end=new Date();end.setUTCDate(end.getUTCDate()-3);
@@ -47,12 +49,28 @@ export async function GET(req:NextRequest){
   catch{return NextResponse.json({status:'gsc_unavailable',days,revisions:[],source:'geo_publication_events',
    publishedCount:published.length,message:'تعذر جلب قياسات GSC الكاملة؛ لا يمكن ترتيب الفرص ببيانات ناقصة.'},
    {status:503,headers:{'Cache-Control':'no-store'}});}
+  const [epochs,leadEvents]=await Promise.allSettled([
+   read('impact_measurement_epochs?select=lead_tracking_started_at&id=eq.1&limit=1'),
+   read('impact_lead_events?'+new URLSearchParams({
+    select:'source_path,attribution,occurred_at,locale',
+    occurred_at:'gte.'+new Date(oldest).toISOString(),limit:'5000'
+   }))
+  ]);
+  const trackingStarted=epochs.status==='fulfilled'?
+   ((epochs.value[0] as {lead_tracking_started_at?:string}|undefined)?.lead_tracking_started_at||null):null;
+  const leadRows=leadEvents.status==='fulfilled'?leadEvents.value as ConfirmedLeadEvent[]:null;
   const ranked=rankObservedRevisions(published.map(event=>
    compareRevisionImpact(event,metrics,days,property)));
+  const revisions=ranked.map(item=>({
+   ...item,
+   leads:leadRows?compareRevisionLeads(published.find(e=>e.id===item.eventId)!,leadRows,days,trackingStarted):
+    {status:'unavailable',before:null,after:null,change:null,
+     message:'لم يمكن قراءة بيانات الطلبات الفعلية.'}
+  }));
   return NextResponse.json({status:ranked.some(x=>x.status==='measured')?'partial_or_measured':'insufficient_data',
    days,source:'geo_publication_events_and_gsc',property,publications:published.length,
    measured:ranked.filter(x=>x.status==='measured').length,
-   revisions:ranked,message:'الترتيب يعتمد على التغير المرصود في النقرات للنسخ ذات فترتين مكتملتين فقط؛ لا يثبت السببية ولا يقيس ظهور AI تلقائيًا.'},
+   revisions,message:'الترتيب يعتمد على التغير المرصود في النقرات للنسخ ذات فترتين مكتملتين فقط؛ لا يثبت السببية ولا يقيس ظهور AI تلقائيًا.'},
    {headers:{'Cache-Control':'no-store'}});
  }catch(e){
   console.error('impact experiment read',e instanceof Error?e.message:'unknown');
