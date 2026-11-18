@@ -36,4 +36,10 @@ assert(runs.includes('لا يعني ذلك أن المحرك لم يعمل'),
 const engine=fs.readFileSync('src/components/GeoEngineMonitor.tsx','utf8');
 assert(!engine.includes('التشغيل اليدوي غير متاح من هذه الواجهة'));
 assert(!engine.includes('لا ينشر المحتوى تلقائيًا'));
+const consent=fs.readFileSync('src/components/CookieConsent.tsx','utf8');
+assert(consent.includes("pathname?.startsWith('/admin')"),'No public cookie overlay should obstruct private admin navigation');
+assert(admin.includes('تشغيل المحرك من وكيل GEO'));
+assert(admin.includes('خيارات تشغيل الرادار والتحليل القديم (متقدمة)'));
+assert(admin.includes("label: 'سجلات التحليل القديم'"),
+ 'Historical market log must not be mistaken for current GitHub run count');
 console.log('PASS 7 admin hubs / 18 preserved child screens, single active impact center and real GitHub/publication run log');

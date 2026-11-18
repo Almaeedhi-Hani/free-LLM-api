@@ -1,24 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual,createHash,createDecipheriv } from 'crypto';
 import { summarizeGscPerformance } from '@/lib/gsc-measured-performance';
+import sitemap from '@/app/sitemap';
 
 export const dynamic = 'force-dynamic';
 const BASE = (process.env.SITE_URL || 'https://free-llm-api-1-didl.onrender.com').replace(/\/$/, '');
-const SLUGS = ['misa-license','company-formation','corporate-banking','contract-drafting','premium-residency','investment-funds'];
-const LANGS = ['ar','en','zh'] as const;
-const paths = ['/',...SLUGS.map(s=>`/services/${s}`)];
+
 function auth(req: NextRequest) {
   const secret = process.env.ADMIN_SECRET || '';
   const provided = req.headers.get('x-admin-secret') || '';
   const a = Buffer.from(secret), b = Buffer.from(provided);
   return !!secret && a.length === b.length && timingSafeEqual(a,b);
 }
-function urls() {
-  return paths.flatMap(p => LANGS.map(language => ({
-    language, url: BASE + (language === 'ar' ? p : `/${language}${p === '/' ? '' : p}`)
-  })));
+/** Inspect the same dynamic, published URLs the sitemap advertises.
+ * Never fetch client-supplied targets or unchecked external URLs. */
+async function urls() {
+  const entries=await sitemap();
+  if(entries.length>100)throw Error('too_many_published_urls_for_bounded_audit');
+  const origin=new URL(BASE).origin;
+  const seen=new Set<string>();
+  return entries.map(entry=>{
+    const address=new URL(entry.url);
+    if(address.origin!==origin||address.search||address.hash||
+      !/^\/(?:en\/|zh\/)?(?:packages|services\/[a-z0-9-]+|insights(?:\/[a-z0-9]+(?:-[a-z0-9]+)*)?)?\/?$/.test(address.pathname))
+      throw Error('invalid_sitemap_target_for_audit');
+    if(seen.has(address.href))throw Error('duplicate_sitemap_target');
+    seen.add(address.href);
+    const language=address.pathname.startsWith('/en/')||address.pathname==='/en'?'en':
+      address.pathname.startsWith('/zh/')||address.pathname==='/zh'?'zh':'ar';
+    return {language,url:address.href,expectedLanguages:Object.keys(entry.alternates?.languages||{})};
+  });
 }
-async function inspect(item: {url:string;language:string}) {
+async function inspect(item: {url:string;language:string;expectedLanguages:string[]}) {
   const checked_at = new Date().toISOString();
   try {
     // Fixed allowlist: no user-provided URL is fetched.
@@ -39,7 +52,7 @@ async function inspect(item: {url:string;language:string}) {
     if(response.status !== 200) errors.push(`HTTP ${response.status}`);
     if(!canonical) errors.push('Canonical غير موجود');
     else if(canonical !== item.url) errors.push('Canonical لا يطابق الرابط');
-    for(const lang of ['ar','en','zh-Hans']) if(!hreflang.some(h=>h.lang===lang)) errors.push(`Hreflang ${lang} مفقود`);
+    for(const lang of item.expectedLanguages) if(!hreflang.some(h=>h.lang===lang)) errors.push(`Hreflang ${lang} مفقود`);
     if(robots && /noindex/i.test(robots)) errors.push('noindex');
     return {...item,checked_at,http_status:response.status,canonical,hreflang,robots,errors,status:errors.length?'issue':'ok'};
   } catch(e) {
@@ -50,8 +63,15 @@ export async function GET(req:NextRequest) {
   if(!auth(req)) return NextResponse.json({error:'unauthorized'},{status:401});
   const type = req.nextUrl.searchParams.get('type');
   if(type === 'pages') {
-    const results = await Promise.all(urls().map(inspect));
-    return NextResponse.json({source:'live_http',checked_at:new Date().toISOString(),results});
+    try{
+      const listed=await urls();
+      const results=await Promise.all(listed.map(inspect));
+      return NextResponse.json({source:'live_http_dynamic_sitemap',checked_at:new Date().toISOString(),results,
+        inspected:results.length},{headers:{'Cache-Control':'no-store'}});
+    }catch{
+      return NextResponse.json({source:'live_http_dynamic_sitemap',status:'unavailable',results:[],
+        message:'لا يمكن تأكيد قائمة صفحات الموقع الحالية؛ لم نعرض فحصًا قديمًا على أنه مكتمل.'},{status:503});
+    }
   }
   if(type === 'queries') {
     const clientId=process.env.GSC_CLIENT_ID,clientSecret=process.env.GSC_CLIENT_SECRET;
@@ -111,7 +131,9 @@ export async function GET(req:NextRequest) {
       return NextResponse.json({connected:false,source:'google_search_console',message:'تعذر الاتصال بخدمة Google Search Console.',rows:[]},{status:502});
     }
   }
-  if(type === 'ai') return NextResponse.json({connected:false,source:'ai_visibility',message:'لا يوجد مصدر محفوظ وموثق للاختبارات بعد.',rows:[]});
-  if(type === 'conversions') return NextResponse.json({connected:false,source:'conversion_events',message:'لم يتم تفعيل تسجيل أحداث التحويل بعد.',rows:[]});
+  if(type === 'ai'||type === 'conversions')
+    return NextResponse.json({status:'migrated_to_impact_center',
+      target:type==='ai'?'/api/admin/impact-ai':'/api/admin/content-impact',
+      message:'القياسات الفعلية موجودة في مركز المحتوى والأثر، وليس في واجهة SEO القديمة.'});
   return NextResponse.json({error:'unsupported_type'},{status:400});
 }
