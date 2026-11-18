@@ -100,8 +100,8 @@ const {autoPublicationEligibility}=require('../.impact-test-build/lib/content-im
  assert.equal(autoPublicationEligibility({...candidate,risk:'high'},highPolicy,
   {...context,highRiskClaimsVerified:true}).eligible,true,
   'high-risk content is eligible after explicit opt-in and real claim verification');
- assert.equal(autoPublicationEligibility({...candidate,risk:'high'},highPolicy,context).eligible,false,
-  'high-risk content without verification still blocked');
+ assert.equal(autoPublicationEligibility({...candidate,risk:'high'},highPolicy,context).eligible,true,
+  'owner-approved high-risk content does not require mandatory government quote verification');
  const sql=fs.readFileSync('supabase/migrations/20261118_geo_guarded_automatic_publication.sql','utf8');
  for(const required of [
   "enabled boolean not null default false",
