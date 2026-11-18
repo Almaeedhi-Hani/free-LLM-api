@@ -47,6 +47,7 @@ for(const snippet of ['<ContentImpactCenter','<EditorialReviewPanel','<UnifiedRu
  '<CookiePolicyAdmin','<SearchIntegrationsAdmin'])
  assert(dashboard.includes(snippet),'Missing subordinate view '+snippet);
 assert(impact.includes('GeoImpactExperiments'),'Measured before/after comparison must remain visible');
+assert(!impact.includes('يُوضح ذلك صراحة لزوار الموقع'),'Visitor-facing verification notice must not be reintroduced or promised in admin copy');
 assert(visibility.includes('onOpenImpact'),'SEO links to measured content impact, not a second conversion dashboard');
 assert(visibility.includes('فحص HTTP لا يثبت فهرسة Google'),
  'HTTP checks must never be labelled as verified Google indexing');
@@ -64,7 +65,10 @@ assert(cookies.includes('onSave(draft)'),'Consent settings must be persistently 
 assert(integrations.includes('onSave({...draft'),'Integration form must persist validated settings');
 assert(contentApi.includes('expectedUpdatedAt')&&contentApi.includes('StorageConflictError'),
  'Concurrent edits should report version conflicts rather than silently overwrite');
-for(const x of ['Contact save and persistent multilingual advisor readback',
+for(const x of ['Homepage golden paragraph editor saves',
+ 'FAQ full-detail preview opens',
+ 'Editorial preview, edit and two-confirmation deletion',
+ 'Contact save and persistent multilingual advisor readback',
  'FAQ add/edit/delete buttons persist','Keyword create/update/delete',
  'Goal create/status update','Draft review rejection',
  'Cookie duration edit','Search integration setting persisted',
