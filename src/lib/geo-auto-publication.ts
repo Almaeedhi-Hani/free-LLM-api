@@ -136,7 +136,7 @@ export async function getAutoPublicationStatus():Promise<{
   const events=[
    ...(editorial as Array<Record<string,unknown>>).map(e=>({...e,kind:'editorial'})),
    ...(faq as Array<Record<string,unknown>>).map(e=>({...e,kind:'faq',target_path:'/'}))
-  ].sort((a,b)=>String(b.published_at||'').localeCompare(String(a.published_at||''))).slice(0,30);
+  ].sort((a,b)=>String((b as Record<string,unknown>)['published_at']||'').localeCompare(String((a as Record<string,unknown>)['published_at']||''))).slice(0,30);
   return {enabled:row.enabled===true,allow_high_risk:row.allow_high_risk===true,daily_limit:row.daily_limit,events,available:true};
  }catch{return {enabled:false,allow_high_risk:false,daily_limit:1,events:[],available:false}}
 }
