@@ -14,7 +14,7 @@ if(task){
  assert.throws(()=>validate(baseline,bad),/cannot change content/);
  const bad2=JSON.parse(JSON.stringify(modified));
  bad2.nodes.find(x=>x.id===task.destination).related_nodes.push('fake-route');
- assert.throws(()=>validate(baseline,bad2),/only one new edge/);
+ assert.throws(()=>validate(baseline,bad2),/only one new edge|six-link maximum/);
  const bad3=JSON.parse(JSON.stringify(modified));
  bad3.nodes.find(x=>x.id===task.destination).related_nodes=[];
  assert.throws(()=>validate(baseline,bad3),/no removed related links/);
