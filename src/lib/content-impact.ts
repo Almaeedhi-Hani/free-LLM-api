@@ -64,7 +64,7 @@ export function buildImpactInventory(editorial:readonly EditorialItem[],faqs:rea
 }
 /** Publication policy distinguishes content readiness from optional citation coverage.
  * High-risk permission is independently configured; sources may be absent,
- * in which case every public output explicitly discloses unverified status. */
+ * in which case source-verification metadata stays in internal admin/audit records without introducing a visitor-facing source notice. */
 export type PublicationPolicy={mode:'manual'|'guarded_automatic';enabled:boolean;maxDailyPages:number;allowHighRisk?:boolean};
 export function autoPublicationEligibility(item:ImpactItem,policy:PublicationPolicy,context:{
   hasVersionedRollback:boolean;hasIdempotencyKey:boolean;officialSourcesIndependentlyChecked:boolean;
