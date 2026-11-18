@@ -1,5 +1,5 @@
 import {topicNodeById,siteTopicPath} from './content-tree';
-/** Multiple reviewed editorial publication surfaces. Never auto-publish AI output. */
+/** Reviewed or transparently labeled automatic publication surfaces. */
 import { type EditorialItem, type EditorialKind, type EditorialLocale, type EditorialStatus } from './editorial-types';
 export type {EditorialItem,EditorialKind,EditorialLocale,EditorialStatus,EditorialRef} from './editorial-types';
 export {officialSourceCandidates} from './official-source-candidates';
@@ -28,7 +28,7 @@ export function canonicalServiceTarget(value:string):string {
 }
 export function safeSlug(slug:string):boolean{return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)&&slug.length<=90}
 export function approvedEditorial(items:readonly EditorialItem[]|undefined,lang:EditorialLocale,kind?:EditorialKind,target?:string):EditorialItem[]{
- return (items||[]).filter(x=>x.status==='approved'&&x.reviewedAt&&x.lang===lang&&(!kind||x.kind===kind)&&(!target||x.target===target)&&x.verified_sources?.length);
+ return (items||[]).filter(x=>x.status==='approved'&&x.reviewedAt&&x.lang===lang&&(!kind||x.kind===kind)&&(!target||x.target===target)&&(x.approval_method==='automated'||Boolean(x.verified_sources?.length)));
 }
 /** Publication gate: reject planning instructions accidentally saved as visitor-facing copy.
  * Run only on new approvals; pending legacy proposals remain editable and preserved. */
@@ -82,8 +82,13 @@ export function validateEditorialItem(item:unknown):EditorialItem {
  if(e.status==='approved'){
    if(!e.reviewedAt||!Number.isFinite(Date.parse(e.reviewedAt)))throw Error('Editorial approval must have reviewedAt');
    if(e.kind==='technical_seo'||e.kind==='internal_link')throw Error('Technical SEO and links are implementation tasks, never published by content store');
-   if(!Array.isArray(e.verified_sources)||e.verified_sources.length===0||e.verified_sources.length>12)throw Error('Approval needs reviewed source links');
+   if(!Array.isArray(e.verified_sources)||e.verified_sources.length>12||
+     (e.approval_method!=='automated'&&e.verified_sources.length===0))throw Error('Approval needs reviewed sources unless explicitly labeled automated and unverified');
    for(const v of e.verified_sources){try{const u=new URL(v);if(u.protocol!=='https:'||!u.hostname||u.username||u.password)throw Error('Bad URL')}catch{throw Error('Reviewed sources require HTTPS URLs')}}
+  if(e.approval_method==='automated'&&e.cited_sources&&
+     (!Array.isArray(e.cited_sources)||e.cited_sources.length>12||
+      !e.cited_sources.every(s=>{try{const u=new URL(s);return u.protocol==='https:'&&!u.username&&!u.password&&!u.port&&!u.hash;}catch{return false;}})))
+    throw Error('Automated research citations must be safe HTTPS links');
  }
  return e;
 }
