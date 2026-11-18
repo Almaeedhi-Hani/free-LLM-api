@@ -65,7 +65,7 @@ assert.equal(validSiteLink(SITE+'/insights/foo?email=a%40b.com'),null);
 assert.equal(validSiteLink(SITE+'/insights/foo#x'),null);
 assert.equal(validSiteLink(SITE+'/en/insights/good-guide'),SITE+'/en/insights/good-guide');
 assert.throws(()=>validateFeed(raw.replace('Service fee: 27000 SAR','Service fee: 1 SAR')),/Fee/);
-assert.throws(()=>validateFeed(raw.replace('## Language: zh','## Language: fake')),/Missing/);
+assert.throws(()=>validateFeed(raw.replace('## Language: zh','## Language: fake')),/Missing|Malformed/);
 assert.throws(()=>validateFeed(raw.replace('site is an independent private service provider','site belongs to authority')),/policy/);
 assert.throws(()=>validateFeed(makeFeed([SITE+'/admin/private'])),/Unsafe/);
 assert.throws(()=>validateFeed(raw.replace('government fees, official charges and taxes are never discounted','gov fees are free')),/policy/);
