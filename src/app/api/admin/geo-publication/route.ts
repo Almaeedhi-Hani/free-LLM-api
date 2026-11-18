@@ -1,6 +1,6 @@
 import {NextRequest,NextResponse} from 'next/server';
 import {timingSafeEqual} from 'crypto';
-import {getAutoPublicationStatus,rollbackAutoPublication,runGuardedAutoPublishing,saveAutoPublicationSettings} from '@/lib/geo-auto-publication';
+import {getAutoPublicationStatus,rollbackAutoPublication,runGuardedAutoPublishing,saveAutoPublicationSettings,saveSensitiveAutomaticPermission} from '@/lib/geo-auto-publication';
 export const dynamic='force-dynamic';
 const authorized=(req:NextRequest)=>{
  const value=process.env.ADMIN_SECRET||'';
@@ -28,6 +28,15 @@ export async function POST(req:NextRequest){
      return NextResponse.json({error:'explicit_confirmation_required'},{status:422});
    const status=await saveAutoPublicationSettings(body.enabled,body.daily_limit);
    return NextResponse.json({status:'updated',...status});
+  }
+  if(body.action==='configure_sensitive'){
+   if(typeof body.allow_high_risk!=='boolean'||
+      (body.allow_high_risk&&
+       (body.confirm!=='ENABLE_AUTONOMOUS_SENSITIVE_CONTENT'||
+        body.acknowledge!=='UNDERSTAND_SOURCE_VERIFICATION_LIMITS')))
+    return NextResponse.json({error:'explicit_sensitive_content_confirmation_required'},{status:422});
+   const allow_high_risk=await saveSensitiveAutomaticPermission(body.allow_high_risk);
+   return NextResponse.json({status:'updated',allow_high_risk});
   }
   if(body.action==='dry_run'){
    const result=await runGuardedAutoPublishing(true);
