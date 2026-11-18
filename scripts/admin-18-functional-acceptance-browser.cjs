@@ -207,6 +207,46 @@ const groups={
   assert.equal(content.drafts.find(x=>x.q===pending.q).status,'rejected');
   checkpoint('Draft review rejection follows persisted status transition');
 
+  // Editorial items: validate real preview, revision and safe deletion while
+  // leaving production publishing and GitHub task-creation untouched.
+  content=await request('GET','/api/admin/content');
+  const editorial={
+    id:'qa-functional-editorial-20261118',
+    kind:'technical_seo',lang:'ar',target:'/packages',
+    title:'فحص بنية روابط الباقات ضمن لوحة المحتوى',
+    summary:'مقترح تقني معزول لاختبار معاينة مهام تحسين روابط الباقات وإمكان تعديلها وحذفها دون نشر أو تعديل الموقع.',
+    body:'تتطلب هذه المهمة التجريبية فحص روابط صفحة الباقات وسلامة العلاقات الداخلية والتأكد من إمكانية مراجعة المقترح من لوحة الإدارة قبل تعديل أي شفرة برمجية. '.repeat(2),
+    risk_level:'low',status:'pending',createdAt:new Date().toISOString(),
+    evidence_ids:[],evidence_refs:[]
+  };
+  await request('POST','/api/admin/content',{
+    editorialItems:[...(content.editorialItems||[]),editorial],
+    expectedUpdatedAt:content.updatedAt
+  });
+  await page.reload({waitUntil:'domcontentloaded'});
+  await navigate('مركز المحتوى والأثر');
+  const editorialRow=page.locator('tr').filter({hasText:editorial.title}).first();
+  await editorialRow.getByRole('button',{name:'معاينة وتفاصيل'}).click();
+  await page.locator('section[aria-label="معاينة المحتوى التفصيلية"]')
+    .getByText(editorial.summary,{exact:true}).waitFor();
+  await page.getByRole('button',{name:'إغلاق المعاينة'}).click();
+  await navigate('تطوير جميع صفحات الموقع');
+  await page.getByRole('textbox',{name:'البحث في المقترحات'}).fill(editorial.title);
+  const editorialListRow=page.locator('li').filter({hasText:editorial.title}).first();
+  await editorialListRow.getByRole('button',{name:'مراجعة التفاصيل'}).click();
+  await editorialListRow.getByRole('button',{name:'تحرير المقترح'}).click();
+  const editedSummary=editorial.summary+' بعد فحص معاينة التعديلات.';
+  await page.getByRole('textbox',{name:'ملخص المحتوى'}).fill(editedSummary);
+  await page.getByRole('button',{name:'حفظ للمراجعة'}).click();
+  content=await request('GET','/api/admin/content');
+  assert.equal(content.editorialItems.find(x=>x.id===editorial.id)?.summary,editedSummary,
+    'Editorial revision must survive backend readback');
+  await page.locator('li').filter({hasText:editorial.title}).first().getByRole('button',{name:'حذف'}).click();
+  content=await request('GET','/api/admin/content');
+  assert(!content.editorialItems.some(x=>x.id===editorial.id),
+    'Editorial deletion must persist; no ghost task after reload');
+  checkpoint('Editorial preview, edit and two-confirmation deletion persist without publishing');
+
   // Remaining screens have read-only or explicitly gated functions; do not
   // pretend that missing external tokens constitute operational evidence.
   await navigate('الأدلة ومصادر النتائج');
