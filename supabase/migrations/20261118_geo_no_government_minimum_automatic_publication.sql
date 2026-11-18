@@ -87,7 +87,7 @@ BEGIN
      v_url ~ '[@#[:space:]]' THEN
    RETURN jsonb_build_object('status','invalid_source_url');
   END IF;
-  IF NOT v_sources ? v_url THEN v_sources:=v_sources||jsonb_build_array(v_url); END IF;
+  IF NOT (v_sources ? v_url) THEN v_sources:=v_sources||jsonb_build_array(v_url); END IF;
  END LOOP;
 
  SELECT count(*) INTO v_count FROM public.geo_publication_events
