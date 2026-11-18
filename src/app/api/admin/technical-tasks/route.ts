@@ -2,6 +2,7 @@ import {NextRequest,NextResponse} from 'next/server';
 import {timingSafeEqual} from 'crypto';
 import {getContent} from '@/lib/content-store';
 import {getSupabaseCredentials} from '@/lib/storage-mode';
+import {prClosesIssue} from '@/lib/geo-task-linking';
 export const dynamic='force-dynamic';
 const repo='Almaeedhi-Hani/free-LLM-api';
 function authorized(req:NextRequest):boolean{
@@ -36,7 +37,7 @@ export async function GET(req:NextRequest){
 
 /** Read GitHub and current Render revision; never write an inferred 'completed' DB status. */
 type HandoffRow={item_id:string;status:string;github_issue_number:number|null;github_issue_url:string|null;[key:string]:unknown};
-type PrEvidence={number:number;html_url:string;state:string;merged_at:string|null;merge_commit_sha:string|null;base?:{ref?:string}};
+type PrEvidence={number:number;html_url:string;state:string;merged_at:string|null;merge_commit_sha:string|null;body?:string|null;base?:{ref?:string}};
 async function githubRead(path:string):Promise<any>{
  const token=(process.env.GEO_GITHUB_TOKEN||'').trim();
  const response=await fetch('https://api.github.com/repos/'+repo+'/'+path,{
@@ -66,7 +67,7 @@ async function observeProgress(task:HandoffRow){
   const pullResults=await Promise.allSettled(prIds.map(id=>githubRead('pulls/'+id)));
   const pulls=pullResults.filter((x):x is PromiseFulfilledResult<PrEvidence>=>x.status==='fulfilled')
    .map(x=>x.value).filter(x=>x.base?.ref==='main'&&x.number>0&&
-    x.html_url==='https://github.com/'+repo+'/pull/'+x.number);
+    x.html_url==='https://github.com/'+repo+'/pull/'+x.number&&prClosesIssue(x.body,number));
   const chosen=pulls.find(x=>Boolean(x.merged_at))||pulls.find(x=>x.state==='open')||pulls[0];
   let render_deploy_status:'verified'|'pending'|'unverified'='unverified';
   const renderRevision=process.env.RENDER_GIT_COMMIT||'';
