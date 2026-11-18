@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - '.github/workflows/geo-provider-capability-smoke.yml'
+      - '.github/workflows/geo-provider-capability-smoke.yml' # Rerun one production-safe smoke after catalog/deprecated-model fix
   workflow_dispatch:
 
 permissions:
