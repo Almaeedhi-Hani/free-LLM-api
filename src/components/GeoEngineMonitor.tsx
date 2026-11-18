@@ -46,7 +46,7 @@ export default function GeoEngineMonitor({secret,runs,competitors,keywords,oppor
   const uniqueSources = new Set(sources.map(source => str(source.url) || str(source.link) || str(source.source_url)).filter(Boolean));
   const counts = [
     ['المنافسون',competitors.length],['الكلمات المفتاحية',keywords.length],
-    ['الفرص',opportunities.length],['الأهداف',goals.length],['سجلات التشغيل',runs.length]
+    ['الفرص',opportunities.length],['الأهداف',goals.length],['السجل القديم',runs.length]
   ] as const;
   return <section dir="rtl" className="rounded-xl border border-slate-200 p-5 space-y-4">
     <div className="flex flex-wrap justify-between items-center gap-3">
@@ -54,7 +54,7 @@ export default function GeoEngineMonitor({secret,runs,competitors,keywords,oppor
         <p className="text-sm text-slate-500">مؤشرات من السجلات المحفوظة؛ لا تمثل اتصالاً حيًا بالمزودين أو إثباتًا لتشغيل المحرك الآن.</p></div>
       <button type="button" disabled={loading} onClick={refresh} className="rounded-lg border px-4 py-2 disabled:opacity-50">{loading?'جارٍ التحديث':'تحديث البيانات'}</button>
     </div>
-    <p className="text-sm">آخر حالة مسجلة: <strong>{status}</strong> — {latest?.started_at ? new Date(str(latest.started_at)).toLocaleString('ar-SA') : 'لا يوجد وقت مسجل'}</p>
+    <p className="text-sm">آخر حالة في سجل السوق القديم (وليست GitHub): <strong>{status}</strong> — {latest?.started_at ? new Date(str(latest.started_at)).toLocaleString('ar-SA') : 'لا يوجد وقت مسجل'}</p>
     <div className="grid grid-cols-2 md:grid-cols-5 gap-3">{counts.map(([label,count])=><div key={label} className="rounded-lg border p-3"><div className="text-sm text-slate-500">{label}</div><div className="text-xl font-bold">{count}</div></div>)}</div>
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
       <div className="rounded-lg border p-3">تشغيلات ناجحة مسجلة: <strong>{completedRuns}</strong></div>
@@ -69,7 +69,7 @@ export default function GeoEngineMonitor({secret,runs,competitors,keywords,oppor
       <button type="button" onClick={()=>void loadWorkflow()} className="rounded-lg border px-4 py-2 mx-2">تحديث الحالة</button>
       {feedback&&<p role="status" className="text-sm">{feedback}</p>}
       {workflow.runs?.slice(0,3).map(run=><p key={run.id} className="text-xs">#{run.id}: {run.status} — {run.conclusion||'لم ينته'}</p>)}
-      <p className="text-xs text-slate-500">التشغيل محمي بمفتاح المدير ويتطلب GEO_GITHUB_TOKEN بصلاحية Actions:write. لا ينشر المحتوى تلقائيًا.</p>
+      <p className="text-xs text-slate-500">التشغيل محمي بمفتاح المدير ويتطلب GEO_GITHUB_TOKEN بصلاحية Actions:write. إعدادات النشر التلقائي ومتابعة المنشورات تُدار منفصلًا من مركز المحتوى والأثر.</p>
     </div>
     <h3 className="font-semibold">مزودو البحث</h3>
     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">{providers.map(name=>{
@@ -84,7 +84,7 @@ export default function GeoEngineMonitor({secret,runs,competitors,keywords,oppor
       <div className="overflow-x-auto"><table className="w-full text-sm text-right"><thead><tr className="border-b"><th className="p-2">وقت البدء</th><th className="p-2">الحالة المسجلة</th><th className="p-2">المعرف</th></tr></thead><tbody>
         {[...runs].sort((a,b)=>Date.parse(str(b.started_at)||'1970-01-01')-Date.parse(str(a.started_at)||'1970-01-01')).slice(0,10).map((run,index)=><tr key={str(run.id)||index} className="border-b"><td className="p-2">{str(run.started_at)||'غير مسجل'}</td><td className="p-2">{str(run.status)||'غير معروف'}</td><td className="p-2 font-mono">{str(run.id)||'—'}</td></tr>)}
       </tbody></table></div>}
-    <p className="text-xs text-slate-500">هذه سجلات تاريخية وليست حالة لحظية. لا يوجد زر تشغيل حتى يتوفر مسار خادم محمي يمنع التكرار.</p>
-    <p className="text-xs text-slate-500">عدد صفحات المنافسين الخمس لكل كلمة ولغة لا يُؤكد إلا من سجلات الصفحات المخصصة؛ إجمالي المنافسين أعلاه ليس عدد الصفحات المحللة. التشغيل اليدوي غير متاح من هذه الواجهة حتى توفير نقطة تشغيل آمنة ومحمية.</p>
+    <p className="text-xs text-slate-500">هذه سجلات التحليل القديم وقد تكون فارغة. سجل تشغيلات GitHub الفعلي موجود في «التشغيل والإعدادات ← سجل التشغيل».</p>
+    <p className="text-xs text-slate-500">التحكم اليدوي في محرك GEO متاح من زر التشغيل أعلاه عندما يكون اتصال GitHub مهيأ. الأرقام المحفوظة لا تؤكد جودة تغطية النتائج أو ترتيب Google الفعلي.</p>
   </section>;
 }
