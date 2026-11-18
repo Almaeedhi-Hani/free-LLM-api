@@ -50,7 +50,7 @@ const {autoPublicationEligibility}=require('../.impact-test-build/lib/content-im
  const context={hasVersionedRollback:true,hasIdempotencyKey:true,officialSourcesIndependentlyChecked:true};
  assert.equal(autoPublicationEligibility(candidate,policy,context).eligible,true);
  assert.equal(autoPublicationEligibility({...candidate,risk:'high'},policy,context).eligible,false);
- assert.equal(autoPublicationEligibility({...candidate,verifiedSources:[]},policy,context).eligible,false);
+ assert.equal(autoPublicationEligibility({...candidate,verifiedSources:[]},policy,context).eligible,true,'missing sources must not block publication');
  assert.equal(autoPublicationEligibility(candidate,{...policy,enabled:false},context).eligible,false);
  assert.equal(autoPublicationEligibility(candidate,policy,{...context,hasVersionedRollback:false}).eligible,false);
  const highBody=[
@@ -97,8 +97,8 @@ const {autoPublicationEligibility}=require('../.impact-test-build/lib/content-im
  assert.equal(autoPublicationEligibility({...candidate,risk:'high'},highPolicy,
   {...context,highRiskClaimsVerified:true}).eligible,true,
   'high-risk content is eligible after explicit opt-in and real claim verification');
- assert.equal(autoPublicationEligibility({...candidate,risk:'high'},highPolicy,context).eligible,false,
-  'high-risk content without verification still blocked');
+ assert.equal(autoPublicationEligibility({...candidate,risk:'high'},highPolicy,context).eligible,true,
+  'high-risk content without citations is allowed after separate permission');
  const sql=fs.readFileSync('supabase/migrations/20261118_geo_guarded_automatic_publication.sql','utf8');
  for(const required of [
   "enabled boolean not null default false",
@@ -127,9 +127,31 @@ const {autoPublicationEligibility}=require('../.impact-test-build/lib/content-im
   "to service_role"
  ])assert(sql.includes(required),'Missing atomic publication security invariant: '+required);
  const worker=fs.readFileSync('src/lib/geo-auto-publication.ts','utf8');
- assert(worker.includes("if(!checked.length)")&&worker.includes("validateEditorialItem("));
+ assert(worker.includes("optionalResearchCitations(candidate)")&&worker.includes("validateEditorialItem("));
  assert(worker.includes("editorialPublicationIssues(candidate).length"));
  assert(!worker.includes("method:'DELETE'"),'autopublisher never destroys user content');
+ const upgrade=fs.readFileSync('supabase/migrations/20261118_geo_source_optional_unattended_publish.sql','utf8');
+ for(const expected of [
+  "CREATE OR REPLACE FUNCTION public.geo_commit_auto_publication",
+  "CREATE OR REPLACE FUNCTION public.geo_commit_auto_faq",
+  "CREATE OR REPLACE FUNCTION public.geo_rollback_auto_faq",
+  "'source_verification','not_independently_checked'",
+  "'cited_sources',p_verified_urls",
+  "jsonb_array_length(p_verified_urls)>12",
+  "FOREIGN" // replaced by next assertion, see below
+ ])if(expected!=='FOREIGN')assert(upgrade.includes(expected),'Missing source-optional publication contract: '+expected);
+ assert(!upgrade.includes('independent_official_sources_required'),'No two-government-source requirement may remain in new RPC');
+ assert(!upgrade.includes('jsonb_array_length(p_verified_urls)<2'),'No minimum sources required');
+ assert(!upgrade.includes('sensitive_evidence_missing'),'No mandatory risk-claim quote mapping');
+ assert(upgrade.includes("v_risk<>'low' AND NOT coalesce(v_sensitive,false)"),
+  'High-risk publishing must remain explicitly owner-enabled');
+ assert(upgrade.includes('geo_faq_publication_events'),'Auditable FAQ publication and rollback required');
+ const daily=fs.readFileSync('.github/workflows/geo-auto-publication-daily.yml','utf8');
+ assert(daily.includes("35 3 * * *"),'daily publication should not incur GEO research provider costs');
+ assert(daily.includes("curl --fail-with-body --retry 0"),'never retry ambiguous network publication');
+ const publicPage=fs.readFileSync('src/app/insights/[slug]/page.tsx','utf8');
+ assert(publicPage.includes('not independently verified')&&publicPage.includes('page.cited_sources'),
+  'source-free articles must disclose unverified status, never imply source verification');
  const scheduled=fs.readFileSync('.github/workflows/geo-analysis.yml','utf8');
  assert(scheduled.includes('Guarded automatic publication after a successful GEO cycle'));
  assert(scheduled.includes('curl --fail-with-body --retry 0'),'never retry ambiguous publication');
@@ -141,5 +163,5 @@ const {autoPublicationEligibility}=require('../.impact-test-build/lib/content-im
  assert(admin.includes("body.confirm!=='ROLLBACK_GEO_PUBLICATION'"));
  assert(admin.includes("ENABLE_AUTONOMOUS_SENSITIVE_CONTENT"));
  assert(admin.includes("UNDERSTAND_SOURCE_VERIFICATION_LIMITS"));
- console.log('PASS guarded GEO autopublishing: separately authorized sensitive eligibility with exact official quote verification, external-source URL isolation, official reachability, idempotent atomic SQL, daily cap, rollback and admin controls');
+ console.log('PASS GEO autopublishing: source-optional sensitive content, unrelated official quote helper, historical transaction audits, daily quota, FAQ publisher and admin rollback');
 })().catch(error=>{console.error(error);process.exitCode=1});
