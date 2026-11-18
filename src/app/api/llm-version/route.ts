@@ -10,20 +10,14 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const content = await getContent();
   const languages = ["ar", "en", "zh"] as const;
-  const serviceGuides = languages.flatMap(lang => [
-    "## Service guidance — language: " + lang,
-    ...services.map(s => [
+  const serviceGuides = languages.map(lang => services.map(s => [
       "## " + s.title[lang],
       s.summary[lang], guides[s.slug].insight[lang], guides[s.slug].budget[lang],
       guides[s.slug].q[lang], guides[s.slug].a[lang],
       ...Array.from(new Set([s.source,...guides[s.slug].references.map(ref=>ref.url)])).map(url=>"Authority source URL (verify current status): "+url),
       "Service URL: " + siteUrl + (lang==="ar"?"":"/"+lang) + "/services/" + s.slug,
-    ].join("\n"))
-  ]);
-  const offers = languages.flatMap(lang => [
-    "## Professional service packages — language: " + lang,
-    "Professional service fee policy: " + packageDisclosure[lang],
-    ...packageOffers.map(offer => [
+    ].join("\n")));
+  const offers = languages.map(lang => packageOffers.map(offer => [
     "### " + offer.title[lang],
     "Service fee: " + offer.price + " SAR (our professional services only; government charges are excluded)",
     "Previous listed professional fee: " + offer.previousPrice + " SAR (historical advertising not independently verified by this feed).",
@@ -33,7 +27,7 @@ export async function GET() {
     "What to prepare: " + offer.requirements[lang],
     "Not included: " + offer.exclusions[lang],
     "Offer URL: " + siteUrl + (lang==="ar"?"":"/"+lang) + "/packages#" + offer.slug,
-  ].join("\n"))]);
+  ].join("\n")));
   const text = [
     "# Independent Saudi investor services — services, professional fees and source references",
     "Canonical machine-readable version: " + siteUrl + "/api/llm-version",
@@ -48,12 +42,15 @@ export async function GET() {
     "Official investment registration information (check date 2026-11-15): https://misa.gov.sa/ar/frequently-asked-questions/",
     "Pricing and detailed scope are confirmed in writing before accepting any engagement.",
     "## Machine-readable content grouped by language",
-    ...languages.flatMap(lang=>[
+    ...languages.flatMap((lang,index)=>[
       "## Language: " + lang,
-      ...offers.filter(section=>section.startsWith("## Professional service packages — language: "+lang)||false),
+      "### Professional service fee policy",
+      packageDisclosure[lang],
+      "### Packages",
+      ...offers[index],
+      "### Investor services and official reference URLs",
+      ...serviceGuides[index],
     ]),
-    ...offers,
-    ...serviceGuides,
     "## How to choose a formation route",
     "1. Identify the intended Saudi business activity and its regulator.",
     "2. Assess investor identity, shareholding, foreign company status or eligible alternative route.",
