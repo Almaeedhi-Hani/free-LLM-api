@@ -10,8 +10,8 @@ const vm=require('node:vm');
  const evidence=['ar','en','zh'].flatMap(lang=>Array.from({length:8},(_,i)=>({
   language:lang,id:lang+'-'+i,type:'competitor_candidate',source:'exa'})));
  const requests=[];
- const models=['gemini:gemini-2.5-flash-lite','groq:openai/gpt-oss-20b',
-  'nvidia:meta/llama-3.1-8b-instruct','openrouter:openrouter/free'];
+ const models=['groq:openai/gpt-oss-20b','gemini:gemini-3.1-flash-lite-preview',
+  'nvidia:nvidia/nvidia-nemotron-nano-9b-v2','openrouter:openrouter/free'];
  const direct={
   available:()=>models,
   generate:async(prompt,model,{timeoutMs})=>{
@@ -33,7 +33,8 @@ const vm=require('node:vm');
    assert.equal(p,'./geo-opencode-planner.cjs');
    return {LANGS:['ar','en','zh'],
     selectLocaleEvidence:(data,lang,max)=>data.filter(e=>e.language===lang).slice(0,max),
-    promptForLocale:(lang,items)=>JSON.stringify({lang,length:items.length})};
+    promptForLocale:(lang,items)=>JSON.stringify({lang,length:items.length}),
+    promptForDirectLocale:(lang,items)=>JSON.stringify({lang,length:items.length})};
   }
  };
  vm.runInNewContext(runner.slice(start,end)+'\nthis.analyze=stageGeoAnalysis;',scope);
