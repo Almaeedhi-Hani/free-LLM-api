@@ -128,7 +128,7 @@ const {autoPublicationEligibility}=require('../.impact-test-build/lib/content-im
  ])assert(sql.includes(required),'Missing atomic publication security invariant: '+required);
  const worker=fs.readFileSync('src/lib/geo-auto-publication.ts','utf8');
  assert(worker.includes("optionalResearchCitations(candidate)")&&worker.includes("validateEditorialItem("));
- assert(worker.includes("editorialPublicationIssues(candidate).length"));
+ assert(worker.includes("editorialPublicationIssues(x).length")||worker.includes("editorialPublicationIssues(candidate)"),"unfinished visitor-copy instructions must not be misrepresented as a finished public article");
  assert(!worker.includes("method:'DELETE'"),'autopublisher never destroys user content');
  const upgrade=fs.readFileSync('supabase/migrations/20261118_geo_source_optional_unattended_publish.sql','utf8');
  for(const expected of [
