@@ -3,7 +3,7 @@ import { getContent, setContent } from '@/lib/content-store';
 import {validateEditorialBatch,officialSourceCandidates,editorialPublicationIssues} from '@/lib/editorial-workflow';
 import { assessGeoDraftCopy, splitGeoDraftReviewText } from "@/lib/geo-draft-quality";
 import { StorageConflictError, StorageUnavailableError } from '@/lib/storage-mode';
-import {normalizeWhatsAppNumber} from '@/lib/whatsapp-contacts';
+import {normalizeWhatsAppNumber,validWhatsAppAdvisorField} from '@/lib/whatsapp-contacts';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,6 +61,19 @@ export async function POST(req: NextRequest) {
         (typeof c.whatsapp!=='string'||
          (c.whatsapp.trim()!==''&&!/^https:\/\/wa\.me\/[1-9]\d{7,14}(?:\?[^#]*)?$/.test(c.whatsapp.trim()))))
         return NextResponse.json({status:'error',message:'Invalid general WhatsApp URL'},{status:400});
+      if(c.whatsappAdvisors!==undefined){
+        const advisors=c.whatsappAdvisors as Record<string,unknown>;
+        if(!advisors||typeof advisors!=='object'||Array.isArray(advisors)||
+          Object.keys(advisors).some(lang=>!['ar','en','zh'].includes(lang))||
+          Object.values(advisors).some(value=>{
+            if(!value||typeof value!=='object'||Array.isArray(value))return true;
+            const profile=value as Record<string,unknown>;
+            return Object.keys(profile).some(key=>!['name','title'].includes(key))||
+              !validWhatsAppAdvisorField(profile.name,80)||
+              !validWhatsAppAdvisorField(profile.title,100);
+          }))
+          return NextResponse.json({status:'error',message:'Invalid WhatsApp advisor name or job title'},{status:400});
+      }
       if(c.whatsappNumbers!==undefined){
         const numbers=c.whatsappNumbers as Record<string,unknown>;
         if(!numbers||typeof numbers!=='object'||Array.isArray(numbers)||
