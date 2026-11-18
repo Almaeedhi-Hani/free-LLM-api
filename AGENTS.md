@@ -26,9 +26,9 @@ Apply `evidence-verification` alongside other research when making factual claim
 
 ## Operational safety
 - Never alter GitHub Actions scheduling, production deployments, database schema, secrets, security controls, publishing policies, site content or repository history without explicit owner approval.
-- Scheduled GitHub Actions research jobs should be read-only toward the repository. Skill updates require a separate human-reviewed proposal and explicit approval.
+- Scheduled GEO **research** jobs remain read-only toward the repository. The separately authorized `autonomous-site-maintenance.yml` may propose and merge only strictly validated, reciprocal links between already-live service nodes in `src/data/content-tree.json`; never let research content or an LLM write source code. Skill updates require an explicit owner approval.
 - Favor no-cost, authorized sources. Respect sites' access terms, rate limits and robots restrictions. Do not bypass paywalls or bot defenses.
-- No high-risk auto-publication. Include reproducible tests, failure modes, source-backed evidence and a rollback plan in every proposed change.
+- The separately owner-authorized GEO auto-publication policy may allow high-risk content under configured Supabase limits; never silently change those settings. Autonomous *code* changes remain limited to the pre-approved safe scope and mandatory tests. Include reproducible tests, failure modes and rollback procedures for every proposed change.
 - Preserve the existing Next.js routes, admin dashboard, GEO API, Supabase integrations, and OpenCode GitHub Actions pipeline.
 
 ## Reporting
