@@ -89,3 +89,16 @@ jobs:
           deployed_sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
           echo "Merged into main: $deployed_sha"
           gh workflow run production-readonly-acceptance.yml --ref main -f expected_sha="$deployed_sha"
+      - name: Summarize scheduled maintenance outcome
+        if: always()
+        shell: bash
+        env:
+          TASK_CHANGED: ${{ steps.task.outputs.changed }}
+        run: |
+          {
+            echo '## Autonomous site maintenance — execution evidence'
+            echo "- GitHub Actions run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "- Safe technical change selected: ${TASK_CHANGED:-unknown}"
+            echo '- Failed checks or repository permissions prevent unattended merging.'
+            echo '- A merged PR is not proof of Render deployment; verify production acceptance separately.'
+          } >> "$GITHUB_STEP_SUMMARY"
