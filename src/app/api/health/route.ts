@@ -10,6 +10,7 @@ export async function GET() {
     const content = await getContent();
     return NextResponse.json({
       status: 'ok',
+      revision: process.env.RENDER_GIT_COMMIT || null,
       storage,
       supabaseConfigured: storage === 'supabase',
       updatedAt: content.updatedAt,
