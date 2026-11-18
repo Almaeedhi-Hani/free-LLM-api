@@ -13,6 +13,7 @@ import CookiePolicyAdmin from '@/components/CookiePolicyAdmin';
 import SearchIntegrationsAdmin from '@/components/SearchIntegrationsAdmin';
 import GeoEngineMonitor from '@/components/GeoEngineMonitor';
 import UnifiedRunHistory from '@/components/UnifiedRunHistory';
+import TechnicalTaskBoard from '@/components/TechnicalTaskBoard';
 
 type Tab =
   | 'home'
@@ -889,6 +890,7 @@ export default function AdminDashboard() {
 
             {tab === 'opportunities' && (
               <div className="space-y-6">
+                <TechnicalTaskBoard secret={secret} items={content.editorialItems||[]} onOpenDetails={()=>setTab('editorial')} />
                 <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
                   <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
                     <h2 className="text-xl font-bold">الفرص السوقية</h2>
