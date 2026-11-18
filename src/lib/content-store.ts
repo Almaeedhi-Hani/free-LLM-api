@@ -31,6 +31,8 @@ export interface ContactInfo {
   phone: string;
   phoneDisplay: string;
   whatsapp: string;
+  /** Optional advisor numbers: blank means use the general WhatsApp link. */
+  whatsappNumbers?: { ar?: string; en?: string; zh?: string };
   email: string;
 }
 
@@ -81,6 +83,7 @@ const DEFAULT_CONTENT: SiteContent = {
     phone: '+966545059528',
     phoneDisplay: '+966 54 505 9528',
     whatsapp: 'https://wa.me/966545059528',
+    whatsappNumbers: {ar:'',en:'',zh:''},
     email: '',
   },
   agent: {
@@ -138,7 +141,7 @@ async function supabaseGet(cfg: { url: string; key: string; table: string }): Pr
     throw new StorageUnavailableError('Supabase content row is missing');
   }
   const parsed = rows[0].content as Partial<SiteContent>;
-  return { ...DEFAULT_CONTENT, ...parsed, drafts: parsed.drafts ?? DEFAULT_CONTENT.drafts, editorialItems:parsed.editorialItems ?? [], contact: { ...DEFAULT_CONTENT.contact, ...parsed.contact }, agent: { ...DEFAULT_CONTENT.agent, ...parsed.agent }, cookiePolicy: { ...DEFAULT_CONTENT.cookiePolicy, ...parsed.cookiePolicy }, searchIntegrations: { ...DEFAULT_CONTENT.searchIntegrations, ...parsed.searchIntegrations }, updatedAt: rows[0].updated_at ?? parsed.updatedAt ?? DEFAULT_CONTENT.updatedAt } as SiteContent;
+  return { ...DEFAULT_CONTENT, ...parsed, drafts: parsed.drafts ?? DEFAULT_CONTENT.drafts, editorialItems:parsed.editorialItems ?? [], contact: { ...DEFAULT_CONTENT.contact, ...parsed.contact, whatsappNumbers:{...DEFAULT_CONTENT.contact.whatsappNumbers,...parsed.contact?.whatsappNumbers} }, agent: { ...DEFAULT_CONTENT.agent, ...parsed.agent }, cookiePolicy: { ...DEFAULT_CONTENT.cookiePolicy, ...parsed.cookiePolicy }, searchIntegrations: { ...DEFAULT_CONTENT.searchIntegrations, ...parsed.searchIntegrations }, updatedAt: rows[0].updated_at ?? parsed.updatedAt ?? DEFAULT_CONTENT.updatedAt } as SiteContent;
 }
 
 async function supabaseSet(cfg: { url: string; key: string; table: string }, next: SiteContent, expectedUpdatedAt: string): Promise<boolean> {
@@ -173,7 +176,7 @@ export async function getContent(): Promise<SiteContent> {
   try {
     const raw = fs.readFileSync(storePath(), 'utf-8');
     const parsed = JSON.parse(raw) as Partial<SiteContent>;
-    return { ...DEFAULT_CONTENT, ...parsed, drafts: parsed.drafts ?? DEFAULT_CONTENT.drafts, editorialItems:parsed.editorialItems ?? [], contact: { ...DEFAULT_CONTENT.contact, ...parsed.contact }, agent: { ...DEFAULT_CONTENT.agent, ...parsed.agent }, cookiePolicy: { ...DEFAULT_CONTENT.cookiePolicy, ...parsed.cookiePolicy }, searchIntegrations: { ...DEFAULT_CONTENT.searchIntegrations, ...parsed.searchIntegrations } } as SiteContent;
+    return { ...DEFAULT_CONTENT, ...parsed, drafts: parsed.drafts ?? DEFAULT_CONTENT.drafts, editorialItems:parsed.editorialItems ?? [], contact: { ...DEFAULT_CONTENT.contact, ...parsed.contact, whatsappNumbers:{...DEFAULT_CONTENT.contact.whatsappNumbers,...parsed.contact?.whatsappNumbers} }, agent: { ...DEFAULT_CONTENT.agent, ...parsed.agent }, cookiePolicy: { ...DEFAULT_CONTENT.cookiePolicy, ...parsed.cookiePolicy }, searchIntegrations: { ...DEFAULT_CONTENT.searchIntegrations, ...parsed.searchIntegrations } } as SiteContent;
   } catch {
     return DEFAULT_CONTENT;
   }
@@ -190,7 +193,7 @@ function buildNext(current: SiteContent, patch: Partial<SiteContent>, options: C
   const next: SiteContent = {
     ...current,
     ...patch,
-    contact: { ...current.contact, ...patch.contact },
+    contact: { ...current.contact, ...patch.contact, whatsappNumbers:{...current.contact.whatsappNumbers,...patch.contact?.whatsappNumbers} },
     agent: { ...current.agent, ...patch.agent },
     cookiePolicy: { ...current.cookiePolicy, ...patch.cookiePolicy },
     searchIntegrations: { ...current.searchIntegrations, ...patch.searchIntegrations },
