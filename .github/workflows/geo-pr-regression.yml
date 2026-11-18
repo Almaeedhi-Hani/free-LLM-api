@@ -12,6 +12,12 @@ on:
       - 'package.json'
       - 'scripts/geo-editorial-prompt.test.cjs'
       - 'scripts/geo-provider-fallback.test.cjs'
+      - 'scripts/geo-compact-model-fallback.test.cjs'
+      - 'scripts/geo-batched-persistence.test.cjs'
+      - 'scripts/geo-autopilot-reliability.test.cjs'
+      - 'src/app/api/geo/discovery/route.ts'
+      - 'src/app/api/admin/geo-engine/route.ts'
+      - 'src/components/GeoEngineMonitor.tsx'
       - 'scripts/geo-opportunity-contract.cjs'
       - 'scripts/geo-opportunity-contract.test.cjs'
       - 'src/data/content-tree.json'
@@ -46,6 +52,8 @@ jobs:
           node --check scripts/geo-provider-fallback.test.cjs
       - name: Verify GEO autopilot schedule and independent publishing
         run: node scripts/geo-secret-weapon-schedule.test.cjs
+      - name: Adaptive fallback and keyword attribution regression
+        run: node scripts/geo-autopilot-reliability.test.cjs
       - name: Multilingual editorial prompt
         run: node scripts/geo-editorial-prompt.test.cjs
       - name: Free-model fallback safety

@@ -32,6 +32,7 @@ export async function POST(req:NextRequest){
   return NextResponse.json({ok:false,error:e instanceof Error?e.message:'Invalid discovery batch'},{status:422});
  }
  const keywords=new Map<string,Set<string>>();
+ let insertedKeywords=0,existingKeywords=0;
  const result=await persistGeoDiscoveryBatch(batch,{
   saveKeyword:async item=>{
    let existing=keywords.get(item.language);
@@ -41,11 +42,15 @@ export async function POST(req:NextRequest){
     keywords.set(item.language,existing);
    }
    const normalized=item.term.trim().toLocaleLowerCase();
-   if(existing.has(normalized))return;
-   await upsertKeyword({
+   if(existing.has(normalized)){existingKeywords++;return;}
+   const saved=await upsertKeyword({
     term:item.term,language:item.language,source:'google-suggest',
     volume_confidence:'unknown',search_volume:null,volume_source:null
    });
+   if(!saved||saved.language!==item.language||
+      saved.term.trim().toLocaleLowerCase()!==normalized)
+     throw new Error('Keyword persistence could not be confirmed');
+   insertedKeywords++;
    existing.add(normalized);
   },
   saveCandidate:async item=>{
@@ -87,7 +92,8 @@ export async function POST(req:NextRequest){
   }
  });
  if(!result.ok)console.error('GEO discovery ingestion partial',result.errors.length);
- return NextResponse.json({...result,source:'unverified_geo_discovery'},{
+ return NextResponse.json({...result,source:'unverified_geo_discovery',
+   keyword_persistence:{inserted:insertedKeywords,existing:existingKeywords}},{
   status:result.ok?200:502,headers:{'Cache-Control':'no-store'}
  });
 }
