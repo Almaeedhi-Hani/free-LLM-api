@@ -1,5 +1,6 @@
 "use client";
 import React,{useEffect,useState} from "react";
+import {usePathname} from 'next/navigation';
 type Locale="ar"|"en"|"zh";
 type Consent={necessary:true;analytics:boolean;marketing:boolean;version:1;updatedAt:string};
 const NAME="site-cookie-consent";
@@ -23,12 +24,16 @@ function writeConsent(analytics:boolean,marketing:boolean,days:number){
  window.dispatchEvent(new CustomEvent("site-consent-changed",{detail:value}));
 }
 export function CookieConsent({locale="ar",policy={analyticsAvailable:true,marketingAvailable:true,consentDays:180}}:{locale?:Locale;policy?:{analyticsAvailable:boolean;marketingAvailable:boolean;consentDays:number}}){
+ const pathname=usePathname();
  const [ready,setReady]=useState(false),[open,setOpen]=useState(false);
  const [notice,setNotice]=useState(false);
  const t=labels[locale];
- useEffect(()=>{const existing=readConsent();if(!existing)setOpen(true);setReady(true)},[]);
+ useEffect(()=>{
+  if(pathname?.startsWith('/admin')){setOpen(false);setReady(true);return;}
+  const existing=readConsent();if(!existing)setOpen(true);setReady(true);
+ },[pathname]);
  function save(a:boolean,m:boolean){writeConsent(policy.analyticsAvailable&&a,policy.marketingAvailable&&m,policy.consentDays);setOpen(false);setNotice(true)}
- if(!ready)return null;
+ if(!ready||pathname?.startsWith('/admin'))return null;
  return <>
   {open&&<div className="fixed inset-x-0 bottom-0 z-50 flex justify-center p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-5" role="presentation">
    <section role="dialog" aria-modal="false" aria-labelledby="cookie-title" dir={locale==="ar"?"rtl":"ltr"} className="w-full max-w-3xl max-h-[70dvh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 text-slate-900 shadow-xl">
