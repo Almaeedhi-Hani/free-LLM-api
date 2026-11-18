@@ -1,0 +1,49 @@
+name: GEO NVIDIA + OpenRouter Free Capability Probe
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/geo-provider-capability-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: geo-free-provider-capabilities
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Test safe candidate catalog, JSON checks, and strict $0 model selection
+        run: |
+          node --check scripts/geo-provider-capability-smoke.cjs
+          node scripts/geo-provider-capability-smoke.test.cjs
+
+      - name: Probe NVIDIA free-hosted prototypes and live zero-priced OpenRouter models
+        env:
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          node scripts/geo-provider-capability-smoke.cjs
+
+      - name: Upload sanitized result (no prompt or key values)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: geo-provider-capability-probe
+          path: market-intel/model-capability-smoke.json
+          retention-days: 7
+          if-no-files-found: ignore
