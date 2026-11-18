@@ -87,11 +87,11 @@ const slugs = [
     const lang=extra.path.startsWith("/en/")||extra.path==="/en/insights"?"en":
       extra.path.startsWith("/zh/")||extra.path==="/zh/insights"?"zh":"ar";
     assert(html.includes('lang="'+(lang==="zh"?"zh-Hans":lang)+'"'),extra.path+" language");
-    assert.equal((html.match(/<h1(?:\\s|>)/g)||[]).length,1,extra.path+" heading");
+    assert.equal((html.match(/<h1(?:\s|>)/g)||[]).length,1,extra.path+" heading");
     const canonical=(html.match(/<link rel="canonical" href="([^"]+)"/)||[])[1];
     assert.equal(new URL(canonical).href,extra.url,extra.path+" canonical");
     assert(!/<meta name="robots" content="[^"]*noindex/i.test(html),extra.path+" indexable");
-    const title=(html.match(/<title>(.*?)<\\/title>/)||[])[1];
+    const title=(html.match(/<title>(.*?)<\/title>/)||[])[1];
     assert(title,extra.path+" title");
     assert(!titles.has(title),extra.path+" duplicate title");
     titles.add(title);
