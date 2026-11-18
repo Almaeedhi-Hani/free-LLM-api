@@ -16,7 +16,7 @@ type Props = {
 const providers = ['Exa','Tavily','Parallel','Firecrawl'];
 const str = (value: unknown) => typeof value === 'string' ? value : '';
 export default function GeoEngineMonitor({secret,runs,competitors,keywords,opportunities,goals,sources,loading,refresh}:Props) {
-  const [workflow,setWorkflow]=useState<{configured?:boolean;runs?:Array<{id:number;status:string;conclusion:string|null}>;message?:string}>({});
+  const [workflow,setWorkflow]=useState<{configured?:boolean; schedule?:{cadence:string;cron_utc:string;saudi_time:string;time_zone:string;state:string;active:boolean|null}; runs?:Array<{id:number;status:string;conclusion:string|null;created_at?:string;html_url?:string}>;message?:string}>({});
   const [busy,setBusy]=useState(false);
   const [feedback,setFeedback]=useState('');
   const loadWorkflow=async()=>{
@@ -65,10 +65,16 @@ export default function GeoEngineMonitor({secret,runs,competitors,keywords,oppor
     <div className="rounded-lg border p-3 space-y-2">
       <h3 className="font-semibold">التحكم الآمن بمحرك GEO</h3>
       <p className="text-sm">{workflow.configured?'GitHub Actions متصل':'غير مهيأ: '+(workflow.message||'يلزم إعداد GEO_GITHUB_TOKEN')}</p>
+      <p className="text-sm font-semibold" role="status">{!workflow.schedule?
+        'جدولة السلاح السري: الحالة غير متاحة':
+        workflow.schedule.active===true?'التشغيل الذاتي مفعّل: تحليل GEO يوميًا الساعة '+workflow.schedule.saudi_time+' صباحًا بتوقيت السعودية':
+        workflow.schedule.active===false?'محرك GEO معطّل في GitHub Actions — راجع إعدادات سير العمل':
+        'الجدولة مضبوطة يوميًا لكن تعذر تأكيد تفعيلها من GitHub'}</p>
+      <p className="text-xs text-slate-500">يحلل المحرك الفرص والأدلة باللغات الثلاث ويحفظ المقترحات يوميًا. النشر اليومي مستقل ويخضع لسياسة مركز المحتوى وحدّه اليومي؛ النجاح لا يضمن اكتمال جميع اللغات أو ظهور النتائج في Google.</p>
       <button type="button" disabled={busy||active||!workflow.configured} onClick={()=>void start()} className="rounded-lg border px-4 py-2 disabled:opacity-50">تشغيل محرك GEO</button>
       <button type="button" onClick={()=>void loadWorkflow()} className="rounded-lg border px-4 py-2 mx-2">تحديث الحالة</button>
       {feedback&&<p role="status" className="text-sm">{feedback}</p>}
-      {workflow.runs?.slice(0,3).map(run=><p key={run.id} className="text-xs">#{run.id}: {run.status} — {run.conclusion||'لم ينته'}</p>)}
+      {workflow.runs?.slice(0,3).map(run=><p key={run.id} className="text-xs">{run.html_url?<a href={run.html_url} rel="noopener noreferrer" target="_blank" className="underline">تشغيل #{run.id}</a>:'تشغيل #'+run.id}: {run.status} — {run.conclusion||'لم ينته'}</p>)}
       <p className="text-xs text-slate-500">التشغيل محمي بمفتاح المدير ويتطلب GEO_GITHUB_TOKEN بصلاحية Actions:write. إعدادات النشر التلقائي ومتابعة المنشورات تُدار منفصلًا من مركز المحتوى والأثر.</p>
     </div>
     <h3 className="font-semibold">مزودو البحث</h3>
