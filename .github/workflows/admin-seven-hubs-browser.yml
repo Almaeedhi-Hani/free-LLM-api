@@ -27,8 +27,8 @@ jobs:
     env:
       ADMIN_SECRET: isolated-seven-hubs-admin-secret
       E2E_ADMIN_SECRET: isolated-seven-hubs-admin-secret
-      CONTENT_STORE_PATH: ${{ runner.temp }}/seven-hubs-content.json
-      MARKET_INTEL_PATH: ${{ runner.temp }}/seven-hubs-market
+      CONTENT_STORE_PATH: /tmp/seven-hubs-content.json
+      MARKET_INTEL_PATH: /tmp/seven-hubs-market
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
