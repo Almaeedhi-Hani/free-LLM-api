@@ -175,7 +175,7 @@ export default function ContentImpactCenter({
     <button className="btn-secondary text-sm" onClick={()=>onNavigate('visibility')}>لوحة Google والظهور</button>
    </div>
    <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
-    <strong>حالة النشر: بالمراجعة البشرية حاليًا.</strong> يجري تجهيز النشر الآلي المحكوم بضوابط المصادر والنسخ والتراجع؛ لا يعمل تلقائيًا في هذه المرحلة، ولا تنشر المقترحات غير المعتمدة.
+    <strong>حالة النشر: {autoStatus?.enabled?'النشر الآلي المحكوم مفعّل':'المراجعة البشرية — النشر الآلي متوقف'}.</strong> جميع المقترحات الاستثمارية والقانونية عالية المخاطر تبقى للمراجعة المتخصصة. النشر الآلي محصور بالأدلة منخفضة المخاطر بعد تحقق المصادر وتسجيل نسخة قابلة للتراجع.
    </div>
    <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
     {facts.map(f=><div key={f.name} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
