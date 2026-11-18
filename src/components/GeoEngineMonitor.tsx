@@ -17,7 +17,8 @@ const providers = ['Exa','Tavily','Parallel','Firecrawl'];
 const str = (value: unknown) => typeof value === 'string' ? value : '';
 export default function GeoEngineMonitor({secret,runs,competitors,keywords,opportunities,goals,sources,loading,refresh}:Props) {
   const [workflow,setWorkflow]=useState<{configured?:boolean;
-    schedule?:{cadence:string;cron_utc:string;saudi_time:string;time_zone:string;state:string;active:boolean|null};
+    schedule?:{cadence:string;cron_utc:string;saudi_time:string;transitionSaudi:string;time_zone:string;state:string;active:boolean|null};
+    llmIndex?:{available:boolean;url:string;runs:Array<{id:number;status:string;conclusion:string|null;html_url?:string}>};
     lastAnalysis?:{lastRun:string|null;status:string;available:boolean;languages:Record<string,string>};
     runs?:Array<{id:number;status:string;conclusion:string|null;created_at?:string;html_url?:string}>;message?:string}>({});
   const [busy,setBusy]=useState(false);
@@ -70,10 +71,24 @@ export default function GeoEngineMonitor({secret,runs,competitors,keywords,oppor
       <p className="text-sm">{workflow.configured?'GitHub Actions متصل':'غير مهيأ: '+(workflow.message||'يلزم إعداد GEO_GITHUB_TOKEN')}</p>
       <p className="text-sm font-semibold" role="status">{!workflow.schedule?
         'جدولة السلاح السري: الحالة غير متاحة':
-        workflow.schedule.active===true?'التشغيل الذاتي مفعّل: تحليل GEO يوميًا الساعة '+workflow.schedule.saudi_time+' صباحًا بتوقيت السعودية':
+        workflow.schedule.active===true?'التشغيل الذاتي مفعّل: تحليل GEO '+(workflow.schedule.cadence==='every_2_hours'?'كل ساعتين حتى نهاية السبت 21 نوفمبر':'كل 4 ساعات من الأحد 22 نوفمبر')+' بتوقيت السعودية':
         workflow.schedule.active===false?'محرك GEO معطّل في GitHub Actions — راجع إعدادات سير العمل':
-        'الجدولة مضبوطة يوميًا لكن تعذر تأكيد تفعيلها من GitHub'}</p>
-      <p className="text-xs text-slate-500">يحلل المحرك الفرص والأدلة باللغات الثلاث ويحفظ المقترحات يوميًا. النشر اليومي مستقل ويخضع لسياسة مركز المحتوى وحدّه اليومي؛ النجاح لا يضمن اكتمال جميع اللغات أو ظهور النتائج في Google.</p>
+        'جدولة GEO مضبوطة لكن تعذر تأكيد تفعيلها من GitHub'}</p>
+      <p className="text-xs text-slate-500">يحلل GEO الفرص باللغات الثلاث في كل دورة مجدولة. النشر المجدول مستقل ويخضع لسياسة مركز المحتوى وحدّه اليومي؛ فحص النشر المتكرر لا يتجاوز حصة 24 ساعة. قد تتأخر مواعيد GitHub، والنتيجة الجزئية تظل جزئية.</p>
+      <div className="rounded-lg border border-slate-200 p-3 text-xs space-y-1">
+        <p className="font-semibold">الأنظمة المجدولة المرتبطة بالسلاح السري</p>
+        <p>GEO: كل {workflow.schedule?.cadence==='every_4_hours'?'4 ساعات':'ساعتين'} (بدءًا من منتصف الليل)</p>
+        <p>النشر: بعد كل دورة GEO بخمسين دقيقة؛ الحد المطبق في Supabase لم يتغير.</p>
+        <p>Google Search Console: في الساعات الفردية بدءًا من 1:00 ص.</p>
+        <p>فهرس وكلاء AI: /llms.txt — فحص تلقائي وPR فقط عند تغيّر الروابط المنشورة بعد التحقق.</p>
+        <p>صيانة الكود المحدودة: في الساعات الفردية عند الدقيقة 35.</p>
+        <p>ابتداءً من الأحد 22 نوفمبر تصبح الفترة أربع ساعات آليًا؛ لا تعمل المهام الإضافية بين الفترات.</p>
+        <p><a href="/llms.txt" target="_blank" rel="noopener noreferrer" className="underline">فتح فهرس LLM المنشور</a></p>
+        {workflow.llmIndex?.runs?.slice(0,2).map(run=><p key={run.id}>
+          {run.html_url?<a href={run.html_url} target="_blank" rel="noopener noreferrer" className="underline">مراجعة LLM #{run.id}</a>:'LLM #'+run.id}
+          : {run.status} — {run.conclusion||'لم يكتمل بعد'}
+        </p>)}
+      </div>
       <div className="rounded-lg border p-3 space-y-2" aria-label="حالة اللغات في آخر تحليل محفوظ">
        <p className="text-sm font-semibold">اللغات — آخر تحليل محفوظ {workflow.lastAnalysis?.lastRun?
           '('+new Date(workflow.lastAnalysis.lastRun).toLocaleString('ar-SA')+')':''}</p>
