@@ -46,6 +46,8 @@ jobs:
         run: npm run test:geo-persist
       - name: GEO agent tests
         run: npm run test:agent
+      - name: GEO Content & Impact Center contracts and fail-closed auto publication
+        run: npm run test:impact
       - name: Content storage tests
         run: npm run test:storage
       - name: Cron guard tests

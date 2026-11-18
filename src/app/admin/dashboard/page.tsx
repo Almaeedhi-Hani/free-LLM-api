@@ -1,6 +1,7 @@
 ﻿'use client';
 
 import EditorialReviewPanel from '@/components/EditorialReviewPanel';
+import ContentImpactCenter from '@/components/ContentImpactCenter';
 import EvidencePriorityReviewPanel from '@/components/EvidencePriorityReviewPanel';
 import type { CompetitorPageEvidenceBrief } from '@/lib/competitor-page-evidence';
 import PackageRequestsAdmin from '@/components/PackageRequestsAdmin';
@@ -20,6 +21,7 @@ type Tab =
   | 'agent'
   | 'reviews'
   | 'editorial'
+  | 'impact'
   | 'settings'
   | 'competitors'
   | 'keywords'
@@ -85,6 +87,7 @@ const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'content', label: 'محتوى الموقع', icon: '📝' },
   { key: 'reviews', label: 'اعتماد المسودات', icon: '🔍' },
   { key: 'editorial', label: 'تطوير جميع صفحات الموقع', icon: '📚' },
+  { key: 'impact', label: 'مركز المحتوى والأثر', icon: '📊' },
   { key: 'contact', label: 'التواصل', icon: '📞' },
   { key: 'package_requests', label: 'طلبات الباقات', icon: '📥' },
   { key: 'visibility', label: 'SEO وظهور الذكاء الاصطناعي', icon: '📈' },
@@ -675,6 +678,19 @@ export default function AdminDashboard() {
                   })}
                 </ul>
               </section>
+            )}
+
+            {tab === 'impact' && (
+              <ContentImpactCenter
+                editorialItems={content.editorialItems||[]}
+                faqs={content.faqs||[]}
+                drafts={content.drafts||[]}
+                adminSecret={secret}
+                saving={saving}
+                onSaveItems={async items=>await save({editorialItems:items})}
+                onSaveDrafts={async drafts=>await save({drafts})}
+                onNavigate={section=>setTab(section)}
+              />
             )}
 
             {tab === 'editorial' && (
