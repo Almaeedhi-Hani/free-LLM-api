@@ -1,0 +1,39 @@
+name: GEO Daily Auto Publication
+
+on:
+  schedule:
+    - cron: '35 3 * * *'  # 06:35 Saudi Arabia; only publication, no paid GEO analysis
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: geo-auto-publication-daily
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish pending GEO visitor copy and FAQs within owner policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Verify endpoint configuration
+        env:
+          GEO_API_URL: ${{ secrets.GEO_API_URL }}
+          GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
+        run: |
+          if [ -z "$GEO_API_URL" ] || [ -z "$GEO_API_KEY" ]; then
+            echo "::error::GEO publication endpoint is not configured"
+            exit 1
+          fi
+      - name: Run source-optional, audit-logged publication
+        env:
+          GEO_API_URL: ${{ secrets.GEO_API_URL }}
+          GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
+        run: |
+          # DB controls the per-24-hour cap, fingerprint idempotency, and rollback history.
+          # Do not automatically retry writes with ambiguous network acknowledgements.
+          curl --fail-with-body --retry 0 --max-time 120 -sS \
+            -X POST -H "x-geo-api-key: $GEO_API_KEY" \
+            "${GEO_API_URL%/}/api/geo/auto-publication"
