@@ -80,7 +80,7 @@ export default function ContentImpactCenter({
  const changeSensitive=async(allow:boolean)=>{
   if(allow){
    if(!window.confirm('السماح بالنشر التلقائي لمحتوى استثماري أو نظامي حساس قد يؤثر على قرارات العملاء. هل تريد تفعيله؟'))return;
-   if(!window.confirm('تأكيد إضافي: المطابقة النصية مع مصادر رسمية لا تضمن دقة التفسير القانوني. سيُنشر فقط المحتوى الذي يحقق الشروط، بحد مادة حساسة واحدة خلال 24 ساعة، مع إمكانية التراجع.'))return;
+   if(!window.confirm('تأكيد إضافي: النشر الآلي لا يتطلب مصدرين حكوميين ولا يثبت صحة الادعاءات القانونية أو الاستثمارية. سيتم نشر محتوى الصفحات وفق حدود النشر اليومية، مع سجل وتراجع.'))return;
   }else if(!window.confirm('إيقاف النشر التلقائي للمحتوى الحساس؟ يبقى النشر منخفض المخاطر وفق الإعداد الآخر.'))return;
   await autoAction({action:'configure_sensitive',allow_high_risk:allow,
    ...(allow?{confirm:'ENABLE_AUTONOMOUS_SENSITIVE_CONTENT',
@@ -145,7 +145,7 @@ export default function ContentImpactCenter({
   <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6" aria-label="التحكم بالنشر الآلي">
    <div className="flex flex-wrap items-center justify-between gap-3">
     <div><h3 className="font-bold text-navy-900">النشر الآلي المحكوم بالمصادر</h3>
-     <p className="mt-1 text-sm text-slate-600">بعد كل دورة GEO ناجحة، ينشر النظام الأدلة المؤهلة بعد فحص المصادر. ويمكنك السماح منفصلًا بالنشر الآلي للمحتوى متوسط وعالي المخاطر بشرط تطابق مقتطفات الادعاءات مع مصدرين حكوميين مستقلين، وبحد قطعة حساسة واحدة خلال 24 ساعة.</p></div>
+     <p className="mt-1 text-sm text-slate-600">ينشر النظام تلقائيًا محتوى الصفحات الصالح للعرض، بما فيه المحتوى الحساس بعد تفعيل الإذن. لا يُشترط أي عدد من المصادر الحكومية للنشر، وتظهر المراجع المتوفرة للمعلومات دون ادعاء التحقق منها. مهام SEO البرمجية لا تتحول تلقائيًا إلى صفحات.</p></div>
     <span className={autoStatus?.enabled?'text-sm font-bold text-emerald-800':'text-sm font-bold text-amber-800'}>
      {autoStatus?.enabled?'مفعّل':'متوقف'}
     </span>
@@ -169,7 +169,7 @@ export default function ContentImpactCenter({
    <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
     <div className="min-w-0 flex-1">
      <p className="text-sm font-semibold text-amber-950">النشر الآلي للمحتوى الحساس وعالي المخاطر</p>
-     <p className="text-xs text-amber-900">إذن مستقل، مع مقتطفات موثقة من موقعين حكوميين مختلفين. هذا تحقق مقتطفات وليس ضمانًا لصحة التفسير القانوني.</p>
+     <p className="text-xs text-amber-900">صلاحية مستقلة للمحتوى الحساس. لا يوجد حد أدنى للمصادر الحكومية، ويُوسم المحتوى بأنه منشور آليًا وغير متحقق من ادعاءاته بصورة مستقلة.</p>
     </div>
     <button className="btn-secondary text-xs" disabled={!autoStatus?.available||autoBusy}
      onClick={()=>void changeSensitive(!autoStatus?.allow_high_risk)}>
@@ -196,7 +196,7 @@ export default function ContentImpactCenter({
     <button className="btn-secondary text-sm" onClick={()=>onNavigate('visibility')}>لوحة Google والظهور</button>
    </div>
    <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
-    <strong>حالة النشر: {autoStatus?.enabled?'النشر الآلي المحكوم مفعّل':'المراجعة البشرية — النشر الآلي متوقف'}.</strong> المحتوى الحساس {autoStatus?.allow_high_risk?'مسموح تلقائيًا بعد التحقق المشدد':'يتطلب مراجعة بشرية حتى تفعّل صلاحية مستقلة'}؛ وتبقى المواد غير الموثقة محجوبة عن النشر.
+    <strong>حالة النشر: {autoStatus?.enabled?'النشر الآلي المحكوم مفعّل':'المراجعة البشرية — النشر الآلي متوقف'}.</strong> المحتوى الحساس {autoStatus?.allow_high_risk?'مسموح تلقائيًا، دون اشتراط مصادر حكومية':'بانتظار تفعيل الصلاحية المستقلة'}؛ والنشر الآلي لا يعني تدقيق الحقائق أو اعتمادها.
    </div>
    <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
     {facts.map(f=><div key={f.name} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
