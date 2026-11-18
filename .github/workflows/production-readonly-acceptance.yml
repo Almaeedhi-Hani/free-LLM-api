@@ -5,6 +5,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: 'Expected main commit SHA deployed to Render'
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -26,7 +31,7 @@ jobs:
         run: node --check scripts/prod-readonly-acceptance.cjs
       - name: Verify Render deploy revision and protected live endpoints
         env:
-          EXPECTED_DEPLOY_SHA: ${{ github.event_name == 'push' && github.sha || '' }}
+          EXPECTED_DEPLOY_SHA: ${{ github.event_name == 'push' && github.sha || inputs.expected_sha || '' }}
           PRODUCTION_BASE_URL: https://free-llm-api-1-didl.onrender.com
         run: node scripts/prod-readonly-acceptance.cjs
       - name: Verify live multilingual pages and every indexed guide
