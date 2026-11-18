@@ -86,5 +86,18 @@ function makeHarness(fetch){
  assert.equal(rejected.status,'partial','impossible acknowledgements cannot count as success');
  assert.equal(rejected.confirmed.candidates,0);
  assert.equal(rejected.confirmed.keywords,0);
- console.log('PASS GEO storage batching: 21 keywords + 10 candidates in seven small requests, strict acknowledgements, no unsafe retry, no inflated success counts');
+ const reused=makeHarness(async(_,options)=>{
+  const chunk=JSON.parse(options.body);
+  return {ok:true,status:200,json:async()=>({
+   ok:true,confirmed:{candidates:chunk.candidates.length,keywords:chunk.suggestions.length},
+   keyword_persistence:{inserted:0,existing:chunk.suggestions.length}
+  })};
+ });
+ const reusedResult=await reused(candidates,suggestions);
+ assert.equal(reusedResult.status,'success');
+ assert.equal(reusedResult.confirmed.keywords,21,'recognized suggestions remain acknowledged');
+ assert.equal(reusedResult.keyword_changes.inserted,0,'existing keywords cannot count as new inserts');
+ assert.equal(reusedResult.keyword_changes.existing,21,'all existing keywords correctly classified');
+ assert.equal(success.keyword_changes,null,'legacy API acknowledgements cannot invent insert counts');
+ console.log('PASS GEO storage batching: confirmed records separated from new/existing keywords; strict bounded persistence');
 })().catch(e=>{console.error(e);process.exitCode=1});
