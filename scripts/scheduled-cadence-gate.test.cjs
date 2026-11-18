@@ -19,15 +19,15 @@ assert(shouldRun({now:d('2026-11-29T13:00:00Z'),slot:'even'}),'four-hour mode pe
 assert(shouldRun({now:d('2026-11-25T05:00:00Z'),slot:'even',event:'workflow_dispatch'}),'manual may override cadence');
 assert(shouldRun({now:d('2026-11-25T05:00:00Z'),slot:'even',event:'push'}),'workflow-file rollout may override');
 assert.throws(()=>shouldRun({slot:'foo'}),/Invalid cadence slot/);
-for(const path of ['geo-analysis.yml','geo-auto-publication-daily.yml','gsc-daily-sync.yml','autonomous-site-maintenance.yml','llm-feed-optimization.yml']){
+for(const path of ['geo-analysis.yml','geo-auto-publication-daily.yml','gsc-daily-sync.yml','autonomous-site-maintenance.yml','llm-feed-optimization.yml','market-radar.yml']){
  const src=fs.readFileSync('.github/workflows/'+path,'utf8');
  assert(src.includes('scheduled-cadence-gate.cjs'),'Missing 2h->4h self-switch in '+path);
  assert(src.includes('steps.cadence.outputs.run'),'Missing gated job steps in '+path);
- assert(/cron: ['"](?:0 1-23\/2|50 1-23\/2|0 0-22\/2|10 0-22\/2|35 0-22\/2)/.test(src),'Unexpected cadence cron in '+path);
+ assert(/cron: ['"](?:0 1-23\/2|50 1-23\/2|0 0-22\/2|10 0-22\/2|35 0-22\/2|55 0-22\/2)/.test(src),'Unexpected cadence cron in '+path);
 }
 const llm=fs.readFileSync('.github/workflows/llm-feed-optimization.yml','utf8');
 assert(llm.includes('node scripts/llm-agent-index.cjs --update'));
 assert(llm.includes('node scripts/llm-agent-index.test.cjs'));
 assert(llm.includes('gh pr create')&&llm.includes('gh pr merge'));
 assert(llm.includes('npm run build'),'publish only after build passes');
-console.log('PASS Saudi time switch Nov22, 2h burst->4h persistent cadence, five gated automations and LLM quality guard');
+console.log('PASS Saudi time switch Nov22, 2h burst->4h persistent cadence, six gated automations and LLM quality guard');
