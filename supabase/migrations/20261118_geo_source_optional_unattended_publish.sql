@@ -205,7 +205,7 @@ BEGIN
  UPDATE public.content_store SET content=pg_catalog.jsonb_set(
    pg_catalog.jsonb_set(v_content,'{drafts}',
     pg_catalog.jsonb_set(v_drafts,ARRAY[v_index::text],v_event.before_draft)),
-   '{faqs}',(SELECT coalesce(jsonb_agg(x ORDER BY ordinality),'[]'::jsonb)
+   '{faqs}',(SELECT coalesce(jsonb_agg(value ORDER BY ordinality),'[]'::jsonb)
             FROM jsonb_array_elements(v_faqs) WITH ORDINALITY x(value,ordinality)
             WHERE value<>v_event.published_faq)), updated_at=now() WHERE id=1;
  UPDATE public.geo_faq_publication_events SET status='rolled_back',rolled_back_at=now()
