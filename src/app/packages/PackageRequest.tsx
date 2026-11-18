@@ -60,7 +60,8 @@ async function submitRequest(){
  if(!selectedPackage||submitting)return;
  setSubmitting(true);setSubmitError("");
  try{
-  const response=await fetch("/api/package-requests",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...form,packageSlug:selectedPackage.slug,locale:lang,website})});
+  const response=await fetch("/api/package-requests",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...form,packageSlug:selectedPackage.slug,locale:lang,website,
+   sourcePath:new URLSearchParams(window.location.search).get('from')||null})});
   const result=await response.json();
   if(!response.ok||!result.saved)throw Error("save_failed");
   setSavedReference(result.reference);
