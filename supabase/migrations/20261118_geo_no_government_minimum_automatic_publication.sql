@@ -63,14 +63,14 @@ BEGIN
     'premium-residency','investment-funds') THEN
    RETURN jsonb_build_object('status','invalid_route');
   END IF;
-  v_target:='/services/'||v_item->>'target';
+  v_target:='/services/'||(v_item->>'target');
  ELSE
   IF v_item->>'slug' IS NULL OR length(v_item->>'slug')>90 OR
      v_item->>'slug' !~ '^[a-z0-9]+(-[a-z0-9]+)*$' OR
      v_item->>'target' IS DISTINCT FROM v_item->>'slug' THEN
    RETURN jsonb_build_object('status','invalid_route');
   END IF;
-  v_target:='/insights/'||v_item->>'slug';
+  v_target:='/insights/'||(v_item->>'slug');
  END IF;
  IF v_lang<>'ar' THEN v_target:='/'||v_lang||v_target; END IF;
 
