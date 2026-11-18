@@ -2,6 +2,10 @@ name: Autonomous Site Maintenance (bounded)
 on:
   schedule:
     - cron: '40 5 * * 1' # Monday 08:40 Saudi Arabia
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/autonomous-site-maintenance.yml' # one-time rollout verification
   workflow_dispatch:
 
 permissions:
