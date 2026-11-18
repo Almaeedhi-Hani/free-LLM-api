@@ -33,7 +33,7 @@ export function prioritizeGeoWork(
  items:readonly ImpactItem[],
  measurement:ImpactMeasurement|null
 ):GeoWorkPriority[]{
- const pageMetrics=measurement?.status==='available'?measurement.pages:{};
+ const pageMetrics:Record<string,ImpactStats>=measurement?.status==='available'?measurement.pages:{};
  const leadPages=measurement?.leads?.status==='available'?measurement.leads.byPage:null;
  const pending=items.filter(item=>item.status==='pending');
  const queue:GeoWorkPriority[]=pending.map(item=>{
