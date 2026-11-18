@@ -46,6 +46,6 @@ export default async function InsightDetail({params}:{params:{slug:string}}){
    {(page.approval_method==='automated'?(page.cited_sources||[]):(page.verified_sources||[])).map((source,i)=><a key={source} href={source} target="_blank" rel="noopener noreferrer">{lang==="ar"?"المصدر":lang==="zh"?"来源":"Source"} {i+1} <ArrowUpRight /></a>)}
    <a className="action-primary" href={content.contact.whatsapp} target="_blank" rel="noopener noreferrer">{lang==="ar"?"استفسر عن خدمتك":lang==="zh"?"咨询服务":"Ask about our services"} <ArrowUpRight /></a>
   </aside></div>
-  <a href={localizedPath(lang,"/packages")}>{lang==="ar"?"قارن الباقات والأتعاب":lang==="zh"?"比较套餐费用":"Compare service packages"} <ArrowUpRight /></a>
+  <a href={localizedPath(lang,"/packages")+"?from="+encodeURIComponent(localizedPath(lang,"/insights/"+page.slug))}>{lang==="ar"?"قارن الباقات والأتعاب":lang==="zh"?"比较套餐费用":"Compare service packages"} <ArrowUpRight /></a>
  </article>;
 }
