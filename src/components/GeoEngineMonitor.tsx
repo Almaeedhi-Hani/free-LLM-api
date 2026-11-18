@@ -16,7 +16,10 @@ type Props = {
 const providers = ['Exa','Tavily','Parallel','Firecrawl'];
 const str = (value: unknown) => typeof value === 'string' ? value : '';
 export default function GeoEngineMonitor({secret,runs,competitors,keywords,opportunities,goals,sources,loading,refresh}:Props) {
-  const [workflow,setWorkflow]=useState<{configured?:boolean; schedule?:{cadence:string;cron_utc:string;saudi_time:string;time_zone:string;state:string;active:boolean|null}; runs?:Array<{id:number;status:string;conclusion:string|null;created_at?:string;html_url?:string}>;message?:string}>({});
+  const [workflow,setWorkflow]=useState<{configured?:boolean;
+    schedule?:{cadence:string;cron_utc:string;saudi_time:string;time_zone:string;state:string;active:boolean|null};
+    lastAnalysis?:{lastRun:string|null;status:string;available:boolean;languages:Record<string,string>};
+    runs?:Array<{id:number;status:string;conclusion:string|null;created_at?:string;html_url?:string}>;message?:string}>({});
   const [busy,setBusy]=useState(false);
   const [feedback,setFeedback]=useState('');
   const loadWorkflow=async()=>{
@@ -71,6 +74,24 @@ export default function GeoEngineMonitor({secret,runs,competitors,keywords,oppor
         workflow.schedule.active===false?'محرك GEO معطّل في GitHub Actions — راجع إعدادات سير العمل':
         'الجدولة مضبوطة يوميًا لكن تعذر تأكيد تفعيلها من GitHub'}</p>
       <p className="text-xs text-slate-500">يحلل المحرك الفرص والأدلة باللغات الثلاث ويحفظ المقترحات يوميًا. النشر اليومي مستقل ويخضع لسياسة مركز المحتوى وحدّه اليومي؛ النجاح لا يضمن اكتمال جميع اللغات أو ظهور النتائج في Google.</p>
+      <div className="rounded-lg border p-3 space-y-2" aria-label="حالة اللغات في آخر تحليل محفوظ">
+       <p className="text-sm font-semibold">اللغات — آخر تحليل محفوظ {workflow.lastAnalysis?.lastRun?
+          '('+new Date(workflow.lastAnalysis.lastRun).toLocaleString('ar-SA')+')':''}</p>
+       {!workflow.lastAnalysis?.available?<p className="text-xs text-slate-500">لم تُحفظ نتائج منفصلة للغات بعد؛ راجع تقرير GitHub.</p>:
+       <div className="grid grid-cols-3 gap-2">
+        {([['ar','العربية'],['en','English'],['zh','中文']] as const).map(([lang,label])=>{
+         const state=workflow.lastAnalysis?.languages[lang]||'not_run';
+         return <div key={lang} className="rounded-lg border p-2 text-xs">
+          <p className="font-semibold">{label}</p>
+          <p className={state==='analyzed'?'text-emerald-700':'text-amber-800'}>
+           {state==='analyzed'?'اكتمل':state==='model_unavailable'?'النموذج غير متاح':
+            state==='missing_evidence'?'لا توجد أدلة كافية':'لم يُسجل تحليل'}
+          </p>
+         </div>;
+        })}
+       </div>}
+       <p className="text-xs text-slate-500">هذه نتائج آخر تحليل محفوظ في Supabase؛ قد تختلف عن أحدث تشغيل جارٍ في GitHub.</p>
+      </div>
       <button type="button" disabled={busy||active||!workflow.configured} onClick={()=>void start()} className="rounded-lg border px-4 py-2 disabled:opacity-50">تشغيل محرك GEO</button>
       <button type="button" onClick={()=>void loadWorkflow()} className="rounded-lg border px-4 py-2 mx-2">تحديث الحالة</button>
       {feedback&&<p role="status" className="text-sm">{feedback}</p>}
