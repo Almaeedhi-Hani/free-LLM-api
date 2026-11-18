@@ -58,7 +58,7 @@ export default function TechnicalTaskBoard({secret,items,onOpenDetails}:{secret:
      <div className="flex items-center gap-2">
       {saved?.status==='issue_open'&&saved.github_issue_url?.startsWith('https://github.com/')?
        <div className="flex flex-wrap items-center gap-2">
-        <a className="btn-secondary text-xs" href={saved.github_issue_url} rel="noopener noreferrer" target="_blank">تذكرة GitHub #{saved.github_issue_number} — بانتظار التنفيذ</a>
+        <a className="btn-secondary text-xs" href={saved.github_issue_url} rel="noopener noreferrer" target="_blank">تذكرة GitHub #{saved.github_issue_number} — {saved.render_deploy_status==='verified'?'نُفذت ونُشرت':saved.github_pr_state==='merged'?'مُدمجة بانتظار تحقق النشر':'بانتظار التنفيذ'}</a>
         {saved.github_pr_url&&saved.github_pr_url.startsWith('https://github.com/Almaeedhi-Hani/free-LLM-api/pull/')&&
          <a className="text-xs text-blue-700 underline" href={saved.github_pr_url} target="_blank" rel="noopener noreferrer">PR #{saved.github_pr_number} · {saved.github_pr_state==='merged'?'مدمج':saved.github_pr_state==='open'?'قيد المراجعة':'مغلق'}</a>}
         {saved.render_deploy_status==='verified'?<span className="text-xs font-semibold text-emerald-700">تم التحقق من وصول PR إلى إصدار Render</span>:
