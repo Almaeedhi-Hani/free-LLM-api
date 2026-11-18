@@ -368,7 +368,7 @@ async function stageGeoAnalysis() {
   const direct=(typeof process!=='undefined'&&process.env?.GEO_LLM_MODE==='direct')
     ?require('./geo-direct-model-providers.cjs'):null;
   logStage('GEO_ANALYSIS', (direct?'Direct provider HTTP':'OpenCode')+': topic architecture and evidence-backed AR/EN/ZH analysis');
-  const {LANGS,selectLocaleEvidence,promptForLocale}=require('./geo-opencode-planner.cjs');
+  const {LANGS,selectLocaleEvidence,promptForLocale,promptForDirectLocale}=require('./geo-opencode-planner.cjs');
   const all=stageResults.evidence?.items||[];
   if(!all.length)return {records_processed:0,status:'partial',error:'No verified research inputs'};
   const result={opportunities:[],goals:[],drafts:[],editorial_actions:[],languages:{},models_used:[],tokens_used:null};
@@ -402,7 +402,7 @@ async function stageGeoAnalysis() {
       const recovered=freshModels.length===0;
       const evidence=selectLocaleEvidence(all,lang,recovered?2:index===0?8:index===1?4:2);
       const timeoutMs=recovered?45000:index===0?90000:index===1?60000:45000;
-      const prompt=promptForLocale(lang,evidence);
+      const prompt=direct?promptForDirectLocale(lang,evidence):promptForLocale(lang,evidence);
       const trial=direct
         ?await direct.generate(prompt,model,{timeoutMs})
         :runOpenCode(prompt,model,timeoutMs);
