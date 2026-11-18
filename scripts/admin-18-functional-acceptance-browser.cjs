@@ -178,6 +178,7 @@ const groups={
   await page.getByRole('textbox',{name:'عنوان هدف جديد'}).fill('QA follow-up goal');
   await page.getByRole('textbox',{name:'وصف هدف جديد'}).fill('Temporary test objective');
   await page.getByRole('button',{name:'إضافة هدف'}).click();
+  await page.getByText('أُضيف الهدف بنجاح. أضف مؤشرات قياس قبل التنفيذ.').waitFor({timeout:15000});
   const goals=(await request('GET','/api/admin/market/goals')).goals;
   const goal=goals.find(x=>x.title==='QA follow-up goal');
   assert(goal?.id,'New goal must persist in local market storage');
@@ -203,6 +204,12 @@ const groups={
   await page.getByText(pending.q,{exact:true}).waitFor({timeout:16000});
   const draftRow=page.locator('li').filter({hasText:pending.q}).first();
   await draftRow.getByRole('button',{name:'رفض'}).click();
+  await page.waitForFunction(async secret=>{
+    const response=await fetch('/api/admin/content',{headers:{'x-admin-secret':secret}});
+    if(!response.ok)return false;
+    const value=await response.json();
+    return value.drafts?.some(x=>x.q==='سؤال مسودة التدقيق المعزولة'&&x.status==='rejected');
+  },secret,{timeout:15000});
   content=await request('GET','/api/admin/content');
   assert.equal(content.drafts.find(x=>x.q===pending.q).status,'rejected');
   checkpoint('Draft review rejection follows persisted status transition');
@@ -238,10 +245,12 @@ const groups={
   const editedSummary=editorial.summary+' بعد فحص معاينة التعديلات.';
   await page.getByRole('textbox',{name:'ملخص المحتوى'}).fill(editedSummary);
   await page.getByRole('button',{name:'حفظ للمراجعة'}).click();
+  await page.getByText('تم حفظ التغييرات بنجاح').waitFor({timeout:15000});
   content=await request('GET','/api/admin/content');
   assert.equal(content.editorialItems.find(x=>x.id===editorial.id)?.summary,editedSummary,
     'Editorial revision must survive backend readback');
   await page.locator('li').filter({hasText:editorial.title}).first().getByRole('button',{name:'حذف'}).click();
+  await page.getByText('تم حذف المقترح بعد حفظ التغييرات.').waitFor({timeout:15000});
   content=await request('GET','/api/admin/content');
   assert(!content.editorialItems.some(x=>x.id===editorial.id),
     'Editorial deletion must persist; no ghost task after reload');
