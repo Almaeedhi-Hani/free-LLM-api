@@ -375,6 +375,7 @@ async function stageGeoAnalysis() {
   let failed=0,calls=0;
   const unavailableModels=new Set();
   const candidateModels=direct?direct.available():FALLBACK_MODELS;
+  if(direct)logStage('GEO_ANALYSIS','Configured direct model providers: '+candidateModels.map(x=>x.split(':')[0]).join(',')+' (key values hidden)');
   // If no provider is connected, fail visibly without invoking any paid model
   // or accidentally falling back to the OpenCode free session path.
   if(direct&&!candidateModels.length){
