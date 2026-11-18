@@ -1,0 +1,28 @@
+name: GEO PR105 Live Published Article HTTP Proof
+
+on:
+  push:
+    branches:
+      - 'qa/geo-pr105-article-http-20261118'
+    paths:
+      - '.github/workflows/geo-pr105-article-http-proof.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Verify published Arabic article and clear automatic-content disclosure
+        run: |
+          curl --fail-with-body --location --retry 1 --retry-delay 2 --max-time 50 -sS \
+            -o /tmp/geo-article.html \
+            -w 'Live article HTTP %{http_code}, size %{size_download} bytes\n' \
+            'https://free-llm-api-1-didl.onrender.com/insights/foreign-investor-company-documents'
+          test -s /tmp/geo-article.html
+          grep -Fq 'كيف يجهّز المستثمر الأجنبي ملف المستندات' /tmp/geo-article.html
+          grep -Fq 'غير متحققة استقلاليًا' /tmp/geo-article.html
+          echo 'PASS newly auto-published Arabic article and independent-source disclosure'
