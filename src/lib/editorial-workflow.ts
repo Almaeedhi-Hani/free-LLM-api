@@ -28,7 +28,8 @@ export function canonicalServiceTarget(value:string):string {
 }
 export function safeSlug(slug:string):boolean{return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)&&slug.length<=90}
 export function approvedEditorial(items:readonly EditorialItem[]|undefined,lang:EditorialLocale,kind?:EditorialKind,target?:string):EditorialItem[]{
- return (items||[]).filter(x=>x.status==='approved'&&x.reviewedAt&&x.lang===lang&&(!kind||x.kind===kind)&&(!target||x.target===target)&&x.verified_sources?.length);
+ return (items||[]).filter(x=>x.status==='approved'&&x.reviewedAt&&x.lang===lang&&(!kind||x.kind===kind)&&(!target||x.target===target)&&
+  (Boolean(x.verified_sources?.length)||Boolean(x.auto_published&&x.approval_method==='automated')));
 }
 /** Publication gate: reject planning instructions accidentally saved as visitor-facing copy.
  * Run only on new approvals; pending legacy proposals remain editable and preserved. */
@@ -82,7 +83,9 @@ export function validateEditorialItem(item:unknown):EditorialItem {
  if(e.status==='approved'){
    if(!e.reviewedAt||!Number.isFinite(Date.parse(e.reviewedAt)))throw Error('Editorial approval must have reviewedAt');
    if(e.kind==='technical_seo'||e.kind==='internal_link')throw Error('Technical SEO and links are implementation tasks, never published by content store');
-   if(!Array.isArray(e.verified_sources)||e.verified_sources.length===0||e.verified_sources.length>12)throw Error('Approval needs reviewed source links');
+   if(!Array.isArray(e.verified_sources)||e.verified_sources.length>12||
+      (e.verified_sources.length===0&&!(e.auto_published&&e.approval_method==='automated')))
+      throw Error('Human approval requires reviewed links; automated publication may be unsourced and explicitly labeled');
    for(const v of e.verified_sources){try{const u=new URL(v);if(u.protocol!=='https:'||!u.hostname||u.username||u.password)throw Error('Bad URL')}catch{throw Error('Reviewed sources require HTTPS URLs')}}
  }
  return e;
