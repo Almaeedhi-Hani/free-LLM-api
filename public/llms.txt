@@ -1,0 +1,87 @@
+# Invest in Saudi — AI Agent Site Index
+
+> Independent private Saudi investor services provider; not a Saudi government agency.
+> This directory links only to the site’s public services, offers and already-published editorial pages.
+> Professional service fees exclude Saudi government charges, taxes and third-party costs.
+> Verify current regulatory and official costs with the responsible authority; do not infer approvals or outcomes.
+
+## Canonical detailed machine-readable version
+- https://free-llm-api-1-didl.onrender.com/api/llm-version
+
+## General packages
+- https://free-llm-api-1-didl.onrender.com/packages
+
+## Arabic / العربية (ar)
+
+### Services
+- https://free-llm-api-1-didl.onrender.com/services/company-formation
+- https://free-llm-api-1-didl.onrender.com/services/contract-drafting
+- https://free-llm-api-1-didl.onrender.com/services/corporate-banking
+- https://free-llm-api-1-didl.onrender.com/services/investment-funds
+- https://free-llm-api-1-didl.onrender.com/services/misa-license
+- https://free-llm-api-1-didl.onrender.com/services/premium-residency
+
+### Package offers
+- https://free-llm-api-1-didl.onrender.com/packages#professional-add
+- https://free-llm-api-1-didl.onrender.com/packages#professional-ready
+- https://free-llm-api-1-didl.onrender.com/packages#professional-scratch
+- https://free-llm-api-1-didl.onrender.com/packages#services-branch
+- https://free-llm-api-1-didl.onrender.com/packages#services-gcc
+- https://free-llm-api-1-didl.onrender.com/packages#services-premium
+- https://free-llm-api-1-didl.onrender.com/packages#services-scratch
+- https://free-llm-api-1-didl.onrender.com/packages#trading-add
+- https://free-llm-api-1-didl.onrender.com/packages#trading-ready
+- https://free-llm-api-1-didl.onrender.com/packages#trading-scratch
+
+## English (en)
+
+### Services
+- https://free-llm-api-1-didl.onrender.com/en/services/company-formation
+- https://free-llm-api-1-didl.onrender.com/en/services/contract-drafting
+- https://free-llm-api-1-didl.onrender.com/en/services/corporate-banking
+- https://free-llm-api-1-didl.onrender.com/en/services/investment-funds
+- https://free-llm-api-1-didl.onrender.com/en/services/misa-license
+- https://free-llm-api-1-didl.onrender.com/en/services/premium-residency
+
+### Package offers
+- https://free-llm-api-1-didl.onrender.com/en/packages#professional-add
+- https://free-llm-api-1-didl.onrender.com/en/packages#professional-ready
+- https://free-llm-api-1-didl.onrender.com/en/packages#professional-scratch
+- https://free-llm-api-1-didl.onrender.com/en/packages#services-branch
+- https://free-llm-api-1-didl.onrender.com/en/packages#services-gcc
+- https://free-llm-api-1-didl.onrender.com/en/packages#services-premium
+- https://free-llm-api-1-didl.onrender.com/en/packages#services-scratch
+- https://free-llm-api-1-didl.onrender.com/en/packages#trading-add
+- https://free-llm-api-1-didl.onrender.com/en/packages#trading-ready
+- https://free-llm-api-1-didl.onrender.com/en/packages#trading-scratch
+
+## Simplified Chinese / 简体中文 (zh)
+
+### Services
+- https://free-llm-api-1-didl.onrender.com/zh/services/company-formation
+- https://free-llm-api-1-didl.onrender.com/zh/services/contract-drafting
+- https://free-llm-api-1-didl.onrender.com/zh/services/corporate-banking
+- https://free-llm-api-1-didl.onrender.com/zh/services/investment-funds
+- https://free-llm-api-1-didl.onrender.com/zh/services/misa-license
+- https://free-llm-api-1-didl.onrender.com/zh/services/premium-residency
+
+### Package offers
+- https://free-llm-api-1-didl.onrender.com/zh/packages#professional-add
+- https://free-llm-api-1-didl.onrender.com/zh/packages#professional-ready
+- https://free-llm-api-1-didl.onrender.com/zh/packages#professional-scratch
+- https://free-llm-api-1-didl.onrender.com/zh/packages#services-branch
+- https://free-llm-api-1-didl.onrender.com/zh/packages#services-gcc
+- https://free-llm-api-1-didl.onrender.com/zh/packages#services-premium
+- https://free-llm-api-1-didl.onrender.com/zh/packages#services-scratch
+- https://free-llm-api-1-didl.onrender.com/zh/packages#trading-add
+- https://free-llm-api-1-didl.onrender.com/zh/packages#trading-ready
+- https://free-llm-api-1-didl.onrender.com/zh/packages#trading-scratch
+
+## Other already-published editorial pages
+
+No independently indexed editorial pages yet. The canonical feed lists approved content when available.
+
+## Attribution and update policy
+- This list is deterministic from the public feed; it does not generate legal claims or unapproved editorial copy.
+- An update is proposed only if these verified links genuinely change, then code checks/build and a pull request precede deployment.
+- The canonical detailed version updates dynamically as the approved published site content changes.
