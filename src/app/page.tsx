@@ -264,9 +264,6 @@ export default async function HomePage() {
                 <details key={`${f.q}-${i}`}>
                   <summary>{f.q}</summary>
                   <p>{f.a}</p>
-                  {f.approval_method === 'automated' && (
-                    <small>إجابة منشورة آليًا، وقد لا تكون مصادرها متحققة استقلاليًا. تحقّق من الجهات الرسمية قبل اتخاذ قرار.</small>
-                  )}
                 </details>
               ))}
         </div>

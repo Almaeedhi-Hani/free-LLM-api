@@ -42,9 +42,8 @@ export default async function InsightDetail({params}:{params:{slug:string}}){
    </nav>}
    <p className="service-decision-disclaimer">{lang==="ar"?"هذه معلومات إرشادية. تحقّق من متطلبات الجهات الرسمية الحالية قبل اتخاذ القرار.":lang==="zh"?"仅供参考；请核对主管部门当前要求。":"Planning guidance only; verify current authority requirements before acting."}</p>
   </section><aside className="source-panel service-reference-panel">
-   <h2>{page.approval_method==="automated"?(lang==="ar"?"مصادر مرتبطة بالمحتوى (غير متحققة استقلاليًا)":lang==="zh"?"内容参考来源（未经独立核验）":"Related sources (not independently verified)"):(lang==="ar"?"المراجع التي راجعها المحرر":lang==="zh"?"经编辑审阅的资料":"Editor-reviewed references")}</h2>
+   <h2>{page.approval_method==="automated"?(lang==="ar"?"المراجع":lang==="zh"?"参考资料":"References"):(lang==="ar"?"المراجع التي راجعها المحرر":lang==="zh"?"经编辑审阅的资料":"Editor-reviewed references")}</h2>
    {(page.approval_method==='automated'?(page.cited_sources||[]):(page.verified_sources||[])).map((source,i)=><a key={source} href={source} target="_blank" rel="noopener noreferrer">{lang==="ar"?"المصدر":lang==="zh"?"来源":"Source"} {i+1} <ArrowUpRight /></a>)}
-   {page.approval_method==="automated"&&<p className="text-sm">{lang==="ar"?"أُنشئ ونُشر هذا المحتوى آليًا؛ قد لا تكون مصادره متحققة استقلاليًا. تحقّق من أحدث الأنظمة والمتطلبات لدى الجهات المختصة قبل اتخاذ قرار استثماري.":lang==="zh"?"本文由自动系统生成和发布，引用资料可能未经独立核实；请向主管机关核实最新规定。":"Automatically generated and published; cited sources may not have been independently verified. Check current requirements with the responsible authorities before making investment decisions."}</p>}
    <a className="action-primary" href={content.contact.whatsapp} target="_blank" rel="noopener noreferrer">{lang==="ar"?"استفسر عن خدمتك":lang==="zh"?"咨询服务":"Ask about our services"} <ArrowUpRight /></a>
   </aside></div>
   <a href={localizedPath(lang,"/packages")}>{lang==="ar"?"قارن الباقات والأتعاب":lang==="zh"?"比较套餐费用":"Compare service packages"} <ArrowUpRight /></a>
