@@ -6,7 +6,7 @@ on:
   push:
     branches: [main]
     paths:
-      - '.github/workflows/geo-analysis.yml' # One-time provider recovery smoke run; only workflow changes trigger on push
+      - '.github/workflows/geo-analysis.yml' # One-time four-provider rollout smoke; normal schedule unaffected
   workflow_dispatch:  # Manual trigger
 
 permissions:
@@ -34,12 +34,7 @@ jobs:
         id: cadence
         run: node scripts/scheduled-cadence-gate.cjs --slot=even >> "$GITHUB_OUTPUT"
 
-      - name: Install OpenCode
-        if: steps.cadence.outputs.run == 'true'
-        run: |
-          curl -fsSL https://opencode.ai/v2/install | bash
-
-      - name: Run GEO Analysis
+      - name: Analyze GEO with direct free-plan provider fallbacks
         if: steps.cadence.outputs.run == 'true'
         env:
           GEO_API_URL: ${{ secrets.GEO_API_URL }}
@@ -48,8 +43,11 @@ jobs:
           TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
           PARALLEL_API_KEY: ${{ secrets.PARALLEL_API_KEY }}
           FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
-          OPENCODE_MODEL: opencode/beam-free
-          OPENCODE_BIN: /home/runner/.opencode/bin/opencode
+          GEO_LLM_MODE: direct
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           node scripts/opencode-geo-analysis.js --full-pipeline
 

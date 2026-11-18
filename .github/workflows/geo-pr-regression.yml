@@ -12,6 +12,9 @@ on:
       - 'package.json'
       - 'scripts/geo-editorial-prompt.test.cjs'
       - 'scripts/geo-provider-fallback.test.cjs'
+      - 'scripts/geo-direct-model-providers.cjs'
+      - 'scripts/geo-direct-model-providers.test.cjs'
+      - 'scripts/geo-direct-stage-integration.test.cjs'
       - 'scripts/geo-compact-model-fallback.test.cjs'
       - 'scripts/geo-batched-persistence.test.cjs'
       - 'scripts/geo-autopilot-reliability.test.cjs'
@@ -58,6 +61,8 @@ jobs:
         run: node scripts/geo-editorial-prompt.test.cjs
       - name: Free-model fallback safety
         run: node scripts/geo-provider-fallback.test.cjs
+      - name: Four free-plan direct providers and multilingual failover
+        run: node scripts/geo-direct-model-providers.test.cjs && node scripts/geo-direct-stage-integration.test.cjs
       - name: Opportunity contract and partial persistence regression
         run: node scripts/geo-opportunity-contract.test.cjs
       - name: Multilingual evidence-to-prompt integration

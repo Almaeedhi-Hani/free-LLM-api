@@ -14,7 +14,10 @@ assert(geo.includes('  workflow_dispatch:'),'Manual GEO dispatch must remain');
 assert(geo.includes("      - '.github/workflows/geo-analysis.yml'"),'One-time main push bootstrap');
 assert(geo.includes('group: geo-analysis')&&geo.includes('cancel-in-progress: false'),'No overlapping analyses');
 assert(geo.includes('node scripts/opencode-geo-analysis.js --full-pipeline'),'Actual GEO pipeline preserved');
-assert(geo.includes('opencode/beam-free'),'Free default model preserved');
+assert(geo.includes('GEO_LLM_MODE: direct'),'Four direct providers replace unreliable CLI in production');
+for(const name of ['GEMINI_API_KEY','GROQ_API_KEY','NVIDIA_API_KEY','OPENROUTER_API_KEY'])
+ assert(geo.includes('secrets.'+name),'Missing scoped model-provider GitHub Secret: '+name);
+assert(!geo.includes('curl -fsSL https://opencode.ai'),'No OpenCode CLI download in scheduled run');
 assert(geo.includes("if: always() && steps.cadence.outputs.run == 'true'"),'Partial-run reports must upload only when engine ran');
 assert(geo.includes('POST -H "x-geo-api-key: $GEO_API_KEY"'),'Authenticated publishing preserved');
 assert(publisher.includes("- cron: '50 1-23/2 * * *'"),'Publisher checks every two hours, then four hours');
