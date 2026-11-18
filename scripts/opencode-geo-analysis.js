@@ -575,9 +575,10 @@ async function stageEditorialActions() {
   stageResults.editorial_actions={count:generated.length,persisted:0,rejected_count:screened.rejected.length,
     reason:'No valid cross-site proposals in this evidence batch'};
   console.log('[EDITORIAL] No valid evidence-backed cross-site proposals to persist');
-  return generated.length
-    ?{records_processed:0,status:'partial',error:'Rejected '+screened.rejected.length+' malformed editorial proposal(s)'}
-    :{records_processed:0,status:'success'};
+  return {records_processed:0,status:'partial',
+    error:generated.length
+      ?'Rejected '+screened.rejected.length+' malformed editorial proposal(s)'
+      :'No evidence-backed editorial proposals generated; inspect model output'};
  }
  const byId=new Map((stageResults.evidence?.items||[]).map(e=>[e.id,e]));
  const crypto=require('node:crypto');
