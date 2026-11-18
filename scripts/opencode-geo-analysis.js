@@ -28,7 +28,7 @@ const FREE_MODEL_ALLOWLIST=Object.freeze([
 const FALLBACK_MODELS=Array.from(new Set([MODEL,...FREE_MODEL_ALLOWLIST]))
   .filter(m=>FREE_MODEL_ALLOWLIST.includes(m));
 const MAX_RETRIES = 2;
-// Each weekly run performs three distinct language analyses, with at most 18 free-model
+// Each run performs three distinct language analyses, with at most 9 free-model
 // attempts across those analyses. No paid-tier fallback or unverified token quota is assumed.
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -375,24 +375,26 @@ async function stageGeoAnalysis() {
     if(!sample.length){result.languages[lang]={status:'missing_evidence'};failed++;continue}
     let response=null;
     const attempts=[];
-    // Three attempts at most, all free. Avoid reusing previously timed-out
-    // alternative models across locales; give the default model a fresh
-    // chance because performance depends on the source language.
-    const fallbackOrder=[
-      FALLBACK_MODELS[0],
-      ...FALLBACK_MODELS.slice(1).filter(model=>!unavailableModels.has(model)),
-      ...FALLBACK_MODELS.slice(1).filter(model=>unavailableModels.has(model))
-    ].slice(0,3);
+    // Three free-model calls per locale at most. A model which timed out
+    // or failed to start earlier in this same run is *not* a healthy first
+    // choice for every subsequent language. Explore the remaining allowlist
+    // instead of burning 3 x 120s on the identical unavailable provider.
+    // If all free models failed, still give the next locale one shortened
+    // fresh request: provider availability may recover or differ by locale.
+    const freshModels=FALLBACK_MODELS.filter(model=>!unavailableModels.has(model));
+    const fallbackOrder=(freshModels.length?freshModels:[FALLBACK_MODELS[0]]).slice(0,3);
     for(const [index,model] of fallbackOrder.entries()){
       calls++;
-      const evidence=selectLocaleEvidence(all,lang,index===0?8:index===1?4:2);
-      const trial=runOpenCode(promptForLocale(lang,evidence),model,index===0?120000:75000);
+      const recovered=freshModels.length===0;
+      const evidence=selectLocaleEvidence(all,lang,recovered?2:index===0?8:index===1?4:2);
+      const timeoutMs=recovered?45000:index===0?90000:index===1?60000:45000;
+      const trial=runOpenCode(promptForLocale(lang,evidence),model,timeoutMs);
       const data=trial.data;
       const valid=data&&['opportunities','goals','drafts','editorial_actions'].every(field=>Array.isArray(data[field]));
       if(valid){response=trial;break}
       const reason=String(trial.error||(data?'invalid_model_response':'unparseable JSON')).slice(0,70);
       attempts.push({model,reason});
-      if(reason==='timeout'||reason==='rate_limited')unavailableModels.add(model);
+      if(reason==='timeout'||reason==='rate_limited'||reason.startsWith('Command failed'))unavailableModels.add(model);
       logStage('GEO_ANALYSIS',lang+' free model unavailable: '+model+' '+reason);
     }
     if(!response){result.languages[lang]={status:'model_unavailable',evidence_sampled:sample.length,attempts};failed++;continue}
