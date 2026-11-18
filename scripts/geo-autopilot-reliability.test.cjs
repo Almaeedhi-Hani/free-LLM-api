@@ -26,7 +26,7 @@ const vm=require('node:vm');
   runOpenCode:(prompt,model,deadline)=>{
    const {lang,length}=JSON.parse(prompt);
    requests.push({lang,length,model,deadline});
-   if(lang==='en'&&model===models[0]||lang==='zh'&&model===models[3]){
+   if(lang==='en'&&model===models[3]||lang==='zh'&&model===models[4]){
     return {model,data:{opportunities:[{title:lang}],goals:[],drafts:[],editorial_actions:[]}};
    }
    return {model,error:'timeout'};
@@ -41,11 +41,12 @@ const vm=require('node:vm');
  assert.equal(output.geo_analysis.languages.zh.status,'analyzed');
  assert.equal(output.geo_analysis.opportunities.length,2);
  assert.deepEqual(requests.filter(x=>x.lang==='ar').map(x=>x.model),models.slice(0,3));
- assert.deepEqual(requests.filter(x=>x.lang==='en').map(x=>x.model),[models[0]]);
- assert.deepEqual(requests.filter(x=>x.lang==='zh').map(x=>x.model),[models[0],models[3]],
-  'avoid previously timed-out fallback models; give each locale a default attempt');
+ assert.deepEqual(requests.filter(x=>x.lang==='en').map(x=>x.model),[models[3]],'skip all failed prior providers for English');
+ assert.deepEqual(requests.filter(x=>x.lang==='zh').map(x=>x.model),[models[3],models[4]],
+  'retry a successful model with Chinese evidence first, then rotate to the remaining fresh free provider');
  assert.deepEqual(requests.filter(x=>x.lang==='ar').map(x=>x.length),[8,4,2]);
- assert.deepEqual(requests.filter(x=>x.lang==='ar').map(x=>x.deadline),[120000,75000,75000]);
+ assert.deepEqual(requests.filter(x=>x.lang==='ar').map(x=>x.deadline),[90000,60000,45000]);
+ assert.equal(requests.filter(x=>x.lang==='zh')[0].deadline,90000);
  assert(requests.every(x=>models.includes(x.model)),'no paid or unapproved model fallback');
  const api=fs.readFileSync('src/app/api/geo/discovery/route.ts','utf8');
  assert(api.includes("if(existing.has(normalized)){existingKeywords++;return;}"),
