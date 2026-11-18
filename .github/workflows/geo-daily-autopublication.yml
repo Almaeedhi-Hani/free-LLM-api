@@ -1,0 +1,32 @@
+name: GEO daily autonomous content publication
+
+on:
+  schedule:
+    # Daily. Separate from weekly GEO discovery (Sunday 02:00 UTC).
+    - cron: '30 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: geo-autopublication
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Call guarded publication endpoint without retries
+        env:
+          GEO_API_URL: ${{ secrets.GEO_API_URL }}
+          GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
+        run: |
+          if [ -z "$GEO_API_URL" ] || [ -z "$GEO_API_KEY" ]; then
+            echo "::error::GEO endpoint or server API key missing"
+            exit 1
+          fi
+          curl --fail-with-body --retry 0 --max-time 240 -sS \
+            -X POST -H "x-geo-api-key: $GEO_API_KEY" \
+            "${GEO_API_URL%/}/api/geo/auto-publication"
