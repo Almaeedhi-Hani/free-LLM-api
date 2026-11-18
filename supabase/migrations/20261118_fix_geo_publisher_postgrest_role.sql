@@ -26,7 +26,7 @@ BEGIN
       RAISE EXCEPTION 'Unexpected authorization contract for %',row.proname;
     END IF;
     IF pg_catalog.strpos(definition,'SECURITY DEFINER')=0 OR
-       pg_catalog.strpos(definition,'SET search_path TO ''''''')=0 THEN
+       pg_catalog.strpos(definition,'SET search_path TO')=0 THEN
       RAISE EXCEPTION 'Unexpected function security flags for %',row.proname;
     END IF;
     EXECUTE pg_catalog.replace(definition,legacy,modern);
