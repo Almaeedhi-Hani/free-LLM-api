@@ -16,7 +16,7 @@ assert.equal(validWhatsAppAdvisorField('أحمد بن محمد',80),true);
 assert.equal(validWhatsAppAdvisorField('Senior Investment Advisor',100),true);
 assert.equal(validWhatsAppAdvisorField('中文投资顾问',80),true);
 assert.equal(validWhatsAppAdvisorField('',80),true,'name and title remain optional; no invented names');
-for(const invalid of ['<script>', 'Bad\\nNewline'.replace('\\n','\\n'), 'x'.repeat(81)])
+for(const invalid of ['<script>', 'Bad'+String.fromCharCode(10)+'Newline', 'x'.repeat(81)])
  assert.equal(validWhatsAppAdvisorField(invalid,80),false);
 
 assert.equal(whatsAppUrlForLanguage(contact,'ar'),'https://wa.me/966501111111');
@@ -42,8 +42,8 @@ for(const value of ['usePathname','pathname.startsWith(\'/admin/\')','aria-expan
  assert(float.includes(value),'missing floating UI behavior: '+value);
 const admin=fs.readFileSync('src/app/admin/dashboard/page.tsx','utf8');
 for(const value of ['whatsappAr','whatsappEn','whatsappZh','whatsappNumbers:',
- "['whatsappAr','المستشار العربي'","['whatsappEn','English-speaking advisor'",
- "['whatsappZh','中文顾问'","'رقم واتساب '+caption",'contactToForm'])
+ "numberKey:'whatsappAr'","numberKey:'whatsappEn'","numberKey:'whatsappZh'",
+ "'رقم واتساب '+lang",'contactToForm'])
  assert(admin.includes(value),'missing admin configuration: '+value);
 for(const value of ['advisorNameAr','advisorTitleAr','advisorNameEn','advisorTitleEn','advisorNameZh','advisorTitleZh',
  'whatsappAdvisors:','validWhatsAppAdvisorField(value,80)','validWhatsAppAdvisorField(value,100)',
