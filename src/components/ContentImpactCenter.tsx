@@ -4,6 +4,7 @@ import type {EditorialItem} from '@/lib/editorial-types';
 import type {ContentFAQ,ContentDraft} from '@/lib/content-store';
 import {buildImpactInventory} from '@/lib/content-impact';
 import GeoImpactExperiments from '@/components/GeoImpactExperiments';
+import GeoWorkPriorities from '@/components/GeoWorkPriorities';
 import type {ImpactItem,ImpactMeasurement,ImpactStats} from '@/lib/content-impact';
 
 type Props={
@@ -226,6 +227,8 @@ export default function ContentImpactCenter({
    {measureError&&<p className="mt-3 text-sm text-amber-900" role="status">{measureError}؛ لا نعرض صفرًا بديلًا عن البيانات المفقودة.</p>}
    {measurement&&<p className="mt-3 text-sm text-slate-600" role="status">{measurement.message} {measurement.leads?.message||'بيانات الطلبات غير متاحة.'} قياسات ظهور AI لم تتصل بعد، ولا ننسب أداء الصفحة إلى سؤال FAQ منفرد.</p>}
   </section>
+  <GeoWorkPriorities items={rows} measurement={measurement} loading={loading}
+   onPreview={setSelectedId} onVisibility={()=>onNavigate('visibility')}/>
   <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
    <div className="mb-4 grid grid-cols-1 gap-2 md:grid-cols-4">
     <input aria-label="بحث في المحتوى" value={search} onChange={e=>setSearch(e.target.value)}
