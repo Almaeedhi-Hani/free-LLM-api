@@ -24,6 +24,17 @@ export function officialCandidateUrls(item:EditorialItem):string[]{
  }
  return result.slice(0,3);
 }
+/** Prevent a model from labeling regulated claims LOW-risk to bypass specialist review.
+ * This independent, conservative filter is deliberately restrictive; it does
+ * not replace factual review and rejects ambiguous language by default. */
+export function lowRiskEditorialCopy(item:EditorialItem):boolean{
+ const all=[item.title,item.summary,item.body,item.primary_keyword||'',
+  ...(item.sections||[]).flatMap(section=>[section.h2,section.body,
+   ...(section.subsections||[]).flatMap(part=>[part.h3,part.body])])].join(' ');
+ if(all.length<160||all.length>18000)return false;
+ if(/(?:licen[sc](?:e|ing)|legal|regulat(?:ion|ory)|government fee|taxation?|corporate tax|ownership|shareholder|bank(?:ing)?|residen(?:ce|cy)|immigration|visa|permit|approval|guaranteed|cost estimate|paid service|service fee|sanction|penalt(?:y|ies)|موافقة|ترخيص|رخصة|نظام|قانون|رسوم|ضريبة|ملكية|إقامة|تأشيرة|حساب بنكي|بنك|许可|执照|法律|税|收费|银行|居留|签证|股东|监管|审批)/i.test(all))return false;
+ return true;
+}
 /** A successful HTTP response checks page availability, NOT whether a legal claim is true.
  * Only previously risk-classified LOW-risk editorial guides may auto-publish. */
 export async function checkOfficialUrlReachable(url:string,request:typeof fetch=fetch):Promise<boolean>{
@@ -110,7 +121,7 @@ export async function runGuardedAutoPublishing(dryRun=false):Promise<AutoPublish
   const eligible=autoPublicationEligibility({...item,verifiedSources:sources},{
    mode:'guarded_automatic',enabled:true,maxDailyPages:state.daily_limit
   },{hasVersionedRollback:true,hasIdempotencyKey:true,officialSourcesIndependentlyChecked:sources.length>0});
-  if(!eligible.eligible||editorialPublicationIssues(candidate).length){
+  if(!eligible.eligible||!lowRiskEditorialCopy(candidate)||editorialPublicationIssues(candidate).length){
    report.skipped++;report.events.push({item_id:candidate.id,result:'review_required'});
    continue;
   }
