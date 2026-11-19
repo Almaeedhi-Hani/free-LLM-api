@@ -45,7 +45,10 @@ export async function GET(req: NextRequest) {
    const history=await store.getHistory(property);
    // The opportunity analyzer needs 28 + 28 complete days (56). Keep a
    // 60-day recovery horizon without increasing the per-run request budget.
-   const earliestDate=new Date(now.getTime()-60*86400000).toISOString().slice(0,10);
+   // Phase-1 approved recovery floor: backfill from the first owner-identified
+   // measurement window (15 Nov 2026), not 60 days before initial activation.
+   // planGscCatchup still applies the moving 60-day lookback and now-3 cutoff.
+   const earliestDate='2026-11-15';
    const report=await executeGscCatchup({now,earliestDate,history,maxDays:2,lookbackDays:60,property,
     queryRows:getRowsForDate,commitDay:store.commitDay,readDay:store.readDay});
    const failed=report.results.some(day=>Boolean(day.failure));
