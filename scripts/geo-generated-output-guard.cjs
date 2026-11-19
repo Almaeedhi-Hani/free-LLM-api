@@ -8,7 +8,8 @@
  */
 const tree=require('../src/data/content-tree.json');
 const knownNodes=new Map(tree.nodes.map(n=>[n.id,n]));
-const validKinds=new Set(['home','service','packages','guide','comparison','trust','technical_seo','internal_link']);
+const EDITORIAL_KINDS=Object.freeze(['home','service','packages','guide','comparison','trust','technical_seo','internal_link']);
+const validKinds=new Set(EDITORIAL_KINDS);
 const validPriority=new Set(['high','medium','low']);
 const safeText=(v,min,max)=>typeof v==='string'&&v.trim().length>=min&&v.length<=max&&!/[<>]/.test(v);
 function prepareGoals(items){
@@ -76,4 +77,4 @@ function screenDrafts(items){
  }
  return {accepted,rejected};
 }
-module.exports={prepareGoals,screenEditorial,eligibleEditorial,screenDrafts};
+module.exports={prepareGoals,screenEditorial,eligibleEditorial,screenDrafts,EDITORIAL_KINDS};

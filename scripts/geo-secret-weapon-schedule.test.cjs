@@ -21,7 +21,15 @@ for(const name of ['GEMINI_API_KEY','GROQ_API_KEY','NVIDIA_API_KEY','OPENROUTER_
 assert(!geo.includes('curl -fsSL https://opencode.ai'),'No OpenCode CLI download in scheduled run');
 assert(geo.includes("if: always() && steps.cadence.outputs.run == 'true'"),'Partial-run reports must upload only when engine ran');
 assert(geo.includes('POST -H "x-geo-api-key: $GEO_API_KEY"'),'Authenticated publishing preserved');
-assert(publisher.includes("- cron: '50 1-23/2 * * *'"),'Publisher checks every two hours, then four hours');
+for(const hour of [1,3,5,7,9,11,13,15,17,19,21,23])
+ assert(publisher.includes("- cron: '50 "+hour+" * * *'"),
+   'Publisher must retain each of the twelve original UTC instants '+hour);
+assert(!publisher.includes("- cron: '50 1-23/2 * * *'"),
+ 'Publisher must retain immutable per-hour scheduled event identity');
+assert(publisher.includes('scheduled-event-slot.cjs --kind=publication'),
+ 'Delayed publisher event must use nominal GitHub event time, not runner wall clock');
+assert(publisher.includes("if: steps.cadence.outputs.run == 'true'"),
+ 'Real publication remains gated by immutable schedule and owner policy');
 for(const hour of [0,2,4,6,8,10,12,14,16,18,20,22])
  assert(radar.includes("cron: '55 "+hour+" * * *'"),'Market retains each original UTC trigger '+hour);
 assert(radar.includes('scheduled-event-slot.cjs --kind=market'),'Independent market radar uses original event time');
