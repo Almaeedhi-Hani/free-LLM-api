@@ -19,7 +19,7 @@
 
 | المرحلة | القائمة | الحالة الحالية | التاريخ (KSA) | PR | بوابة الخروج / الدليل |
 | --- | --- | --- | --- | --- | --- |
-| 0 التحضير والسلامة | [x] | **بوابة الخروج ناجحة على الرأس 3d890a49؛ تحقق CI نهائي بعد تحديث PROGRESS مطلوب** | 2026-11-19 | [PR #165](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/165) (Draft) | لقطة الأساس [محفوظة بالفرع]؛ CI main [ناجح]؛ Git tag [مؤكد على SHA الأساس]؛ CI PR [6/6 ناجحة على SHA 3d890a49؛ يتم التحقق من الرأس بعد تحديث السجل] |
+| 0 التحضير والسلامة | [x] | **مكتملة ومندمجة؛ بوابة الخروج ناجحة** | 2026-11-19 | [PR #165](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/165) — merged `4b2b64f` | [baseline-20261119.md](baseline-20261119.md) محفوظة على main؛ Git tag مثبت؛ CI/Browser/Evals **6/6 ناجحة** على SHA `a4a38a4` |
 | 1 ضمان التشغيل | [ ] | لم تبدأ | — | — | W01–W06: schedule ناجح + حفظ حقيقي مؤرخ |
 | 2 شبكة الأمان | [ ] | لم تبدأ | — | — | محاكاة آمنة لكل إنذار + تقرير أسبوعي منتج |
 | 3 بوابات آلية | [ ] | لم تبدأ | — | — | Evals وقبول ودورة تقبل/ترفض وفحص الروابط العامة |
@@ -42,10 +42,10 @@
 - [x] **مؤكد**: عُدّل فلتر **اختبارات PR فقط** لـ V3 Evals وAdmin seven-hub browser ليشمل `docs/plans/**`، بدون تعديل أي `schedule` إنتاجي. نجحت V3 Evals على SHA `ac18e41` في [#44544172446](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44544172446).
 - [x] **مؤكد**: اختبار المتصفح الشامل نجح على SHA `3d890a49`: [#44544612521](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44544612521)، وأتم خطوات 7 مجموعات، 18 شاشة مع اختبارات الكتابة/القراءة المعزولة محليًا، تنقل الهاتف، تسجيل الخروج، وعرض WhatsApp. لم تُكتب بيانات إنتاجية.
 - [x] **مؤكد**: اجتاز SHA `3d890a49` جميع فحوص PR الستة: [Admin regression #44544612626](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44544612626)، [GSC integration #44544612594](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44544612594)، [Phase2 SQL #44544612850](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44544612850)، [Production read-only #44544612708](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44544612708)، [V3 regression Evals #44544612666](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44544612666)، [Admin browser acceptance #44544612521](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44544612521).
-- [ ] بعد آخر تحديث لهذا السجل يجب إعادة فحص جميع فحوص PR على SHA الرأس الجديد قبل الدمج (حتى لو كانت التغييرات توثيقية).
+- [x] **مؤكد**: اجتاز رأس PR النهائي `a4a38a43425c0cccd9fd5a64881a7efa3ad9f9d0` الفحوص الستة: [Admin regression #44554715774](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44554715774)، [GSC integration #44554715748](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44554715748)، [Phase 2 SQL #44554715778](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44554715778)، [Production read-only #44554715860](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44554715860)، [V3 Evals #44554715753](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44554715753)، [Admin seven-hub browser #44554715964](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44554715964).
 - [ ] تحقق من إعادة نجاح **كل** الفحوص المطلوبة على رأس PR بعد هذا التحديث (CI وV3 Evals وBrowser)؛ سجّل روابط الرأس النهائي في PR عند اكتمالها.
-- [ ] دمج PR #165 بعد تحقق جميع فحوص SHA الرأس الجديد؛ سجّل SHA الدمج في تقرير نقطة التفتيش.
-- [ ] تقرير نقطة تفتيش للمالك؛ **لا تبدأ المرحلة 1 قبل موافقته**.
+- [x] **مؤكد**: دُمج [PR #165](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/165) باستخدام squash، معرّف الدمج `4b2b64f3bd73c7248a4f8f37b59dba1cc0fb2d30`؛ موجود على main. الوسم يظل على baseline السابق `9606113`.
+- [x] **مؤكد**: أُرسل تقرير نقطة التفتيش للمالك بعد الدمج. **النمط أ: لا تبدأ المرحلة 1 قبل موافقة جديدة بعد هذه النقطة.**
 
 ### بوابة خروج المرحلة 0
 
@@ -54,10 +54,10 @@
 | وجود pre-consolidation-20261119 على SHA البداية | **نجاح مؤكد** | GitHub GET مطابق SHA؛ [run #44544172119](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44544172119) |
 | حفظ الخطة ولقطة الأساس وPROGRESS | **منفذ في الفرع؛ لم يُدمج** | الملفات الثلاثة في فرع codex/phase0-plan-baseline-20261119 |
 | CI أخضر على main | **ناجح** | #44515753293 و#44515753188 |
-| CI/قبول على PR | **6/6 ناجحة على SHA 3d890a49** | #44544612626، #44544612594، #44544612850، #44544612708، #44544612666، #44544612521؛ إعادة تحقق للرأس بعد تحرير هذا السجل |
-| V3 Evals وBrowser acceptance | **ناجحان على SHA 3d890a49** | Evals [#44544612666](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44544612666)؛ browser [#44544612521](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44544612521) |
+| CI/قبول على PR | **6/6 نجاح نهائي** | SHA `a4a38a4`، run IDs: #44554715774، #44554715748، #44554715778، #44554715860، #44554715753، #44554715964 |
+| V3 Evals وBrowser acceptance | **نجحا على SHA النهائي** | Evals [#44554715753](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44554715753)؛ Browser [#44554715964](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44554715964) |
 
-**الحكم بتاريخ 2026-11-19:** الوسم ولقطة الأساس و6 فحوص PR على SHA `3d890a49` ناجحة. آخر تعديل توثيقي للسجل يستدعي إعادة التأكد من CI على SHA النهائي. بعد ذلك يمكن دمج PR #165 وإنهاء المرحلة 0، مع توقف النمط أ عند نقطة التفتيش قبل بدء المرحلة 1.
+**الحكم بتاريخ 2026-11-19:** **بوابة خروج المرحلة 0 مجتازة.** وسم الاسترجاع على SHA البداية مثبت، لقطة الأساس محفوظة على main، CI/قبول/Evals على SHA PR النهائي 6/6 ناجحة، وPR #165 مدمج في `4b2b64f`. **المرحلة 1 لم تبدأ** وفق النمط أ؛ تتطلب موافقة المالك عند نقطة التفتيش. تحديث هذا السجل لاحقًا في PR توثيقي مستقل من المرحلة نفسها لا يغيّر حكم الاختبارات على كود PR #165.
 
 ## المرحلة 1 — الأدلة المطلوبة (لا تدّعِ أنها مكتملة)
 
@@ -152,4 +152,4 @@
 
 | التاريخ | المرحلة | نوع العمل | PR | النتيجة |
 | --- | --- | --- | --- | --- |
-| 2026-11-19 | 0 | توثيق الخطة ولقطة الأساس، إنشاء وسم Git ثابت، تشغيل Evals وBrowser، وإزالة bootstrap المؤقت | [#165](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/165) | 6/6 على 3d890a49 ناجحة؛ إعادة تحقق من CI بعد تحديث السجل ثم الدمج |
+| 2026-11-19 | 0 | توثيق الخطة ولقطة الأساس، تثبيت Git tag، Evals وBrowser ناجحان، إزالة bootstrap المؤقت، دمج المرحلة | [#165](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/165) | **مكتملة**؛ merge `4b2b64f`، 6/6 فحوص على `a4a38a4`؛ لا تغيير إنتاجي |
