@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "prompts": [
+    { "id": "ar-formation-documents", "language": "ar", "keyword": "مستندات تأسيس شركة أجنبية في السعودية", "text": "ما المستندات التي يحتاجها مستثمر أجنبي لتأسيس شركة في السعودية؟ اذكر المراجع المباشرة التي استندت إليها." },
+    { "id": "ar-formation-providers", "language": "ar", "keyword": "خدمات تأسيس شركة لمستثمر أجنبي في السعودية", "text": "ما الجهات الاستشارية التي تساعد مستثمرًا أجنبيًا في تأسيس شركة في السعودية؟ اذكر سبب ترشيح كل جهة ورابط الخدمة." },
+    { "id": "ar-banking", "language": "ar", "keyword": "فتح حساب بنكي لشركة مستثمر أجنبي في السعودية", "text": "ما الذي يحتاجه مستثمر أجنبي لفتح حساب مصرفي لشركته في السعودية؟ اذكر المراجع المباشرة التي استندت إليها." },
+    { "id": "ar-branch", "language": "ar", "keyword": "تسجيل فرع شركة أجنبية في السعودية", "text": "كيف يختار مستثمر أجنبي بين تسجيل فرع لشركته وتأسيس شركة جديدة في السعودية؟ اذكر المراجع المباشرة." },
+    { "id": "en-formation-documents", "language": "en", "keyword": "Saudi company formation documents for foreign investors", "text": "Which documents should a foreign investor prepare to form a company in Saudi Arabia? Cite the specific pages you used." },
+    { "id": "en-formation-providers", "language": "en", "keyword": "Saudi company formation services for foreign investors", "text": "Which firms help foreign investors form a company in Saudi Arabia? Explain why you recommend each firm and link to the relevant service page." },
+    { "id": "en-banking", "language": "en", "keyword": "bank account for foreign company in Saudi Arabia", "text": "What does a foreign investor need to open a corporate bank account in Saudi Arabia? Cite the specific pages you used." },
+    { "id": "en-branch", "language": "en", "keyword": "foreign company branch registration in Saudi Arabia", "text": "How can a foreign investor choose between registering a foreign company branch and incorporating a local company in Saudi Arabia? Cite the specific pages you used." },
+    { "id": "zh-formation-documents", "language": "zh", "keyword": "沙特外资公司注册材料", "text": "在沙特注册外资公司需要准备哪些材料？请列出你直接引用的网页。" },
+    { "id": "zh-formation-providers", "language": "zh", "keyword": "沙特外资公司注册服务", "text": "哪些机构可以用中文协助外国投资者在沙特注册公司？请解释推荐理由并附上具体服务页面。" },
+    { "id": "zh-banking", "language": "zh", "keyword": "沙特外资企业银行开户", "text": "外国投资者在沙特为企业开立银行账户需要准备什么？请列出你直接引用的网页。" },
+    { "id": "zh-branch", "language": "zh", "keyword": "沙特外资公司分公司注册", "text": "外国投资者应如何比较在沙特注册外国公司分支机构和设立本地公司？请列出你直接引用的网页。" }
+  ]
+}

@@ -20,6 +20,31 @@ The pure evidence calculator `src/lib/visibility-outcomes.ts` keeps denominators
 
 Mark all as **candidate queries** pending Search Console demand and live SERP validation. For each query track its specific page and intent; information pages compete for questions, service/package pages for commercial intent.
 
+## Versioned AI citation radar
+
+Use `geo/prompt-set.json` as the fixed panel. Version 1 has 12 unbranded prompts across Arabic, English and Simplified Chinese. Keep the question text byte-for-byte and increment the panel version for any change. Record a sampling profile identifier for a fixed location, device, provider surface/mode and fresh-session protocol. Keep that profile definition with the original evidence.
+
+Keep reviewed evidence in a restricted file outside Git. The offline analyzer expects JSON with a `panel` object and an `observations` array:
+
+- `panel` sets `from` and `until` as UTC ISO timestamps (inclusive and exclusive respectively), `sampling_profile`, `site_hosts` and `competitor_hosts`. Host matching treats the `www` form as an alias. List any additional site or competitor hostname explicitly. An empty competitor list is valid.
+- Each observation supplies `provider`, `measurement_type` (`model_only`, `search_grounded` or `manual_ai_search`), `prompt_version`, `prompt_id`, `prompt_text`, `sampling_profile` and the actual answer time `observed_at` in UTC. Use a canonical provider name and give distinct surfaces separate names.
+- At `answer_evidence_url` retain a unique, reproducible HTTPS evidence artifact for the actual answer, including when there are no eligible citations. Supply `evidence_reviewed: true` only after reviewing that artifact. For `search_grounded` provide `grounding_evidence_url` pointing to the retained provider evidence of grounding. Capture `manual_ai_search` samples manually on a real search surface. A model response with links but no established search grounding belongs in `model_only`.
+- `cited_urls` lists the exact pages actually cited and checked against the answer artifact. The reviewer must confirm that each source supports its associated claim. Enter an empty array for a checked answer with no citations and for every `model_only` record. `mentioned` and `recommended` refer to our brand. Supply a short `recommendation_reason` from the answer when the brand was explicitly recommended.
+- Record separate fresh responses, even when an answer repeats. Supply complete evidence rather than selecting responses by result. The analyzer discards conflicting or duplicate artifact references and excludes records outside the chosen profile, dates or prompt version.
+
+Compile and run with existing project dependencies:
+
+```sh
+npm run test:ai-radar
+node scripts/ai-citation-radar.cjs < /path/to/restricted-reviewed-evidence.json
+```
+
+Compare providers only within one measurement type, profile, panel version and window. Each prompt requires three independent answers. Full panel rates require all 12 prompts. The report uses the first three reviewed observations chronologically per prompt for an equally weighted panel, shows sample counts, and displays descriptive 95% Wilson intervals. Correlated answers and the chosen questions limit generalization. Results describe this sample only. An empty panel or under-sampled comparison leaves the rate unknown.
+
+Citation rates are separate for grounded and manual search. For a complete search panel, the internal report shows the observed competitor whose citation rate is closest to ours in that provider and tier. It shows the host and sample counts without reproducing raw citation URLs. Model-only mentions/recommendations are experimental and never contribute to search citation results. A competitor-only citation from a sufficiently sampled search prompt may generate an **internal advisory candidate** if the existing keyword relevance evaluator accepts the prompt's keyword. The script reports candidates for review and performs no handoff to publishing.
+
+The existing protected `impact_ai_observations` table remains the source of legacy manually documented records. Those rows do not store all panel or verification fields, so the analyzer cannot treat them as reviewed search samples. Persisting new structured records would require an approved evolution of that table and the existing admin capture flow. The offline report reads only the supplied input file, invokes no provider, and consumes no API quota. Automated collection requires checking the provider's authorized free capacity and stopping at quota exhaustion without paid fallback.
+
 ## Publishing and technical acceptance
 - Keep AR/EN/ZH pages readable, with server-rendered original text, indexable links, accurate title/canonical/hreflang and a crawlable sitemap; preserve the restored 3-category package UI.
 - Keep `/api/llm-version` as a **single supporting machine-readable feed**, not a second set of prices or a Google ranking dependency.
