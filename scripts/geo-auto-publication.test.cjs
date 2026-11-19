@@ -147,8 +147,12 @@ const {autoPublicationEligibility}=require('../.impact-test-build/lib/content-im
   'High-risk publishing must remain explicitly owner-enabled');
  assert(upgrade.includes('geo_faq_publication_events'),'Auditable FAQ publication and rollback required');
  const daily=fs.readFileSync('.github/workflows/geo-auto-publication-daily.yml','utf8');
- assert(/cron:\s*['"]50 1-23\/2 \* \* \*['"]/.test(daily),'schedule must check every two hours during burst and defer to four-hour gate afterward');
- assert(daily.includes('scheduled-cadence-gate.cjs --slot=even'),'publisher skips alternating 4-hour slots after Sunday');
+ const publicationCrons=Array.from(daily.matchAll(/- cron: '(\d+) (\d+) \* \* \*'/g))
+   .map(m=>[Number(m[1]),Number(m[2])]);
+ assert.deepEqual(publicationCrons,[1,3,5,7,9,11,13,15,17,19,21,23].map(hour=>[50,hour]),
+   'publisher must preserve the same original 2-hour UTC instants via individual cron events');
+ assert(daily.includes('node scripts/scheduled-event-slot.cjs --kind=publication'),
+   'publisher must select post-Nov22 slots from immutable GitHub event metadata, not runner clock');
  assert(worker.includes('daily_limit'),'increased checks must continue to use the existing DB rolling 24-hour quota');
  assert(daily.includes('/api/geo/auto-publication')&&!daily.includes('opencode-geo-analysis.js'),
   'publication polling should not invoke the GEO research provider');
