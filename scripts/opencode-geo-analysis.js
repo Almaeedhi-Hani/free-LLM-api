@@ -351,7 +351,7 @@ async function stageEvidence() {
   // Never infer an empty exclusion list when feedback is temporarily offline.
   try{
     if(!GEO_API_URL||!GEO_API_KEY)throw Error('GEO credentials missing');
-    const response=await fetch(GEO_API_URL.replace(/\\/$/,'')+'/api/geo/feedback',{
+    const response=await fetch((GEO_API_URL.endsWith('/')?GEO_API_URL.slice(0,-1):GEO_API_URL)+'/api/geo/feedback',{
       headers:{'x-geo-api-key':GEO_API_KEY},signal:AbortSignal.timeout(15000)});
     if(!response.ok)throw Error('feedback_read_'+response.status);
     const data=await response.json();
