@@ -21,7 +21,7 @@ Implemented 2026-11-18. All times **Asia/Riyadh (UTC+03:00)**.
 | Bounded autonomous technical site maintenance | 01:35,03:35,...23:35 | 01:35,05:35,...21:35 | 25 min |
 | Independent Market Intelligence Radar | 01:55,03:55,...23:55 | 01:55,05:55,...21:55 | 10 min |
 
-GitHub schedules are UTC and implemented by six files in .github/workflows: geo-analysis.yml, geo-auto-publication-daily.yml, gsc-daily-sync.yml, llm-feed-optimization.yml, autonomous-site-maintenance.yml, and market-radar.yml. The shared gate is scripts/scheduled-cadence-gate.cjs.
+GitHub schedules are UTC and implemented by six files in .github/workflows: geo-analysis.yml, geo-auto-publication-daily.yml, gsc-daily-sync.yml, llm-feed-optimization.yml, autonomous-site-maintenance.yml, and market-radar.yml. Five workflows use scripts/scheduled-cadence-gate.cjs. GSC uses scripts/gsc-scheduled-slot.cjs to apply the same cutover to the original slot.
 
 ## Independent data and safety rules
 
@@ -37,3 +37,11 @@ GitHub schedules are UTC and implemented by six files in .github/workflows: geo-
 ## Rollout verification
 
 Require new branch tests and build; merge only after CI checks succeed. Inspect actual Render deployed commit and read-only production acceptance. The first main-push bootstrap for modified GEO/Autodev and newly added LLM may run once immediately, in addition to scheduled times. Verify the first event=schedule runs separately. Full 3-language GEO and GSC provider availability must be measured in live logs; neither is inferred from green CI.
+
+### GSC late starts and slot claims (#145)
+
+GSC expresses the same twelve UTC hours separately. The event cron identifies the hour and the GitHub Actions run creation timestamp anchors the most recent occurrence of that hour. Runner startup time does not affect either the Saudi cutover or the slot identity. A delay of at least a day *before GitHub creates a run* cannot be distinguished from the following day's occurrence in the available event metadata. The gate also cannot recover events GitHub never delivers.
+
+The serialized workflow keeps pending syncs queued. It checks for an existing slot claim, then creates a 30-day Actions artifact before sending one sync request. The artifact contains only the slot timestamp. A claim records the send boundary, not a successful response or a stored result. Scheduled reruns and duplicate claims skip the provider call. After an ambiguous request, the next eligible scheduled slot can collect again without replaying the same slot. GitHub metadata or claim errors fail the job without sending a sync request. Manual dispatch retains separate operator semantics.
+
+After deployment, validate the first real `event=schedule` run at the new revision. Match the `GSC_CADENCE` slot, endpoint response, and dated rows in Supabase. Revert the GSC slot PR to restore the prior cadence gate if necessary. This rollback touches no measurement data or other schedules.
