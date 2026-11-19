@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
   const endpoint = 'https://www.googleapis.com/webmasters/v3/sites/' + encodeURIComponent(property) + '/searchAnalytics/query';
   const getRowsForDate = async (targetDate:string,dimension:GscDimension,startRow:number,rowLimit:number):Promise<GscRow[]> => {
    const response = await fetch(endpoint, { method: 'POST', headers: { authorization: 'Bearer ' + token.access_token, 'content-type': 'application/json' },
-    body: JSON.stringify({ startDate: targetDate, endDate: targetDate, dimensions: dimension ? [dimension] : [], rowLimit, startRow }), cache: 'no-store' });
+    body: JSON.stringify({ startDate: targetDate, endDate: targetDate, dimensions: dimension==='page_query'?['page','query']:(dimension?[dimension]:[]), rowLimit, startRow }), cache: 'no-store' });
    if (response.status===429) throw new GscQuotaReached('google_quota_reached');
    if (!response.ok) throw new Error('google_search_' + response.status);
    const data = await response.json() as { rows?: GscRow[] };
