@@ -41,6 +41,17 @@ assert(excludesEditorial(memory,{title:'Unrelated page',slug:'good-article',evid
 ]},'/insights/good-article'),'a disqualified competitor evidence source excludes an editorial candidate');
 assert(!excludesEditorial(memory,{title:'Well-scoped guide',slug:'safe-article',
  evidence_refs:[]},'/insights/safe-article'));
+const langPage={id:'lang-page',subject_type:'publication',subject_key:'/insights/lang-scoped',
+ language:'ar',decision:'irrelevant',reason:'Incorrect for Arabic investor audience',
+ source:'admin',created_at:'2026-11-19T05:00:00Z'};
+const faqAr={id:'lang-faq',subject_type:'faq',subject_key:'ما هي رسوم تأسيس شركة أجنبية؟',
+ language:'ar',decision:'inaccurate',reason:'Outdated published fee statement',
+ source:'admin',created_at:'2026-11-19T05:01:00Z'};
+memory=effectiveFeedback([langPage,faqAr]);
+assert(excludesEditorial(memory,{lang:'ar',slug:'lang-scoped'},'/insights/lang-scoped'));
+assert(!excludesEditorial(memory,{lang:'en',slug:'lang-scoped'},'/insights/lang-scoped'),
+ 'language-scoped correction should not hide an unrelated translation');
+assert(excludesFaq(memory,'ما هي رسوم تأسيس شركة أجنبية؟'));
 const clean=validateFeedback({
  subject_type:'keyword',subject_key:'   Saudi Arabia  formation FOOTBALL  ',
  language:'en',decision:'irrelevant',reason:'  irrelevant sports term  '
