@@ -2,7 +2,18 @@ name: LLM Agent Feed Quality & Index
 
 on:
   schedule:
-    - cron: '10 0-22/2 * * *' # Saudi odd hours :10; four-hour effective after Nov 22
+    - cron: '10 0 * * *' # Saudi odd hours :10; four-hour effective after Nov 22
+    - cron: '10 2 * * *'
+    - cron: '10 4 * * *'
+    - cron: '10 6 * * *'
+    - cron: '10 8 * * *'
+    - cron: '10 10 * * *'
+    - cron: '10 12 * * *'
+    - cron: '10 14 * * *'
+    - cron: '10 16 * * *'
+    - cron: '10 18 * * *'
+    - cron: '10 20 * * *'
+    - cron: '10 22 * * *'
   push:
     branches: [main]
     paths:
@@ -40,7 +51,10 @@ jobs:
 
       - name: Select current Saudi cadence
         id: cadence
-        run: node scripts/scheduled-cadence-gate.cjs --slot=odd >> "$GITHUB_OUTPUT"
+        env:
+          CADENCE_EVENT_CRON: ${{ github.event.schedule }}
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/scheduled-event-slot.cjs --kind=llm
 
       - name: Run offline machine-index quality and schedule checks
         if: steps.cadence.outputs.run == 'true'

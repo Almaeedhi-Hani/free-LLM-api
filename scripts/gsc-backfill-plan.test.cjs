@@ -33,7 +33,14 @@ const fs=require('node:fs');
 const cron=fs.readFileSync('src/app/api/cron-gsc/route.ts','utf8');
 assert(cron.includes('collectGscDimensionRows'),'existing production GSC collector remains untouched');
 assert(cron.includes('lookbackDays:60'),'catch-up must span both 28-day comparison windows');
-assert(cron.includes('now.getTime()-60*86400000'),'earliest day must span 56-day report');
+assert(cron.includes("const earliestDate='2026-11-15'"),'live backfill must not query before approved first measurement window');
+assert(!cron.includes('getHours('),'GSC live endpoint must not gate catchup on runner wall clock');
+const approvedFloor=planGscCatchup({now,earliestDate:'2026-11-15',history:[],maxDays:2,lookbackDays:60});
+assert.equal(approvedFloor.eligible_through,'2026-11-16');
+assert.deepEqual(approvedFloor.targets.map(x=>[x.date,x.reason]),[
+ ['2026-11-16','missing'],['2026-11-15','missing'],
+]);
+assert.equal(approvedFloor.pending,0,'do not spend requests on dates before owner-approved baseline');
 const pkg=fs.readFileSync('package.json','utf8');
 assert(pkg.includes('scripts/gsc-backfill-plan.test.cjs'));
 console.log('PASS read-only GSC missing-day, failed-day, no-data retry, timing and quota planner');

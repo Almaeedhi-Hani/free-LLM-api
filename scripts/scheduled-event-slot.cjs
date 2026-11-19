@@ -10,6 +10,9 @@ const {SWITCH_UTC}=require('./scheduled-cadence-gate.cjs');
 const lanes={
  market:{minute:55,hours:[0,2,4,6,8,10,12,14,16,18,20,22],postSwitchSaudiRemainder:1},
  geo:{minute:0,hours:[1,3,5,7,9,11,13,15,17,19,21,23],postSwitchSaudiRemainder:0},
+ publication:{minute:50,hours:[1,3,5,7,9,11,13,15,17,19,21,23],postSwitchSaudiRemainder:0},
+ llm:{minute:10,hours:[0,2,4,6,8,10,12,14,16,18,20,22],postSwitchSaudiRemainder:1},
+ maintenance:{minute:35,hours:[0,2,4,6,8,10,12,14,16,18,20,22],postSwitchSaudiRemainder:1},
 };
 function parseUtcDate(value){
  if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(value))
@@ -56,7 +59,7 @@ async function chooseEventSlot({kind,event,schedule,runId,attempt},lookup){
 async function main(env,args=process.argv.slice(2)){
  const kindArg=args.find(v=>v.startsWith('--kind='));
  const kind=kindArg?.slice(7);
- if(!lanes[kind])throw Error('Missing valid --kind=market|geo');
+ if(!lanes[kind])throw Error('Missing valid --kind=market|geo|publication|llm|maintenance');
  const fetchJson=async path=>{
   const {GITHUB_API_URL,GITHUB_REPOSITORY,GH_TOKEN}=env;
   if(!GITHUB_API_URL||!GITHUB_REPOSITORY||!GH_TOKEN)

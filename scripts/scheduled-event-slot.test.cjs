@@ -60,5 +60,40 @@ assert.throws(()=>eventSlot('geo','0 1 * * *','2026-02-30T01:00:00Z'),/Invalid/)
   assert(workflow.includes("if: steps.cadence.outputs.run == 'true'"));
   assert(workflow.includes('cancel-in-progress: false'));
  }
+ const expanded=[
+  ['geo-auto-publication-daily.yml','publication',50,[1,3,5,7,9,11,13,15,17,19,21,23]],
+  ['llm-feed-optimization.yml','llm',10,[0,2,4,6,8,10,12,14,16,18,20,22]],
+  ['autonomous-site-maintenance.yml','maintenance',35,[0,2,4,6,8,10,12,14,16,18,20,22]],
+ ];
+ for(const [file,kind,minute,hours] of expanded){
+  const workflow=fs.readFileSync('.github/workflows/'+file,'utf8');
+  const schedules=Array.from(workflow.matchAll(/- cron: '(\d+) (\d+) \* \* \*'/g))
+    .map(x=>[Number(x[1]),Number(x[2])]);
+  assert.deepEqual(schedules,hours.map(hour=>[minute,hour]),
+    file+' must preserve its original 12 UTC triggering instants');
+  assert(workflow.includes('node scripts/scheduled-event-slot.cjs --kind='+kind));
+  assert(workflow.includes('CADENCE_EVENT_CRON: ${{ github.event.schedule }}'));
+  assert(workflow.includes('GH_TOKEN: ${{ github.token }}'));
+  assert(workflow.includes("if: steps.cadence.outputs.run == 'true'"));
+  assert(workflow.includes('cancel-in-progress: false'));
+  assert(!workflow.includes('node scripts/scheduled-cadence-gate.cjs --slot='),
+    'wall-clock cadence must not skip delayed real events');
+ }
+ const latePublish=eventSlot('publication','50 13 * * *','2026-11-19T14:43:14.000Z');
+ assert.equal(latePublish.instant,'2026-11-19T13:50:00.000Z');
+ assert(latePublish.allowed,'nominal W03 publication must survive a late start');
+ assert(eventSlot('publication','50 21 * * *','2026-11-22T00:20:00.000Z').allowed,
+    'post-switch Sunday 00:50 KSA event survives runner delay');
+ assert(!eventSlot('publication','50 23 * * *','2026-11-22T00:20:00.000Z').allowed,
+    'post-switch Sunday 02:50 KSA is the skipped half-slot');
+ assert(!eventSlot('llm','10 0 * * *','2026-11-22T02:10:00.000Z').allowed);
+ assert(eventSlot('llm','10 2 * * *','2026-11-22T05:05:00.000Z').allowed);
+ assert(eventSlot('maintenance','35 2 * * *','2026-11-22T04:15:00.000Z').allowed);
+ assert.equal((await chooseEventSlot({
+   kind:'publication',event:'schedule',schedule:'50 13 * * *',runId:'777',attempt:'2'
+ },lookup)).reason,'scheduled_rerun');
+ assert.throws(()=>eventSlot('publication','50 1-23/2 * * *','2026-11-22T05:00:00.000Z'),
+   /Invalid scheduled cron lane/);
+ console.log('PASS W03/W05/W06 12 UTC events, delayed runner recovery and 4h cadence');
  console.log('PASS market/GEO original UTC trigger times, delayed schedule identity, rerun skip and Nov22 switch');
 })().catch(error=>{console.error(error);process.exitCode=1});

@@ -19,11 +19,20 @@ assert(shouldRun({now:d('2026-11-29T13:00:00Z'),slot:'even'}),'four-hour mode pe
 assert(shouldRun({now:d('2026-11-25T05:00:00Z'),slot:'even',event:'workflow_dispatch'}),'manual may override cadence');
 assert(shouldRun({now:d('2026-11-25T05:00:00Z'),slot:'even',event:'push'}),'workflow-file rollout may override');
 assert.throws(()=>shouldRun({slot:'foo'}),/Invalid cadence slot/);
-for(const path of ['geo-analysis.yml','geo-auto-publication-daily.yml','autonomous-site-maintenance.yml','llm-feed-optimization.yml','market-radar.yml']){
+for(const [path,kind,minute,hours] of [
+ ['geo-analysis.yml','geo',0,[1,3,5,7,9,11,13,15,17,19,21,23]],
+ ['market-radar.yml','market',55,[0,2,4,6,8,10,12,14,16,18,20,22]],
+ ['geo-auto-publication-daily.yml','publication',50,[1,3,5,7,9,11,13,15,17,19,21,23]],
+ ['llm-feed-optimization.yml','llm',10,[0,2,4,6,8,10,12,14,16,18,20,22]],
+ ['autonomous-site-maintenance.yml','maintenance',35,[0,2,4,6,8,10,12,14,16,18,20,22]],
+]){
  const src=fs.readFileSync('.github/workflows/'+path,'utf8');
- assert(src.includes(['geo-analysis.yml','market-radar.yml'].includes(path)?'scheduled-event-slot.cjs':'scheduled-cadence-gate.cjs'),'Missing 2h->4h self-switch in '+path);
- assert(src.includes('steps.cadence.outputs.run'),'Missing gated job steps in '+path);
- assert(['geo-analysis.yml','market-radar.yml'].includes(path)||/cron: ['"](?:0 1-23\/2|50 1-23\/2|10 0-22\/2|35 0-22\/2|55 0-22\/2)/.test(src),'Unexpected cadence cron in '+path);
+ assert(src.includes('node scripts/scheduled-event-slot.cjs --kind='+kind),
+   'Scheduled events must not use runner wall clock in '+path);
+ assert(src.includes('steps.cadence.outputs.run'),'Missing guarded job steps in '+path);
+ const matches=Array.from(src.matchAll(/- cron: '(\d+) (\d+) \* \* \*'/g))
+   .map(x=>[Number(x[1]),Number(x[2])]);
+ assert.deepEqual(matches,hours.map(h=>[minute,h]),'Effective schedule changed for '+path);
 }
 const llm=fs.readFileSync('.github/workflows/llm-feed-optimization.yml','utf8');
 assert(llm.includes('node scripts/llm-agent-index.cjs --update'));
