@@ -127,3 +127,13 @@ All six W01–W06 must be evidenced on a live, correctly deployed version with a
 **مؤكد:** Post-merge GitHub `push` Admin regression [#44603265643](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44603265643) passed. Production read-only acceptance [#44603265521](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44603265521) was still `in_progress` at last check. The former W01 editorial and W03/W05/W06 schedule evidence gates remain open.
 
 **Safety:** Do not re-run migration `20261119194500` (already in Supabase migration history), do not modify owner publication settings (limit=3), do not execute the separate stage 1.6 security proposal. Observe the next actual scheduled W04 cycle and use only SELECT readbacks; do not mark phase 1 complete or start phase 2 until all six have genuine evidence.
+
+### 2026-11-19 23:02 KSA — first verified W04 live schedule with atomic DB writes
+
+**مؤكد:** [GSC scheduled run #44604512378](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44604512378) was **event=schedule**, `head_sha=08fd957654796a03129178763ed19782ff3c2436`, **completed/success**. The job log proves `[GSC_CADENCE] RUN reason=scheduled_slot slot_utc=2026-11-19T12:00:00Z` even though GitHub actually started the runner at `2026-11-19 20:02:24Z` (delayed nominal slot recovered). Claim step and `Collect GSC metrics` succeeded. Application HTTP response `status=completed`, `attempted=2`, `remaining=0`, `eligible_through=2026-11-16`, no day failure.
+
+**مؤكد — independent Supabase SELECT:** Two fresh rows in `gsc_sync_day_outcomes`, dated **2026-11-15 and 2026-11-16**, status `success_with_data`, `attempts=1`, `rows_fetched=1` per day, both `checked_at=2026-11-19T20:02:36.167Z`. `gsc_daily_metrics` matches these exact dates and timestamps with **one `total` row per day**; `clicks=0`, `impressions=0` on both, and **zero** rows with dimensions query, page or page_query. The source did not supply those fine-grained rows. Do **not** label this organic traffic or infer any search ranking.
+
+**W04 assessment:** Proven functional automated schedule, two successful atomic commits, exact readback, and bounded quota (2 days/run), while **measurement coverage is zero beyond total**. W04's initial technical acceptance is marked [x], with an explicit data-quality note. Monitor subsequent real days until Google supplies actual impressions/page/query rows. This does not waive other W01/W03/W05/W06 gates.
+
+**PR #169** separately updates this evidence and PROGRESS. Six CI/acceptance/Evals checks are required on its final SHA before merge. No provider-testing calls or production writes were made here; only the native GitHub schedule performed the authorized GSC production sync.
