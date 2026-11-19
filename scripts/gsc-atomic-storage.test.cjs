@@ -46,6 +46,7 @@ const mkReply=(body,status=200)=>({ok:status>=200&&status<300,status,
  const sql=fs.readFileSync('supabase/migrations/20261119_v3_gsc_atomic_day_outcomes.sql','utf8');
  for(const invariant of [
    'gsc_sync_day_outcomes','ENABLE ROW LEVEL SECURITY',
+   "'page_query'",
    'REVOKE ALL ON TABLE public.gsc_sync_day_outcomes FROM PUBLIC, anon, authenticated',
    'SECURITY INVOKER SET search_path',
    'pg_advisory_xact_lock','Stale GSC attempt',
