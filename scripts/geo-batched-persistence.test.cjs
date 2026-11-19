@@ -109,7 +109,8 @@ function makeHarness(fetch){
  });
  const filtered=await reviewed(candidates,suggestions);
  assert.equal(filtered.status,'success','intentional reviewer skip is not a fake persistence failure');
- assert.deepEqual(filtered.confirmed,{candidates:0,keywords:0});
+ assert.equal(filtered.confirmed.candidates,0);
+ assert.equal(filtered.confirmed.keywords,0);
  assert.equal(filtered.reviewer_excluded.candidates,10);
  assert.equal(filtered.reviewer_excluded.keywords,21);
  const fakeSkipped=makeHarness(async(_,options)=>{
