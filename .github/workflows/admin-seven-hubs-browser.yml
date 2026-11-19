@@ -14,6 +14,7 @@ on:
       - 'scripts/admin-seven-hubs-browser-e2e.cjs'
       - 'scripts/admin-18-functional-acceptance-browser.cjs'
       - '.github/workflows/admin-seven-hubs-browser.yml'
+      - 'docs/plans/**' # phase gate: run acceptance on plan/progress changes
   workflow_dispatch:
 
 permissions:

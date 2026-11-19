@@ -7,6 +7,7 @@ on:
       - 'evals/regression-set.json'
       - 'scripts/v3-regression-evals.test.cjs'
       - '.github/workflows/v3-regression-evals.yml'
+      - 'docs/plans/**' # phase gate: run acceptance on plan/progress changes
   workflow_dispatch:
 permissions:
   contents: read
