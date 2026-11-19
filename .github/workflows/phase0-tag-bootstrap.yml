@@ -1,0 +1,42 @@
+# Temporary, restricted Phase-0 tag bootstrap. Remove from this PR once tag is verified.
+# Does not execute code from the PR; only tags the fixed, verified pre-consolidation main SHA.
+name: Phase 0 fixed baseline tag bootstrap
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/phase0-tag-bootstrap.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  create-fixed-baseline-tag:
+    if: ${{ github.event.pull_request.number == 165 && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.base.sha == '9606113b48a29801961cfdeab662974fdc6ecb7e' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Create or verify only pre-consolidation-20261119 on frozen SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EXPECTED_SHA: 9606113b48a29801961cfdeab662974fdc6ecb7e
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="pre-consolidation-20261119"
+          existing="$(gh api "repos/$REPO/git/ref/tags/$tag" --jq '.object.sha' 2>/dev/null || true)"
+          if [[ -n "$existing" && "$existing" != "$EXPECTED_SHA" ]]; then
+            echo "Refusing to overwrite tag: unexpected baseline SHA."
+            exit 1
+          fi
+          if [[ -z "$existing" ]]; then
+            gh api --method POST "repos/$REPO/git/refs" \
+              -f "ref=refs/tags/$tag" -f "sha=$EXPECTED_SHA" >/dev/null
+          fi
+          verified="$(gh api "repos/$REPO/git/ref/tags/$tag" --jq '.object.sha')"
+          if [[ "$verified" != "$EXPECTED_SHA" ]]; then
+            echo "Tag SHA mismatch; phase 0 is blocked."
+            exit 1
+          fi
+          echo "Verified fixed pre-consolidation Git tag at expected main SHA."
