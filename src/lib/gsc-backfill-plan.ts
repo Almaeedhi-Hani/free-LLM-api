@@ -3,6 +3,9 @@
  * Historical zero-row responses must be persisted as success_no_data by a separate
  * approved storage integration; a missing DB row alone cannot establish failure.
  */
+import { collectGscDimensionRows } from './gsc-sync-collector';
+import type { GscDimension, GscRow } from './gsc-sync-collector';
+
 export type GscSyncDayState='success_with_data'|'success_no_data'|'failed';
 export type GscSyncDayRecord={
   metric_date:string;status:GscSyncDayState;checked_at:string;rows_fetched:number;attempts:number;
@@ -19,9 +22,10 @@ function isoDay(input:string):number{
 }
 function dayString(timestamp:number):string{return new Date(timestamp).toISOString().slice(0,10)}
 const DAY=86_400_000;
-export function planGscCatchup(input:{
+type GscPlanInput={
   now:Date;earliestDate:string;history:GscSyncDayRecord[];maxDays?:number;lookbackDays?:number;
-}):GscBackfillPlan{
+};
+export function planGscCatchup(input:GscPlanInput):GscBackfillPlan{
   if(!(input.now instanceof Date)||!Number.isFinite(input.now.getTime()))
     throw Error('invalid_clock');
   const maxDays=input.maxDays===undefined?7:input.maxDays;
@@ -72,4 +76,101 @@ export function planGscCatchup(input:{
   possible.sort((a,b)=>order[a.reason]-order[b.reason]||b.date.localeCompare(a.date));
   return {eligible_through:dayString(latest),targets:possible.slice(0,maxDays),
     pending:Math.max(0,possible.length-maxDays),examined};
+}
+
+type GscMeasurement = {
+  dimension: Exclude<GscDimension, null> | 'total';
+  dimension_value: string;
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+};
+
+type GscDayWrite = {
+  property: string;
+  outcome: GscSyncDayRecord;
+  measurements: GscMeasurement[];
+};
+
+type GscDayResult = {
+  outcome: GscSyncDayRecord;
+  rows_by_dimension: Record<GscMeasurement['dimension'], number>;
+  failure?: 'collection_failed' | 'quota_reached';
+};
+
+const SYNC_DIMENSIONS = [null, 'query', 'page', 'country', 'device'] as const;
+
+export class GscQuotaReached extends Error {}
+
+/** Execute only against a verified adapter. The live endpoint is not wired to this contract. */
+export async function executeGscCatchup(input: GscPlanInput & {
+  property: string;
+  queryRows: (date: string, dimension: GscDimension, startRow: number, rowLimit: number) => Promise<GscRow[]>;
+  // Serialize updates for a property/date, check the previous attempt count and
+  // commit measurements and outcome together. Preserve measurements on failure.
+  commitDay: (write: GscDayWrite) => Promise<void>;
+  // Independently read the stored outcome and count expected measurements whose
+  // property, day, dimension, key and values match. Earlier rows may still exist.
+  readDay: (expectedWrite: GscDayWrite) => Promise<{
+    outcome: GscSyncDayRecord | null;
+    matchingMeasurements: number;
+  }>;
+}): Promise<{ plan: GscBackfillPlan; results: GscDayResult[]; unattempted: number }> {
+  if (!input.property.trim()) throw Error('missing_gsc_property');
+  const plan = planGscCatchup(input);
+  const results: GscDayResult[] = [];
+
+  for (const target of plan.targets) {
+    let measurements: GscMeasurement[] = [];
+    let failure: GscDayResult['failure'];
+    try {
+      for (const dimension of SYNC_DIMENSIONS) {
+        const rows = await collectGscDimensionRows(
+          (grain, start, limit) => input.queryRows(target.date, grain, start, limit),
+          dimension,
+        );
+        const grainKeys = new Set<string>();
+        for (const row of rows) {
+          const value = row.keys?.[0] ?? '';
+          if (grainKeys.has(value)) throw Error('duplicate_gsc_dimension_key');
+          grainKeys.add(value);
+          measurements.push({
+            dimension: dimension ?? 'total',
+            dimension_value: value,
+            clicks: row.clicks,
+            impressions: row.impressions,
+            ctr: row.ctr,
+            position: row.position,
+          });
+        }
+      }
+    } catch (error) {
+      measurements = [];
+      failure = error instanceof GscQuotaReached ? 'quota_reached' : 'collection_failed';
+    }
+
+    const outcome: GscSyncDayRecord = {
+      metric_date: target.date,
+      status: failure ? 'failed' : measurements.length ? 'success_with_data' : 'success_no_data',
+      checked_at: input.now.toISOString(),
+      rows_fetched: measurements.length,
+      attempts: target.prior_attempts + 1,
+    };
+    const write = { property: input.property, outcome, measurements };
+    await input.commitDay(write);
+    const { outcome: observed, matchingMeasurements } = await input.readDay(write);
+    if (!observed || observed.metric_date !== target.date || observed.status !== outcome.status ||
+        Date.parse(observed.checked_at) !== input.now.getTime() || observed.rows_fetched !== outcome.rows_fetched ||
+        observed.attempts !== outcome.attempts || matchingMeasurements !== measurements.length) {
+      throw Error('gsc_day_readback_mismatch');
+    }
+    const rowsByDimension = { total: 0, query: 0, page: 0, country: 0, device: 0 };
+    for (const measurement of measurements) rowsByDimension[measurement.dimension]++;
+    const result = { outcome, rows_by_dimension: rowsByDimension };
+    results.push(failure ? { ...result, failure } : result);
+    if (failure === 'quota_reached') break;
+  }
+
+  return { plan, results, unattempted: plan.targets.length - results.length };
 }
