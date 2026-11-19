@@ -345,6 +345,26 @@ async function stageEvidence() {
   logStage('EVIDENCE','Unreviewed Google Suggest noise excluded from model: '+
     JSON.stringify({total:quality.excluded,by_language:quality.by_language}));
 
+  // Refresh the append-only admin memory before invoking the model. Using only
+  // server-side ingestion guards would still let a rejected result contaminate
+  // the model's in-memory reasoning input during this very same run.
+  // Never infer an empty exclusion list when feedback is temporarily offline.
+  try{
+    if(!GEO_API_URL||!GEO_API_KEY)throw Error('GEO credentials missing');
+    const response=await fetch(GEO_API_URL.replace(/\\/$/,'')+'/api/geo/feedback',{
+      headers:{'x-geo-api-key':GEO_API_KEY},signal:AbortSignal.timeout(15000)});
+    if(!response.ok)throw Error('feedback_read_'+response.status);
+    const data=await response.json();
+    if(!Array.isArray(data.excluded))throw Error('invalid_feedback_response');
+    const filtered=require('./geo-feedback-filter.cjs').applyFeedbackToEvidence(evidenceItems,data.excluded);
+    evidenceItems=filtered.items;
+    logStage('EVIDENCE','Active reviewer corrections excluded: '+filtered.excluded);
+  }catch(error){
+    logStage('EVIDENCE','Reviewer feedback unavailable: '+(error?.message||'unavailable'));
+    stageResults.evidence={total:0,items:[],feedback_status:'unavailable'};
+    return {records_processed:0,status:'partial',error:'Reviewer feedback unavailable; no GEO model evidence submitted'};
+  }
+
   // Simplify evidence items for LLM prompt
   evidenceItems = evidenceItems.map((e, i) => ({
     id: e.id || `ev_${i}`,
