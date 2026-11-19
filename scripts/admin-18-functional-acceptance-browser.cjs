@@ -132,7 +132,19 @@ const groups={
   await page.getByText('إجابة اختبار بعد التعديل.',{exact:true}).waitFor();
   content=await request('GET','/api/admin/content');
   assert.equal(content.faqs.find(f=>f.q==='سؤال تدقيق الإدارة المعزول').a,'إجابة اختبار بعد التعديل.');
-  await faqRow.getByRole('button',{name:'حذف'}).click();
+  // The delete handler starts an async POST. Wait for the actual API response,
+  // not just the click, before asserting the persisted readback.
+  const [faqDeleteResponse] = await Promise.all([
+    page.waitForResponse(response =>
+      new URL(response.url()).pathname === '/api/admin/content' &&
+      response.request().method() === 'POST', {timeout: 15000}),
+    faqRow.getByRole('button',{name:'حذف'}).click(),
+  ]);
+  assert.equal(faqDeleteResponse.status(), 200, 'FAQ delete save must succeed');
+  const faqDeleteResult = await faqDeleteResponse.json();
+  assert.equal(faqDeleteResult.status, 'updated', 'FAQ delete must persist');
+  assert(!faqDeleteResult.content?.faqs?.some(f=>f.q==='سؤال تدقيق الإدارة المعزول'),
+    'FAQ delete response must exclude the removed question');
   content=await request('GET','/api/admin/content');
   assert(!content.faqs.some(f=>f.q==='سؤال تدقيق الإدارة المعزول'));
   checkpoint('FAQ add/edit/delete buttons persist immediately in isolated content store');
