@@ -107,3 +107,13 @@ All six W01–W06 must be evidenced on a live, correctly deployed version with a
 - **W02 is accepted for one actual successful schedule plus data write.** Mark W02's table checkbox only.
 - W01 still FAIL after a partial write; W04 FAIL due service-role guard; W03/W05/W06 have no post-merge `event=schedule` evidence in the retrieved snapshot.
 - **Phase 1 exit remains BLOCKED.** No Phase 2 work, no schema mutation, no policy/daily-limit change, no provider/quota diagnostic calls.
+
+### 2026-11-19 functional GSC V2 schema rollout (approved phase-1 scope only)
+
+**Confirmed:** Following owner's instruction `التالي` to the specific GSC functional-migration checkpoint, the strictly additive migration was prepared at `supabase/migrations/20261119_phase1_gsc_service_role_rpc_v2.sql`. The SQL content is exactly equivalent to the previously reviewed proposal, except the managed migration has no explicit nested BEGIN/COMMIT. All **6 PR checks** were green at head `0f949e89ffd1578f987df1ced2607ba62e653ca3` before applying it.
+
+**Confirmed from Supabase:** `apply_migration` succeeded; name `phase1_gsc_rpc_service_role_v2_20261119`, recorded migration version `20261119194500`. Both `public.gsc_sync_commit_day_v2` and `public.gsc_sync_verify_day_v2` now exist, retain `SECURITY INVOKER` and a fixed empty `search_path`, and check trusted `current_user='service_role'`. Both allow EXECUTE to `service_role` while `anon` and `authenticated` have no EXECUTE. V1 functions were preserved with their original privileges and definitions. Security advisories for the two unrelated functions `public.rls_auto_enable` and `public.geo_set_updated_at` remain outstanding and were NOT changed by this migration.
+
+**Data conservation:** Immediately after migration, `gsc_sync_day_outcomes=0`, `gsc_daily_metrics=5`, page=0, page_query=0 — identical to the earlier baseline. **No Google/Search Console provider call was made to test the schema**, and no artificial GSC rows were inserted. A live GSC schedule cannot use these new functions until PR #168's client adapter has been merged and Render deploy confirmed.
+
+**Next gate remains mandatory:** Recheck 6/6 CI on final PR head after documentation update; merge only after green checks, confirm Render revision, and verify first `event=schedule` W04 run plus actual outcomes and page/query metrics or verified no-data state. W01 remains a separate rejected-editorial issue and W03/W05/W06 schedules must be verified. Stage 1 is NOT complete; stage 2 must not start.
