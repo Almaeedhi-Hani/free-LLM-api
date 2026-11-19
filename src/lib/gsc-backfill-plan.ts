@@ -99,7 +99,7 @@ type GscDayResult = {
   failure?: 'collection_failed' | 'quota_reached';
 };
 
-const SYNC_DIMENSIONS = [null, 'query', 'page', 'country', 'device'] as const;
+const SYNC_DIMENSIONS = [null, 'query', 'page', 'country', 'device', 'page_query'] as const;
 
 export class GscQuotaReached extends Error {}
 
@@ -132,7 +132,7 @@ export async function executeGscCatchup(input: GscPlanInput & {
         );
         const grainKeys = new Set<string>();
         for (const row of rows) {
-          const value = row.keys?.[0] ?? '';
+          const value = dimension==='page_query' ? JSON.stringify(row.keys) : (row.keys?.[0] ?? '');
           if (grainKeys.has(value)) throw Error('duplicate_gsc_dimension_key');
           grainKeys.add(value);
           measurements.push({
@@ -165,7 +165,7 @@ export async function executeGscCatchup(input: GscPlanInput & {
         observed.attempts !== outcome.attempts || matchingMeasurements !== measurements.length) {
       throw Error('gsc_day_readback_mismatch');
     }
-    const rowsByDimension = { total: 0, query: 0, page: 0, country: 0, device: 0 };
+    const rowsByDimension = { total: 0, query: 0, page: 0, country: 0, device: 0, page_query: 0 };
     for (const measurement of measurements) rowsByDimension[measurement.dimension]++;
     const result = { outcome, rows_by_dimension: rowsByDimension };
     results.push(failure ? { ...result, failure } : result);
