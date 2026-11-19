@@ -49,10 +49,12 @@ export async function GET(req:NextRequest){
   if(!Number.isFinite(fromMs)||!Number.isFinite(untilMs)||
      fromMs>=untilMs||untilMs-fromMs>180*86400000||
      untilMs>now+5*60000)throw Error('invalid_ai_panel_window');
+  const normalizedFrom=new Date(fromMs).toISOString();
+  const normalizedUntil=new Date(untilMs).toISOString();
   const {root,headers,competitor_hosts}=await dependencies();
   const endpoint=root+'ai_citation_panel_observations?select=observation'+
-   '&observed_at=gte.'+encodeURIComponent(from)+
-   '&observed_at=lt.'+encodeURIComponent(until)+
+   '&observed_at=gte.'+encodeURIComponent(normalizedFrom)+
+   '&observed_at=lt.'+encodeURIComponent(normalizedUntil)+
    '&order=observed_at.asc&limit=1001';
   const response=await fetch(endpoint,{headers,cache:'no-store',
    signal:AbortSignal.timeout(20000)});
@@ -65,7 +67,7 @@ export async function GET(req:NextRequest){
   }
   const rows=await response.json() as Array<{observation:unknown}>;
   if(!Array.isArray(rows)||rows.length>1000)throw Error('ai_evidence_sample_ceiling');
-  const result=analyzeAiCitationPanel({panel:panel(profile,competitor_hosts,from,until),
+  const result=analyzeAiCitationPanel({panel:panel(profile,competitor_hosts,normalizedFrom,normalizedUntil),
    observations:rows.map(row=>row.observation)});
   return NextResponse.json({status:'reviewed_observations_only',...result,
    checked_at:new Date().toISOString()},
@@ -79,8 +81,15 @@ export async function POST(req:NextRequest){
  if(!isAdmin(req))return NextResponse.json({error:'unauthorized'},{status:401});
  if(process.env.AI_CITATION_CAPTURE_ENABLED!=='true')
   return NextResponse.json({error:'reviewed_capture_not_enabled'},{status:409});
+ // A bounded evidence payload protects the free instance and prevents unreviewable dumps.
+ const maxEvidenceBytes=24576;
+ const statedBytes=Number(req.headers.get('content-length')||0);
+ if(!Number.isFinite(statedBytes)||statedBytes>maxEvidenceBytes)
+  return NextResponse.json({error:'evidence_payload_too_large'},{status:413});
  try{
   const body=await req.json() as {observation?:unknown};
+  if(Buffer.byteLength(JSON.stringify(body))>maxEvidenceBytes)
+   return NextResponse.json({error:'evidence_payload_too_large'},{status:413});
   if(!body||typeof body!=='object'||!body.observation||typeof body.observation!=='object')
    throw Error('invalid_evidence_record');
   const observation=body.observation as Record<string,unknown>;
