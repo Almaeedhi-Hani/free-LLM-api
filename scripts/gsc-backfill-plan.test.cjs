@@ -32,6 +32,8 @@ for(const invalid of [
 const fs=require('node:fs');
 const cron=fs.readFileSync('src/app/api/cron-gsc/route.ts','utf8');
 assert(cron.includes('collectGscDimensionRows'),'existing production GSC collector remains untouched');
+assert(cron.includes('lookbackDays:60'),'catch-up must span both 28-day comparison windows');
+assert(cron.includes('now.getTime()-60*86400000'),'earliest day must span 56-day report');
 const pkg=fs.readFileSync('package.json','utf8');
 assert(pkg.includes('scripts/gsc-backfill-plan.test.cjs'));
 console.log('PASS read-only GSC missing-day, failed-day, no-data retry, timing and quota planner');
