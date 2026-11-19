@@ -19,7 +19,7 @@ export function buildGscStoredOpportunityReport(input:{
 }){
  const {property,endDate,metrics,dayOutcomes,hasAtomicDayStore}=input;
  if(!property||!validDate(endDate))throw Error('gsc_report_invalid_config');
- const rows:GscOpportunityInput['rows']=[];
+ const rows:Array<GscOpportunityInput['rows'][number]>=[];
  const rowDays=new Set<string>();
  for(const m of metrics){
   if(!validDate(m.metric_date)||!['page','query'].includes(m.dimension)||
@@ -34,7 +34,7 @@ export function buildGscStoredOpportunityReport(input:{
     impressions:m.impressions,position:m.position,ctr:m.ctr});
   rowDays.add(m.metric_date+'|'+m.dimension);
  }
- const coverage:GscOpportunityInput['coverage']=[];
+ const coverage:Array<GscOpportunityInput['coverage'][number]>=[];
  if(hasAtomicDayStore){
   for(const day of dayOutcomes){
    if(!validDate(day.metric_date)||!['success_with_data','success_no_data','failed'].includes(day.status)||
