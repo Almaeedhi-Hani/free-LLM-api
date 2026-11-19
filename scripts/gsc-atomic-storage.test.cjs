@@ -18,12 +18,12 @@ const mkReply=(body,status=200)=>({ok:status>=200&&status<300,status,
    assert.equal(opt.cache,'no-store');
    if(opt.method==='GET')return mkReply([state]);
    const body=JSON.parse(opt.body);
-   if(url.endsWith('/gsc_sync_commit_day')){
+   if(url.endsWith('/gsc_sync_commit_day_v2')){
       assert.equal(body.p_date,'2026-11-16');
       assert.deepEqual(body.p_rows,[row]);
       return mkReply({status:'success_with_data',stored:1,attempts:1});
    }
-   if(url.endsWith('/gsc_sync_verify_day')){
+   if(url.endsWith('/gsc_sync_verify_day_v2')){
       assert.deepEqual(body.p_expected_rows,[row]);
       return mkReply({outcome:state,matchingMeasurements:1});
    }
@@ -37,8 +37,8 @@ const mkReply=(body,status=200)=>({ok:status>=200&&status<300,status,
  const failing=createGscAtomicStore({url:'https://example.supabase.co',key:'service-only-fixture',
    request:async()=>mkReply({message:'storage unavailable'},503)});
  await assert.rejects(()=>failing.getHistory(state.property),/gsc_atomic_read_503/);
- await assert.rejects(()=>failing.commitDay(write),/gsc_atomic_rpc_gsc_sync_commit_day_503/);
- await assert.rejects(()=>failing.readDay(write),/gsc_atomic_rpc_gsc_sync_verify_day_503/);
+ await assert.rejects(()=>failing.commitDay(write),/gsc_atomic_rpc_gsc_sync_commit_day_v2_503/);
+ await assert.rejects(()=>failing.readDay(write),/gsc_atomic_rpc_gsc_sync_verify_day_v2_503/);
  assert.throws(()=>createGscAtomicStore({url:'http://unsafe.example',key:'key'}),/gsc_atomic_storage/);
  const badCommit=createGscAtomicStore({url:'https://example.supabase.co',key:'test',
    request:async()=>mkReply({status:'failed',stored:0,attempts:2})});
@@ -55,6 +55,27 @@ const mkReply=(body,status=200)=>({ok:status>=200&&status<300,status,
    'ON CONFLICT(property,metric_date,dimension,dimension_value)',
  ])assert(sql.includes(invariant),'Missing GSC atomic invariant: '+invariant);
  assert(!/\bDROP\s+TABLE\b/i.test(sql),'no destructive production table change');
+ const v2=fs.readFileSync('docs/plans/gsc-role-rpc-v2-owner-approval.sql','utf8');
+ for(const invariant of [
+  'CREATE FUNCTION public.gsc_sync_commit_day_v2',
+  'CREATE FUNCTION public.gsc_sync_verify_day_v2',
+  "current_user IS DISTINCT FROM 'service_role'",
+  'SECURITY INVOKER SET search_path',
+  'GRANT EXECUTE ON FUNCTION public.gsc_sync_commit_day_v2',
+  'GRANT EXECUTE ON FUNCTION public.gsc_sync_verify_day_v2',
+  'REVOKE ALL ON FUNCTION public.gsc_sync_commit_day_v2',
+  'REVOKE ALL ON FUNCTION public.gsc_sync_verify_day_v2',
+  'pg_advisory_xact_lock',
+  'Stale GSC attempt',
+  'ON CONFLICT(property,metric_date,dimension,dimension_value)'
+ ])assert(v2.includes(invariant),'Missing additive v2 RPC invariant: '+invariant);
+ assert.equal((v2.match(/current_user IS DISTINCT FROM 'service_role'/g)||[]).length,2,
+   'both v2 functions must enforce actual service_role');
+ assert(!v2.includes('CREATE OR REPLACE FUNCTION'),'no destructive replacement of V1 functions');
+ assert(!/\b(?:DROP|DELETE|TRUNCATE|ALTER\s+TABLE)\b/i.test(v2.replace(/^--.*$/gm,'')),
+   'add-only migration may not remove or alter existing tables');
+ assert(v2.includes('DO NOT APPLY TO PRODUCTION WITHOUT EXPLICIT SCHEMA MIGRATION APPROVAL'));
+
  const route=fs.readFileSync('src/app/api/cron-gsc/route.ts','utf8');
  assert(route.includes("process.env.GSC_BACKFILL_ENABLED==='true'"));
  assert(route.includes('executeGscCatchup('));
