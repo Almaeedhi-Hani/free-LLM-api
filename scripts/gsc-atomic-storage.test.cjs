@@ -39,7 +39,7 @@ const mkReply=(body,status=200)=>({ok:status>=200&&status<300,status,
  await assert.rejects(()=>failing.getHistory(state.property),/gsc_atomic_read_503/);
  await assert.rejects(()=>failing.commitDay(write),/gsc_atomic_rpc_gsc_sync_commit_day_503/);
  await assert.rejects(()=>failing.readDay(write),/gsc_atomic_rpc_gsc_sync_verify_day_503/);
- await assert.rejects(()=>createGscAtomicStore({url:'http://unsafe.example',key:'key'}).getHistory('x'),/gsc_atomic_storage/);
+ assert.throws(()=>createGscAtomicStore({url:'http://unsafe.example',key:'key'}),/gsc_atomic_storage/);
  const badCommit=createGscAtomicStore({url:'https://example.supabase.co',key:'test',
    request:async()=>mkReply({status:'failed',stored:0,attempts:2})});
  await assert.rejects(()=>badCommit.commitDay(write),/ack_mismatch/);
