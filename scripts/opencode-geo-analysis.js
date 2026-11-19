@@ -489,7 +489,12 @@ async function saveGEOStage(stage, items) {
       try {payload=await res.json()}
       catch {return {status:'partial',saved:0,error:'Invalid GEO API response (HTTP '+res.status+')'}}
       const count=payload?.saved?.[stage] ?? 0;
-      if (res.ok && payload?.ok && count===items.length) return {status:'success',saved:count};
+      const skipped=payload?.reviewer_excluded?.[stage] ?? 0;
+      // Corrected items are *not* stored. A trusted skip count is an
+      // intentional reviewer decision, not a reason to retry old content.
+      if(Number.isInteger(count)&&count>=0&&Number.isInteger(skipped)&&skipped>=0&&
+         count+skipped===items.length&&res.ok&&payload?.ok===true)
+        return {status:'success',saved:count,reviewer_excluded:skipped};
       // Draft quality validation precedes writes: split only this definitive rejection.
       // Never retry non-deduplicated drafts after ambiguous network/storage failures.
       const draftQualityRejected=stage==='drafts' && res.status===502 && count===0 &&
