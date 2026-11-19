@@ -82,7 +82,7 @@ async function testExecution() {
   ['2026-11-13','failed',0,'quota_reached'],
  ]);
  assert.deepEqual(writes[0].measurements.filter(x=>x.dimension_value==='shared-key').map(x=>x.dimension),['query','page']);
- assert.deepEqual(run.results[0].rows_by_dimension,{total:1,query:1,page:1001,country:0,device:0});
+ assert.deepEqual(run.results[0].rows_by_dimension,{total:1,query:1,page:1001,country:0,device:0,page_query:0});
  assert.deepEqual(writes[2].measurements,[],'partial collection must not reach storage');
  assert.equal(writes[0].outcome.checked_at,now.toISOString());
  assert.deepEqual(calls.filter(x=>x[0]==='2026-11-16'&&x[1]==='page').map(x=>x[2]),[0,1000]);
