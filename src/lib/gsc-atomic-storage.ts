@@ -48,7 +48,7 @@ export function createGscAtomicStore(cfg:GscStorageConfig){
    return result as GscSyncDayRecord[];
   },
   async commitDay(write:DailyGscWrite):Promise<void>{
-   const out=await rpc('gsc_sync_commit_day',{
+   const out=await rpc('gsc_sync_commit_day_v2',{
     p_property:write.property,p_date:write.outcome.metric_date,
     p_status:write.outcome.status,p_checked_at:write.outcome.checked_at,
     p_attempts:write.outcome.attempts,p_rows:write.measurements
@@ -57,7 +57,7 @@ export function createGscAtomicStore(cfg:GscStorageConfig){
       out.attempts!==write.outcome.attempts)throw Error('gsc_atomic_commit_ack_mismatch');
   },
   async readDay(write:DailyGscWrite):Promise<{outcome:GscSyncDayRecord|null;matchingMeasurements:number}>{
-   const out=await rpc('gsc_sync_verify_day',{
+   const out=await rpc('gsc_sync_verify_day_v2',{
     p_property:write.property,p_date:write.outcome.metric_date,
     p_expected_rows:write.measurements
    });
