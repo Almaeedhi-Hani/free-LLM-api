@@ -1,5 +1,5 @@
 /** Bounded, loss-aware Search Console pagination; no synthetic page rows. */
-export type GscDimension='query'|'page'|'country'|'device'|null;
+export type GscDimension='query'|'page'|'country'|'device'|'page_query'|null;
 export type GscRow={keys?:string[];clicks:number;impressions:number;ctr:number;position:number};
 export const GSC_PAGE_SIZE=1000;
 export const GSC_ROW_CEILING=25000;
@@ -8,7 +8,7 @@ export async function collectGscDimensionRows(
  dimension:GscDimension
 ):Promise<GscRow[]>{
  const output:GscRow[]=[];
- const expectedKeys=dimension===null?0:1;
+ const expectedKeys=dimension===null?0:dimension==='page_query'?2:1;
  for(let startRow=0;startRow<GSC_ROW_CEILING;startRow+=GSC_PAGE_SIZE){
   const page=await query(dimension,startRow,GSC_PAGE_SIZE);
   if(!Array.isArray(page)||page.length>GSC_PAGE_SIZE)throw Error('gsc_invalid_page');
