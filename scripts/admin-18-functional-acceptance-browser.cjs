@@ -140,6 +140,10 @@ const groups={
       response.request().method() === 'POST', {timeout: 15000}),
     faqRow.getByRole('button',{name:'حذف'}).click(),
   ]);
+  const submittedFaqs = faqDeleteResponse.request().postDataJSON()?.faqs;
+  assert(Array.isArray(submittedFaqs), 'FAQ delete must submit an authoritative faqs array');
+  assert(!submittedFaqs.some(f=>f.q==='سؤال تدقيق الإدارة المعزول'),
+    'FAQ delete UI must submit a patch WITHOUT the deleted question');
   assert.equal(faqDeleteResponse.status(), 200, 'FAQ delete save must succeed');
   const faqDeleteResult = await faqDeleteResponse.json();
   assert.equal(faqDeleteResult.status, 'updated', 'FAQ delete must persist');
