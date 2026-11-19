@@ -6,7 +6,7 @@
 const manifest=require("../src/data/content-tree.json");
 const LANGS=["ar","en","zh"];
 const SCHEMA_TYPES=Object.freeze(["Article","BreadcrumbList","Service","WebPage","FAQPage","CollectionPage"]);
-const {EDITORIAL_KINDS}=require('./geo-generated-output-guard.cjs');
+const {EDITORIAL_KINDS,EDITORIAL_TEXT_MINIMA,isValidTechnicalTarget}=require('./geo-generated-output-guard.cjs');
 // Unsupported model suggestions are never converted to a different schema type.
 function supportedSchemaSuggestions(values){
  if(values===undefined)return undefined;
@@ -98,6 +98,7 @@ function promptForDirectLocale(lang,evidence,repair){
   keyword:asText(n.primary_keyword?.[lang],70),
   question:asText(n.main_question?.[lang],100)
  }));
+ const technicalTargets=liveRoutes.map(n=>n.url).filter(isValidTechnicalTarget);
  const rules=[
   'You are a conservative Saudi investor GEO researcher/editor. Use only SOURCE EVIDENCE below; never invent data.',
   'All user-facing text must be natural '+({ar:'Arabic',en:'English',zh:'Simplified Chinese'}[lang])+'.',
@@ -115,6 +116,8 @@ function promptForDirectLocale(lang,evidence,repair){
   'Editorial target MUST be an existing service slug for service, / for home/trust, /packages for packages, OR a NEW valid lowercase English hyphenated slug identical to slug for guide/comparison. Technical targets must be an existing live / route. Never use Arabic words, investor-hub IDs, page labels, or arbitrary evidence IDs as targets.',
   'topic_node_id, when supplied, MUST be an actual node_id from live_site_routes. Never use a research evidence ID as topic_node_id. If unsure about target, kind, route or content, return editorial_actions:[] instead of a guessed proposal.',
   'Each proposed editorial action must include lang, allowed kind, valid target, title, original complete summary (30-360 chars), full body (at least 100 chars, zh at least 80), risk_level high, and evidence_ids from actual research_evidence. Use plain text without HTML tags or internal writing instructions.',
+  'FINAL TEXT VALIDATION: each editorial_actions item must obey editorial_text_contract measured after trim: title >= title_min, summary between summary_min and summary_max, body between body_min and body_max. Never use short notes, filler, padding, or invented claims. If the provided evidence cannot support a complete factual action, omit it.',
+  'FINAL TECHNICAL ROUTE VALIDATION: technical_seo and internal_link actions must choose an exact target from technical_target_contract.allowed_values (existing live routes accepted by the guard). If no target applies, omit the optional action rather than invent a path.',
   'Any sections must contain substantive h2/body and complete h3/body text rather than plans or placeholders. Omit the optional editorial action entirely when content cannot be made valid and factual.'
  ];
  const sources=evidence.map(e=>({
@@ -125,6 +128,8 @@ function promptForDirectLocale(lang,evidence,repair){
  if(repair)rules.push('This is a single validation repair. Output replacements only for the listed rejected FAQ/editorial slots, in listed order. Leave opportunities, goals and unrelated arrays empty. Do not repeat accepted work or invent copy, routes or sources. If a replacement is not justified by the same evidence, omit it.');
  const encode=n=>JSON.stringify({language:lang,instructions:rules,
   editorial_kind_contract:{allowed_values:EDITORIAL_KINDS,optional:true,on_invalid:'omit_action_not_relabel'},
+  editorial_text_contract:{title_min:EDITORIAL_TEXT_MINIMA.title[lang],title_max:170,summary_min:EDITORIAL_TEXT_MINIMA.summary,summary_max:360,body_min:EDITORIAL_TEXT_MINIMA.body[lang],body_max:10000,on_invalid:'omit_action_without_padding'},
+  technical_target_contract:{allowed_values:technicalTargets,on_invalid:'omit_action_not_infer_route'},
   live_site_routes:liveRoutes,
   ...(repair?{validation_errors:repair}:{}),
   research_evidence:sources.slice(0,n),
