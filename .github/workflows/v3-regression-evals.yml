@@ -1,0 +1,26 @@
+name: V3 regression evals (advisory)
+on:
+  pull_request:
+    paths:
+      - 'src/lib/keyword-relevance-eval.ts'
+      - 'src/lib/source-policy.ts'
+      - 'evals/regression-set.json'
+      - 'scripts/v3-regression-evals.test.cjs'
+      - '.github/workflows/v3-regression-evals.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Compile isolated TypeScript policy
+        run: npx tsc src/lib/keyword-relevance-eval.ts src/lib/source-policy.ts --target es2020 --module commonjs --rootDir src --outDir .v3-evals-build --lib es2020,dom --moduleResolution node --esModuleInterop --skipLibCheck --strict --types node
+      - name: Run V3 regression suite
+        run: node scripts/v3-regression-evals.test.cjs
