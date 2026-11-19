@@ -151,3 +151,19 @@ All six W01–W06 must be evidenced on a live, correctly deployed version with a
 **Improvement in separate PR:** Share the authoritative persisted editorial kind enumeration with the direct-model prompt, provide a machine-readable allowed-values array and require omission rather than guessing or relabeling invalid kinds. Keep validation failure visible in pipeline until a real scheduled output succeeds. Test across AR/EN/ZH and existing single bounded repair attempt using local deterministic tests; **no extra provider/API calls**. Stage-1 acceptance remains **incomplete**.
 
 **Publishing policy:** SELECT confirms `geo_publication_settings.daily_limit=3`, existing publication events=3, FAQ publication events=0. No changes applied. No Phase 2 work.
+
+### 2026-11-20 01:17 KSA — phase 1.5: reconcile published D06 URLs with real production HTTP acceptance
+
+**Confirmed through independent read-only Supabase SELECTs:**
+- Three `public.geo_publication_events` records have `status=published`, `rolled_back_at IS NULL`, `language=ar`, and their exact `target_path` values are:
+  - `/insights/investor-services-package-scope` — `item_id=ed-d73ce77f0c41204b3587ae7a`, kind `comparison`
+  - `/insights/misa-registration-process-guide` — `item_id=ed-7efec0216e0874edefa14c25`, kind `guide`
+  - `/insights/foreign-investor-company-documents` — `item_id=ed-50e540deda1f861607a39304`, kind `guide`
+- All three IDs exactly match entries in `content_store.editorialItems` with `status=approved`, `lang=ar`, `approval_method=automated`, `reviewedAt` present and matching slugs. A separate full query for approved public `guide`/`comparison` items across all three languages found **exactly those three** at the snapshot. There were **no other approved publishable guides** across en/zh in that result.
+- Production route logic in `src/app/sitemap.ts` includes those three approved guide/comparison URLs and **one** `/insights` hub, plus 24 baseline pages. `src/lib/editorial-workflow.ts` exposes the required `approvedEditorial` filter.
+
+**Confirmed from actual production GitHub runner:** [post-merge production read-only acceptance #44619021109](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44619021109), on deploy revision `bcdf8e7`, succeeded at 2026-11-19T21:29 UTC (2026-11-20 00:29 KSA). `.github/workflows/production-readonly-acceptance.yml` sets `SEO_TEST_BASE_URL=https://free-llm-api-1-didl.onrender.com`, not local fixture. The verified `scripts/check-public-seo.cjs` obtains the production sitemap XML, iterates **each** of the four non-baseline URL paths and strictly asserts **HTTP 200** (plus language, H1, canonical, indexability), failing the run on any non-200. Its actual output: `PASS 24 localized pages` and `PASS 28-entry dynamic sitemap (24 baseline + 4 editorial)`. With three and only three approved public guides from the live database and one hub, this gives a source-reconciled HTTP 200 proof for **all three published paths**, without making external GET requests from the model runtime.
+
+**Classification:** phase **1.5 acceptance satisfied for the three existing published paths as of this audit**; this is page reachability, not evidence of Google indexing, search traffic or AI citation. Future publications must be independently verified again. No content, publication events, quotas, provider calls, cron, or production database values changed.
+
+**Still NOT met:** stage 1.4 source-of-every-attempt and W01↔W03 concurrency/idempotence evidence, and phase-1's six real schedule outcomes. W01 first actual schedule after PR #170 is not yet observed; W03/W05/W06 still have no post-PR167 schedule entries in the available run feed. Keep Phase 1 unchecked; no Phase 2.
