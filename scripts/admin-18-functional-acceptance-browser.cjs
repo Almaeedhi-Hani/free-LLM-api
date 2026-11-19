@@ -132,17 +132,26 @@ const groups={
   await page.getByText('إجابة اختبار بعد التعديل.',{exact:true}).waitFor();
   content=await request('GET','/api/admin/content');
   assert.equal(content.faqs.find(f=>f.q==='سؤال تدقيق الإدارة المعزول').a,'إجابة اختبار بعد التعديل.');
-  // The delete handler starts an async POST. Wait for the actual API response,
-  // not just the click, before asserting the persisted readback.
+  // The content editor can have other asynchronous content-store writes.
+  // Capture precisely the FAQ deletion request, never an unrelated POST that
+  // arrives near the click. An absent deletion request must fail by timeout.
+  const beforeDeleteCount=content.faqs.length;
+  const targetQuestion='سؤال تدقيق الإدارة المعزول';
   const [faqDeleteResponse] = await Promise.all([
-    page.waitForResponse(response =>
-      new URL(response.url()).pathname === '/api/admin/content' &&
-      response.request().method() === 'POST', {timeout: 15000}),
+    page.waitForResponse(response => {
+      if(new URL(response.url()).pathname!=='/api/admin/content'||
+         response.request().method()!=='POST')return false;
+      const submitted=response.request().postDataJSON()?.faqs;
+      return Array.isArray(submitted) && submitted.length===beforeDeleteCount-1 &&
+        !submitted.some(f=>f.q===targetQuestion);
+    },{timeout:15000}),
     faqRow.getByRole('button',{name:'حذف'}).click(),
   ]);
-  const submittedFaqs = faqDeleteResponse.request().postDataJSON()?.faqs;
+  const submittedFaqs=faqDeleteResponse.request().postDataJSON()?.faqs;
   assert(Array.isArray(submittedFaqs), 'FAQ delete must submit an authoritative faqs array');
-  assert(!submittedFaqs.some(f=>f.q==='سؤال تدقيق الإدارة المعزول'),
+  assert.equal(submittedFaqs.length,beforeDeleteCount-1,
+    'FAQ delete must remove exactly one item, preserving unrelated FAQ rows');
+  assert(!submittedFaqs.some(f=>f.q===targetQuestion),
     'FAQ delete UI must submit a patch WITHOUT the deleted question');
   assert.equal(faqDeleteResponse.status(), 200, 'FAQ delete save must succeed');
   const faqDeleteResult = await faqDeleteResponse.json();
