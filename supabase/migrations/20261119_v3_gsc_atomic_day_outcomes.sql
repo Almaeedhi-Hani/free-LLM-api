@@ -1,4 +1,10 @@
 -- V3 GSC atomic daily outcomes. PROPOSED only: do not apply to production without owner approval.
+-- Preserve existing measured rows; extend the existing dimension constraint only
+-- to support real two-key page+query Search Analytics measurements.
+ALTER TABLE public.gsc_daily_metrics DROP CONSTRAINT IF EXISTS gsc_daily_metrics_dimension_check;
+ALTER TABLE public.gsc_daily_metrics ADD CONSTRAINT gsc_daily_metrics_dimension_check
+ CHECK (dimension IN ('total','page','query','country','device','page_query'));
+
 -- A separate service-role-only daily outcome is needed to tell successful zero-row
 -- collections from failed attempts. Existing measured rows are never deleted.
 CREATE TABLE IF NOT EXISTS public.gsc_sync_day_outcomes(
@@ -32,7 +38,7 @@ DECLARE
  v_prior integer;
  v_row jsonb; v_dim text; v_key text;
  v_clicks bigint;v_impressions bigint;v_ctr double precision;v_position double precision;
- v_count integer:=0; v_seen text[]:=ARRAY[]::text[];
+ v_count integer:=0;
 BEGIN
  IF current_setting('request.jwt.claim.role',true) IS DISTINCT FROM 'service_role' THEN
   RAISE EXCEPTION 'GSC service role required';
@@ -41,7 +47,7 @@ BEGIN
    OR p_date IS NULL OR p_status NOT IN ('success_with_data','success_no_data','failed')
    OR p_checked_at IS NULL OR p_attempts NOT BETWEEN 1 AND 1000
    OR jsonb_typeof(p_rows) IS DISTINCT FROM 'array'
-   OR jsonb_array_length(p_rows)>100000 THEN RAISE EXCEPTION 'Invalid GSC sync day'; END IF;
+   OR jsonb_array_length(p_rows)>150000 THEN RAISE EXCEPTION 'Invalid GSC sync day'; END IF;
  IF p_date>current_date-2 OR p_checked_at>now()+interval '5 minutes' THEN
   RAISE EXCEPTION 'Future or incomplete GSC day'; END IF;
  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_property||':'||p_date::text,0));
@@ -53,18 +59,18 @@ BEGIN
     p_status='success_no_data' AND jsonb_array_length(p_rows)<>0 OR
     p_status='success_with_data' AND jsonb_array_length(p_rows)=0 THEN
   RAISE EXCEPTION 'GSC status does not match measurements'; END IF;
+ IF (SELECT count(DISTINCT pg_catalog.jsonb_build_array(e.value->'dimension',e.value->'dimension_value'))
+       FROM jsonb_array_elements(p_rows) e) <> jsonb_array_length(p_rows) THEN
+  RAISE EXCEPTION 'Duplicate GSC grain row'; END IF;
  FOR v_row IN SELECT value FROM jsonb_array_elements(p_rows) LOOP
   IF jsonb_typeof(v_row) IS DISTINCT FROM 'object' THEN
    RAISE EXCEPTION 'Invalid GSC row object'; END IF;
   v_dim:=v_row->>'dimension';v_key:=v_row->>'dimension_value';
-  IF v_dim NOT IN ('total','query','page','country','device') OR
+  IF v_dim NOT IN ('total','query','page','country','device','page_query') OR
      v_dim IS NULL OR v_key IS NULL OR length(v_key)>2048 OR
      (v_dim='total' AND v_key<>'') OR
      (v_dim<>'total' AND length(v_key)=0) THEN
     RAISE EXCEPTION 'Invalid GSC grain'; END IF;
-  IF (v_dim||':'||v_key)=ANY(v_seen) THEN
-    RAISE EXCEPTION 'Duplicate GSC grain row'; END IF;
-  v_seen:=array_append(v_seen,v_dim||':'||v_key);
   v_clicks:=(v_row->>'clicks')::bigint;
   v_impressions:=(v_row->>'impressions')::bigint;
   v_ctr:=(v_row->>'ctr')::double precision;
@@ -102,7 +108,7 @@ BEGIN
  IF current_setting('request.jwt.claim.role',true) IS DISTINCT FROM 'service_role' THEN
   RAISE EXCEPTION 'GSC service role required'; END IF;
  IF jsonb_typeof(p_expected_rows) IS DISTINCT FROM 'array'
-    OR jsonb_array_length(p_expected_rows)>100000 THEN
+    OR jsonb_array_length(p_expected_rows)>150000 THEN
   RAISE EXCEPTION 'Invalid expected GSC rows'; END IF;
  SELECT to_jsonb(o) INTO v_status FROM public.gsc_sync_day_outcomes o
   WHERE o.property=p_property AND o.metric_date=p_date;
