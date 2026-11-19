@@ -80,6 +80,8 @@
 ## Other already-published editorial pages
 
 - https://free-llm-api-1-didl.onrender.com/insights/foreign-investor-company-documents
+- https://free-llm-api-1-didl.onrender.com/insights/investor-services-package-scope
+- https://free-llm-api-1-didl.onrender.com/insights/misa-registration-process-guide
 
 ## Attribution and update policy
 - This list is deterministic from the public feed; it does not generate legal claims or unapproved editorial copy.
