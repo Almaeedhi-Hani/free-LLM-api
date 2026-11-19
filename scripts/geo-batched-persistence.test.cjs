@@ -99,5 +99,28 @@ function makeHarness(fetch){
  assert.equal(reusedResult.keyword_changes.inserted,0,'existing keywords cannot count as new inserts');
  assert.equal(reusedResult.keyword_changes.existing,21,'all existing keywords correctly classified');
  assert.equal(success.keyword_changes,null,'legacy API acknowledgements cannot invent insert counts');
+ const reviewed=makeHarness(async(_,options)=>{
+  const chunk=JSON.parse(options.body);
+  return {ok:true,status:200,json:async()=>({
+   ok:true,confirmed:{candidates:0,keywords:0},
+   reviewer_excluded:{candidates:chunk.candidates.length,keywords:chunk.suggestions.length},
+   keyword_persistence:{inserted:0,existing:0}
+  })};
+ });
+ const filtered=await reviewed(candidates,suggestions);
+ assert.equal(filtered.status,'success','intentional reviewer skip is not a fake persistence failure');
+ assert.equal(filtered.confirmed.candidates,0);
+ assert.equal(filtered.confirmed.keywords,0);
+ assert.equal(filtered.reviewer_excluded.candidates,10);
+ assert.equal(filtered.reviewer_excluded.keywords,21);
+ const fakeSkipped=makeHarness(async(_,options)=>{
+  const chunk=JSON.parse(options.body);
+  return {ok:true,status:200,json:async()=>({
+   ok:true,confirmed:{candidates:0,keywords:0},
+   reviewer_excluded:{candidates:chunk.candidates.length+1,keywords:chunk.suggestions.length}
+  })};
+ });
+ const badSkipped=await fakeSkipped(candidates,suggestions);
+ assert.equal(badSkipped.status,'partial','impossible reviewer skip count must never be trusted');
  console.log('PASS GEO storage batching: confirmed records separated from new/existing keywords; strict bounded persistence');
 })().catch(e=>{console.error(e);process.exitCode=1});

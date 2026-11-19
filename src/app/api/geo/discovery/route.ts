@@ -3,6 +3,7 @@ import {timingSafeEqual} from 'crypto';
 import {getSupabaseCredentials} from '@/lib/storage-mode';
 import {getCompetitor,listKeywords,listObservations,recordObservation,upsertCompetitor,upsertKeyword} from '@/lib/market-intelligence';
 import {normalizeGeoDiscoveryBatch,persistGeoDiscoveryBatch} from '@/lib/geo-discovery-batch';
+import {getGeoFeedbackIndex,isExcluded} from '@/lib/geo-agent-feedback';
 
 export const dynamic='force-dynamic';
 
@@ -31,6 +32,21 @@ export async function POST(req:NextRequest){
  }catch(e){
   return NextResponse.json({ok:false,error:e instanceof Error?e.message:'Invalid discovery batch'},{status:422});
  }
+ // Filter the saved corrections before entering any persistence callback.
+ // Rejected records do NOT count as storage errors and no prior row is deleted.
+ let memory;
+ try{memory=await getGeoFeedbackIndex()}catch{
+  return NextResponse.json({ok:false,error:'Reviewer feedback unavailable'},{status:503});
+ }
+ const excluded={
+  keywords:batch.suggestions.filter(item=>isExcluded(memory,'keyword',item.term,item.language)).length,
+  candidates:batch.candidates.filter(item=>isExcluded(memory,'competitor',item.url)).length
+ };
+ batch={
+  ...batch,
+  suggestions:batch.suggestions.filter(item=>!isExcluded(memory,'keyword',item.term,item.language)),
+  candidates:batch.candidates.filter(item=>!isExcluded(memory,'competitor',item.url))
+ };
  const keywords=new Map<string,Set<string>>();
  let insertedKeywords=0,existingKeywords=0;
  const result=await persistGeoDiscoveryBatch(batch,{
@@ -93,6 +109,7 @@ export async function POST(req:NextRequest){
  });
  if(!result.ok)console.error('GEO discovery ingestion partial',result.errors.length);
  return NextResponse.json({...result,source:'unverified_geo_discovery',
+   reviewer_excluded:excluded,
    keyword_persistence:{inserted:insertedKeywords,existing:existingKeywords}},{
   status:result.ok?200:502,headers:{'Cache-Control':'no-store'}
  });

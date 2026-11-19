@@ -3,6 +3,7 @@ import {editorialPath} from './content-impact';
 import {editorialPublicationIssues,validateEditorialItem} from './editorial-workflow';
 import {getSupabaseCredentials} from './storage-mode';
 import type {EditorialItem} from './editorial-types';
+import {getGeoFeedbackIndex,excludesEditorial,excludesFaq} from './geo-agent-feedback';
 
 type Policy={enabled:boolean;daily_limit:number;allow_high_risk:boolean};
 export type AutoPublishReport={
@@ -210,6 +211,11 @@ export async function runGuardedAutoPublishing(dryRun=false):Promise<AutoPublish
  try{content=await getContent()}catch{
   return {...report,status:'storage_unavailable',message:'Cannot load saved content'};
  }
+ // A missing/failed feedback store must not silently publish a rejected topic.
+ let feedback;
+ try{feedback=await getGeoFeedbackIndex()}catch{
+  return {...report,status:'storage_unavailable',message:'Reviewer feedback could not be loaded'};
+ }
  const editorial=(content.editorialItems||[]).filter(e=>e.status==='pending');
  const faqDrafts=(content.drafts||[]).filter(d=>d.status==='pending');
  report.examined=editorial.length+faqDrafts.length;
@@ -231,6 +237,11 @@ export async function runGuardedAutoPublishing(dryRun=false):Promise<AutoPublish
  // transactional locks. Never retry ambiguous writes.
  for(const candidate of publishable){
   const path=editorialPath(candidate);
+  if(path&&excludesEditorial(feedback,candidate,path)){
+   report.skipped++;
+   report.events.push({item_id:candidate.id,result:'reviewer_excluded'});
+   continue;
+  }
   if(!path||unfinished(candidate)){
    report.skipped++;
    report.events.push({item_id:candidate.id,result:'requires_finished_visitor_copy'});
@@ -269,6 +280,11 @@ export async function runGuardedAutoPublishing(dryRun=false):Promise<AutoPublish
   return {...report,status:'completed',message:'The daily limit was reached; remaining items stay queued for the next cycle'};
  }
  for(const draft of faqDrafts){
+  if(typeof draft.q==='string'&&excludesFaq(feedback,draft.q)){
+   report.skipped++;
+   report.events.push({item_id:draft.q,result:'reviewer_excluded'});
+   continue;
+  }
   if(typeof draft.q!=='string'||typeof draft.a!=='string'||
     draft.q.trim().length<5||draft.a.trim().length<30){
    report.skipped++;

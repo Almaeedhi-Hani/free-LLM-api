@@ -14,6 +14,7 @@ import SearchIntegrationsAdmin from '@/components/SearchIntegrationsAdmin';
 import GeoEngineMonitor from '@/components/GeoEngineMonitor';
 import UnifiedRunHistory from '@/components/UnifiedRunHistory';
 import TechnicalTaskBoard from '@/components/TechnicalTaskBoard';
+import GeoFeedbackMemory from '@/components/GeoFeedbackMemory';
 import {validWhatsAppAdvisorField} from '@/lib/whatsapp-contacts';
 
 type Tab =
@@ -151,6 +152,7 @@ export default function AdminDashboard() {
   const [newMarketKeyword,setNewMarketKeyword]=useState('');
   const [competitorSearch,setCompetitorSearch]=useState('');
   const [keywordSearch,setKeywordSearch]=useState('');
+  const [feedbackTarget,setFeedbackTarget]=useState<{kind:'keyword'|'competitor'|'opportunity'|'editorial'|'publication'|'faq';key:string;language?:'ar'|'en'|'zh'|null}|null>(null);
   const [competitorFilter,setCompetitorFilter]=useState('all');
   const [goldenDraft, setGoldenDraft] = useState('');
   const [contactForm, setContactForm] = useState<ContactForm>(()=>contactToForm());
@@ -711,6 +713,7 @@ export default function AdminDashboard() {
             )}
 
             {tab === 'agent' && <GeoEngineMonitor secret={secret} runs={runs} competitors={competitors} keywords={keywords} opportunities={opportunities} goals={goals} sources={marketSources} loading={marketLoading} refresh={() => { void refreshMarket(); void fetchMarketSources(); }} />}
+            {tab === 'agent' && <GeoFeedbackMemory adminSecret={secret} initial={feedbackTarget} />}
 
             {tab === 'agent' && (
               <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
@@ -811,6 +814,7 @@ export default function AdminDashboard() {
               </section>
             )}
 
+            {tab === 'impact' && <GeoFeedbackMemory adminSecret={secret} initial={feedbackTarget} />}
             {tab === 'impact' && (
               <ContentImpactCenter
                 editorialItems={content.editorialItems||[]}
@@ -923,6 +927,7 @@ export default function AdminDashboard() {
 
             {tab === 'keywords' && (
               <div className="space-y-6">
+                <GeoFeedbackMemory adminSecret={secret} initial={feedbackTarget} />
                 <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
                   <h2 className="text-xl font-bold mb-2">كلمات البحث السوقية</h2><p className="text-sm text-slate-500 mb-4">تُستخدم لمراقبة السوق ولا تُنشر تلقائيًا في الموقع.</p>
                   <input className="border border-slate-300 rounded-lg px-3 py-2 w-full mb-3" value={keywordSearch} onChange={e=>setKeywordSearch(e.target.value)} placeholder="تصفية الكلمات أو اللغات" aria-label="تصفية الكلمات المفتاحية"/>
@@ -977,6 +982,7 @@ export default function AdminDashboard() {
                             <td className="text-xs text-slate-400">{k.source} ({k.volume_confidence})</td>
                             <td><div className="flex items-center gap-3">
                               <button className="text-blue-700 text-xs underline disabled:opacity-50" disabled={saving} onClick={()=>setEditingMarketKeyword({id:k.id,term:k.term,language:k.language,intent:k.intent,cluster:k.cluster||''})}>تعديل</button>
+                              <button className="text-amber-800 text-xs underline" onClick={()=>setFeedbackTarget({kind:'keyword',key:k.term,language:k.language})}>تعليم الوكيل</button>
                               <button className="text-red-700 text-xs hover:underline disabled:opacity-50" disabled={saving} onClick={async()=>{
                               if(!window.confirm('حذف الكلمة المفتاحية: '+k.term+'؟'))return;
                               setSaving(true);setError('');try{await marketFetch('/api/admin/market/keywords',{method:'DELETE',body:JSON.stringify({id:k.id})});await refreshMarketCollection('keywords');setNotice('حُذفت الكلمة المفتاحية');}

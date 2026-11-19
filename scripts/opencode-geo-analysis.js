@@ -139,6 +139,7 @@ async function saveGeoDiscovery(candidates,suggestions) {
   const base=process.env.GEO_API_URL||process.env.SITE_URL;
   const key=process.env.GEO_API_KEY;
   const confirmed={candidates:0,keywords:0};
+  const reviewerExcluded={candidates:0,keywords:0};
   const keywordChanges={inserted:0,existing:0,complete:true};
   if(!base||!key)return {status:'partial',confirmed,error:'GEO discovery API not configured'};
   // The production endpoint persists every record sequentially, so a single
@@ -148,7 +149,7 @@ async function saveGeoDiscovery(candidates,suggestions) {
   const KEYWORDS_PER_REQUEST=3;
   const CANDIDATES_PER_REQUEST=2;
   let keywordOffset=0,candidateOffset=0,batches=0;
-  const errorResult=(message)=>({status:'partial',confirmed,batches,keyword_changes:keywordChanges.complete?{inserted:keywordChanges.inserted,existing:keywordChanges.existing}:null,error:message});
+  const errorResult=(message)=>({status:'partial',confirmed,reviewer_excluded:reviewerExcluded,batches,keyword_changes:keywordChanges.complete?{inserted:keywordChanges.inserted,existing:keywordChanges.existing}:null,error:message});
   while(keywordOffset<suggestions.length||candidateOffset<candidates.length){
     const batch={
       suggestions:suggestions.slice(keywordOffset,keywordOffset+KEYWORDS_PER_REQUEST),
@@ -168,6 +169,16 @@ async function saveGeoDiscovery(candidates,suggestions) {
          saved.candidates<0||saved.keywords<0||
          saved.candidates>batch.candidates.length||saved.keywords>batch.suggestions.length)
         return errorResult('Invalid GEO discovery confirmation for batch '+batches);
+      // Reviewer-excluded suggestions are intentionally ignored, not persisted.
+      // Only trust explicit, bounded counts returned by the authenticated API.
+      const skipped=payload.reviewer_excluded||{candidates:0,keywords:0};
+      if(!Number.isInteger(skipped.candidates)||!Number.isInteger(skipped.keywords)||
+         skipped.candidates<0||skipped.keywords<0||
+         saved.candidates+skipped.candidates>batch.candidates.length||
+         saved.keywords+skipped.keywords>batch.suggestions.length)
+        return errorResult('Invalid GEO reviewer-exclusion confirmation for batch '+batches);
+      reviewerExcluded.candidates+=skipped.candidates;
+      reviewerExcluded.keywords+=skipped.keywords;
       // Count only explicit server confirmations, including on a partial 502.
       confirmed.candidates+=saved.candidates;
       confirmed.keywords+=saved.keywords;
@@ -178,8 +189,8 @@ async function saveGeoDiscovery(candidates,suggestions) {
         keywordChanges.existing+=counts.existing;
       }else if(saved.keywords)keywordChanges.complete=false;
       if(!response.ok||payload.ok!==true||
-         saved.candidates!==batch.candidates.length||
-         saved.keywords!==batch.suggestions.length)
+         saved.candidates+skipped.candidates!==batch.candidates.length||
+         saved.keywords+skipped.keywords!==batch.suggestions.length)
         return errorResult('GEO discovery persistence partial (batch '+batches+'): '+
           JSON.stringify(payload?.errors||payload?.error||response.status).slice(0,240));
       keywordOffset+=batch.suggestions.length;
@@ -191,7 +202,7 @@ async function saveGeoDiscovery(candidates,suggestions) {
         String(e?.message||e).slice(0,150));
     }
   }
-  return {status:'success',confirmed,batches,keyword_changes:keywordChanges.complete?{inserted:keywordChanges.inserted,existing:keywordChanges.existing}:null,error:null};
+  return {status:'success',confirmed,reviewer_excluded:reviewerExcluded,batches,keyword_changes:keywordChanges.complete?{inserted:keywordChanges.inserted,existing:keywordChanges.existing}:null,error:null};
 }
 async function stageDiscovery() {
   logStage('DISCOVERY', 'Collecting sourced market evidence (Google Suggest + bounded provider search)...');
@@ -227,6 +238,7 @@ async function stageDiscovery() {
     persisted_keywords:persistence.confirmed.keywords,
     new_keywords:persistence.keyword_changes?.inserted??null,
     existing_keywords:persistence.keyword_changes?.existing??null,
+    reviewer_excluded:persistence.reviewer_excluded||{candidates:0,keywords:0},
     persistence_status:persistence.status,
     persistence_error:persistence.error||null,
     keyword_status:suggestionsMissing?'empty':'collected',
@@ -345,6 +357,26 @@ async function stageEvidence() {
   logStage('EVIDENCE','Unreviewed Google Suggest noise excluded from model: '+
     JSON.stringify({total:quality.excluded,by_language:quality.by_language}));
 
+  // Refresh the append-only admin memory before invoking the model. Using only
+  // server-side ingestion guards would still let a rejected result contaminate
+  // the model's in-memory reasoning input during this very same run.
+  // Never infer an empty exclusion list when feedback is temporarily offline.
+  try{
+    if(!GEO_API_URL||!GEO_API_KEY)throw Error('GEO credentials missing');
+    const response=await fetch((GEO_API_URL.endsWith('/')?GEO_API_URL.slice(0,-1):GEO_API_URL)+'/api/geo/feedback',{
+      headers:{'x-geo-api-key':GEO_API_KEY},signal:AbortSignal.timeout(15000)});
+    if(!response.ok)throw Error('feedback_read_'+response.status);
+    const data=await response.json();
+    if(!Array.isArray(data.excluded))throw Error('invalid_feedback_response');
+    const filtered=require('./geo-feedback-filter.cjs').applyFeedbackToEvidence(evidenceItems,data.excluded);
+    evidenceItems=filtered.items;
+    logStage('EVIDENCE','Active reviewer corrections excluded: '+filtered.excluded);
+  }catch(error){
+    logStage('EVIDENCE','Reviewer feedback unavailable: '+(error?.message||'unavailable'));
+    stageResults.evidence={total:0,items:[],feedback_status:'unavailable'};
+    return {records_processed:0,status:'partial',error:'Reviewer feedback unavailable; no GEO model evidence submitted'};
+  }
+
   // Simplify evidence items for LLM prompt
   evidenceItems = evidenceItems.map((e, i) => ({
     id: e.id || `ev_${i}`,
@@ -457,7 +489,12 @@ async function saveGEOStage(stage, items) {
       try {payload=await res.json()}
       catch {return {status:'partial',saved:0,error:'Invalid GEO API response (HTTP '+res.status+')'}}
       const count=payload?.saved?.[stage] ?? 0;
-      if (res.ok && payload?.ok && count===items.length) return {status:'success',saved:count};
+      const skipped=payload?.reviewer_excluded?.[stage] ?? 0;
+      // Corrected items are *not* stored. A trusted skip count is an
+      // intentional reviewer decision, not a reason to retry old content.
+      if(Number.isInteger(count)&&count>=0&&Number.isInteger(skipped)&&skipped>=0&&
+         count+skipped===items.length&&res.ok&&payload?.ok===true)
+        return {status:'success',saved:count,reviewer_excluded:skipped};
       // Draft quality validation precedes writes: split only this definitive rejection.
       // Never retry non-deduplicated drafts after ambiguous network/storage failures.
       const draftQualityRejected=stage==='drafts' && res.status===502 && count===0 &&

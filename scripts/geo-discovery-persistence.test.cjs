@@ -138,13 +138,19 @@ assert.throws(()=>normalizeGeoDiscoveryBatch({candidates:[],suggestions:[]}),/Em
    fake.observations.push(stored);return stored;
   }
  };
+ const feedbackCore=require('../.geo-ingest-test-build/lib/geo-agent-feedback.js');
+ let feedbackIndex=new Map();
  const routeModule={exports:{}};
  const providers={
   'next/server':{NextResponse:{json:(data,opts={})=>({status:opts.status||200,json:async()=>data})}},
   'crypto':require('node:crypto'),
   '@/lib/storage-mode':{getSupabaseCredentials:()=>configured?{url:'https://supabase.invalid',key:'fake'}:null},
   '@/lib/market-intelligence':fakeMarket,
-  '@/lib/geo-discovery-batch':require('../.geo-ingest-test-build/lib/geo-discovery-batch.js')
+  '@/lib/geo-discovery-batch':require('../.geo-ingest-test-build/lib/geo-discovery-batch.js'),
+  '@/lib/geo-agent-feedback':{
+   getGeoFeedbackIndex:async()=>feedbackIndex,
+   isExcluded:(...args)=>feedbackCore.isExcluded(...args)
+  }
  };
  vm.runInNewContext(compiled,{
   exports:routeModule.exports,module:routeModule,require:name=>{
@@ -202,6 +208,29 @@ assert.throws(()=>normalizeGeoDiscoveryBatch({candidates:[],suggestions:[]}),/Em
  assert.equal(body.ok,false);
  assert.equal(body.confirmed.candidates,0);
  assert.equal(body.errors.length,1);
+ const priorKeywordCount=fake.keywords.length,priorObservations=fake.observations.length;
+ feedbackIndex=feedbackCore.effectiveFeedback([
+  {id:'feedback-a',subject_type:'keyword',subject_key:'saudi arabia formation football',
+   language:'en',decision:'irrelevant',reason:'Sports topic not company formation',
+   source:'seed',created_at:'2026-11-19T00:00:00Z'},
+  {id:'feedback-b',subject_type:'competitor',subject_key:'blocked.example.com',
+   language:null,decision:'irrelevant',reason:'Not a service competitor',
+   source:'admin',created_at:'2026-11-19T00:00:00Z'}
+ ]);
+ response=await POST(request({
+  candidates:[candidate({url:'https://blocked.example.com/landing',language:'en'})],
+  suggestions:[suggestion({term:'saudi arabia formation football',language:'en'})]
+ }));
+ assert.equal(response.status,200,'rejected discovery items are benign skips, not storage failures');
+ body=await response.json();
+ assert.equal(body.reviewer_excluded.keywords,1);
+ assert.equal(body.reviewer_excluded.candidates,1);
+ assert.equal(body.confirmed.keywords,0);
+ assert.equal(body.confirmed.candidates,0);
+ assert.equal(fake.keywords.length,priorKeywordCount,'feedback must not delete earlier keywords');
+ assert.equal(fake.observations.length,priorObservations,'no new observation for corrected competitor');
+ feedbackIndex=new Map();
+ console.log('PASS reviewer feedback exclusion at real GEO discovery API boundary without writes or deletion');
  console.log('PASS actual GEO discovery POST with isolated database mock: auth, read-back, replay, curated records, no ranked SERP, partial failure');
  console.log('PASS bounded trilingual research ingestion, source provenance, idempotence, no fabricated ranks, partial failures and guarded single-attempt GEO bridge');
 })().catch(e=>{console.error(e);process.exitCode=1});
