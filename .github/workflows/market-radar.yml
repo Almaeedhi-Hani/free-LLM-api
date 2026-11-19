@@ -2,7 +2,19 @@ name: Market Intelligence Radar (Independent)
 
 on:
   schedule:
-    - cron: '55 0-22/2 * * *' # Saudi 01:55,03:55,... until Sat 21 Nov; 01:55,05:55,... from Sun 22 Nov
+    # Identical UTC timing; each event carries its exact hour to survive delayed runners.
+    - cron: '55 0 * * *'
+    - cron: '55 2 * * *'
+    - cron: '55 4 * * *'
+    - cron: '55 6 * * *'
+    - cron: '55 8 * * *'
+    - cron: '55 10 * * *'
+    - cron: '55 12 * * *'
+    - cron: '55 14 * * *'
+    - cron: '55 16 * * *'
+    - cron: '55 18 * * *'
+    - cron: '55 20 * * *'
+    - cron: '55 22 * * *'
   push:
     branches: [main]
     paths:
@@ -11,6 +23,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: market-intelligence-radar
@@ -32,7 +45,10 @@ jobs:
 
       - name: Select the same Saudi two-hour then four-hour cadence
         id: cadence
-        run: node scripts/scheduled-cadence-gate.cjs --slot=odd >> "$GITHUB_OUTPUT"
+        env:
+          CADENCE_EVENT_CRON: ${{ github.event.schedule }}
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/scheduled-event-slot.cjs --kind=market
 
       - name: Validate bounded radar job and schedule
         if: steps.cadence.outputs.run == 'true'

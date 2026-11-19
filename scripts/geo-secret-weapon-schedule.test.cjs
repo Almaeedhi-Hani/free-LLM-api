@@ -8,7 +8,8 @@ const radar=read('.github/workflows/market-radar.yml');
 const gsc=read('.github/workflows/gsc-daily-sync.yml');
 const api=read('src/app/api/admin/geo-engine/route.ts');
 const ui=read('src/components/GeoEngineMonitor.tsx');
-assert(geo.includes("- cron: '0 1-23/2 * * *'"),'GEO must be two-hour burst, then four-hour execution');
+for(const hour of [1,3,5,7,9,11,13,15,17,19,21,23])
+ assert(geo.includes("- cron: '0 "+hour+" * * *'"),'GEO preserves each original UTC trigger '+hour);
 assert(!geo.includes("- cron: '0 2 * * 0'"),'Weekly schedule must be replaced');
 assert(geo.includes('  workflow_dispatch:'),'Manual GEO dispatch must remain');
 assert(geo.includes("      - '.github/workflows/geo-analysis.yml'"),'One-time main push bootstrap');
@@ -21,10 +22,11 @@ assert(!geo.includes('curl -fsSL https://opencode.ai'),'No OpenCode CLI download
 assert(geo.includes("if: always() && steps.cadence.outputs.run == 'true'"),'Partial-run reports must upload only when engine ran');
 assert(geo.includes('POST -H "x-geo-api-key: $GEO_API_KEY"'),'Authenticated publishing preserved');
 assert(publisher.includes("- cron: '50 1-23/2 * * *'"),'Publisher checks every two hours, then four hours');
-assert(radar.includes("cron: '55 0-22/2 * * *'"),'Standalone market radar follows same 2h to 4h cadence');
-assert(radar.includes('scheduled-cadence-gate.cjs --slot=odd'),'Independent market radar uses shared gate');
+for(const hour of [0,2,4,6,8,10,12,14,16,18,20,22])
+ assert(radar.includes("cron: '55 "+hour+" * * *'"),'Market retains each original UTC trigger '+hour);
+assert(radar.includes('scheduled-event-slot.cjs --kind=market'),'Independent market radar uses original event time');
 assert(gsc.includes('gsc-scheduled-slot.cjs')&&gsc.includes('github.event.schedule'),'GSC uses immutable cron trigger');
-assert(geo.includes('scheduled-cadence-gate.cjs --slot=even'),'GEO uses gate');
+assert(geo.includes('scheduled-event-slot.cjs --kind=geo'),'GEO uses original event time');
 assert(api.includes("github('/actions/workflows/' + workflow)"),'Real GitHub workflow status must be read');
 assert(api.includes("state === 'unknown' ? null : state === 'active'"),'Unknown not displayed as active');
 assert(api.includes("cron_utc: '0 1-23/2 * * *'"),'Dashboard schedule matches workflow');

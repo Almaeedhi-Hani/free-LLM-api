@@ -78,6 +78,6 @@ const gateway=require('./geo-direct-model-providers.cjs');
  assert(!wf.includes('curl -fsSL https://opencode.ai'),'no unverified remote CLI install in schedule');
  assert(runner.includes("await direct.generate(prompt,model,{timeoutMs})"),'runner invokes direct HTTP providers');
  assert(runner.includes("if(direct&&!candidateModels.length)"),'no models is partial, never a fake success');
- assert(wf.includes("scheduled-cadence-gate.cjs --slot=even"),'Saudi cadence remains enabled');
+ assert(wf.includes("scheduled-event-slot.cjs --kind=geo"),'Saudi cadence must use nominal event time');
  console.log('PASS four direct-model provider contracts, immutable free-plan models, error handling, no secret leaks, cadence preserved');
 })().catch(e=>{console.error(e);process.exitCode=1});

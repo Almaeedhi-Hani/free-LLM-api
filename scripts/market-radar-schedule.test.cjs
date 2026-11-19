@@ -7,10 +7,11 @@ const workflow=fs.readFileSync('.github/workflows/market-radar.yml','utf8');
 const endpoint=fs.readFileSync('src/app/api/cron-market/route.ts','utf8');
 const budget=fs.readFileSync('scripts/radar-discovery-budget.test.cjs','utf8');
 
-assert(workflow.includes("cron: '55 0-22/2 * * *'"),
- 'standalone radar must be scheduled for Saudi odd-hour :55, every two hours');
-assert(workflow.includes("scheduled-cadence-gate.cjs --slot=odd"),
- 'standalone radar must reuse owner-approved Saudi cadence gate');
+for(const hour of [0,2,4,6,8,10,12,14,16,18,20,22])
+ assert(workflow.includes("cron: '55 "+hour+" * * *'"),
+ 'preserve every original radar UTC trigger '+hour);
+assert(workflow.includes("scheduled-event-slot.cjs --kind=market"),
+ 'standalone radar must preserve nominal event slot, not runner wall clock');
 assert(workflow.includes("steps.cadence.outputs.run == 'true'"),
  'provider request must be skipped on disabled four-hour half slots');
 assert.equal(SWITCH_UTC,'2026-11-21T21:00:00.000Z',

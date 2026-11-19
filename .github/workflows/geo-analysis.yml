@@ -2,7 +2,19 @@ name: GEO Intelligence Analysis
 
 on:
   schedule:
-    - cron: '0 1-23/2 * * *' # Saudi 00:00,02:00,... during burst; every 4h from Nov 22
+    # Identical UTC timing; each event carries its exact hour to survive delayed runners.
+    - cron: '0 1 * * *'
+    - cron: '0 3 * * *'
+    - cron: '0 5 * * *'
+    - cron: '0 7 * * *'
+    - cron: '0 9 * * *'
+    - cron: '0 11 * * *'
+    - cron: '0 13 * * *'
+    - cron: '0 15 * * *'
+    - cron: '0 17 * * *'
+    - cron: '0 19 * * *'
+    - cron: '0 21 * * *'
+    - cron: '0 23 * * *'
   push:
     branches: [main]
     paths:
@@ -11,6 +23,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: geo-analysis
@@ -32,7 +45,10 @@ jobs:
 
       - name: Select current Saudi cadence
         id: cadence
-        run: node scripts/scheduled-cadence-gate.cjs --slot=even >> "$GITHUB_OUTPUT"
+        env:
+          CADENCE_EVENT_CRON: ${{ github.event.schedule }}
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/scheduled-event-slot.cjs --kind=geo
 
       - name: Analyze GEO with direct free-plan provider fallbacks
         if: steps.cadence.outputs.run == 'true'
