@@ -2,7 +2,7 @@ import type {GscSyncDayRecord} from './gsc-backfill-plan';
 
 /** Supabase REST adapter; only a service-role key may access the RPCs. */
 export type DailyGscMeasurement={
- dimension:'total'|'query'|'page'|'country'|'device';
+ dimension:'total'|'query'|'page'|'country'|'device'|'page_query';
  dimension_value:string;clicks:number;impressions:number;ctr:number;position:number;
 };
 export type DailyGscWrite={
