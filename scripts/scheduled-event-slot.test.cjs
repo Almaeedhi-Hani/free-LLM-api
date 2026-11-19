@@ -67,7 +67,7 @@ assert.throws(()=>eventSlot('geo','0 1 * * *','2026-02-30T01:00:00Z'),/Invalid/)
  ];
  for(const [file,kind,minute,hours] of expanded){
   const workflow=fs.readFileSync('.github/workflows/'+file,'utf8');
-  const schedules=Array.from(workflow.matchAll(/- cron: '(\\d+) (\\d+) \\* \\* \\*'/g))
+  const schedules=Array.from(workflow.matchAll(/- cron: '(\d+) (\d+) \* \* \*'/g))
     .map(x=>[Number(x[1]),Number(x[2])]);
   assert.deepEqual(schedules,hours.map(hour=>[minute,hour]),
     file+' must preserve its original 12 UTC triggering instants');
