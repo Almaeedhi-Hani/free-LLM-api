@@ -22,5 +22,5 @@ export async function getCompetitorDomains(
   if(!domain)throw Error('competitor_domain_invalid');
   domains.add(domain);
  }
- return [...domains];
+ return Array.from(domains);
 }
