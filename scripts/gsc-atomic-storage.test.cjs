@@ -80,7 +80,7 @@ const mkReply=(body,status=200)=>({ok:status>=200&&status<300,status,
  const activeBody=active.slice(active.indexOf('CREATE FUNCTION public.gsc_sync_commit_day_v2(')).trim();
  assert.equal(activeBody,approved,
    'managed production migration must exactly match reviewed additive SQL proposal (excluding transaction wrapper)');
- assert(!/\\bDROP\\s+TABLE\\b|\\bDELETE\\s+FROM\\b|\\bALTER\\s+TABLE\\b|CREATE\\s+OR\\s+REPLACE\\s+FUNCTION/i.test(active.replace(/^--.*$/gm,'')),
+ assert(!/\bDROP\s+TABLE\b|\bDELETE\s+FROM\b|\bALTER\s+TABLE\b|CREATE\s+OR\s+REPLACE\s+FUNCTION/i.test(active.replace(/^--.*$/gm,'')),
    'managed GSC migration must be strictly additive and not replace original v1 functions');
 
 
