@@ -1,7 +1,7 @@
 'use strict';
 const assert=require('node:assert/strict');
 const {promptForDirectLocale}=require('./geo-opencode-planner.cjs');
-const {EDITORIAL_KINDS,screenEditorial}=require('./geo-generated-output-guard.cjs');
+const {EDITORIAL_KINDS,screenEditorial,eligibleEditorial,EDITORIAL_TEXT_MINIMA,isValidTechnicalTarget}=require('./geo-generated-output-guard.cjs');
 const langs=['ar','en','zh'];
 for(const lang of langs){
  const evidence=Array.from({length:8},(_,i)=>({
@@ -18,6 +18,36 @@ for(const lang of langs){
  assert.deepEqual(parsed.research_evidence.map(e=>e.id),evidence.map(e=>e.id));
  assert(parsed.instructions.some(x=>x.includes('government agency')),'Official identity disclaimer');
  assert(parsed.instructions.some(x=>x.includes('JSON ONLY')),'Strict JSON output guard');
+ const textRules=parsed.editorial_text_contract;
+ assert.equal(textRules.title_min,EDITORIAL_TEXT_MINIMA.title[lang]);
+ assert.equal(textRules.summary_min,EDITORIAL_TEXT_MINIMA.summary);
+ assert.equal(textRules.body_min,EDITORIAL_TEXT_MINIMA.body[lang]);
+ assert.equal(textRules.title_max,170);
+ assert.equal(textRules.summary_max,360);
+ assert.equal(textRules.body_max,10000);
+ assert.equal(textRules.on_invalid,'omit_action_without_padding');
+ assert(parsed.instructions.some(x=>x.includes('FINAL TEXT VALIDATION')&&x.includes('omit it')),
+   'Do not pad or fabricate missing editorial text');
+ const technicalRules=parsed.technical_target_contract;
+ assert.equal(technicalRules.on_invalid,'omit_action_not_infer_route');
+ assert.deepEqual(technicalRules.allowed_values,
+   parsed.live_site_routes.map(x=>x.url).filter(isValidTechnicalTarget),
+   'Only existing allowed live technical routes may be proposed');
+ assert(parsed.instructions.some(x=>x.includes('FINAL TECHNICAL ROUTE VALIDATION')),
+   'The exact technical route allowlist must be explained');
+ const validRoute=technicalRules.allowed_values[0];
+ assert(validRoute,'The allowed live-site technical routes must not be empty');
+ const complete={kind:'technical_seo',lang,target:validRoute,
+   title:lang==='zh'?'投资者服务页面说明':'Investor service information for foreign businesses',
+   summary:'A researched editorial note with a grounded and practical explanation of the selected investor service.',
+   body:'An evidence-limited and original overview of the relevant service page, with no unsupported promise or factual invention. '.repeat(2)};
+ assert.equal(eligibleEditorial(complete),null,'Exactly scoped completed technical proposal passes existing guard');
+ assert.equal(eligibleEditorial({...complete,body:'short'}),'insufficient_text',
+   'Do not weaken guard to accept a short body');
+ assert.equal(eligibleEditorial({...complete,target:'/invented-technical-route'}),'invalid_technical_target',
+   'Do not weaken guard to accept a fabricated route');
+ const belowMin={...complete,title:lang==='zh'?'短标题':'Short',summary:'brief',body:'note'};
+ assert.equal(eligibleEditorial(belowMin),'insufficient_text');
  assert.deepEqual(parsed.editorial_kind_contract.allowed_values,EDITORIAL_KINDS,
    'free-tier generator must receive same authoritative enum as persistence guard');
  assert.equal(parsed.editorial_kind_contract.on_invalid,'omit_action_not_relabel',
@@ -32,6 +62,10 @@ for(const lang of langs){
  const repairPrompt=JSON.parse(promptForDirectLocale(lang,evidence,{
    editorial_actions:[{index:0,reason:'unknown_kind'}],drafts:[]
  }));
+ assert.deepEqual(repairPrompt.editorial_text_contract,parsed.editorial_text_contract,
+   'Existing single repair must reuse the same exact text minima');
+ assert.deepEqual(repairPrompt.technical_target_contract,parsed.technical_target_contract,
+   'Existing single repair must reuse the same exact valid target set');
  assert.deepEqual(repairPrompt.editorial_kind_contract.allowed_values,EDITORIAL_KINDS,
    'single existing repair attempt must use the same kind contract');
 
