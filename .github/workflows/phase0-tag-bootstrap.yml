@@ -25,12 +25,12 @@ jobs:
         run: |
           set -euo pipefail
           tag="pre-consolidation-20261119"
-          existing="$(gh api "repos/$REPO/git/ref/tags/$tag" --jq '.object.sha' 2>/dev/null || true)"
-          if [[ -n "$existing" && "$existing" != "$EXPECTED_SHA" ]]; then
-            echo "Refusing to overwrite tag: unexpected baseline SHA."
-            exit 1
-          fi
-          if [[ -z "$existing" ]]; then
+          if existing="$(gh api "repos/$REPO/git/ref/tags/$tag" --jq '.object.sha' 2>/dev/null)"; then
+            if [[ "$existing" != "$EXPECTED_SHA" ]]; then
+              echo "Refusing to overwrite tag: unexpected baseline SHA."
+              exit 1
+            fi
+          else
             gh api --method POST "repos/$REPO/git/refs" \
               -f "ref=refs/tags/$tag" -f "sha=$EXPECTED_SHA" >/dev/null
           fi
