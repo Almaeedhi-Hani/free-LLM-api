@@ -1,12 +1,27 @@
 name: GSC daily metrics sync
 on:
   schedule:
-    - cron: '0 0-22/2 * * *' # Saudi 01:00,03:00,... then 01:00,05:00,... from Nov 22
+    # Same UTC trigger hours as the original 0 0-22/2 cron. Individual expressions
+    # preserve the scheduled hour when GitHub queues the job past that hour.
+    - cron: '0 0 * * *'
+    - cron: '0 2 * * *'
+    - cron: '0 4 * * *'
+    - cron: '0 6 * * *'
+    - cron: '0 8 * * *'
+    - cron: '0 10 * * *'
+    - cron: '0 12 * * *'
+    - cron: '0 14 * * *'
+    - cron: '0 16 * * *'
+    - cron: '0 18 * * *'
+    - cron: '0 20 * * *'
+    - cron: '0 22 * * *'
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: gsc-measured-sync
+  queue: max
   cancel-in-progress: false
 jobs:
   sync:
@@ -14,13 +29,18 @@ jobs:
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Select current Saudi cadence
+      - name: Resolve the original Saudi cadence slot
         id: cadence
-        run: node scripts/scheduled-cadence-gate.cjs --slot=odd >> "$GITHUB_OUTPUT"
-      - name: Verify secrets and collect GSC metrics
+        env:
+          GSC_EVENT_CRON: ${{ github.event.schedule }}
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/gsc-scheduled-slot.cjs
+      - name: Verify sync configuration
         if: steps.cadence.outputs.run == 'true'
         env:
           GSC_SYNC_URL: ${{ secrets.GSC_SYNC_URL }}
@@ -30,4 +50,18 @@ jobs:
             echo "::error::Configure GSC_SYNC_URL and GSC_CRON_SECRET in GitHub Actions secrets"
             exit 1
           fi
-          curl --fail-with-body --retry 2 --max-time 90 -sS -H "Authorization: Bearer $GSC_CRON_SECRET" "$GSC_SYNC_URL"
+      - name: Claim the scheduled slot before sending the request
+        if: steps.cadence.outputs.marker != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.cadence.outputs.marker }}
+          path: ${{ runner.temp }}/gsc-scheduled-slot.txt
+          if-no-files-found: error
+          retention-days: 30
+      - name: Collect GSC metrics
+        if: steps.cadence.outputs.run == 'true'
+        env:
+          GSC_SYNC_URL: ${{ secrets.GSC_SYNC_URL }}
+          GSC_CRON_SECRET: ${{ secrets.GSC_CRON_SECRET }}
+        run: |
+          curl --fail-with-body --max-time 90 -sS -H "Authorization: Bearer $GSC_CRON_SECRET" "$GSC_SYNC_URL"
