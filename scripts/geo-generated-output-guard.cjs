@@ -53,14 +53,27 @@ function eligibleEditorial(item){
     !safeText(item.body,item.lang==='zh'?80:100,10000))return 'insufficient_text';
  return null;
 }
-function screenEditorial(items){
+function screenEditorial(items,lang){
  const accepted=[],rejected=[];
  for(const [index,item] of (Array.isArray(items)?items:[]).entries()){
-  const reason=eligibleEditorial(item);
+  const reason=eligibleEditorial(item)||(lang&&item.lang!==lang?'wrong_locale':null);
   if(reason){rejected.push({index,reason});continue}
   // Conservative risk metadata; no lower-risk default, no automatic approval.
   accepted.push({...item,risk_level:['low','medium','high'].includes(item.risk_level)?item.risk_level:'high'});
  }
  return {accepted,rejected};
 }
-module.exports={prepareGoals,screenEditorial,eligibleEditorial};
+function screenDrafts(items){
+ const accepted=[],rejected=[];
+ const validText=(value,max)=>typeof value==='string'&&value.trim().length>0&&value.length<=max&&!value.includes('\uFFFD');
+ for(const [index,item] of items.entries()){
+  let reason;
+  if(!item||typeof item!=='object'||Array.isArray(item))reason='invalid_item';
+  else if(!validText(item.q||item.question,1000))reason='invalid_question';
+  else if(!validText(item.a||item.answer,5000))reason='invalid_answer';
+  if(reason){rejected.push({index,reason});continue}
+  accepted.push({...item,q:item.q||item.question,a:item.a||item.answer});
+ }
+ return {accepted,rejected};
+}
+module.exports={prepareGoals,screenEditorial,eligibleEditorial,screenDrafts};

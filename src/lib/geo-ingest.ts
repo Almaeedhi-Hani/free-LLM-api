@@ -64,8 +64,14 @@ export function normalizeGeoBatch(raw:unknown):GeoBatch{
    }else if(key==="editorial_actions"){
      out.editorial_actions=items.map(d=>validateEditorialItem(d));
    }else{
-     if(!items.every(d=>d&&textOk(d.q||d.question,1000)&&textOk(d.a||d.answer,5000)&&["high","medium","low"].includes(d.risk_level)))throw new Error("Invalid drafts");
-     out.drafts=items.map(d=>({q:d.q||d.question,a:d.a||d.answer,risk_level:d.risk_level,evidence_ids:Array.isArray(d.evidence_ids)?d.evidence_ids.filter((id:unknown)=>textOk(id,150)).slice(0,12):[],evidence_refs:normalizeReferences(d.evidence_refs)}));
+     out.drafts=items.map((d,index)=>{
+       const invalid=(code:string)=>new Error(`Invalid drafts[${index}]: ${code}`);
+       if(!d||typeof d!=="object"||Array.isArray(d))throw invalid("invalid_item");
+       if(!textOk(d.q||d.question,1000))throw invalid("invalid_question");
+       if(!textOk(d.a||d.answer,5000))throw invalid("invalid_answer");
+       if(!["high","medium","low"].includes(d.risk_level))throw invalid("invalid_risk_level");
+       return {q:d.q||d.question,a:d.a||d.answer,risk_level:d.risk_level,evidence_ids:Array.isArray(d.evidence_ids)?d.evidence_ids.filter((id:unknown)=>textOk(id,150)).slice(0,12):[],evidence_refs:normalizeReferences(d.evidence_refs)};
+     });
    }
  }
  if(value.run_report!==undefined){

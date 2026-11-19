@@ -6,6 +6,8 @@ const {normalizeGeoBatch,persistGeoBatch}=require('../.geo-ingest-test-build/lib
 (async()=>{
  assert.throws(()=>normalizeGeoBatch({opportunities:[{title:'x',type:'bad',score:55}]}),/Invalid opportunities/);
  assert.throws(()=>normalizeGeoBatch({drafts:[{q:'test',a:'text',risk_level:'wrong'}]}),/Invalid drafts/);
+ assert.throws(()=>normalizeGeoBatch({drafts:[{q:'test',a:'text',risk_level:'high'},null]}),/Invalid drafts\[1\]: invalid_item/);
+ assert.throws(()=>normalizeGeoBatch({drafts:[{q:'test',a:{private:'value'},risk_level:'high'}]}),/Invalid drafts\[0\]: invalid_answer/);
  const sample=normalizeGeoBatch({opportunities:[{title:'Source research',type:'gap',score:20}],goals:[{title:'Review original service guide',priority:'high'}],drafts:[{q:'What documents?',a:'Check directly with the authority.',risk_level:'high'}]});
  const calls={o:0,g:0,d:0,r:0};
  const success=await persistGeoBatch(sample,{
@@ -105,10 +107,28 @@ const {normalizeGeoBatch,persistGeoBatch}=require('../.geo-ingest-test-build/lib
  assert.equal(partial.status,'partial','invalid draft must keep stage visibly partial');
  assert.equal(partial.saved,1,'save other valid drafts on definitive quality rejection');
  assert.equal(quality.calls.length,3,'only definitive validation failure gets per-item fallback');
+ const structural=await runMock(data=>data.drafts.length===2||data.drafts[0].q==='invalid'
+   ?{status:422,ok:false,json:async()=>({ok:false,error:'Invalid drafts[0]: invalid_answer'})}
+   :reply(200,1,[]));
+ const split=await structural.save('drafts',[{q:'valid'},{q:'invalid'}]);
+ assert.equal(split.status,'partial');
+ assert.equal(split.saved,1,'the valid draft survives a definitive batch shape rejection');
+ assert.match(split.error,/drafts_schema_invalid\/invalid_answer/);
+ assert.equal(structural.calls.length,3);
  const storage=await runMock(()=>reply(502,0,['drafts: database unavailable']));
  const storageResult=await storage.save('drafts',[{q:'valid'},{q:'other'}]);
  assert.equal(storageResult.saved,0);
  assert.equal(storage.calls.length,1,'no retry of non-deduplicated drafts on storage failures');
+ const acceptedPartial=await runMock(()=>reply(502,1,['drafts: GEO draft quality failed: unexpected acknowledgement']));
+ const accepted=await acceptedPartial.save('drafts',[{q:'valid'},{q:'other'}]);
+ assert.equal(accepted.saved,1);
+ assert.equal(accepted.status,'partial');
+ assert.equal(acceptedPartial.calls.length,1,'an acknowledged write cannot be replayed');
+ const timeout=await runMock(()=>{throw new DOMException('PRIVATE_ERROR_TEXT','TimeoutError')});
+ const unknown=await timeout.save('drafts',[{q:'valid'},{q:'other'}]);
+ assert.equal(timeout.calls.length,1,'a timed-out request may have written data and cannot be replayed');
+ assert.match(unknown.error,/request_timeout/);
+ assert(!unknown.error.includes('PRIVATE_ERROR_TEXT'));
  // Each OpenCode attempt must start with isolated storage and a disposable workspace.
  const {createIsolatedGeoWorkspace}=require('./geo-opencode-runtime.cjs');
  const first=createIsolatedGeoWorkspace('Public Saudi investor-services GEO research A');

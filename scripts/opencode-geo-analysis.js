@@ -406,6 +406,20 @@ async function stageGeoAnalysis() {
   const result={opportunities:[],goals:[],drafts:[],editorial_actions:[],languages:{},models_used:[],tokens_used:null};
   let failed=0,calls=0;
   const unavailableModels=new Set();
+  const quotaLimitedModels=new Set();
+  const repairable=[];
+  const outputFields=['drafts','editorial_actions'];
+  const checkOutputs=(data,lang,limits)=>{
+    const checks={};
+    for(const field of outputFields){
+      const items=Array.isArray(data[field])?data[field].slice(0,limits[field]):[];
+      if(items.length){
+        const {screenDrafts,screenEditorial}=require('./geo-generated-output-guard.cjs');
+        checks[field]=field==='drafts'?screenDrafts(items):screenEditorial(items,lang);
+      }else checks[field]={accepted:[],rejected:[]};
+    }
+    return checks;
+  };
   const candidateModels=direct?direct.available():FALLBACK_MODELS;
   if(direct)logStage('GEO_ANALYSIS','Configured direct model providers: '+candidateModels.map(x=>x.split(':')[0]).join(',')+' (key values hidden)');
   // If no provider is connected, fail visibly without invoking any paid model
@@ -420,6 +434,7 @@ async function stageGeoAnalysis() {
     const sample=selectLocaleEvidence(all,lang,8);
     if(!sample.length){result.languages[lang]={status:'missing_evidence'};failed++;continue}
     let response=null;
+    let responseEvidence;
     const attempts=[];
     // Three free-model calls per locale at most. A model which timed out
     // or failed to start earlier in this same run is *not* a healthy first
@@ -427,8 +442,9 @@ async function stageGeoAnalysis() {
     // instead of burning 3 x 120s on the identical unavailable provider.
     // If all free models failed, still give the next locale one shortened
     // fresh request: provider availability may recover or differ by locale.
-    const freshModels=candidateModels.filter(model=>!unavailableModels.has(model));
-    const fallbackOrder=(freshModels.length?freshModels:[candidateModels[0]]).slice(0,3);
+    const freshModels=candidateModels.filter(model=>!unavailableModels.has(model)&&!quotaLimitedModels.has(model));
+    const recovery=candidateModels.find(model=>!quotaLimitedModels.has(model));
+    const fallbackOrder=(freshModels.length?freshModels:recovery?[recovery]:[]).slice(0,3);
     for(const [index,model] of fallbackOrder.entries()){
       calls++;
       const recovered=freshModels.length===0;
@@ -440,24 +456,72 @@ async function stageGeoAnalysis() {
         :runOpenCode(prompt,model,timeoutMs);
       const data=trial.data;
       const valid=data&&['opportunities','goals','drafts','editorial_actions'].every(field=>Array.isArray(data[field]));
-      if(valid){response=trial;break}
+      if(valid){response=trial;responseEvidence=evidence;break}
       const reason=String(trial.error||(data?'invalid_model_response':'unparseable JSON')).slice(0,70);
       attempts.push({model,reason});
+      if(reason==='rate_limited'||reason==='quota_exhausted')quotaLimitedModels.add(model);
       if(direct||reason==='timeout'||reason==='rate_limited'||reason.startsWith('Command failed'))
         unavailableModels.add(model);
       logStage('GEO_ANALYSIS',lang+' free model unavailable: '+model+' '+reason);
     }
     if(!response){result.languages[lang]={status:'model_unavailable',evidence_sampled:sample.length,attempts};failed++;continue}
     const data=response.data||{};
-    const fields=['opportunities','goals','drafts','editorial_actions'];
-    for(const field of fields){
-      if(!Array.isArray(data[field]))continue;
-      const filtered=field==='editorial_actions'?data[field].filter(x=>x&&x.lang===lang):data[field];
-      result[field].push(...filtered.slice(0,field==='editorial_actions'?5:field==='drafts'?2:3));
-    }
+    for(const field of ['opportunities','goals'])result[field].push(...data[field].slice(0,3));
     result.models_used.push(response.model);
     result.languages[lang]={status:'analyzed',evidence_sampled:sample.length,model:response.model,
       generated:{opportunities:data.opportunities?.length||0,goals:data.goals?.length||0,drafts:data.drafts?.length||0,editorial_actions:data.editorial_actions?.length||0}};
+    const checks=checkOutputs(data,lang,{drafts:2,editorial_actions:5});
+    repairable.push({lang,checks,model:response.model,evidence:responseEvidence,hasBudget:attempts.length<2});
+  }
+  // Give every locale its normal analysis before spending one unused direct-model
+  // attempt for format repair. A repair never gets its own fallback chain.
+  const repair=direct&&repairable.find(item=>item.hasBudget&&!unavailableModels.has(item.model)&&
+    candidateModels.includes(item.model)&&outputFields.some(field=>item.checks[field].rejected.length));
+  if(repair){
+    const errors=Object.fromEntries(outputFields.map(field=>[field,repair.checks[field].rejected]));
+    const report=result.languages[repair.lang].validation_repair={attempted:true,outcome:'no_valid_replacements'};
+    try{
+      const prompt=promptForDirectLocale(repair.lang,repair.evidence,errors);
+      calls++;
+      const trial=await direct.generate(prompt,repair.model,{timeoutMs:45000});
+      if(!trial.data){
+        report.outcome=['rate_limited','quota_exhausted'].includes(trial.error)?'quota_reached':'model_unavailable';
+      }else{
+        const limits=Object.fromEntries(outputFields.map(field=>[field,errors[field].length]));
+        const replacements=checkOutputs(trial.data,repair.lang,limits);
+        const allowedEvidenceIds=new Set(repair.evidence.map(item=>item.id));
+        const normalized=text=>text.trim().toLocaleLowerCase().replace(/\s+/g,' ');
+        const identities=(field,item)=>field==='drafts'?['q:'+normalized(item.q),'a:'+normalized(item.a)]:
+          [JSON.stringify([item.lang,item.kind,item.kind==='service'?item.target.replace(/^\/services\//,''):item.target,normalized(item.title)])];
+        for(const field of outputFields){
+          const seen=new Set(repairable.flatMap(item=>item.checks[field].accepted.flatMap(entry=>identities(field,entry))));
+          for(const item of replacements[field].accepted){
+            if(!Array.isArray(item.evidence_ids)||!item.evidence_ids.length||
+                !item.evidence_ids.every(id=>allowedEvidenceIds.has(id)))continue;
+            const keys=identities(field,item);
+            if(keys.some(key=>seen.has(key)))continue;
+            for(const key of keys)seen.add(key);
+            repair.checks[field].accepted.push(item);
+            report.outcome='valid_replacements';
+          }
+        }
+      }
+    }catch{
+      report.outcome='model_unavailable';
+    }
+  }
+  result.validation={drafts:{rejected:0,repaired:0},editorial_actions:{rejected:0,repaired:0}};
+  for(const {lang,checks} of repairable){
+    const validation=result.languages[lang].validation={};
+    for(const field of outputFields){
+      const {accepted,rejected}=checks[field];
+      const boundedCount=Math.min(result.languages[lang].generated[field],field==='drafts'?2:5);
+      const repaired=accepted.length+rejected.length-boundedCount;
+      validation[field]={rejected,repaired};
+      result.validation[field].rejected+=rejected.length;
+      result.validation[field].repaired+=repaired;
+      result[field].push(...accepted);
+    }
   }
   // Generated claims must never be confused with independently verified outcomes.
   stageResults.geo_analysis=result;
@@ -495,38 +559,34 @@ async function saveGEOStage(stage, items) {
       if(Number.isInteger(count)&&count>=0&&Number.isInteger(skipped)&&skipped>=0&&
          count+skipped===items.length&&res.ok&&payload?.ok===true)
         return {status:'success',saved:count,reviewer_excluded:skipped};
-      // Draft quality validation precedes writes: split only this definitive rejection.
-      // Never retry non-deduplicated drafts after ambiguous network/storage failures.
-      const draftQualityRejected=stage==='drafts' && res.status===502 && count===0 &&
+      // Normalization and draft quality checking happen before this stage writes.
+      // An ambiguous response can never be used as a reason to split or replay drafts.
+      const draftQualityRejected=stage==='drafts' && res.status===502 &&
         Array.isArray(payload?.errors) && payload.errors.some(msg=>
           typeof msg==='string' && msg.startsWith('drafts: GEO draft quality failed:'));
-      if(draftQualityRejected && items.length>1){
+      const shapeRejected=res.status===422&&(stage==='drafts'||stage==='editorial_actions');
+      if(count===0&&items.length>1&&(draftQualityRejected||(shapeRejected&&skipped===0))){
         let saved=0;
+        let reviewer_excluded=0;
         const failures=[];
         for(const item of items){
           const one=await saveGEOStage(stage,[item]);
           saved+=one.saved;
+          reviewer_excluded+=one.reviewer_excluded||0;
           if(one.status!=='success')failures.push(String(one.error||'rejected').slice(0,150));
         }
-        return {status:saved===items.length?'success':'partial',saved,
-          error:failures.length?'Rejected '+failures.length+' low-quality draft(s): '+failures.slice(0,3).join(' | '):undefined};
+        return {status:failures.length?'partial':'success',saved,reviewer_excluded,
+          error:failures.length?'Unconfirmed '+stage+' items: '+failures.length+' ('+failures.slice(0,3).join(' | ')+')':undefined};
       }
-      // An invalid model proposal should not discard every valid editorial proposal.
-      // Keep the stage partial if even one item is rejected; never report a false success.
-      if(stage==='editorial_actions' && res.status===422 && items.length>1) {
-        let saved=0;
-        const failures=[];
-        for(const item of items){
-          const one=await saveGEOStage(stage,[item]);
-          saved+=one.saved;
-          if(one.status!=='success')failures.push(String(one.error||'rejected').slice(0,150));
-        }
-        return {status:saved===items.length?'success':'partial',saved,
-          error:failures.length?'Rejected '+failures.length+' invalid proposal(s): '+failures.slice(0,3).join(' | '):undefined};
-      }
-      return {status:'partial',saved:count,error:'Remote GEO persistence rejected or partially saved: '+JSON.stringify(payload?.errors || payload?.error || res.status).slice(0,300)};
+      const draftShapeCode=stage==='drafts'&&shapeRejected&&typeof payload?.error==='string'
+        ?/^Invalid drafts\[\d+\]: (invalid_item|invalid_question|invalid_answer|invalid_risk_level)$/.exec(payload.error)?.[1]
+        :null;
+      const message=draftQualityRejected?'draft_quality_invalid':shapeRejected?stage+'_schema_invalid':'storage_unconfirmed';
+      return {status:'partial',saved:Number.isInteger(count)&&count>=0&&count<=items.length?count:0,
+        reviewer_excluded:Number.isInteger(skipped)&&skipped>=0&&skipped<=items.length?skipped:0,
+        error:message+(draftShapeCode?'/'+draftShapeCode:'')+' (HTTP '+res.status+')'};
     } catch(e) {
-      lastError=e?.message||String(e);
+      lastError=e?.name==='TimeoutError'?'request_timeout':'request_unavailable';
       if(attempt<maxAttempts) {
         console.warn('[GEO_PERSIST] '+stage+' attempt '+attempt+' unavailable; retrying safe request: '+lastError.slice(0,130));
         await new Promise(resolve=>setTimeout(resolve,attempt*1000));
@@ -582,6 +642,7 @@ async function stageGoals() {
 
 async function stageDrafts() {
  const items=stageResults.geo_analysis?.drafts||[];
+ const {rejected=0,repaired=0}=stageResults.geo_analysis?.validation?.drafts||{};
  // Resolve LLM-generated evidence IDs ONLY against the actually collected evidence bundle.
  // These are research references, not verified Saudi authority requirements.
  const byId=new Map((stageResults.evidence?.items||[]).map(e=>[e.id,e]));
@@ -597,24 +658,30 @@ async function stageDrafts() {
   d.evidence_ids=d.evidence_refs.map(e=>e.id);
  }
  const saved=await saveGEOStage('drafts',items);
- stageResults.drafts={count:items.length,items,saved_to_api:saved.status==='success',persisted:saved.saved,error:saved.error||null};
- console.log('[DRAFTS] Generated',items.length,'persisted',saved.saved,saved.status);
- return {records_processed:saved.saved,status:saved.status,error:saved.error};
+ const status=rejected>repaired?'partial':saved.status;
+ const error=[rejected>repaired?'unresolved_draft_schema':null,saved.error].filter(Boolean).join(' | ')||null;
+ stageResults.drafts={count:items.length+rejected-repaired,items,saved_to_api:status==='success',persisted:saved.saved,
+  rejected_count:rejected,repaired_count:repaired,reviewer_excluded:saved.reviewer_excluded||0,error};
+ console.log('[DRAFTS] Eligible',items.length,'rejected',rejected,'repaired',repaired,'persisted',saved.saved,status);
+ return {records_processed:saved.saved,status,error};
 }
 
 async function stageEditorialActions() {
  const generated=stageResults.geo_analysis?.editorial_actions||[];
+ const {rejected=0,repaired=0}=stageResults.geo_analysis?.validation?.editorial_actions||{};
  const screened=require('./geo-generated-output-guard.cjs').screenEditorial(generated);
  const items=screened.accepted;
+ const unresolved=rejected-repaired+screened.rejected.length;
+ const initialCount=generated.length+rejected-repaired;
  if(screened.rejected.length)console.warn('[EDITORIAL] Rejected unsupported model proposals:',
   JSON.stringify(screened.rejected).slice(0,500));
  if(!items.length){
-  stageResults.editorial_actions={count:generated.length,persisted:0,rejected_count:screened.rejected.length,
+  stageResults.editorial_actions={count:initialCount,persisted:0,rejected_count:rejected+screened.rejected.length,repaired_count:repaired,
     reason:'No valid cross-site proposals in this evidence batch'};
   console.log('[EDITORIAL] No valid evidence-backed cross-site proposals to persist');
   return {records_processed:0,status:'partial',
-    error:generated.length
-      ?'Rejected '+screened.rejected.length+' malformed editorial proposal(s)'
+    error:initialCount
+      ?'Rejected '+unresolved+' malformed editorial proposal(s)'
       :'No evidence-backed editorial proposals generated; inspect model output'};
  }
  const byId=new Map((stageResults.evidence?.items||[]).map(e=>[e.id,e]));
@@ -633,14 +700,14 @@ async function stageEditorialActions() {
   return {id,kind:item.kind,lang:item.lang,target:item.target,slug:item.slug,related_service:item.related_service,topic_node_id:item.topic_node_id,primary_keyword:item.primary_keyword,secondary_keywords:item.secondary_keywords,h1_suggestion:item.h1_suggestion,sections:item.sections,internal_links:item.internal_links,schema_suggestions:schemas,title:item.title,summary:item.summary,body:item.body,risk_level:item.risk_level==='low'||item.risk_level==='medium'?'high':item.risk_level,status:'pending',createdAt:new Date().toISOString(),evidence_ids:ids,evidence_refs:refs};
  });
  const saved=await saveGEOStage('editorial_actions',proposed);
- const status=screened.rejected.length?'partial':saved.status;
- const error=screened.rejected.length
-  ?'Rejected '+screened.rejected.length+' invalid editorial proposal(s)'+(saved.error?'; '+saved.error:'')
+ const status=unresolved?'partial':saved.status;
+ const error=unresolved
+  ?'Rejected '+unresolved+' invalid editorial proposal(s)'+(saved.error?'; '+saved.error:'')
   :saved.error;
- stageResults.editorial_actions={count:generated.length,persisted:saved.saved,
-  rejected_count:screened.rejected.length,status,error:error||null};
- console.log('[EDITORIAL] Generated',generated.length,'eligible',proposed.length,
-  'rejected',screened.rejected.length,'persisted',saved.saved,status);
+ stageResults.editorial_actions={count:initialCount,persisted:saved.saved,
+  rejected_count:rejected+screened.rejected.length,repaired_count:repaired,reviewer_excluded:saved.reviewer_excluded||0,status,error:error||null};
+ console.log('[EDITORIAL] Generated',initialCount,'eligible',proposed.length,
+  'rejected',rejected+screened.rejected.length,'repaired',repaired,'persisted',saved.saved,status);
  return {records_processed:saved.saved,status,error};
 }
 
@@ -688,9 +755,10 @@ async function runFullPipeline() {
   // Save results
   const output = {
     pipeline_run: new Date().toISOString(),
-    model: MODEL,
+    model: FREE_MODEL_ALLOWLIST.includes(MODEL)?MODEL:'unknown',
     elapsed_seconds: parseFloat(elapsed),
-    stages: results,
+    stages: Object.fromEntries(Object.entries(results).map(([stage,{status,records_processed}])=>
+      [stage,{status,records_processed}])),
     summary: {
       discovery: stageResults.discovery?.count || 0,
       evidence: stageResults.evidence?.total || 0,
@@ -700,7 +768,18 @@ async function runFullPipeline() {
       editorial_actions:stageResults.editorial_actions?.count || 0,
       high_risk_drafts: stageResults.drafts?.items?.filter(d => d.risk_level === 'high').length || 0,
     },
-    stage_results: stageResults,
+    // This artifact is downloadable from Actions. Keep raw model output,
+    // research evidence and free-form transport errors out of it.
+    stage_results: {
+      geo_analysis:{languages:Object.fromEntries(Object.entries(stageResults.geo_analysis?.languages||{})
+        .map(([lang,{status,evidence_sampled,generated,validation,validation_repair}])=>
+          [lang,{status,evidence_sampled,generated,validation,validation_repair}]))},
+      drafts:{rejected_count:stageResults.drafts?.rejected_count||0,repaired_count:stageResults.drafts?.repaired_count||0,
+        reviewer_excluded:stageResults.drafts?.reviewer_excluded||0,error:stageResults.drafts?.error||undefined},
+      editorial_actions:{rejected_count:stageResults.editorial_actions?.rejected_count||0,
+        repaired_count:stageResults.editorial_actions?.repaired_count||0,
+        reviewer_excluded:stageResults.editorial_actions?.reviewer_excluded||0,error:stageResults.editorial_actions?.error||undefined},
+    },
   };
 
   const outDir = path.join(process.cwd(), 'market-intel');
