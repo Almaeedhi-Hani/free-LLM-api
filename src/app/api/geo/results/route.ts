@@ -5,6 +5,8 @@ import { normalizeGeoBatch, persistGeoBatch } from "@/lib/geo-ingest";
 import { validateGeoDrafts } from "@/lib/geo-draft-quality";
 import {validateEditorialItem} from "@/lib/editorial-workflow";
 import { getSupabaseCredentials } from "@/lib/storage-mode";
+import { getGeoFeedbackIndex,isExcluded,containsRejectedKeyword,excludesOpportunity,excludesEditorial,excludesFaq } from "@/lib/geo-agent-feedback";
+import {editorialPath} from '@/lib/content-impact';
 
 export const dynamic = "force-dynamic";
 // This route is authenticated separately from admin APIs; GEO_API_KEY is never sent to a browser.
@@ -21,6 +23,28 @@ export async function POST(req:NextRequest) {
  let batch;
  try{batch=normalizeGeoBatch(await req.json())}
  catch(e){return NextResponse.json({ok:false,error:e instanceof Error?e.message:"Bad JSON"},{status:422})}
+ let memory;
+ try{memory=await getGeoFeedbackIndex()}catch{
+  return NextResponse.json({ok:false,error:"Reviewer feedback unavailable"},{status:503});
+ }
+ const previous={
+  opportunities:batch.opportunities?.length||0,goals:batch.goals?.length||0,
+  drafts:batch.drafts?.length||0,editorial_actions:batch.editorial_actions?.length||0
+ };
+ batch={
+  ...batch,
+  opportunities:batch.opportunities?.filter(o=>!excludesOpportunity(memory,o)),
+  goals:batch.goals?.filter(g=>!isExcluded(memory,'opportunity',g.title)&&
+   !containsRejectedKeyword(memory,[g.title,g.description||'',g.related_opportunity||''])),
+  drafts:batch.drafts?.filter(d=>!excludesFaq(memory,d.q)),
+  editorial_actions:batch.editorial_actions?.filter(e=>!excludesEditorial(memory,e,editorialPath(e)||undefined))
+ };
+ const excluded={
+  opportunities:previous.opportunities-(batch.opportunities?.length||0),
+  goals:previous.goals-(batch.goals?.length||0),
+  drafts:previous.drafts-(batch.drafts?.length||0),
+  editorial_actions:previous.editorial_actions-(batch.editorial_actions?.length||0)
+ };
  const outcome=await persistGeoBatch(batch,{
   saveOpportunity:async o=>{
    await createOpportunity({
@@ -63,5 +87,5 @@ export async function POST(req:NextRequest) {
   }
  });
  if(!outcome.ok)console.error("GEO ingestion was partial",outcome.errors);
- return NextResponse.json(outcome,{status:outcome.ok?200:502});
+ return NextResponse.json({...outcome,reviewer_excluded:excluded},{status:outcome.ok?200:502});
 }
