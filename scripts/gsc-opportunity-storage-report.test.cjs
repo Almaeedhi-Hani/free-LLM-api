@@ -15,10 +15,16 @@ const rows=[{metric_date:day,dimension:'page',dimension_value:property+'en/servi
 const full=report({property,endDate:day,metrics:rows,dayOutcomes:outcomes,hasAtomicDayStore:true});
 assert.equal(full.grains.page.status,'available');
 assert.equal(full.grains.query.status,'no_measured_rows');
-assert.equal(full.grains.page_query.status,'insufficient_data');
-assert.equal(full.paired_grain_status,'not_collected');
+assert.equal(full.grains.page_query.status,'no_measured_rows');
+assert.equal(full.paired_grain_status,'measured_grain');
 assert.equal(full.ctr_candidates.length,1);
 assert.deepEqual(full.cannibalization_flags,[]);
+ const paired=report({property,endDate:day,dayOutcomes:outcomes,hasAtomicDayStore:true,metrics:[...rows,
+  {metric_date:day,dimension:'page_query',dimension_value:JSON.stringify([property+'en/services/','company formation']),clicks:2,impressions:75,ctr:2/75,position:10},
+  {metric_date:day,dimension:'page_query',dimension_value:JSON.stringify([property+'services/','company formation']),clicks:1,impressions:50,ctr:1/50,position:12}]});
+ assert.equal(paired.grains.page_query.status,'available');
+ assert.equal(paired.cannibalization_flags.length,1,'two measured pages for same query');
+ assert.equal(paired.cannibalization_flags[0].query,'company formation');
 assert.equal(full.grains.page.entities[0].current.impressions,70);
 const beforeMigration=report({property,endDate:day,metrics:rows,
  dayOutcomes:[],hasAtomicDayStore:false});
@@ -35,6 +41,7 @@ assert.equal(inconsistent.grains.page.status,'insufficient_data');
 for(const bad of [
  [{...rows[0],clicks:80}],
  [{...rows[0],dimension:'page_query'}],
+ [{...rows[0],dimension:'page_query',dimension_value:'not-json'}],
  [{...rows[0],metric_date:'2026-02-31'}],
  [{...rows[0],dimension_value:''}],
  ])assert.throws(()=>report({property,endDate:day,metrics:bad,
