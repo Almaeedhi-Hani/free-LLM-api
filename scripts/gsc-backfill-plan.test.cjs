@@ -51,6 +51,7 @@ async function testExecution() {
    if(date==='2026-11-16') {
     if(grain===null) return [total];
     if(grain==='query') return [measured];
+    if(grain==='page_query') return [{...measured,keys:['https://example.test/guide','company formation']}];
     if(grain==='page') return startRow===0
      ? Array.from({length:rowLimit},(_,i)=>({...measured,keys:[`page-${i}`]}))
      : [measured];
@@ -76,13 +77,14 @@ async function testExecution() {
  };
  const run=await executeGscCatchup(adapter);
  assert.deepEqual(run.results.map(x=>[x.outcome.metric_date,x.outcome.status,x.outcome.rows_fetched,x.failure]),[
-  ['2026-11-16','success_with_data',1003,undefined],
+  ['2026-11-16','success_with_data',1004,undefined],
   ['2026-11-15','success_no_data',0,undefined],
   ['2026-11-14','failed',0,'collection_failed'],
   ['2026-11-13','failed',0,'quota_reached'],
  ]);
  assert.deepEqual(writes[0].measurements.filter(x=>x.dimension_value==='shared-key').map(x=>x.dimension),['query','page']);
- assert.deepEqual(run.results[0].rows_by_dimension,{total:1,query:1,page:1001,country:0,device:0,page_query:0});
+ assert.deepEqual(run.results[0].rows_by_dimension,{total:1,query:1,page:1001,country:0,device:0,page_query:1});
+ assert(run.results[0].rows_by_dimension.page_query===1,'real paired GSC row recorded');
  assert.deepEqual(writes[2].measurements,[],'partial collection must not reach storage');
  assert.equal(writes[0].outcome.checked_at,now.toISOString());
  assert.deepEqual(calls.filter(x=>x[0]==='2026-11-16'&&x[1]==='page').map(x=>x[2]),[0,1000]);
