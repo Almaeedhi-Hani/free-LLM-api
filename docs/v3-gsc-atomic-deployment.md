@@ -23,7 +23,7 @@ this PR. A separate owner approval to alter the production schema is required.
    verified and the owner authorizes activation. No new public route or cron
    frequency is required; the existing signed GET endpoint serves both modes.
 5. Verify a real scheduled `event=schedule` GSC run, compare **daily
-   outcomes** with real page/query/total rows, and confirm stored timestamps.
+   outcomes** with real page/query/page+query/total rows, and confirm stored timestamps.
 6. If any problem appears, set `GSC_BACKFILL_ENABLED=false` to revert to the
    original D-3 daily collection. Do not delete any historical metric rows.
 
