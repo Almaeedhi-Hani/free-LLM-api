@@ -1,0 +1,75 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs');
+const {
+ feedbackKey,effectiveFeedback,isExcluded,containsRejectedKeyword,excludesOpportunity,
+ excludesEditorial,excludesFaq,validateFeedback
+}=require('../.geo-ingest-test-build/lib/geo-agent-feedback.js');
+const a={id:'a',subject_type:'keyword',subject_key:'saudi arabia formation football',
+ language:'en',decision:'irrelevant',reason:'Sports, not company formation',
+ source:'seed',created_at:'2026-11-19T00:00:00Z'};
+let memory=effectiveFeedback([a]);
+assert(isExcluded(memory,'keyword',' SAUDI  Arabia Formation Football ','en'));
+assert(!isExcluded(memory,'keyword','saudi company formation','en'));
+assert(!isExcluded(memory,'keyword','saudi arabia formation football','zh'),
+ 'language-specific term applies to original language only');
+assert(containsRejectedKeyword(memory,['Research: saudi arabia formation football (en)']));
+assert(!containsRejectedKeyword(memory,['Football pitches, Saudi investment formation']));
+assert(excludesOpportunity(memory,{title:'Target cluster: saudi arabia formation football (en)'}));
+assert(excludesEditorial(memory,{title:'Saudi formation football',primary_keyword:'saudi arabia formation football',
+  evidence_refs:[]}));
+assert(excludesFaq(memory,'What does saudi arabia formation football mean?'));
+assert(!excludesFaq(memory,'How to establish a foreign-invested company in Saudi Arabia?'));
+const b={...a,id:'b',decision:'valid',reason:'Human reviewer restored this term',
+ created_at:'2026-11-19T02:00:00Z'};
+memory=effectiveFeedback([a,b]);
+assert(!isExcluded(memory,'keyword',a.subject_key,'en'),
+ 'latest correction must supersede exclusion without deleting old audit');
+assert(!containsRejectedKeyword(memory,['saudi arabia formation football']));
+const source={id:'c',subject_type:'competitor',subject_key:'example.com',language:null,
+ decision:'irrelevant',reason:'Not a relevant investor service competitor',
+ source:'admin',created_at:'2026-11-19T03:00:00Z'};
+const published={id:'d',subject_type:'publication',
+ subject_key:'/insights/test-article',language:null,decision:'inaccurate',
+ reason:'The page is outside intended service scope',source:'admin',
+ created_at:'2026-11-19T04:00:00Z'};
+memory=effectiveFeedback([source,published]);
+assert(isExcluded(memory,'competitor','https://www.example.com/page'));
+assert(excludesEditorial(memory,{title:'Example',slug:'test-article',
+ evidence_refs:[]},'/insights/test-article'),'a page correction blocks future publishing');
+assert(excludesEditorial(memory,{title:'Unrelated page',slug:'good-article',evidence_refs:[
+ {url:'https://www.example.com/help',kind:'competitor_candidate'}
+]},'/insights/good-article'),'a disqualified competitor evidence source excludes an editorial candidate');
+assert(!excludesEditorial(memory,{title:'Well-scoped guide',slug:'safe-article',
+ evidence_refs:[]},'/insights/safe-article'));
+const clean=validateFeedback({
+ subject_type:'keyword',subject_key:'   Saudi Arabia  formation FOOTBALL  ',
+ language:'en',decision:'irrelevant',reason:'  irrelevant sports term  '
+});
+assert.equal(clean.subject_key,'saudi arabia formation football');
+assert.equal(clean.reason,'irrelevant sports term');
+for(const bad of [
+ {subject_type:'keyword',subject_key:'x',decision:'irrelevant',reason:'valid reason'},
+ {subject_type:'keyword',subject_key:'good keyword',decision:'maybe',reason:'valid reason'},
+ {subject_type:'keyword',subject_key:'good keyword',decision:'irrelevant',reason:'bad'},
+ {subject_type:'hacker',subject_key:'good keyword',decision:'valid',reason:'valid reason'}
+])assert.throws(()=>validateFeedback(bad));
+const sql=fs.readFileSync('supabase/migrations/20261119_geo_agent_feedback_memory.sql','utf8');
+assert(sql.includes('enable row level security')&&sql.includes('revoke all')&&
+ sql.includes('service_role')&&sql.includes('saudi arabia formation football'));
+assert(!/delete\s+from\s+(?:public\.)?(?:keywords|geo_publication_events|opportunities)/i.test(sql));
+const paths={
+ discovery:fs.readFileSync('src/app/api/geo/discovery/route.ts','utf8'),
+ results:fs.readFileSync('src/app/api/geo/results/route.ts','utf8'),
+ publisher:fs.readFileSync('src/lib/geo-auto-publication.ts','utf8'),
+ market:fs.readFileSync('src/lib/market-intelligence.ts','utf8'),
+ admin:fs.readFileSync('src/app/api/admin/geo-feedback/route.ts','utf8'),
+ ui:fs.readFileSync('src/app/admin/dashboard/page.tsx','utf8')
+};
+assert(paths.discovery.includes('reviewer_excluded:excluded')&&paths.discovery.includes('getGeoFeedbackIndex()'));
+assert(paths.results.includes('reviewer_excluded:excluded')&&paths.results.includes('excludesFaq(memory,d.q)'));
+assert(paths.publisher.includes('excludesEditorial(feedback,candidate,path)')&&paths.publisher.includes('excludesFaq(feedback,draft.q)'));
+assert(paths.market.includes('isExcluded(feedback,\'keyword\',term,lang)')&&
+ paths.market.includes('excludesOpportunity(feedback,o)'));
+assert(paths.admin.includes('timingSafeEqual')&&paths.admin.includes('appendGeoFeedback'));
+assert(paths.ui.includes('GeoFeedbackMemory')&&paths.ui.includes('تعليم الوكيل'));
+console.log('PASS feedback memory: exact match, undo, domain block, opportunity triage, publication gates, audit RLS and UI wiring');
