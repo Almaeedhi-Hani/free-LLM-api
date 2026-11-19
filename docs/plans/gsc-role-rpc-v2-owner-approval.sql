@@ -1,3 +1,9 @@
+-- HISTORICAL REVIEW COPY — the separate managed migration was applied successfully
+-- on 2026-11-19 as Supabase version 20261119194500.
+-- Do not run this document directly or reapply it; audited active SQL is
+-- supabase/migrations/20261119_phase1_gsc_service_role_rpc_v2.sql.
+-- All "proposal only / do not apply" comments below reflect the initial
+-- pre-authorization review, preserved for provenance, not current live state.
 -- Phase 1 W04 GSC role-guard repair. Owner-approval proposal ONLY.
 -- DO NOT APPLY TO PRODUCTION WITHOUT EXPLICIT SCHEMA MIGRATION APPROVAL.
 -- DO NOT MOVE TO supabase/migrations OR AUTO-APPLY DURING CI.
