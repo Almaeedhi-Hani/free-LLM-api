@@ -75,7 +75,7 @@ const mkReply=(body,status=200)=>({ok:status>=200&&status<300,status,
  assert(!/\b(?:DROP|DELETE|TRUNCATE|ALTER\s+TABLE)\b/i.test(v2.replace(/^--.*$/gm,'')),
    'add-only migration may not remove or alter existing tables');
  assert(v2.includes('DO NOT APPLY TO PRODUCTION WITHOUT EXPLICIT SCHEMA MIGRATION APPROVAL'));
- const active=fs.readFileSync('supabase/migrations/20261119_phase1_gsc_service_role_rpc_v2.sql','utf8');
+ const active=fs.readFileSync('supabase/migrations/20261119194500_phase1_gsc_rpc_service_role_v2_20261119.sql','utf8');
  const approved=v2.slice(v2.indexOf('CREATE FUNCTION public.gsc_sync_commit_day_v2('),v2.indexOf('\nCOMMIT;')).trim();
  const activeBody=active.slice(active.indexOf('CREATE FUNCTION public.gsc_sync_commit_day_v2(')).trim();
  assert.equal(activeBody,approved,
