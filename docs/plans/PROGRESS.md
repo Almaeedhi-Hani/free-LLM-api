@@ -20,7 +20,7 @@
 | المرحلة | القائمة | الحالة الحالية | التاريخ (KSA) | PR | بوابة الخروج / الدليل |
 | --- | --- | --- | --- | --- | --- |
 | 0 التحضير والسلامة | [x] | **مكتملة ومندمجة؛ بوابة الخروج ناجحة** | 2026-11-19 | [PR #165](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/165) — merged `4b2b64f` | [baseline-20261119.md](baseline-20261119.md) محفوظة على main؛ Git tag مثبت؛ CI/Browser/Evals **6/6 ناجحة** على SHA `a4a38a4` |
-| 1 ضمان التشغيل | [ ] | **W02 نجح وحفظ؛ W01 جزئي/فشل؛ W04 فشل بصلاحيات RPC؛ W03/W05/W06 بانتظار schedule** | 2026-11-19 | PR #167 مدمج؛ PR متابعة GSC قيد التحضير | [سجل الأدلة](phase1-evidence-20261119.md)؛ W02 [#44595877385](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44595877385)؛ GSC رُفض من دالة RPC؛ لا انتقال للمرحلة 2 |
+| 1 ضمان التشغيل | [ ] | **W02 نجح وحفظ؛ W01 جزئي/فشل؛ W04 فشل بصلاحيات RPC؛ W03/W05/W06 بانتظار schedule** | 2026-11-19 | [PR #167](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/167) مدمج؛ [PR #168](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/168) Draft ومعلّق باعتماد SQL | [سجل الأدلة](phase1-evidence-20261119.md)؛ W02 [#44595877385](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44595877385)؛ GSC رُفض من دالة RPC؛ لا انتقال للمرحلة 2 |
 | 2 شبكة الأمان | [ ] | لم تبدأ | — | — | محاكاة آمنة لكل إنذار + تقرير أسبوعي منتج |
 | 3 بوابات آلية | [ ] | لم تبدأ | — | — | Evals وقبول ودورة تقبل/ترفض وفحص الروابط العامة |
 | 4 أرشيف موحد | [ ] | لم تبدأ | — | — | كل أداة مرة واحدة، جرد APIs/DB ثابت، قبول |
