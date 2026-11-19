@@ -31,7 +31,7 @@ this PR. A separate owner approval to alter the production schema is required.
 
 - Default flag absent/false: original GSC daily D-3 path unchanged.
 - Enabled: fetch actual dated outcomes, plan at most **2 dates per invocation**,
-  45-day lookback and complete days through UTC D-3, respect existing Google
+  60-day lookback supporting both 28-day comparison windows and complete days through UTC D-3, respect existing Google
   OAuth and Search Analytics pagination/25,000-row dimension ceiling.
 - An empty successful Google result is stored as `success_no_data`. A 0/0
   total **observed row** remains measured and is `success_with_data`, not
