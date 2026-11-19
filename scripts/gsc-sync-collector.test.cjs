@@ -12,6 +12,8 @@ const row=url=>({keys:[url],clicks:1,impressions:5,ctr:0.2,position:4});
  assert.deepEqual(calls.map(x=>x.start),[0,GSC_PAGE_SIZE]);
  assert(calls.every(x=>x.limit===GSC_PAGE_SIZE));
  assert.deepEqual(await collect(async()=>[],'page'),[]);
+ assert.deepEqual(await collect(async()=>[{keys:['https://example.test/p','company setup'],clicks:1,impressions:5,ctr:0.2,position:10}],'page_query'),[{keys:['https://example.test/p','company setup'],clicks:1,impressions:5,ctr:0.2,position:10}]);
+ await assert.rejects(()=>collect(async()=>[{keys:['only page'],clicks:1,impressions:5,ctr:0.2,position:4}],'page_query'),/invalid_row/);
  assert.deepEqual(await collect(async()=>[{clicks:0,impressions:0,ctr:0,position:0}],null),[{clicks:0,impressions:0,ctr:0,position:0}]);
  for(const bad of [
   [{keys:[],clicks:1,impressions:5,ctr:0.2,position:4}],
