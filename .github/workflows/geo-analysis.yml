@@ -81,6 +81,10 @@ jobs:
           fi
           curl --fail-with-body --retry 0 --max-time 120 -sS \
             -X POST -H "x-geo-api-key: $GEO_API_KEY" \
+            -H "x-geo-source-workflow: W01" \
+            -H "x-geo-github-run-id: $GITHUB_RUN_ID" \
+            -H "x-geo-github-run-attempt: $GITHUB_RUN_ATTEMPT" \
+            -H "x-geo-github-event: $GITHUB_EVENT_NAME" \
             "${GEO_API_URL%/}/api/geo/auto-publication"
 
       - name: Upload Sanitized Report

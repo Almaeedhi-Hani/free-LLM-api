@@ -5,6 +5,7 @@ const {
  officialCandidateUrls,checkOfficialUrlReachable,verifyHighRiskOfficialClaims,runGuardedAutoPublishing
 }=require('../.impact-test-build/lib/geo-auto-publication.js');
 const {autoPublicationEligibility}=require('../.impact-test-build/lib/content-impact.js');
+const {parsePublicationOrigin,publicationAuditPayload,appendPublicationAudit}=require('../.impact-test-build/lib/geo-publication-audit.js');
 
 (async()=>{
  const base={
@@ -173,5 +174,106 @@ const {autoPublicationEligibility}=require('../.impact-test-build/lib/content-im
  assert(admin.includes("body.confirm!=='ROLLBACK_GEO_PUBLICATION'"));
  assert(admin.includes("ENABLE_AUTONOMOUS_SENSITIVE_CONTENT"));
  assert(admin.includes("UNDERSTAND_SOURCE_VERIFICATION_LIMITS"));
+
+ // Phase 1.4: W01 and W03 must share one transactional publisher, with
+ // identifiable, non-PII audit records. All network writes below are mocked.
+ const headers=new Headers({
+  'x-geo-source-workflow':'W01','x-geo-github-run-id':'44612345678',
+  'x-geo-github-run-attempt':'2','x-geo-github-event':'schedule'
+ });
+ const origin=parsePublicationOrigin(headers);
+ assert.deepEqual(origin,{source_workflow:'W01',github_run_id:'44612345678',
+  github_run_attempt:2,event_type:'schedule'});
+ assert.equal(parsePublicationOrigin(new Headers()).source_workflow,'unattributed_api',
+  'legacy server-to-server clients are labeled unattributed, never falsely W01/W03');
+ assert.throws(()=>parsePublicationOrigin(new Headers({'x-geo-source-workflow':'W01'})),
+  /invalid_publication_origin/,'partial origin cannot be silently trusted');
+ assert.throws(()=>parsePublicationOrigin(new Headers({
+  'x-geo-source-workflow':'W03','x-geo-github-run-id':'1',
+  'x-geo-github-run-attempt':'1','x-geo-github-event':'push'
+ })),/invalid_publication_origin/,'W03 must never claim a push event');
+ const faqQuestion='Private customer information 0550000000';
+ const auditStart=publicationAuditPayload({kind:'faq',itemId:faqQuestion,
+  phase:'rpc_started',origin});
+ const auditJson=JSON.stringify(auditStart);
+ assert(!auditJson.includes(faqQuestion),'FAQ questions and PII must never be in audit payload');
+ assert.equal(auditStart.entity_type,'geo_faq');
+ assert.match(auditStart.entity_id,/^sha256:[a-f0-9]{64}$/);
+ assert.equal(auditStart.metadata.github_run_id,'44612345678');
+ const resultAudit=publicationAuditPayload({kind:'editorial',itemId:'ed-safe-12345678',
+  phase:'rpc_result',result:'already_processed',origin,
+  startedAuditId:'00000000-0000-4000-8000-000000000001',
+  publicationEventId:'00000000-0000-4000-8000-000000000002'});
+ assert.equal(resultAudit.metadata.result,'already_processed');
+ assert.equal(resultAudit.metadata.publication_event_id,'00000000-0000-4000-8000-000000000002');
+ assert.equal(resultAudit.metadata.started_audit_id,'00000000-0000-4000-8000-000000000001');
+ const previousFetch=global.fetch;
+ const previousUrl=process.env.SUPABASE_URL;
+ const previousKey=process.env.SUPABASE_SERVICE_ROLE_KEY;
+ const mockedRows=[];
+ try{
+  process.env.SUPABASE_URL='https://unit-test.invalid';
+  process.env.SUPABASE_SERVICE_ROLE_KEY='unit-test-role-only';
+  global.fetch=async(url,opts)=>{
+   assert.equal(url,'https://unit-test.invalid/rest/v1/audit_logs?select=id');
+   assert.equal(opts.method,'POST');
+   assert.equal(opts.headers.Prefer,'return=representation');
+   const payload=JSON.parse(opts.body);
+   mockedRows.push(payload);
+   return {ok:true,json:async()=>[{id:'00000000-0000-4000-8000-000000000003'}]};
+  };
+  const id=await appendPublicationAudit({kind:'editorial',
+   itemId:'ed-safe-12345678',phase:'rpc_started',origin});
+  assert.equal(id,'00000000-0000-4000-8000-000000000003');
+  assert.equal(mockedRows.length,1);
+  assert.equal(mockedRows[0].metadata.source_workflow,'W01');
+  global.fetch=async()=>({ok:false,status:503});
+  await assert.rejects(appendPublicationAudit({kind:'editorial',
+   itemId:'ed-safe-12345678',phase:'rpc_started',origin}),/publication_audit_write_503/);
+ }finally{
+  global.fetch=previousFetch;
+  if(previousUrl===undefined)delete process.env.SUPABASE_URL;
+  else process.env.SUPABASE_URL=previousUrl;
+  if(previousKey===undefined)delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  else process.env.SUPABASE_SERVICE_ROLE_KEY=previousKey;
+ }
+ const w01=fs.readFileSync('.github/workflows/geo-analysis.yml','utf8');
+ for(const [workflow,kind] of [[w01,'W01'],[daily,'W03']]){
+  assert(workflow.includes('-H "x-geo-source-workflow: '+kind+'"'),
+   kind+' must label the authenticated publisher request');
+  for(const name of ['x-geo-github-run-id','x-geo-github-run-attempt','x-geo-github-event'])
+   assert(workflow.includes('-H "'+name+': '),kind+' missing immutable run metadata '+name);
+  assert(workflow.includes('/api/geo/auto-publication'));
+  assert(workflow.includes('curl --fail-with-body --retry 0'),
+   kind+' must not blindly retry an ambiguous write');
+ }
+ const auditWorker=fs.readFileSync('src/lib/geo-auto-publication.ts','utf8');
+ for(const rpc of ['rpc/geo_commit_auto_publication','rpc/geo_commit_auto_faq']){
+  assert(auditWorker.includes(rpc));
+  assert(auditWorker.includes("phase:'rpc_started'")||
+   auditWorker.includes("'rpc_started'"),'audit must precede publication RPC');
+ }
+ assert(auditWorker.includes('catch{return storageAuditFailure()}'),
+  'a missing pre-attempt audit must fail closed before the RPC');
+ assert(auditWorker.includes("'rpc_result','ambiguous'"),
+  'ambiguous replies must be logged as ambiguous, never auto-retried');
+ const liveSql=upgrade.toLowerCase();
+ for(const functionName of ['geo_commit_auto_publication','geo_commit_auto_faq']){
+  const start=liveSql.indexOf('create or replace function public.'+functionName+'(');
+  const end=liveSql.indexOf('end '+String.fromCharCode(36,36)+';',start);
+  assert(start>=0&&end>start,'publisher RPC missing: '+functionName);
+  const body=liveSql.slice(start,end);
+  const policyLock=body.indexOf('from public.geo_publication_settings where id=1 for update');
+  const contentLock=body.indexOf('from public.content_store where id=1 for update');
+  const sharedQuota=body.indexOf('public.geo_publication_events e');
+  const faqQuota=body.indexOf('public.geo_faq_publication_events f');
+  assert(policyLock>0&&contentLock>policyLock&&sharedQuota>contentLock&&faqQuota>contentLock,
+   functionName+' must serialize and check combined editorial+FAQ quota inside one transaction');
+  assert(body.includes('quota_reached'),functionName+' must preserve quota result');
+ }
+ assert(sql.includes('UNIQUE(item_id,content_fingerprint)')||
+   sql.toLowerCase().includes('unique(item_id,content_fingerprint)'));
+ assert(upgrade.toLowerCase().includes('unique(item_id,content_fingerprint)'));
+ console.log('PASS phase1.4 publisher origin, PII-safe audit, failure-to-audit response, shared lock and no blind retries');
  console.log('PASS GEO autopublishing: source-optional sensitive content, unrelated official quote helper, historical transaction audits, daily quota, FAQ publisher and admin rollback');
 })().catch(error=>{console.error(error);process.exitCode=1});
