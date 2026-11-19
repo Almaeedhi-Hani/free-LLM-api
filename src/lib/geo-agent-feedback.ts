@@ -43,7 +43,7 @@ function containsPhrase(text:string,phrase:string):boolean{
 }
 /** Read-only application of exact reviewer terms, not broad fuzzy blacklisting. */
 export function containsRejectedKeyword(index:FeedbackIndex,texts:string[]):boolean{
- return [...index.values()].some(row=>row.subject_type==='keyword'&&rejected.has(row.decision)&&
+ return Array.from(index.values()).some(row=>row.subject_type==='keyword'&&rejected.has(row.decision)&&
   texts.some(text=>typeof text==='string'&&containsPhrase(text,row.subject_key)));
 }
 export function excludesOpportunity(index:FeedbackIndex,item:{title:string;related_keywords?:string[]}):boolean{
