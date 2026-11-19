@@ -37,6 +37,11 @@ export function isExcluded(index:FeedbackIndex,type:FeedbackSubject,key:string,l
  const row=index.get(identity(type,normalized,lang))||index.get(identity(type,normalized,null));
  return !!row&&rejected.has(row.decision);
 }
+export function inferFeedbackLanguage(value:string):'ar'|'en'|'zh'{
+ if(/[\u0600-\u06ff]/.test(value))return 'ar';
+ if(/[\u3400-\u9fff]/.test(value))return 'zh';
+ return 'en';
+}
 function containsPhrase(text:string,phrase:string):boolean{
  const normalized=' '+feedbackKey('keyword',text)+' ';
  return normalized.includes(' '+phrase+' ');
@@ -47,20 +52,22 @@ export function containsRejectedKeyword(index:FeedbackIndex,texts:string[]):bool
   texts.some(text=>typeof text==='string'&&containsPhrase(text,row.subject_key)));
 }
 export function excludesOpportunity(index:FeedbackIndex,item:{title:string;related_keywords?:string[]}):boolean{
- return isExcluded(index,'opportunity',item.title)||containsRejectedKeyword(index,[item.title,...(item.related_keywords||[])]);
+ return isExcluded(index,'opportunity',item.title,inferFeedbackLanguage(item.title))||
+  containsRejectedKeyword(index,[item.title,...(item.related_keywords||[])]);
 }
 export function excludesEditorial(index:FeedbackIndex,item:{
- id?:string;slug?:string;target?:string;title?:string;primary_keyword?:string;
+ id?:string;slug?:string;target?:string;lang?:'ar'|'en'|'zh';title?:string;primary_keyword?:string;
  secondary_keywords?:string[];evidence_refs?:Array<{url?:string;kind?:string}>;
 },path?:string):boolean{
  const route=path||('/insights/'+(item.slug||''));
- return (!!item.id&&isExcluded(index,'editorial',item.id))||
-  isExcluded(index,'publication',route)||
+ return (!!item.id&&isExcluded(index,'editorial',item.id,item.lang))||
+  isExcluded(index,'publication',route,item.lang)||
   containsRejectedKeyword(index,[item.title||'',item.primary_keyword||'',...(item.secondary_keywords||[])])||
-  (item.evidence_refs||[]).some(ref=>!!ref.url&&isExcluded(index,'competitor',ref.url));
+  (item.evidence_refs||[]).some(ref=>!!ref.url&&isExcluded(index,'competitor',ref.url,item.lang));
 }
 export function excludesFaq(index:FeedbackIndex,question:string):boolean{
- return isExcluded(index,'faq',question)||containsRejectedKeyword(index,[question]);
+ return isExcluded(index,'faq',question,inferFeedbackLanguage(question))||
+  containsRejectedKeyword(index,[question]);
 }
 export function validateFeedback(raw:unknown):{
  subject_type:FeedbackSubject;subject_key:string;language:'ar'|'en'|'zh'|null;
