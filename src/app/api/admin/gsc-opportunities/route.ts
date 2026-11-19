@@ -26,7 +26,7 @@ export async function GET(req:NextRequest){
   for(let offset=0;offset<=10000;offset+=1000){
    if(offset===10000)throw Error('gsc_report_row_ceiling');
    const endpoint=base+'gsc_daily_metrics?select=metric_date,dimension,dimension_value,clicks,impressions,ctr,position'+
-     suffix+'&dimension=in.(page,query)&order=metric_date.asc,dimension.asc,dimension_value.asc'+
+     suffix+'&dimension=in.(page,query,page_query)&order=metric_date.asc,dimension.asc,dimension_value.asc'+
      '&limit=1000&offset='+offset;
    const response=await fetch(endpoint,{headers,cache:'no-store',signal:AbortSignal.timeout(20000)});
    if(!response.ok)throw Error('gsc_metrics_read_'+response.status);
