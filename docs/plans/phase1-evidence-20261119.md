@@ -76,3 +76,44 @@ All six W01–W06 must be evidenced on a live, correctly deployed version with a
 **Confirmed:** All six checks on SHA `0ef9d880e6720dfde60756516ab3100c7fe0df3b` passed: Admin regression #44569481791, GSC integration #44569481811, V3 Evals #44569481734, Phase2 SQL #44569481839, Production GET #44569481851 (retry), Browser #44569481884. The production read-only runner's first attempt observed HTTP 502 for `/services/premium-residency` after a passing health test; a bounded GET-only rerun succeeded, so this transient response should not be silently erased from reliability tracking. Render was not modified by the rerun.
 
 **Next required gate:** validate the final PR commit's CI checks before merge; then deploy the schedule code through this PR under the authorized phase, confirm Render revision, and record actual `event=schedule` runs with database evidence. No stage 2 work or false declaration of stage 1 completion.
+
+## 2026-11-19 — first actual scheduled runs on released #167 (21:11–22:16 KSA)
+
+**Confirmed from production release:** Render LIVE revision `b3b14cf16d76839b8dcb15f8e6cbda628a4cba01`. The following are **event=schedule** on that SHA, not manual dispatch or push.
+
+| System | GitHub Actions | KSA time | Verified result |
+| --- | --- | --- | --- |
+| W01 GEO | [#44585116258](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44585116258) | 21:11 on 19 Nov | Failure after partial legitimate writes: discovery 10 candidates/15 existing keywords; 5 opportunities, 5 goals, **3 drafts** persisted. No valid editorial action persisted; **3 malformed proposals rejected**, explicitly reported (not silently discarded). Complete cycle FAIL. |
+| W02 market radar | [#44595877385](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44595877385) | 22:12 on 19 Nov | **SUCCESS with actual persistence**; job step triggered /api/cron-market, HTTP success, run completed. Supabase analysis_runs 2→4 (nested `radar` + `full` for the same operation), competitor_observations 120→135 (then 145 in later SELECT), opportunities 54→59, and later 65 including GEO results. Market Radar schedule is therefore enabled/running; the reason earlier slots were missing is **still unknown**. |
+| W04 GSC | [#44574400340](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44574400340) and [#44593004607](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44593004607) | 20:11 and 21:56 | **FAIL**; `curl` HTTP 502 from app, sanitized app error `gsc_atomic_rpc_gsc_sync_commit_day_400`. Not a successful empty day; day outcomes remain 0, page measurements remain 0. |
+
+### Root-cause evidence for W04 — PostgREST role claim mismatch
+
+- **Confirmed from Supabase edge_logs:** REST `/rest/v1/gsc_sync_day_outcomes` GET returned **200**, and `/rest/v1/rpc/gsc_sync_commit_day` returned **400** twice. Both request JWT role and key role were **service_role**. Never print authorization key values.
+- **Confirmed from Supabase postgres_logs:** failures are SQLSTATE `P0001`, in `public.gsc_sync_commit_day(text,date,text,timestamptz,integer,jsonb)` line **9** at `RAISE`. The first guard in the deployed PL/pgSQL function is `current_setting('request.jwt.claim.role',true) IS DISTINCT FROM 'service_role'`, while Supabase's current context provides the role in `request.jwt.claims`. The guard is rejecting a legitimately authorized `service_role` request. This is **not** a missing table and not missing API credentials.
+- **Confirmed from DB metadata:** both original functions exist, have `SECURITY INVOKER`, are executable by service_role and **not** anon; the proposed `_v2` signatures do not exist in production. The new document `gsc-role-rpc-v2-owner-approval.sql` defines add-only **new** functions using `current_user IS DISTINCT FROM 'service_role'`. The former `_v1` functions, all rows, constraints and RLS remain untouched. Existing `GSC_BACKFILL_ENABLED` and the two-day/run budget are unchanged.
+- **Approval/deployment blocker:** SQL proposal has **not** been run or added to the live migration chain. Matching client adapter and tests are prepared in a separate Draft PR, **not to be merged before explicit production schema authorization and application**. After approval, run the new SQL through the controlled migration process, verify signatures/role grants with SELECT, then merge the client adapter PR and observe scheduled commit+readback. This functional migration is **separate from the pending stage 1.6 security migration**, which also remains unapplied.
+- **No external Search Console or free search/LLM provider calls were made for diagnostics.**
+
+### GEO observations (W01)
+
+- **Confirmed:** first scheduled run after PR #156 did carry out a substantial portion of the pipeline and persisted 5 opportunities, 5 goals and 3 FAQ drafts. This is a genuine improvement over a no-op.
+- **Confirmed:** the last editorial stage returned `partial` because all 3 generated proposals were rejected as malformed. It logged rejection count and pipeline status and uploaded a sanitized report artifact. It did **not** quietly publish these proposals.
+- **Still pending:** exact rejection reasons per proposal, successful editorial persistence on a real schedule, and completed W01 status. Do not make the success flag green by ignoring malformed outputs or inventing editorial copy.
+- **Confirmed later SELECT:** `content_store.drafts=17`, `editorialItems=40`, `faqs=2`, `opportunities=65`, `agent_goals=51`, `competitor_observations=145`. These aggregate values are not all attributable solely to the one W01/W02 run without item IDs. Preserve that uncertainty.
+
+### Phase gate after new evidence
+
+- **W02 is accepted for one actual successful schedule plus data write.** Mark W02's table checkbox only.
+- W01 still FAIL after a partial write; W04 FAIL due service-role guard; W03/W05/W06 have no post-merge `event=schedule` evidence in the retrieved snapshot.
+- **Phase 1 exit remains BLOCKED.** No Phase 2 work, no schema mutation, no policy/daily-limit change, no provider/quota diagnostic calls.
+
+### 2026-11-19 functional GSC V2 schema rollout (approved phase-1 scope only)
+
+**Confirmed:** Following owner's instruction `التالي` to the specific GSC functional-migration checkpoint, the strictly additive migration was prepared at `supabase/migrations/20261119194500_phase1_gsc_rpc_service_role_v2_20261119.sql`. The SQL content is exactly equivalent to the previously reviewed proposal, except the managed migration has no explicit nested BEGIN/COMMIT. All **6 PR checks** were green at head `0f949e89ffd1578f987df1ced2607ba62e653ca3` before applying it.
+
+**Confirmed from Supabase:** `apply_migration` succeeded; name `phase1_gsc_rpc_service_role_v2_20261119`, recorded migration version `20261119194500`. Both `public.gsc_sync_commit_day_v2` and `public.gsc_sync_verify_day_v2` now exist, retain `SECURITY INVOKER` and a fixed empty `search_path`, and check trusted `current_user='service_role'`. Both allow EXECUTE to `service_role` while `anon` and `authenticated` have no EXECUTE. V1 functions were preserved with their original privileges and definitions. Security advisories for the two unrelated functions `public.rls_auto_enable` and `public.geo_set_updated_at` remain outstanding and were NOT changed by this migration.
+
+**Data conservation:** Immediately after migration, `gsc_sync_day_outcomes=0`, `gsc_daily_metrics=5`, page=0, page_query=0 — identical to the earlier baseline. **No Google/Search Console provider call was made to test the schema**, and no artificial GSC rows were inserted. A live GSC schedule cannot use these new functions until PR #168's client adapter has been merged and Render deploy confirmed.
+
+**Next gate remains mandatory:** Recheck 6/6 CI on final PR head after documentation update; merge only after green checks, confirm Render revision, and verify first `event=schedule` W04 run plus actual outcomes and page/query metrics or verified no-data state. W01 remains a separate rejected-editorial issue and W03/W05/W06 schedules must be verified. Stage 1 is NOT complete; stage 2 must not start.
