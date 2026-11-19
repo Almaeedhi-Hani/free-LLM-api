@@ -2,8 +2,9 @@ import {getSupabaseCredentials} from './storage-mode';
 import {normalizeCompetitorDomain} from './source-policy';
 
 /** Load the live competition list per request/run. Fail closed at call sites if unavailable. */
-export async function getCompetitorDomains(request:typeof fetch=fetch):Promise<string[]>{
- const cfg=getSupabaseCredentials();
+export async function getCompetitorDomains(
+ request:typeof fetch=fetch,cfg=getSupabaseCredentials()
+):Promise<string[]>{
  if(!cfg)throw Error('competitor_source_storage_unavailable');
  const url=cfg.url.replace(/\/$/,'')+
   '/rest/v1/competitors?select=domain&status=eq.active&limit=1000';
