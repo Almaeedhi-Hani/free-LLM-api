@@ -19,7 +19,7 @@
 
 | المرحلة | القائمة | الحالة الحالية | التاريخ (KSA) | PR | بوابة الخروج / الدليل |
 | --- | --- | --- | --- | --- | --- |
-| 0 التحضير والسلامة | [ ] | **محجوبة — الوسم الحقيقي غير موجود/تعذر إنشاؤه عبر الموصل** | 2026-11-19 | [PR #165](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/165) (Draft) | لقطة الأساس [محفوظة بالفرع]؛ CI main [ناجح]؛ Git tag [غير متحقق]؛ CI PR [4 فحوص نجحت على الرأس السابق؛ يعاد التشغيل بعد تحديث السجل؛ Evals معلقة بسبب paths filter] |
+| 0 التحضير والسلامة | [ ] | **الوسم أنجز؛ CI/Evals وتحقق متصفح الرأس النهائي قيد الإكمال** | 2026-11-19 | [PR #165](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/165) (Draft) | لقطة الأساس [محفوظة بالفرع]؛ CI main [ناجح]؛ Git tag [مؤكد على SHA الأساس]؛ CI PR [V3 Evals ناجح؛ اختبار المتصفح وCI يعادان على الرأس النهائي] |
 | 1 ضمان التشغيل | [ ] | لم تبدأ | — | — | W01–W06: schedule ناجح + حفظ حقيقي مؤرخ |
 | 2 شبكة الأمان | [ ] | لم تبدأ | — | — | محاكاة آمنة لكل إنذار + تقرير أسبوعي منتج |
 | 3 بوابات آلية | [ ] | لم تبدأ | — | — | Evals وقبول ودورة تقبل/ترفض وفحص الروابط العامة |
@@ -37,8 +37,12 @@
 - [x] **مؤكد**: حفظ لقطة أساس V01–V18 و25 admin API و5 GEO API و22 workflow و25 public table في baseline-20261119.md في الفرع.
 - [x] **مؤكد**: CI على main عند SHA الأساس: Admin regression [#44515753293](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44515753293) = success؛ Production read-only acceptance [#44515753188](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44515753188) = success.
 - [x] **مؤكد**: قراءة الوسم pre-consolidation-20261119 عبر GitHub = HTTP 404؛ غير موجود.
-- [ ] **محجوب**: إنشاء **Git tag حقيقي** pre-consolidation-20261119 مشيرًا إلى SHA الأساس. موصل GitHub يوفر create_branch وupdate_ref لفرع، **ولا يوفر create_tag**. لا تستخدم فرعًا بديلًا وسمًا مزعومًا؛ مطلوب إنشاء الوسم باستخدام واجهة Git مناسبة ثم التحقق بقراءة GitHub.
-- [x] **مؤكد عند SHA 9f5f8f434f8ddc585c7d0ce19b158c6c124dc5d3**: نجاح فحوص PR الأربعة: Admin regression [#44534114291](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44534114291)، GSC integration [#44534118966](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44534118966)، Production read-only acceptance [#44534114257](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44534114257)، Phase2 SQL security [#44534114546](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44534114546).\n- [ ] **غير معروف/غير منفذ لهذه التغييرات**: V3 regression Evals وAdmin seven-hub browser acceptance لم يعملَا تلقائيًا لأن مساراتهما محددة في paths ولا تشمل docs/plans/*. قبل إغلاق المرحلة يلزم دليل Evals/قبول جديد أو دليل مقبول على اختبار سابق لنفس الشيفرة؛ لا تخلط غياب التشغيل مع النجاح.\n- [ ] بعد تحديث ملف PROGRESS.md الحالي، تحقق من إعادة نجاح الفحوص على رأس PR الجديد.
+- [x] **مؤكد**: أُنشئ Git tag الحقيقي `pre-consolidation-20261119` على SHA الأساس `9606113b48a29801961cfdeab662974fdc6ecb7e` بواسطة مهمة GitHub مؤقتة محدودة [#44544172119](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44544172119)، وتحقق GitHub GET من `refs/tags/pre-consolidation-20261119` أن النوع `commit` والـ SHA مطابق. **أزيل ملف المهمة المؤقتة من فرع PR، ولن يُدمج في main**.
+- [x] **مؤكد عند SHA 9f5f8f434f8ddc585c7d0ce19b158c6c124dc5d3**: نجاح فحوص PR الأربعة: Admin regression [#44534114291](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44534114291)، GSC integration [#44534118966](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44534118966)، Production read-only acceptance [#44534114257](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44534114257)، Phase2 SQL security [#44534114546](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44534114546).
+- [x] **مؤكد**: عُدّل فلتر **اختبارات PR فقط** لـ V3 Evals وAdmin seven-hub browser ليشمل `docs/plans/**`، بدون تعديل أي `schedule` إنتاجي. نجحت V3 Evals على SHA `ac18e41` في [#44544172446](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44544172446).
+- [ ] اختبار المتصفح الشامل (18 وظيفة/7 مجموعات) يجب أن ينجح على رأس PR النهائي؛ أي تشغيل `cancelled` بسبب تحديثات الفرع لا يُحتسب نجاحًا.
+- [ ] آخر CI/قبول/Evals على SHA النهائي للـ PR يلزم أن يكون `success` قبل الدمج.
+- [ ] تحقق من إعادة نجاح **كل** الفحوص المطلوبة على رأس PR بعد هذا التحديث (CI وV3 Evals وBrowser)؛ سجّل روابط الرأس النهائي في PR عند اكتمالها.
 - [ ] دمج PR المرحلة 0 بعد تحقق الوسم + جميع بوابة الخروج.
 - [ ] تقرير نقطة تفتيش للمالك؛ **لا تبدأ المرحلة 1 قبل موافقته**.
 
@@ -46,12 +50,13 @@
 
 | الشرط | الحالة | الدليل |
 | --- | --- | --- |
-| وجود pre-consolidation-20261119 على SHA البداية | **فشل/محجوب** | GitHub GET للوسم = 404؛ أداة إنشاء الوسم غير متوفرة |
+| وجود pre-consolidation-20261119 على SHA البداية | **نجاح مؤكد** | GitHub GET مطابق SHA؛ [run #44544172119](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44544172119) |
 | حفظ الخطة ولقطة الأساس وPROGRESS | **منفذ في الفرع؛ لم يُدمج** | الملفات الثلاثة في فرع codex/phase0-plan-baseline-20261119 |
 | CI أخضر على main | **ناجح** | #44515753293 و#44515753188 |
-| CI/قبول على PR | **4/4 نجحت على الرأس السابق** | #44534114291، #44534118966، #44534114257، #44534114546؛ إعادة تحقق للرأس الجديد |\n| V3 Evals وBrowser acceptance | **غير مشغلة بسبب paths filter** | يلزم إثبات لاحق؛ لا يُعد غيابها نجاحًا |
+| CI/قبول على PR | **4/4 نجحت على الرأس السابق** | #44534114291، #44534118966، #44534114257، #44534114546؛ إعادة تحقق للرأس الجديد |
+| V3 Evals وBrowser acceptance | **Evals نجحت؛ Browser قيد التحقق** | V3 [#44544172446](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44544172446)؛ انتظر browser النجاح |
 
-**الحكم:** بوابة الخروج **غير مجتازة**، فلا دمج ولا بدء المرحلة 1.
+**الحكم بتاريخ 2026-11-19:** الوسم ولقطة الأساس ناجحان. البوابة **معلقة حتى نجاح جميع فحوص آخر SHA للـPR**؛ بعدها تعرض نقطة تفتيش النمط أ للمالك. لا تبدأ المرحلة 1 قبل الموافقة والدمج.
 
 ## المرحلة 1 — الأدلة المطلوبة (لا تدّعِ أنها مكتملة)
 
@@ -146,4 +151,4 @@
 
 | التاريخ | المرحلة | نوع العمل | PR | النتيجة |
 | --- | --- | --- | --- | --- |
-| 2026-11-19 | 0 | إنشاء الخطة ولقطة الأساس وتقدم المراحل على فرع مستقل | [#165](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/165) | وثائق فقط؛ الوسم المطلوب غير موجود؛ بوابة الخروج محجوبة |
+| 2026-11-19 | 0 | توثيق الخطة ولقطة الأساس، إنشاء وسم Git ثابت والتحقق منه؛ تشغيل Evals وتوسيع مسارات اختبار PR؛ حذف bootstrap المؤقت | [#165](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/165) | وسم موجود ومطابق؛ CI وBrowser للـSHA النهائي مطلوبان قبل الدمج |
