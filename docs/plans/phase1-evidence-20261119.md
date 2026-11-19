@@ -68,3 +68,11 @@ All six W01–W06 must be evidenced on a live, correctly deployed version with a
 3. Confirm whether W02 is enabled/paused using a permissioned configuration metadata-only read. The current GitHub connector did not expose private workflow state or repository Actions Variables via read methods; **the reason for missing schedules is not yet proven**. Do not report a guessed cause.
 4. Recheck GSC outcomes, candidate dimensions and source dates using SELECT only.
 5. No manual GEO dispatch unless owner instructions explicitly permit one after a missed schedule and it does not conflict with the no-quota-burning rule.
+
+## 2026-11-19 — Phase 1 QA checkpoint, after FAQ test repair
+
+**Confirmed:** Previous #44564941315 isolated browser failure was an asynchronous POST identification problem or an underlying FAQ flow issue; the exact root cause is **not independently proven**. The acceptance test now captures a POST whose authoritative `faqs` array omits only the target question, requires exactly one fewer entry, checks HTTP 200 and the server's updated response, and independently GETs the persisted state. This test **passed** at [browser run #44569481884](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44569481884). Production FAQ code was not changed.
+
+**Confirmed:** All six checks on SHA `0ef9d880e6720dfde60756516ab3100c7fe0df3b` passed: Admin regression #44569481791, GSC integration #44569481811, V3 Evals #44569481734, Phase2 SQL #44569481839, Production GET #44569481851 (retry), Browser #44569481884. The production read-only runner's first attempt observed HTTP 502 for `/services/premium-residency` after a passing health test; a bounded GET-only rerun succeeded, so this transient response should not be silently erased from reliability tracking. Render was not modified by the rerun.
+
+**Next required gate:** validate the final PR commit's CI checks before merge; then deploy the schedule code through this PR under the authorized phase, confirm Render revision, and record actual `event=schedule` runs with database evidence. No stage 2 work or false declaration of stage 1 completion.
