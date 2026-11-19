@@ -8,6 +8,7 @@ import {
   resolveStorageMode,
 } from './storage-mode';
 import { defaultSources, availableSources } from './market-sources';
+import {getGeoFeedbackIndex,isExcluded,excludesOpportunity} from './geo-agent-feedback';
 import { isRelevantInvestorService } from './open-search-sources';
 import { RADAR_QUERIES, selectRadarQuery } from './radar-query-plan';
 import { buildQueryMemory, chooseNextQueries } from './radar-memory';
@@ -1197,8 +1198,15 @@ export async function runMarketAnalysis(triggeredBy: TriggeredBy = 'manual'): Pr
 }> {
   const run = await startRun('full', triggeredBy);
   try {
-    const competitors = (await listCompetitors({ status: 'active' })).slice(0, MAX_COMPETITORS_PER_RUN);
-    const keywords = (await listKeywords()).slice(0, MAX_KEYWORDS_PER_RUN);
+    // Triaging must honor the latest explicit reviewer decision, including
+    // corrections for records persisted before the feedback feature existed.
+    const feedback=await getGeoFeedbackIndex();
+    const competitors = (await listCompetitors({ status: 'active' }))
+      .filter(c=>!isExcluded(feedback,'competitor',c.domain))
+      .slice(0, MAX_COMPETITORS_PER_RUN);
+    const keywords = (await listKeywords())
+      .filter(k=>!isExcluded(feedback,'keyword',k.term,k.language))
+      .slice(0, MAX_KEYWORDS_PER_RUN);
 
     let opportunitiesCreated = 0;
     let goalsCreated = 0;
@@ -1248,7 +1256,7 @@ export async function runMarketAnalysis(triggeredBy: TriggeredBy = 'manual'): Pr
 
     const MAX_NEW_OPPORTUNITIES = 10;
     const GOAL_SCORE_THRESHOLD = 50;
-    const existingOpps = await listOpportunities();
+    const existingOpps = (await listOpportunities()).filter(o=>!excludesOpportunity(feedback,o));
     const txKeywords = keywords.filter((k) => k.intent === 'transactional' || k.intent === 'commercial');
     const clusters = clusterKeywords(txKeywords);
     let newOppsThisRun = 0;
@@ -1357,6 +1365,7 @@ const DEFAULT_SEEDS: Record<Language, string[]> = {
 };
 
 export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<DiscoverySummary> {
+  const feedback=await getGeoFeedbackIndex();
   const seeds = config?.seeds || DEFAULT_SEEDS;
   const maxSug = config?.maxSuggestionsPerSeed ?? 10;
   const maxComp = config?.maxCompetitors ?? 20;
@@ -1440,7 +1449,8 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
           summary.suggestions_collected += limited.length;
           for (const r of limited) {
             const term = r.term.trim();
-            if (!term || collectedTerms.has(`${term}|${lang}`)) continue;
+            if (!term || isExcluded(feedback,'keyword',term,lang) ||
+                collectedTerms.has(`${term}|${lang}`)) continue;
             collectedTerms.add(`${term}|${lang}`);
             try {
               await upsertKeyword({
@@ -1495,7 +1505,7 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
            }
           diag.results_parsed = results.length;
           for (const r of results) {
-            if (!r.domain) continue;
+            if (!r.domain || isExcluded(feedback,'competitor',r.domain)) continue;
             if (discoveredDomains.size >= maxComp && !discoveredDomains.has(r.domain)) continue;
             if (isExcludedDomain(r.domain)) continue;
             if (!isRelevantInvestorService(r.title || '', r.snippet || '')) continue;
