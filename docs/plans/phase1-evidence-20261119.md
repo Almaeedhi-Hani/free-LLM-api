@@ -137,3 +137,17 @@ All six W01–W06 must be evidenced on a live, correctly deployed version with a
 **W04 assessment:** Proven functional automated schedule, two successful atomic commits, exact readback, and bounded quota (2 days/run), while **measurement coverage is zero beyond total**. W04's initial technical acceptance is marked [x], with an explicit data-quality note. Monitor subsequent real days until Google supplies actual impressions/page/query rows. This does not waive other W01/W03/W05/W06 gates.
 
 **PR #169** separately updates this evidence and PROGRESS. Six CI/acceptance/Evals checks are required on its final SHA before merge. No provider-testing calls or production writes were made here; only the native GitHub schedule performed the authorized GSC production sync.
+
+### 2026-11-20 00:15 KSA — GEO editorial kind rejection persists; second radar schedule is green
+
+**W01 — confirmed failure and partial persistence:** [GEO run #44616857457](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44616857457) was `event=schedule` on main `0b6a386` at 2026-11-19T21:15:03Z. `[EVENT_CADENCE] RUN` recovered nominal `2026-11-19T13:00:00Z`. The full pipeline used **four existing bounded direct free-tier calls**, found 10 discovery candidates and 15 existing keywords, persisted **6 opportunities, 6 goals, 3 FAQ drafts**, and failed editorial: **English and Chinese each rejected one proposal with `unknown_kind`**, while Arabic proposed 0. The one available English validation repair reported **`quota_reached`**. `persisted_editorial_actions=0`, GitHub conclusion **failure**. No model call was made for this diagnostic.
+
+**W01 — independent Supabase SELECT after event:** `content_store.updated_at=2026-11-19T21:16:09.034Z`, `drafts=20` versus 17 in prior snapshot, `editorialItems=40` unchanged, `faqs=2`. A visible count increase and exact timestamps support genuine draft persistence. **No editorial copy from this event**. The output guard still intentionally rejects `page`/`article`/unknown kinds; no automatic transformation or fabricated targets.
+
+**W02 — second confirmed independent schedule:** [Market Radar run #44614779373](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44614779373) was `event=schedule` on `0b6a386`, created 2026-11-19T21:02:48Z (2026-11-20 00:02 KSA), job `RUN`, HTTP endpoint reported `status=completed` with `observations_recorded=5`. Later database total `competitor_observations=160` includes GEO discoveries around the same time and is not solely attributable to W02. W02's status stays accepted.
+
+**W03/W05/W06:** No post-rollout `event=schedule` runs found in the GitHub run feed at the snapshot. Individual workflow enabled/disabled state and pause variables remain **unknown**, so cannot declare them disabled or operational. No policy or cron/quotas changed.
+
+**Improvement in separate PR:** Share the authoritative persisted editorial kind enumeration with the direct-model prompt, provide a machine-readable allowed-values array and require omission rather than guessing or relabeling invalid kinds. Keep validation failure visible in pipeline until a real scheduled output succeeds. Test across AR/EN/ZH and existing single bounded repair attempt using local deterministic tests; **no extra provider/API calls**. Stage-1 acceptance remains **incomplete**.
+
+**Publishing policy:** SELECT confirms `geo_publication_settings.daily_limit=3`, existing publication events=3, FAQ publication events=0. No changes applied. No Phase 2 work.
