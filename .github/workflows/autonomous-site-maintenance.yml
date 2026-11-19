@@ -1,7 +1,18 @@
 name: Autonomous Site Maintenance (bounded)
 on:
   schedule:
-    - cron: '35 0-22/2 * * *' # Saudi 01:35,03:35,... then 01:35,05:35,... from Nov 22
+    - cron: '35 0 * * *' # Saudi 01:35,03:35,... then 01:35,05:35,... from Nov 22
+    - cron: '35 2 * * *'
+    - cron: '35 4 * * *'
+    - cron: '35 6 * * *'
+    - cron: '35 8 * * *'
+    - cron: '35 10 * * *'
+    - cron: '35 12 * * *'
+    - cron: '35 14 * * *'
+    - cron: '35 16 * * *'
+    - cron: '35 18 * * *'
+    - cron: '35 20 * * *'
+    - cron: '35 22 * * *'
   push:
     branches: [main]
     paths:
@@ -38,7 +49,10 @@ jobs:
           cache: npm
       - name: Select current Saudi cadence
         id: cadence
-        run: node scripts/scheduled-cadence-gate.cjs --slot=odd >> "$GITHUB_OUTPUT"
+        env:
+          CADENCE_EVENT_CRON: ${{ github.event.schedule }}
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/scheduled-event-slot.cjs --kind=maintenance
       - run: npm ci
         if: steps.cadence.outputs.run == 'true'
       - name: Apply at most one source-backed live-service SEO improvement
