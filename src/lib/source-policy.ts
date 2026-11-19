@@ -47,10 +47,10 @@ export function isDisplayable(rawUrl:string,competitorDomains:string[]=[],discov
 /** Read-only audit; content and its stored research evidence are never erased. */
 export function extractLinks(body:string):string[]{
  const result=new Set<string>();
- for(const m of String(body||'').matchAll(/https?:\/\/[^\s)"'<>\]]+/gi)){
+ for(const m of Array.from(String(body||'').matchAll(/https?:\/\/[^\s)"'<>\]]+/gi))){
   result.add(m[0].replace(/[.,;!?]+$/,''));
  }
- return [...result];
+ return Array.from(result);
 }
 export function auditBody(body:string,competitorDomains:string[]):string[]{
  return extractLinks(body).filter(url=>isCompetitorUrl(url,competitorDomains));
