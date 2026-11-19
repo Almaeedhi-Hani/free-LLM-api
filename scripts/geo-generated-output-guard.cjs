@@ -10,6 +10,14 @@ const tree=require('../src/data/content-tree.json');
 const knownNodes=new Map(tree.nodes.map(n=>[n.id,n]));
 const EDITORIAL_KINDS=Object.freeze(['home','service','packages','guide','comparison','trust','technical_seo','internal_link']);
 const validKinds=new Set(EDITORIAL_KINDS);
+// Identical validator limits are exported to the direct provider contract;
+// never lower them or relabel rejected content to make a cycle appear green.
+const EDITORIAL_TEXT_MINIMA=Object.freeze({
+ title:Object.freeze({ar:12,en:12,zh:6}),summary:30,
+ body:Object.freeze({ar:100,en:100,zh:80})
+});
+const TECHNICAL_TARGET_RE=/^\/(?:$|packages$|services\/(?:company-formation|misa-license|corporate-banking|contract-drafting|premium-residency|investment-funds)$|insights(?:\/[a-z0-9-]+)?$)/;
+const isValidTechnicalTarget=target=>typeof target==='string'&&TECHNICAL_TARGET_RE.test(target);
 const validPriority=new Set(['high','medium','low']);
 const safeText=(v,min,max)=>typeof v==='string'&&v.trim().length>=min&&v.length<=max&&!/[<>]/.test(v);
 function prepareGoals(items){
@@ -47,11 +55,12 @@ function eligibleEditorial(item){
  }else if(item.kind==='guide'||item.kind==='comparison'){
   if(!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(target)||target!==item.slug||target.length>90)
    return 'invalid_guide_slug';
- }else if(!/^\/(?:$|packages$|services\/(?:company-formation|misa-license|corporate-banking|contract-drafting|premium-residency|investment-funds)$|insights(?:\/[a-z0-9-]+)?$)/.test(target)){
+ }else if(!isValidTechnicalTarget(target)){
   return 'invalid_technical_target';
  }
- if(!safeText(item.title,item.lang==='zh'?6:12,170)||!safeText(item.summary,30,360)||
-    !safeText(item.body,item.lang==='zh'?80:100,10000))return 'insufficient_text';
+ if(!safeText(item.title,EDITORIAL_TEXT_MINIMA.title[item.lang],170)||
+    !safeText(item.summary,EDITORIAL_TEXT_MINIMA.summary,360)||
+    !safeText(item.body,EDITORIAL_TEXT_MINIMA.body[item.lang],10000))return 'insufficient_text';
  return null;
 }
 function screenEditorial(items,lang){
@@ -77,4 +86,4 @@ function screenDrafts(items){
  }
  return {accepted,rejected};
 }
-module.exports={prepareGoals,screenEditorial,eligibleEditorial,screenDrafts,EDITORIAL_KINDS};
+module.exports={prepareGoals,screenEditorial,eligibleEditorial,screenDrafts,EDITORIAL_KINDS,EDITORIAL_TEXT_MINIMA,isValidTechnicalTarget};
