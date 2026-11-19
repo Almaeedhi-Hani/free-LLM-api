@@ -3,6 +3,8 @@ import {editorialPath} from './content-impact';
 import {editorialPublicationIssues,validateEditorialItem} from './editorial-workflow';
 import {getSupabaseCredentials} from './storage-mode';
 import type {EditorialItem} from './editorial-types';
+import {getCompetitorDomains} from './source-policy-store';
+import {auditBody,isDisplayable} from './source-policy';
 import {getGeoFeedbackIndex,excludesEditorial,excludesFaq} from './geo-agent-feedback';
 
 type Policy={enabled:boolean;daily_limit:number;allow_high_risk:boolean};
@@ -187,10 +189,10 @@ export async function rollbackAutoPublication(eventId:string,kind:'editorial'|'f
 }
 /** HTTPS research links are recorded transparently as unverified citations;
  * no minimum number, specific host, provider or official domain is required. */
-export function optionalResearchCitations(item:EditorialItem):string[]{
+export function optionalResearchCitations(item:EditorialItem,competitorDomains:string[]=[]):string[]{
  const urls:string[]=[];
  for(const ref of item.evidence_refs||[]){
-  if(typeof ref?.url!=='string')continue;
+  if(typeof ref?.url!=='string'||!isDisplayable(ref.url,competitorDomains,ref.kind))continue;
   try{
    const u=new URL(ref.url);
    if(u.protocol!=='https:'||u.username||u.password||u.port||
@@ -216,6 +218,9 @@ export async function runGuardedAutoPublishing(dryRun=false):Promise<AutoPublish
  try{feedback=await getGeoFeedbackIndex()}catch{
   return {...report,status:'storage_unavailable',message:'Reviewer feedback could not be loaded'};
  }
+ // If the live competitor registry is unavailable, publish without external citations;
+ // do not make optional sources into a new mandatory publication gate.
+ const competitorDomains=await getCompetitorDomains().catch(()=>null);
  const editorial=(content.editorialItems||[]).filter(e=>e.status==='pending');
  const faqDrafts=(content.drafts||[]).filter(d=>d.status==='pending');
  report.examined=editorial.length+faqDrafts.length;
@@ -247,7 +252,13 @@ export async function runGuardedAutoPublishing(dryRun=false):Promise<AutoPublish
    report.events.push({item_id:candidate.id,result:'requires_finished_visitor_copy'});
    continue;
   }
-  const cited=optionalResearchCitations(candidate);
+  const cited=competitorDomains===null?[]:optionalResearchCitations(candidate,competitorDomains);
+  if(competitorDomains!==null){
+   const bodyLinks=auditBody(candidate.body||'',competitorDomains);
+   if(bodyLinks.length)console.warn('geo_publication_competitor_body_audit',{
+    item_id:candidate.id,count:bodyLinks.length
+   });
+  }
   try{
    validateEditorialItem({...candidate,status:'approved',
     reviewedAt:new Date().toISOString(),approval_method:'automated',

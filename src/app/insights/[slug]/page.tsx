@@ -5,6 +5,8 @@ import {getLocale,localizedPath} from "@/lib/site-language";
 import {getContent} from "@/lib/content-store";
 import {publicGuide,approvedEditorial} from "@/lib/editorial-workflow";
 import {siteUrl} from "@/lib/site-seo";
+import {getCompetitorDomains} from "@/lib/source-policy-store";
+import {isDisplayable,isWhitelistedOfficial} from "@/lib/source-policy";
 import {topicRelatedLiveNodes,siteTopicPath} from "@/lib/content-tree";
 export const dynamic="force-dynamic";
 export async function generateMetadata({params}:{params:{slug:string}}):Promise<Metadata>{
@@ -18,9 +20,15 @@ export default async function InsightDetail({params}:{params:{slug:string}}){
  const lang=getLocale(),content=await getContent(),page=publicGuide(content.editorialItems,lang,params.slug);
  if(!page)return notFound();
  const url=siteUrl+localizedPath(lang,"/insights/"+page.slug);
+ // Fail closed: if live competitor data is unavailable, no external references render.
+ const loadedDomains=await getCompetitorDomains().catch(()=>null);
+ const competitorDomains=loadedDomains||[];
+ const referenceCandidates=page.approval_method==='automated'?(page.cited_sources||[]):(page.verified_sources||[]);
+ const visibleReferences=loadedDomains===null?[]:referenceCandidates.filter(source=>isDisplayable(source,competitorDomains));
+ const visibleVerified=loadedDomains===null?[]:(page.verified_sources||[]).filter(source=>isDisplayable(source,competitorDomains));
  const hasLiveHub=approvedEditorial(content.editorialItems,lang).some(e=>e.kind==="guide"||e.kind==="comparison");
  const safeLiveTopicRoute=(route:string|null)=>Boolean(route&&(route!=="/insights"||hasLiveHub));
- const article={"@type":"Article",headline:page.title,description:page.summary,inLanguage:lang==="zh"?"zh-Hans":lang,url,datePublished:page.reviewedAt,...(page.verified_sources?.length?{citation:page.verified_sources}:{})};
+ const article={"@type":"Article",headline:page.title,description:page.summary,inLanguage:lang==="zh"?"zh-Hans":lang,url,datePublished:page.reviewedAt,...(visibleVerified.length?{citation:visibleVerified}:{})};
  const breadcrumbs={"@type":"BreadcrumbList",itemListElement:[
   {"@type":"ListItem",position:1,name:lang==="ar"?"الرئيسية":lang==="zh"?"首页":"Home",item:siteUrl+localizedPath(lang)},
   {"@type":"ListItem",position:2,name:lang==="ar"?"الأدلة":lang==="zh"?"指南":"Guides",item:siteUrl+localizedPath(lang,"/insights")},
@@ -45,7 +53,7 @@ export default async function InsightDetail({params}:{params:{slug:string}}){
    <p className="service-decision-disclaimer">{lang==="ar"?"هذه معلومات إرشادية. تحقّق من متطلبات الجهات الرسمية الحالية قبل اتخاذ القرار.":lang==="zh"?"仅供参考；请核对主管部门当前要求。":"Planning guidance only; verify current authority requirements before acting."}</p>
   </section><aside className="source-panel service-reference-panel">
    <h2>{page.approval_method==="automated"?(lang==="ar"?"المراجع":lang==="zh"?"参考资料":"References"):(lang==="ar"?"المراجع التي راجعها المحرر":lang==="zh"?"经编辑审阅的资料":"Editor-reviewed references")}</h2>
-   {(page.approval_method==='automated'?(page.cited_sources||[]):(page.verified_sources||[])).map((source,i)=><a key={source} href={source} target="_blank" rel="noopener noreferrer">{lang==="ar"?"المصدر":lang==="zh"?"来源":"Source"} {i+1} <ArrowUpRight /></a>)}
+   {visibleReferences.map((source,i)=><a key={source} href={source} target="_blank" rel={isWhitelistedOfficial(source,competitorDomains)?"noopener noreferrer":"nofollow noopener noreferrer"}>{lang==="ar"?"المصدر":lang==="zh"?"来源":"Source"} {i+1} <ArrowUpRight /></a>)}
    <a className="action-primary" href={content.contact.whatsapp} target="_blank" rel="noopener noreferrer">{lang==="ar"?"استفسر عن خدمتك":lang==="zh"?"咨询服务":"Ask about our services"} <ArrowUpRight /></a>
   </aside></div>
   <a href={localizedPath(lang,"/packages")+"?from="+encodeURIComponent(localizedPath(lang,"/insights/"+page.slug))}>{lang==="ar"?"قارن الباقات والأتعاب":lang==="zh"?"比较套餐费用":"Compare service packages"} <ArrowUpRight /></a>
