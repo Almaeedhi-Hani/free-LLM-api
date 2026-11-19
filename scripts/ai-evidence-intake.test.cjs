@@ -12,6 +12,11 @@ for(const str of [
   "'reviewed_observations_only'","'evidence_storage_pending'",
 ])assert(route.includes(str),'missing guarded evidence contract: '+str);
 assert(route.indexOf('if(!isAdmin(req))')!==-1);
+assert(route.includes('normalizedFrom=new Date(fromMs).toISOString()'),'normalize requested windows to strict evidence timestamp');
+assert(route.includes('normalizedUntil=new Date(untilMs).toISOString()'),'normalize panel end timestamp');
+assert(route.includes('const maxEvidenceBytes=24576'),'cap manual evidence body under free-tier budget');
+assert(route.includes('Buffer.byteLength(JSON.stringify(body))'),'reject chunked oversized evidence');
+assert(route.includes("{status:413}"),'oversized evidence must be explicitly rejected');
 assert(!route.includes("https://api.openai.com")&&!route.includes("https://api.groq.com"),
  'manual evidence ingestion cannot trigger providers or charge money');
 assert(!route.includes('method:"DELETE"')&&!route.includes("method:'DELETE'"),
