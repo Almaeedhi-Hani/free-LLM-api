@@ -20,7 +20,7 @@
 | المرحلة | القائمة | الحالة الحالية | التاريخ (KSA) | PR | بوابة الخروج / الدليل |
 | --- | --- | --- | --- | --- | --- |
 | 0 التحضير والسلامة | [x] | **مكتملة ومندمجة؛ بوابة الخروج ناجحة** | 2026-11-19 | [PR #165](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/165) — merged `4b2b64f` | [baseline-20261119.md](baseline-20261119.md) محفوظة على main؛ Git tag مثبت؛ CI/Browser/Evals **6/6 ناجحة** على SHA `a4a38a4` |
-| 1 ضمان التشغيل | [ ] | **قيد التنفيذ؛ الأدلة الإنتاجية غير مكتملة** | 2026-11-19 | [PR #167](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/167) (Draft) | [سجل أدلة المرحلة 1](phase1-evidence-20261119.md)؛ الوسم مثبت؛ W01/W02/W03/W04 تحتاج تشغيلًا مثبتًا وحفظًا حقيقيًا؛ CI قيد التحقق |
+| 1 ضمان التشغيل | [ ] | **متوقفة عند فشل اختبار قبول المتصفح؛ لا دمج** | 2026-11-19 | [PR #167](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/167) (Draft) | [سجل أدلة المرحلة 1](phase1-evidence-20261119.md)؛ وسم موجود؛ [Admin browser #44564941315](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44564941315) = failure؛ W01–W04 تشغيل/حفظ غير مثبت |
 | 2 شبكة الأمان | [ ] | لم تبدأ | — | — | محاكاة آمنة لكل إنذار + تقرير أسبوعي منتج |
 | 3 بوابات آلية | [ ] | لم تبدأ | — | — | Evals وقبول ودورة تقبل/ترفض وفحص الروابط العامة |
 | 4 أرشيف موحد | [ ] | لم تبدأ | — | — | كل أداة مرة واحدة، جرد APIs/DB ثابت، قبول |
@@ -69,7 +69,9 @@
 - [x] **مؤكد**: W03 [#44546805433](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44546805433) سجّل GitHub success مع `[CADENCE] SKIP`؛ لم تُنفَّذ خطوة النشر. سبب تخطي هذه الدورة مثبت في اللوج، ويستهدفه الإصلاح.
 - [x] **مؤكد**: W05 [#44503133016](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44503133016) وW06 [#44508302894](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44508302894) لديهما `[CADENCE] RUN` وقرار `no_change` مثبت؛ يحتاجان إعادة قبول على النسخة الجديدة.
 - [x] **مؤكد**: أنشئ ملف SQL مقترح [security/phase1-hardening-proposal.sql](security/phase1-hardening-proposal.sql) **غير مطبق**؛ لا يُدخل في migrations ولا يفتح RLS. طلب تطبيقه على الإنتاج يبقى قرارًا للمالك.
-- [ ] يثبت PR #167 جميع CI واختبارات القبول وV3 Evals على الرأس النهائي.
+- [ ] **مؤكد / فشل بوابة CI:** PR #167 عند SHA `06ae3eac98256d7baf0fba57c8d84523e1377cd7`: نجحت [Admin regression #44564941342](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44564941342)، [GSC integration #44564941396](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44564941396)، [Phase2 SQL #44564941518](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44564941518)، [Production read-only acceptance #44564941498](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44564941498)، [V3 Evals #44564941354](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44564941354). **فشل** [Browser acceptance #44564941315](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44564941315) في اختبار حذف FAQ المعزول: `FAQ delete UI must submit a patch WITHOUT the deleted question`. **السبب الجذري غير محسوم**؛ لا تعتبره فشلًا مؤكدًا في قاعدة الإنتاج. وفق قاعدة التوقف عند الفشل: أبقِ PR Draft، ولا تدمج ولا تبدأ المرحلة 2.
+- [x] **مؤكد / HTTP من GitHub runner:** [Production acceptance #44564941498](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44564941498) نجح في GET لعدد 24 صفحة أساسية و4 صفحات editorial إضافية عبر sitemap (28 إجمالًا) مع assertion HTTP 200؛ بقيت مطابقة الروابط الأربع إلى أحداث D06 الثلاثة مستحقة قبل إغلاق 1.5.
+- [ ] يثبت PR #167 **جميع** CI واختبارات القبول وV3 Evals على الرأس النهائي؛ لا يكفي 5/6.
 - [ ] إثبات ست تشغيلات schedule حقيقية على النسخة المدمجة في الإنتاج، مع حفظ فعلي أو no_change مبرر.
 
 - [ ] 1.1 GSC: الكود الحالي يدعم حالات success_with_data/success_no_data/failed وإعادة فحص 3–7 أيام وبُعد الصفحة؛ عدّلنا بداية catchup إلى 15 نوفمبر واختبارها. **الحفظ الفعلي ما زال صفرًا** في gsc_sync_day_outcomes، وصفوف الصفحة=0، لذا لم تنجح بوابة 1.1.
