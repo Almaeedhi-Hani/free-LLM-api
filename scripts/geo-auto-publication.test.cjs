@@ -260,7 +260,7 @@ const {parsePublicationOrigin,publicationAuditPayload,appendPublicationAudit}=re
  const liveSql=upgrade.toLowerCase();
  for(const functionName of ['geo_commit_auto_publication','geo_commit_auto_faq']){
   const start=liveSql.indexOf('create or replace function public.'+functionName+'(');
-  const end=liveSql.indexOf('end $;',start);
+  const end=liveSql.indexOf('end '+String.fromCharCode(36,36)+';',start);
   assert(start>=0&&end>start,'publisher RPC missing: '+functionName);
   const body=liveSql.slice(start,end);
   const policyLock=body.indexOf('from public.geo_publication_settings where id=1 for update');
