@@ -31,3 +31,5 @@ content-store.json
 .package-test-build/
 
 .visibility-test-build/
+
+.ai-radar-test-build/
