@@ -87,7 +87,7 @@ function promptForLocale(lang,evidence){
  * original/legal/financial claims policy while using far fewer tokens.
  * The full OpenCode legacy prompt remains unchanged for its own tests.
  */
-function promptForDirectLocale(lang,evidence){
+function promptForDirectLocale(lang,evidence,repair){
  if(!LANGS.includes(lang))throw Error('Unsupported analysis language');
  if(!Array.isArray(evidence)||!evidence.length||evidence.length>8)
   throw Error('Evidence must contain 1-8 records');
@@ -108,6 +108,7 @@ function promptForDirectLocale(lang,evidence){
   'Output JSON ONLY with arrays opportunities, goals, drafts, editorial_actions; use empty arrays if not justified.',
   'At most 2 opportunities, 2 goals, 1 draft FAQ, 1 editorial action. Each opportunity MUST have title, type one of gap|content|keyword, numerical score 0..100 and actual evidence_ids.',
   'Each goal MUST have title and priority EXACTLY one of high|medium|low. Use medium for an unranked research goal. It may also include a grounded description or related_opportunity. Never omit priority.',
+  'FAQ drafts MUST use q (question text), a (answer text), risk_level high and actual evidence_ids. Use at least 15 characters in the question and 110 characters in the answer, with substantial text in the requested language. For Chinese use at least 55 Han ideographs in the answer. Omit unjustified drafts.',
   'Editorial kind MUST be one of home|service|packages|guide|comparison|trust|technical_seo|internal_link. NEVER use page or article.',
   'Editorial target MUST be an existing service slug for service, / for home/trust, /packages for packages, OR a NEW valid lowercase English hyphenated slug identical to slug for guide/comparison. Technical targets must be an existing live / route. Never use Arabic words, investor-hub IDs, page labels, or arbitrary evidence IDs as targets.',
   'topic_node_id, when supplied, MUST be an actual node_id from live_site_routes. Never use a research evidence ID as topic_node_id. If unsure about target, kind, route or content, return editorial_actions:[] instead of a guessed proposal.',
@@ -119,7 +120,9 @@ function promptForDirectLocale(lang,evidence){
   source:asText(e.source,60),title:asText(e.title||e.name||e.query,160),
   url:asText(e.url,330),summary:asText(e.snippet||e.description||e.content||e.text,290)
  }));
+ if(repair)rules.push('This is a single validation repair. Output replacements only for the listed rejected FAQ/editorial slots, in listed order. Leave opportunities, goals and unrelated arrays empty. Do not repeat accepted work or invent copy, routes or sources. If a replacement is not justified by the same evidence, omit it.');
  const encode=n=>JSON.stringify({language:lang,instructions:rules,live_site_routes:liveRoutes,
+  ...(repair?{validation_errors:repair}:{}),
   research_evidence:sources.slice(0,n),
   output_shape:{opportunities:[],goals:[],drafts:[],editorial_actions:[]}});
  for(let n=sources.length;n>=1;n--){
