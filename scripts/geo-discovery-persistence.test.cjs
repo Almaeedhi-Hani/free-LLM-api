@@ -144,7 +144,10 @@ assert.throws(()=>normalizeGeoDiscoveryBatch({candidates:[],suggestions:[]}),/Em
   'crypto':require('node:crypto'),
   '@/lib/storage-mode':{getSupabaseCredentials:()=>configured?{url:'https://supabase.invalid',key:'fake'}:null},
   '@/lib/market-intelligence':fakeMarket,
-  '@/lib/geo-discovery-batch':require('../.geo-ingest-test-build/lib/geo-discovery-batch.js')
+  '@/lib/geo-discovery-batch':require('../.geo-ingest-test-build/lib/geo-discovery-batch.js'),
+  '@/lib/geo-agent-feedback':{
+   getGeoFeedbackIndex:async()=>new Map(),isExcluded:()=>false
+  }
  };
  vm.runInNewContext(compiled,{
   exports:routeModule.exports,module:routeModule,require:name=>{
