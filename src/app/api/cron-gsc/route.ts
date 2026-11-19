@@ -43,8 +43,10 @@ export async function GET(req: NextRequest) {
    const store=createGscAtomicStore({url,key});
    const now=new Date();
    const history=await store.getHistory(property);
-   const earliestDate=new Date(now.getTime()-45*86400000).toISOString().slice(0,10);
-   const report=await executeGscCatchup({now,earliestDate,history,maxDays:2,property,
+   // The opportunity analyzer needs 28 + 28 complete days (56). Keep a
+   // 60-day recovery horizon without increasing the per-run request budget.
+   const earliestDate=new Date(now.getTime()-60*86400000).toISOString().slice(0,10);
+   const report=await executeGscCatchup({now,earliestDate,history,maxDays:2,lookbackDays:60,property,
     queryRows:getRowsForDate,commitDay:store.commitDay,readDay:store.readDay});
    const failed=report.results.some(day=>Boolean(day.failure));
    return NextResponse.json({
