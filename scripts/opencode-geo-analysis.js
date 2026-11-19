@@ -139,6 +139,7 @@ async function saveGeoDiscovery(candidates,suggestions) {
   const base=process.env.GEO_API_URL||process.env.SITE_URL;
   const key=process.env.GEO_API_KEY;
   const confirmed={candidates:0,keywords:0};
+  const reviewerExcluded={candidates:0,keywords:0};
   const keywordChanges={inserted:0,existing:0,complete:true};
   if(!base||!key)return {status:'partial',confirmed,error:'GEO discovery API not configured'};
   // The production endpoint persists every record sequentially, so a single
@@ -148,7 +149,7 @@ async function saveGeoDiscovery(candidates,suggestions) {
   const KEYWORDS_PER_REQUEST=3;
   const CANDIDATES_PER_REQUEST=2;
   let keywordOffset=0,candidateOffset=0,batches=0;
-  const errorResult=(message)=>({status:'partial',confirmed,batches,keyword_changes:keywordChanges.complete?{inserted:keywordChanges.inserted,existing:keywordChanges.existing}:null,error:message});
+  const errorResult=(message)=>({status:'partial',confirmed,reviewer_excluded:reviewerExcluded,batches,keyword_changes:keywordChanges.complete?{inserted:keywordChanges.inserted,existing:keywordChanges.existing}:null,error:message});
   while(keywordOffset<suggestions.length||candidateOffset<candidates.length){
     const batch={
       suggestions:suggestions.slice(keywordOffset,keywordOffset+KEYWORDS_PER_REQUEST),
@@ -168,6 +169,16 @@ async function saveGeoDiscovery(candidates,suggestions) {
          saved.candidates<0||saved.keywords<0||
          saved.candidates>batch.candidates.length||saved.keywords>batch.suggestions.length)
         return errorResult('Invalid GEO discovery confirmation for batch '+batches);
+      // Reviewer-excluded suggestions are intentionally ignored, not persisted.
+      // Only trust explicit, bounded counts returned by the authenticated API.
+      const skipped=payload.reviewer_excluded||{candidates:0,keywords:0};
+      if(!Number.isInteger(skipped.candidates)||!Number.isInteger(skipped.keywords)||
+         skipped.candidates<0||skipped.keywords<0||
+         saved.candidates+skipped.candidates>batch.candidates.length||
+         saved.keywords+skipped.keywords>batch.suggestions.length)
+        return errorResult('Invalid GEO reviewer-exclusion confirmation for batch '+batches);
+      reviewerExcluded.candidates+=skipped.candidates;
+      reviewerExcluded.keywords+=skipped.keywords;
       // Count only explicit server confirmations, including on a partial 502.
       confirmed.candidates+=saved.candidates;
       confirmed.keywords+=saved.keywords;
@@ -178,8 +189,8 @@ async function saveGeoDiscovery(candidates,suggestions) {
         keywordChanges.existing+=counts.existing;
       }else if(saved.keywords)keywordChanges.complete=false;
       if(!response.ok||payload.ok!==true||
-         saved.candidates!==batch.candidates.length||
-         saved.keywords!==batch.suggestions.length)
+         saved.candidates+skipped.candidates!==batch.candidates.length||
+         saved.keywords+skipped.keywords!==batch.suggestions.length)
         return errorResult('GEO discovery persistence partial (batch '+batches+'): '+
           JSON.stringify(payload?.errors||payload?.error||response.status).slice(0,240));
       keywordOffset+=batch.suggestions.length;
@@ -191,7 +202,7 @@ async function saveGeoDiscovery(candidates,suggestions) {
         String(e?.message||e).slice(0,150));
     }
   }
-  return {status:'success',confirmed,batches,keyword_changes:keywordChanges.complete?{inserted:keywordChanges.inserted,existing:keywordChanges.existing}:null,error:null};
+  return {status:'success',confirmed,reviewer_excluded:reviewerExcluded,batches,keyword_changes:keywordChanges.complete?{inserted:keywordChanges.inserted,existing:keywordChanges.existing}:null,error:null};
 }
 async function stageDiscovery() {
   logStage('DISCOVERY', 'Collecting sourced market evidence (Google Suggest + bounded provider search)...');
@@ -227,6 +238,7 @@ async function stageDiscovery() {
     persisted_keywords:persistence.confirmed.keywords,
     new_keywords:persistence.keyword_changes?.inserted??null,
     existing_keywords:persistence.keyword_changes?.existing??null,
+    reviewer_excluded:persistence.reviewer_excluded||{candidates:0,keywords:0},
     persistence_status:persistence.status,
     persistence_error:persistence.error||null,
     keyword_status:suggestionsMissing?'empty':'collected',
