@@ -20,7 +20,7 @@
 | المرحلة | القائمة | الحالة الحالية | التاريخ (KSA) | PR | بوابة الخروج / الدليل |
 | --- | --- | --- | --- | --- | --- |
 | 0 التحضير والسلامة | [x] | **مكتملة ومندمجة؛ بوابة الخروج ناجحة** | 2026-11-19 | [PR #165](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/165) — merged `4b2b64f` | [baseline-20261119.md](baseline-20261119.md) محفوظة على main؛ Git tag مثبت؛ CI/Browser/Evals **6/6 ناجحة** على SHA `a4a38a4` |
-| 1 ضمان التشغيل | [ ] | **6/6 فحوص ناجحة؛ تشغيل الإنتاج والأدلة الفعلية معلّقة** | 2026-11-19 | [PR #167](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/167) | [سجل أدلة المرحلة 1](phase1-evidence-20261119.md)؛ Git tag مثبت؛ browser FAQ نجح بعد مطابقة طلب الحذف؛ W01–W04 تحتاج schedule وحفظًا حقيقيًا |
+| 1 ضمان التشغيل | [ ] | **W02 نجح وحفظ؛ W01 جزئي/فشل؛ W04 فشل بصلاحيات RPC؛ W03/W05/W06 بانتظار schedule** | 2026-11-19 | PR #167 مدمج؛ PR متابعة GSC قيد التحضير | [سجل الأدلة](phase1-evidence-20261119.md)؛ W02 [#44595877385](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44595877385)؛ GSC رُفض من دالة RPC؛ لا انتقال للمرحلة 2 |
 | 2 شبكة الأمان | [ ] | لم تبدأ | — | — | محاكاة آمنة لكل إنذار + تقرير أسبوعي منتج |
 | 3 بوابات آلية | [ ] | لم تبدأ | — | — | Evals وقبول ودورة تقبل/ترفض وفحص الروابط العامة |
 | 4 أرشيف موحد | [ ] | لم تبدأ | — | — | كل أداة مرة واحدة، جرد APIs/DB ثابت، قبول |
@@ -73,11 +73,12 @@
 
 - [x] **مؤكد / HTTP من GitHub runner:** [Production acceptance #44564941498](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44564941498) نجح في GET لعدد 24 صفحة أساسية و4 صفحات editorial إضافية عبر sitemap (28 إجمالًا) مع assertion HTTP 200؛ بقيت مطابقة الروابط الأربع إلى أحداث D06 الثلاثة مستحقة قبل إغلاق 1.5.
 - [ ] تحقق **جميع** فحوص CI والقبول وV3 Evals مجددًا على رأس PR بعد تحديث هذا السجل؛ ثم يجوز دمج تغييرات الجدولة المنفذة في المرحلة 1، لكن **لا تُعتبر المرحلة مكتملة** حتى دليل schedule والحفظ الفعلي في الإنتاج.
+- [x] **مؤكد / 19 نوفمبر 22:16 KSA:** رادار السوق W02 أثبت تشغيلًا مجدولًا وحفظًا حقيقيًا؛ GEO حفظ جزئيًا رغم فشل المحرر؛ GSC فشل بدالة الدور في PostgreSQL. أُعدّ مقترح RPC v2 **إضافي غير مطبق** في `docs/plans/gsc-role-rpc-v2-owner-approval.sql`؛ لا تدمج واجهة v2 قبل تطبيق مخططها بموافقة المالك.
 - [ ] إثبات ست تشغيلات schedule حقيقية على النسخة المدمجة في الإنتاج، مع حفظ فعلي أو no_change مبرر.
 
-- [ ] 1.1 GSC: الكود الحالي يدعم حالات success_with_data/success_no_data/failed وإعادة فحص 3–7 أيام وبُعد الصفحة؛ عدّلنا بداية catchup إلى 15 نوفمبر واختبارها. **الحفظ الفعلي ما زال صفرًا** في gsc_sync_day_outcomes، وصفوف الصفحة=0، لذا لم تنجح بوابة 1.1.
-- [ ] 1.2 GEO: event=schedule بعد إصلاح #156 وحفظ FAQ وeditorial؛ تسجيل رفض البيانات.
-- [ ] 1.3 Market Radar: سبب انقطاع/غياب schedule مثبت، وحدوث حفظ D01–D04 من دورة schedule.
+- [ ] 1.1 GSC: مخطط الأيام والأبعاد موجود، لكن **فشل مرتين** عند gsc_sync_commit_day RPC 400؛ خدمة role=service_role صحيحة، والدالة تستخدم setting قديمًا `request.jwt.claim.role`. إصلاح v2 additive مطروح لاعتماد المالك؛ لا كتابة إنتاجية أو مزامنة ناجحة.
+- [ ] 1.2 GEO: **مؤكد** schedule #44585116258 بعد #156 حفظ 5 فرص و5 أهداف و3 مسودات؛ **فشل** بسبب رفض 3 مقترحات تحريرية. رفض مسجل غير صامت لكن لا دورة ناجحة كاملة.
+- [ ] 1.3 Market Radar: **مؤكد** schedule #44595877385 نجح وكتب بيانات فعلية D01–D04 (analysis_runs 2→4، observations 120→135). سبب غياب الأحداث السابقة **غير معروف**؛ لا تستنتج تعطيل الـworkflow أو العلم.
 - [ ] 1.4 منع ازدواج النشر: قيدا UNIQUE(item_id,content_fingerprint) موجودان؛ السجلات الثلاثة لا تتكرر، والحد الفعلي 3 ثابت. إثبات المنافسة بين W01/W03 وتوثيق مصدر **كل محاولة** في D06 غير مكتمل.
 - [ ] 1.5 الروابط الثلاثة المنشورة محددة في سجل الأدلة؛ فحص GET المباشر من بيئة النموذج تعذر بسبب الوصول/الشبكة. يجب استخدام قبول GitHub للموقع وفحص عدد صفحات D06 أمام روابط المنشور وإثبات HTTP 200.
 - [ ] 1.6 مقترح SQL الأمني موجود ضمن docs/plans/security **غير مطبق**؛ إعداد PR أمني مستقل وتطبيقه الإنتاجي مؤجل لموافقة المالك.
@@ -86,10 +87,10 @@
 
 | Workflow | run ID لـ schedule على الإصدار المطلوب | وقت UTC/KSA | حالة GitHub | دليل حفظ فعلي/قرار no_change | قبول |
 | --- | --- | --- | --- | --- | --- |
-| W01 GEO | #44433835045 (قديم) | 2026-11-19 01:02 UTC / 04:02 KSA | failure | فشل خطوة توليد GEO؛ لا schedule لاحق مثبت على الإصلاح #156 | [ ] |
-| W02 Market Radar | غير مثبت في قائمة schedule الحالية | — | غير معروف | D01–D04 فيها بيانات؛ ربطها بـ event=schedule غير مثبت | [ ] |
+| W01 GEO | [#44585116258](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44585116258) (b3b14cf) | 2026-11-19 18:11 UTC / 21:11 KSA | **failure بعد تنفيذ جزئي** | السجل يثبت حفظ 5 فرص و5 أهداف و3 مسودات؛ رفض 3 مقترحات تحريرية؛ لم تثبت دورة ناجحة | [ ] |
+| W02 Market Radar | [#44595877385](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44595877385) (b3b14cf) | 2026-11-19 19:12 UTC / 22:12 KSA | **success وRUN فعلي** | analysis_runs 2→4 وcompetitor_observations 120→135، ثم 145 في لقطة أحدث؛ حفظ cron مثبت | [x] |
 | W03 Auto Publication | #44546805433 (قديم) | 2026-11-19 14:43 UTC / 17:43 KSA | **success GitHub؛ SKIP للبوابة** | log يثبت أن النشر لم يُنفذ. إصلاح PR #167 معلّق، لا يجوز احتساب هذا قبولًا | [ ] |
-| W04 GSC | #44460349477 على إصدار أقدم | 2026-11-19 04:44 UTC / 07:44 KSA | success GitHub | gsc_daily_metrics=5؛ gsc_sync_day_outcomes=0 | [ ] |
+| W04 GSC | [#44574400340](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44574400340)، [#44593004607](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44593004607) (b3b14cf) | 2026-11-19 17:11 و18:56 UTC / 20:11 و21:56 KSA | **failure / RPC 400** | edge_logs: role=service_role؛ PostgreSQL P0001 في guard القديم؛ gsc_outcomes=0، page_rows=0؛ v2 additive مقترح فقط | [ ] |
 | W05 LLM Index | #44503133016 (قديم) | 2026-11-19 10:10 UTC / 13:10 KSA | success GitHub | log يثبت RUN ثم No meaningful machine-index changes; no PR (no_change)؛ يحتاج تحقق جديد | [ ] |
 | W06 Maintenance | #44508302894 (قديم) | 2026-11-19 10:43 UTC / 13:43 KSA | success GitHub | log يثبت RUN ثم No additional safe technical work (no_change)؛ يحتاج تحقق جديد | [ ] |
 
