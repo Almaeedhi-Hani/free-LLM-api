@@ -7,7 +7,7 @@ test "${PGDATABASE:-}" = phase1_test || { echo 'FAIL: disposable database sentin
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
-for db in phase1_same phase1_mixed; do
+for db in phase1_same phase1_mixed phase1_rollback; do
  createdb "$db"
  PGDATABASE="$db" psql -X -q -v ON_ERROR_STOP=1 -f tests/sql/phase1-publication-concurrency-fixture.sql
 done
@@ -121,3 +121,91 @@ END
 $check$;
 SQL
 echo 'PASS phase1 real simultaneous PostgreSQL editorial/FAQ transactions: shared 3 cap, consistent content, no duplicates'
+
+
+# Scenario C: real SQL publisher rollback, repeated rollbacks, stale replays,
+# and a concurrent human edit conflict. Each call targets disposable DB only.
+run_rpc phase1_rollback rollback-ed-first "public.geo_commit_auto_publication('ed-race-isolated-01','[]'::jsonb)"
+assert_status rollback-ed-first published
+run_rpc phase1_rollback rollback-faq-first "public.geo_commit_auto_faq('Which documents are relevant to an isolated test FAQ?')"
+assert_status rollback-faq-first published
+
+run_rpc phase1_rollback rollback-ed-already-live "public.geo_commit_auto_publication('ed-race-isolated-01','[]'::jsonb)"
+assert_status rollback-ed-already-live invalid_state
+run_rpc phase1_rollback rollback-faq-already-live "public.geo_commit_auto_faq('Which documents are relevant to an isolated test FAQ?')"
+assert_status rollback-faq-already-live missing
+
+run_rpc phase1_rollback rollback-ed-first-time "public.geo_rollback_auto_publication((SELECT id FROM public.geo_publication_events WHERE item_id='ed-race-isolated-01'))"
+assert_status rollback-ed-first-time rolled_back
+run_rpc phase1_rollback rollback-faq-first-time "public.geo_rollback_auto_faq((SELECT id FROM public.geo_faq_publication_events WHERE item_id='Which documents are relevant to an isolated test FAQ?'))"
+assert_status rollback-faq-first-time rolled_back
+
+run_rpc phase1_rollback rollback-ed-again "public.geo_rollback_auto_publication((SELECT id FROM public.geo_publication_events WHERE item_id='ed-race-isolated-01'))"
+assert_status rollback-ed-again already_rolled_back
+run_rpc phase1_rollback rollback-faq-again "public.geo_rollback_auto_faq((SELECT id FROM public.geo_faq_publication_events WHERE item_id='Which documents are relevant to an isolated test FAQ?'))"
+assert_status rollback-faq-again already_rolled_back
+
+# Rolled-back events retain their original unique fingerprints and count against
+# the rolling quota; a stale replay must not generate a second event.
+run_rpc phase1_rollback rollback-ed-replay "public.geo_commit_auto_publication('ed-race-isolated-01','[]'::jsonb)"
+assert_status rollback-ed-replay already_processed
+run_rpc phase1_rollback rollback-faq-replay "public.geo_commit_auto_faq('Which documents are relevant to an isolated test FAQ?')"
+assert_status rollback-faq-replay already_processed
+
+# New approved item, then a human alteration must cause conflict instead of
+# silently overwriting their edit during a delayed automatic rollback.
+run_rpc phase1_rollback rollback-ed-conflict-publish "public.geo_commit_auto_publication('ed-race-isolated-02','[]'::jsonb)"
+assert_status rollback-ed-conflict-publish published
+PGDATABASE=phase1_rollback psql -X -q -v ON_ERROR_STOP=1 <<'SQL'
+UPDATE public.content_store SET content=pg_catalog.jsonb_set(
+ content,'{editorialItems,1,title}','"Manual title written after automatic publication"'::jsonb
+) WHERE id=1;
+SQL
+run_rpc phase1_rollback rollback-ed-conflict "public.geo_rollback_auto_publication((SELECT id FROM public.geo_publication_events WHERE item_id='ed-race-isolated-02'))"
+assert_status rollback-ed-conflict conflict
+
+PGDATABASE=phase1_rollback psql -X -q -v ON_ERROR_STOP=1 <<'SQL'
+DO $check$
+DECLARE e_rolled integer; e_published integer; f_rolled integer;
+ ed_pending integer; faq_pending integer; live_faq integer; duplicate_groups integer;
+BEGIN
+ SELECT count(*) FILTER (WHERE status='rolled_back'),
+        count(*) FILTER (WHERE status='published')
+ INTO e_rolled,e_published FROM public.geo_publication_events;
+ SELECT count(*) INTO f_rolled FROM public.geo_faq_publication_events
+  WHERE status='rolled_back';
+ SELECT count(*) INTO duplicate_groups FROM (
+  SELECT item_id,content_fingerprint FROM public.geo_publication_events
+  GROUP BY item_id,content_fingerprint HAVING count(*)>1
+  UNION ALL
+  SELECT item_id,content_fingerprint FROM public.geo_faq_publication_events
+  GROUP BY item_id,content_fingerprint HAVING count(*)>1
+ ) d;
+ SELECT count(*) INTO ed_pending FROM public.content_store c,
+  jsonb_array_elements(c.content->'editorialItems') editorial
+  WHERE editorial->>'id'='ed-race-isolated-01' AND editorial->>'status'='pending';
+ SELECT count(*) INTO faq_pending FROM public.content_store c,
+  jsonb_array_elements(c.content->'drafts') draft
+  WHERE draft->>'q'='Which documents are relevant to an isolated test FAQ?'
+   AND draft->>'status'='pending';
+ SELECT jsonb_array_length(content->'faqs') INTO live_faq FROM public.content_store WHERE id=1;
+ IF e_rolled<>1 OR e_published<>1 OR f_rolled<>1 OR ed_pending<>1
+    OR faq_pending<>1 OR live_faq<>0 OR duplicate_groups<>0 THEN
+  RAISE EXCEPTION 'Rollback/replay mismatch: e_rolled=% e_published=% f_rolled=% ed_pending=% faq_pending=% live_faq=% duplicates=%',
+   e_rolled,e_published,f_rolled,ed_pending,faq_pending,live_faq,duplicate_groups;
+ END IF;
+ IF (SELECT count(*) FROM public.content_store c,
+     jsonb_array_elements(c.content->'editorialItems') editorial
+     WHERE editorial->>'id'='ed-race-isolated-02'
+      AND editorial->>'title'='Manual title written after automatic publication')<>1 THEN
+  RAISE EXCEPTION 'Conflicting human edit lost';
+ END IF;
+ IF (SELECT count(*) FROM public.geo_publication_events)+
+    (SELECT count(*) FROM public.geo_faq_publication_events)<>3 OR
+    (SELECT daily_limit FROM public.geo_publication_settings WHERE id=1)<>3 THEN
+  RAISE EXCEPTION 'Rollback replay added a duplicate publication or changed quota';
+ END IF;
+END
+$check$;
+SQL
+echo 'PASS phase1 disposable PostgreSQL replay/rollback: exactly one event per fingerprint, idempotent rollback, manual edit conflict preserved'
