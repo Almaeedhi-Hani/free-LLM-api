@@ -67,16 +67,25 @@ function createClient({repository,token,fetchImpl=fetch,pauseVarSnapshot=null}) 
     if(!response.ok) throw Error('GitHub '+response.status+' '+path.split('?')[0]);
     return response.status===204?{}:response.json();
   }
+  // GitHub issue list visibility can lag behind successful POST /issues.
+  // Cache our own open Issue IDs for the remainder of this single monitor job.
+  // The workflow-level concurrency group separately serializes jobs on GitHub.
+  const locallyOpenedIssues=new Map();
   async function ensureLabel(label) {
     const color=label==='failure'?'cf222e':label==='watchdog'?'fb8500':'0e8a16';
     try{await github('/labels',{method:'POST',body:JSON.stringify({name:label,color})});}
     catch(error){if(!String(error.message).includes('GitHub 422'))throw error;}
   }
   async function findOpenIssue(title) {
+    const local=locallyOpenedIssues.get(title);
+    if(local)return local;
     for(let page=1;page<=5;page++){
       const issues=await github('/issues?state=open&per_page=100&page='+page);
       const match=issues.find(i=>!i.pull_request&&i.title===title);
-      if(match)return match;
+      if(match) {
+        locallyOpenedIssues.set(title,match);
+        return match;
+      }
       if(issues.length<100)break;
     }
     return null;
@@ -84,17 +93,24 @@ function createClient({repository,token,fetchImpl=fetch,pauseVarSnapshot=null}) 
   async function upsertIssue({title,body,label}) {
     const previous=await findOpenIssue(title);
     if(previous) {
-      if(previous.body!==body) await github('/issues/'+previous.number,{method:'PATCH',body:JSON.stringify({body})});
+      if(previous.body!==body) {
+        await github('/issues/'+previous.number,{method:'PATCH',body:JSON.stringify({body})});
+        locallyOpenedIssues.set(title,{...previous,body});
+      }
       return {result:'updated',number:previous.number};
     }
     await ensureLabel(label);
     const created=await github('/issues',{method:'POST',body:JSON.stringify({title,body,labels:[label]})});
+    if(!Number.isInteger(created.number)||created.number<1)
+      throw Error('GitHub Issue creation did not return a valid number');
+    locallyOpenedIssues.set(title,{number:created.number,title,body});
     return {result:'created',number:created.number};
   }
   async function resolveIssue(title,body) {
     const existing=await findOpenIssue(title);
     if(!existing)return {result:'none'};
     await github('/issues/'+existing.number,{method:'PATCH',body:JSON.stringify({state:'closed',body})});
+    locallyOpenedIssues.delete(title);
     return {result:'resolved',number:existing.number};
   }
   async function workflowRuns(filename) {
