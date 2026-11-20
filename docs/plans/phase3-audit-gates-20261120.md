@@ -27,3 +27,11 @@ Date: 2026-11-20. **Status: draft, audit-only; no production policy alteration.*
 ## Cross-conversation file ownership
 
 This draft modifies only **new Phase-3 scripts, admin-regression test registration and this stage-specific note**. The Phase-2 branch owns its own safety scripts, workflows and report. The second conversation owns `src/app/admin/dashboard/page.tsx` and UI components for archive/published links. **Both Phase-2 and Phase-3 PRs currently modify `admin-regression.yml` and must be merged sequentially/rebased by the coordinator**, never overwrite a step from the other PR. No changes to `PROGRESS.md`, package prices, production DB schema, site text, cron schedule or quotas.
+
+
+## Additional Phase 3.5/3.6 offline prototypes — no production activation
+
+- `scripts/v3-phase3-technical-gates.cjs` previews a **maximum of 3 measured technical tasks per UTC day**, takes into account a caller-provided already-opened-today count, and de-duplicates a stable title+target fingerprint across days. It accepts only current `verified_serp` observations no older than 90 days, a safe internal route, and meaningful title; unverified provider-order suggestions stay in `review`. The preview **never creates GitHub Issues**. The real quota must eventually read actual issues and apply server-side idempotency before any write.
+- `proposeFeedbackRule` never enables a model-learned rule. An actual rule PR is only `ready_for_separate_versioned_rule_pr` after weekly explicit owner approval, passing regression Evals, and reviewed real source evidence. Even then `enabled=false` until that separate reviewed code integration occurs. No silent keyword blacklisting.
+- Both prototypes are tested in the existing required admin CI alongside Phase 3's trilingual source and content gates; the policy remains advisory-only while Stage 2 has not passed.
+- **Still outstanding**: actual GitHub issue handoff, confirmed backed daily cap and dedup, applied rule PR with approval, separately evidenced AI measurement, and the owner-dependent weekly 3-page editorial review sampling.
