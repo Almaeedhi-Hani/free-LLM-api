@@ -70,7 +70,7 @@ async function competitorRegistry(fetchImpl,env) {
   if(!response||!response.ok||response.status!==200)throw Error('registry_http_unavailable');
   const raw=await response.json();
   const rows=raw?.competitors;
-  if(!Array.isArray(rows)||rows.length>100||raw?.source!=='supabase')throw Error('registry_unavailable');
+  if(!Array.isArray(rows)||rows.length===0||rows.length>=100||raw?.source!=='supabase')throw Error('registry_unavailable_or_truncated');
   return {complete:true,reason:'existing_geo_data_competitor_registry',
     domains:[...new Set([...FALLBACK,...rows.filter(x=>x&&x.status!=='disqualified')
        .map(x=>domain(x.domain)).filter(Boolean)])]};
