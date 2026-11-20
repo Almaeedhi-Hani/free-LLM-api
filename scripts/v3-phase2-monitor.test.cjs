@@ -2,7 +2,7 @@
 const assert=require('node:assert/strict');
 const {
   WORKFLOWS,expectedIntervalHours,classifyRuns,weeklyKey,issueKey,safeOutcome,
-  readStorage,persistedFreshness,readGscMeasured,gscSummaryLine,readWeeklyEvidence,weeklyEvidenceLines,createClient,handleFailure,handleWatchdog,run
+  readStorage,persistedFreshness,readGscMeasured,gscSummaryLine,readWeeklyEvidence,weeklyEvidenceLines,createClient,handleFailure,handleWatchdog,handleReadbackCredentialStatus,run
 }=require('./v3-phase2-monitor.cjs');
 
 const now=Date.parse('2026-11-20T14:00:00Z');
@@ -144,6 +144,48 @@ assert.equal(persistedResults(savedAlert).length,0,'unknown storage cannot be cl
 savedAlert=await handleWatchdog(client,[{target:WORKFLOWS[4],run:classifyRuns([scheduled(1)],now),
  storage:{status:'not_applicable'}}],now);
 assert.equal(persistedResults(savedAlert).length,0,'W05 no_change must not be an artificial storage incident');
+
+
+// The real isolated GitHub Actions run #44782864479 returned unknown for all
+// four persistence tables because neither monitor credential was available
+// in that job. This should generate one actionable deduplicated incident
+// during a real watchdog schedule, not claim that secrets were deleted.
+const missingReadbackRows=WORKFLOWS.map((target,index)=>({
+ target,run:{status:'healthy'},
+ storage:index<4?{status:'unknown',note:
+  'SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY not configured for read-only monitor'}:
+  {status:'not_applicable'}
+}));
+let configured=await handleReadbackCredentialStatus(client,missingReadbackRows,now);
+assert.equal(configured.kind,'storage_config');
+assert.equal(configured.result,'created');
+assert.equal(openIssues.length,1);
+assert(openIssues[0].title.includes('readback credentials unavailable'));
+assert(openIssues[0].body.includes('may be missing, differently named'));
+assert(!openIssues[0].body.includes('fixture-key'), 'do not print any key values');
+configured=await handleReadbackCredentialStatus(client,missingReadbackRows,now);
+assert.equal(configured.result,'updated');
+assert.equal(openIssues.length,1,'configuration alert must be deduplicated');
+const observedReadbackRows=missingReadbackRows.map(row=>({
+ ...row,storage:['W01','W02','W03','W04'].includes(row.target.id)?
+ {status:'observed',latestTimestamp:new Date(now).toISOString()}:
+ {status:'not_applicable'}
+}));
+configured=await handleReadbackCredentialStatus(client,observedReadbackRows,now);
+assert.equal(configured.result,'resolved');
+assert.equal(openIssues.length,0);
+configured=await handleReadbackCredentialStatus(client,
+ missingReadbackRows.map((row,index)=>index===0?{...row,
+  run:{status:'paused'}}:row),now);
+assert.equal(configured.result,'suppressed_paused');
+assert.equal(openIssues.length,0,'owner pause must suppress new config alerts');
+configured=await handleReadbackCredentialStatus(client,
+ missingReadbackRows.map((row,index)=>index===0?{...row,
+  storage:{status:'unknown',note:'temporary_network_error'}}:row),now);
+assert.equal(configured.result,'unknown');
+assert.equal(openIssues.length,0,'transient unknown does not imply credentials missing');
+configured=await handleReadbackCredentialStatus(client,[missingReadbackRows[0]],now);
+assert.equal(configured.result,'unknown','incomplete sampling must not create incident');
 
 const fakeEvent={repository:{full_name:'org/repo'},workflow_run:{
  path:'.github/workflows/geo-analysis.yml',id:999,event:'schedule',head_branch:'main',
