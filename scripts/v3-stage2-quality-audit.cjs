@@ -60,22 +60,21 @@ async function request(fetchImpl,url,options={}) {
  return body;
 }
 async function competitorRegistry(fetchImpl,env) {
- const url=String(env.SUPABASE_URL||'').replace(/\/$/,'');
- const key=String(env.SUPABASE_SERVICE_ROLE_KEY||'');
- if(!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(url)||!key) {
-   return {complete:false,reason:'database_credentials_unavailable',domains:[...FALLBACK]};
- }
+ // Reuse the already-authorized GEO read-only endpoint used by W01.
+ // Do not expose a database service-role secret to a new GitHub workflow.
+ const key=String(env.GEO_API_KEY||'');
+ if(!key)return {complete:false,reason:'geo_api_key_unavailable',domains:[...FALLBACK]};
  try{
-  const endpoint=url+'/rest/v1/competitors?select=domain,status&limit=300';
-  const r=await fetchImpl(endpoint,{headers:{apikey:key,Authorization:'Bearer '+key,Accept:'application/json'},
-    redirect:'manual',signal:AbortSignal.timeout(12000)});
-  if(!r||!r.ok||r.status!==200)throw Error('registry_http_unavailable');
-  const rows=await r.json();
-  if(!Array.isArray(rows)||rows.length>=300)throw Error('registry_unbounded');
-  return {complete:true,reason:'current_competitor_registry',
+  const response=await fetchImpl(CANONICAL+'/api/geo/data',{
+   method:'GET',headers:{'x-geo-api-key':key},redirect:'manual',signal:AbortSignal.timeout(12000)});
+  if(!response||!response.ok||response.status!==200)throw Error('registry_http_unavailable');
+  const raw=await response.json();
+  const rows=raw?.competitors;
+  if(!Array.isArray(rows)||rows.length>100||raw?.source!=='supabase')throw Error('registry_unavailable');
+  return {complete:true,reason:'existing_geo_data_competitor_registry',
     domains:[...new Set([...FALLBACK,...rows.filter(x=>x&&x.status!=='disqualified')
        .map(x=>domain(x.domain)).filter(Boolean)])]};
- }catch{return {complete:false,reason:'database_readback_failed',domains:[...FALLBACK]};}
+ }catch{return {complete:false,reason:'geo_data_readback_failed',domains:[...FALLBACK]};}
 }
 async function publicAudit(fetchImpl,env) {
  const base=CANONICAL;
