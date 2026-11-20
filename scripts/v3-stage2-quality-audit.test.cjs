@@ -31,7 +31,7 @@ async function fetchMock(url,options={}){
  if(target.startsWith(CANONICAL+'/')){
    const path=new URL(target).pathname;
    if(!PUBLIC_PATHS.includes(path))throw Error('unallowlisted path '+path);
-   if(state.brokenHtml&&path==='/en/')return response('unavailable',503,true);
+   if(state.brokenHtml&&path==='/en')return response('unavailable',503,true);
    return response(path==='/en/packages'&&state.incident.length===0
      ?'<main><a href="https://jewark.com/pricing">Competitor link</a></main>'
      :'<main><a href="https://misa.gov.sa">Official link</a></main>',200,true);
@@ -79,7 +79,7 @@ const env={GEO_API_KEY:'local-geo-key',
  state.brokenHtml=true;
  const partial=await publicAudit(fetchMock,env);
  assert.equal(partial.complete,false);
- assert.deepEqual(partial.unavailable,['/en/']);
+ assert.deepEqual(partial.unavailable,['/en']);
  assert.equal((await reconcileIssue(fetchMock,env,partial,'success')).result,'not_resolved_on_partial_evidence','do not close incident on a partial read');
  state.brokenHtml=false;state.missingDb=true;
  const noDb=await publicAudit(fetchMock,env);
