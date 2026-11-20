@@ -28,7 +28,7 @@ A SELECT-only Supabase query of `public.content_store.content` (project already 
 
 - `editorialItems`: **56** total; **6** route-backed live editorial elements.
 - Current site FAQs rendered by the Arabic homepage: **2**.
-- Expected **published elements = 8**; **6 distinct public paths**, because FAQ elements both live on the same `/` homepage:
+- Expected **published elements = 8**; **6 distinct editorial paths and 7 total distinct public routes** because FAQ elements both live on the same `/` homepage:
   `/insights/foreign-investor-company-documents`, `/insights/investor-services-package-scope`, `/insights/misa-registration-process-guide`, `/zh/`, `/zh/packages`, `/zh/services/company-formation` (and `/` for FAQ; i.e., **7** distinct public routes including FAQ home).
 - D06 editorial publication events: **6** currently published; FAQ publication events: **0**. Event totals are **not** the authoritative display element count. Manual FAQs do not need auto-publication events.
 - Note: The **6 distinct editorial paths** plus Arabic FAQ `/` make **7 distinct paths** among the 8 elements. The screen intentionally counts elements, not deduplicated paths.
