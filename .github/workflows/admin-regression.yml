@@ -50,6 +50,10 @@ jobs:
         run: npm run test:agent
       - name: GEO Content & Impact Center contracts and fail-closed auto publication
         run: npm run test:impact
+      - name: Phase 3 offline evidence review with current keyword and source policies
+        run: |
+          npx tsc src/lib/keyword-relevance-eval.ts --outDir .phase3-eval-build --module commonjs --target es2020 --lib es2020,dom --moduleResolution node --esModuleInterop --skipLibCheck --strict --types node
+          node scripts/v3-phase3-review-gates.test.cjs
       - name: Content storage tests
         run: npm run test:storage
       - name: Cron guard tests
