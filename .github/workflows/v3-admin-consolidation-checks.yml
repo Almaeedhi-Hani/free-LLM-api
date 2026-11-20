@@ -1,0 +1,66 @@
+name: V3 admin consolidation phase contracts
+on:
+  pull_request:
+    branches:
+      - main
+      - codex/v3-phase4-legacy-archive-20261120
+    paths:
+      - 'src/app/admin/dashboard/page.tsx'
+      - 'src/components/LegacyToolsArchive.tsx'
+      - 'src/components/PublishedLinksList.tsx'
+      - 'src/components/ContentImpactCenter.tsx'
+      - 'src/components/EditorialReviewPanel.tsx'
+      - 'src/lib/published-links.ts'
+      - 'src/lib/admin-consolidation-flags.ts'
+      - 'scripts/admin-legacy-archive.test.cjs'
+      - 'scripts/admin-published-links.test.cjs'
+      - 'scripts/admin-consolidation-browser-e2e.cjs'
+      - '.github/workflows/v3-admin-consolidation-checks.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Phase 4 inventory and reversible archive contract
+        run: node scripts/admin-legacy-archive.test.cjs
+      - name: Phase 5 source-backed published links fixture (if present)
+        run: |
+          if test -f src/lib/published-links.ts; then
+            npx tsc --resolveJsonModule src/lib/published-links.ts --outDir .published-links-test-build --module commonjs --target es2020 --lib es2020,dom --moduleResolution node --esModuleInterop --skipLibCheck --strict --types node
+            node scripts/admin-published-links.test.cjs
+          else
+            echo "Phase 5 is a separate PR; no Stage-5 files on this branch."
+          fi
+      - name: Production TypeScript build (no deployment)
+        run: npm run build
+      - name: Isolated RTL/mobile/browser acceptance
+        if: hashFiles('scripts/admin-consolidation-browser-e2e.cjs') != ''
+        env:
+          ADMIN_SECRET: isolated-phase5-browser-secret
+          E2E_ADMIN_SECRET: isolated-phase5-browser-secret
+          CONTENT_STORE_PATH: /tmp/v3-phase5-content.json
+          MARKET_INTEL_PATH: /tmp/v3-phase5-market
+        run: |
+          npm install --no-save playwright@1.57.0
+          npx playwright install --with-deps chromium
+          mkdir -p "$MARKET_INTEL_PATH"
+          (npm run dev -- --hostname 127.0.0.1 --port 3100 >/tmp/v3-phase5-admin.log 2>&1 &)
+          for i in $(seq 1 60); do
+            if curl -fsS --max-time 3 http://127.0.0.1:3100/admin/dashboard >/dev/null 2>&1; then break; fi
+            sleep 2
+          done
+          node scripts/admin-consolidation-browser-e2e.cjs
