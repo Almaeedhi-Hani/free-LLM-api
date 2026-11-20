@@ -99,6 +99,14 @@
 | W05 LLM Index | [#44715043426](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44715043426) (`2685e58`) | 20 Nov 09:57 UTC / 12:57 KSA | **failure / schedule / EVENT_CADENCE RUN** | `[LLM_INDEX] Unsafe or invalid public page URL in LLM feed`. Public home editorials `kind=home` are approved, and existing route returns `/en/`, `/zh/`, excluded from `validSiteLink`; bounded code+test PR pending CI then genuine schedule. | [ ] |
 | W06 Maintenance | [#44696818140](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44696818140) (`2685e58`) | 20 Nov 07:41 UTC / 10:41 KSA | **success / schedule / EVENT_CADENCE RUN** | `PASS bounded auto-dev`; `TASK_CHANGED=false`; `No additional safe technical work. No empty PR.` — legitimate `no_change` without editing source, qualifies as bounded maintenance. | [x] |
 
+### 2026-11-20 — متابعة W05 بعد #177 وتحضير إصلاح W01 دون تجاوز البوابة
+
+- [x] **مؤكد:** دُمج PR [#177](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/177) على commit `0ce5a294c901c3b56e57e2fd0de5511c739b95fe` بعد اجتياز 6/6 فحوص، وأصبح Render LIVE بإصدار `dep-dc01r10u01pc73b9ufpg` عند `2026-11-20T10:15:44Z`.
+- [ ] **W05 غير مغلق:** لم يظهر بعد تشغيل `event=schedule` جديد على `0ce5a294` بعد النشر. التشغيلات السابقة التي فشلت ليست دليلًا على نجاح الإصلاح؛ لا تستبدل schedule بـ workflow_dispatch.
+- [ ] **W01 إصلاح مقترح فقط:** محاولات `schedule` الحديثة أخفقت جزئيًا بسبب مسودات رفضها `validateGeoDrafts` مع `draft_quality_invalid (HTTP 502)` وبعض `invalid_guide_slug`. الفحص المحلي القديم `screenDrafts` كان يقبل نصًا يرفضه `src/lib/geo-draft-quality.ts`، مما يفوّت فرصة إصلاح الصياغة الواحدة المعتمدة قبل الحفظ. الإصلاح الجاري يطابق عتبات الخادم في الفحص المحلي، يرفض الحشو والضمانات والتكرار ولا يكرر كتابة غير مؤكدة؛ مع اختبارات لغات ثلاث وتعليمات توليد ضمن نفس حصة النموذج. **لا يعتبر نجاحًا قبل CI ونشر ثم schedule/readback**.
+- [ ] **1.4 باقية:** سجل W01 بعد PR #175 واختبار تزامن معاملات حيّ في بيئة معزولة غير مثبتين. لا تغيّر الحد 3 أو مخطط الإنتاج أو سياسة النشر.
+- [ ] **بوابة خروج المرحلة 1 غير محققة؛ المرحلة 2 محظورة**.
+
 ## المرحلة 2 — شبكة الأمان
 
 - [ ] Watchdog كل 6 ساعات مع Issue dedup وحفظ حقيقي.
