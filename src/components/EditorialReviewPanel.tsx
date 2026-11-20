@@ -16,7 +16,7 @@ function linkFor(item:EditorialItem):string|undefined{
  if(item.kind==='service')return base+'/services/'+item.target;
  if((item.kind==='guide'||item.kind==='comparison')&&item.slug)return base+'/insights/'+item.slug;
 }
-export default function EditorialReviewPanel({items,saving,onSaveItems,adminSecret}:{items:EditorialItem[];saving:boolean;onSaveItems:(items:EditorialItem[])=>Promise<boolean>;adminSecret:string}){
+export default function EditorialReviewPanel({items,saving,onSaveItems,adminSecret,onOpenPublishedLinks}:{items:EditorialItem[];saving:boolean;onSaveItems:(items:EditorialItem[])=>Promise<boolean>;adminSecret:string;onOpenPublishedLinks?:()=>void}){
  const [editing,setEditing]=useState<{id:string;title:string;summary:string;body:string}|null>(null);
  const [error,setError]=useState('');
  const [filter,setFilter]=useState('all');
@@ -106,7 +106,9 @@ export default function EditorialReviewPanel({items,saving,onSaveItems,adminSecr
    <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3 text-xs text-slate-800"><DataRoleTag tone="system">بيانات نظام</DataRoleTag><span>{NAMES[item.kind]||item.kind} · {l(item.lang)} · {item.target}</span><DataRoleTag tone={item.status==='approved'?'content':item.status==='rejected'?'warning':'verification'}>{item.status==='approved'?(item.approval_method==='automated'?'منشور آليًا':'منشور بعد المراجعة'):item.status==='rejected'?'مرفوض':'بانتظار مراجعة'}</DataRoleTag></div>
    <div className="flex items-start justify-between gap-3"><div className="min-w-0"><h3 className="font-semibold text-slate-900 break-words">{item.title}</h3><p className="text-sm text-slate-600 line-clamp-2">{item.summary}</p></div><button className="btn-secondary text-xs shrink-0" aria-expanded={expanded===item.id} onClick={()=>setExpanded(expanded===item.id?null:item.id)}>{expanded===item.id?'إخفاء التفاصيل':'مراجعة التفاصيل'}</button></div>
    <div className="flex flex-wrap gap-2 items-center">
-     {item.status==='approved'&&linkFor(item)&&<a href={linkFor(item)} target="_blank" rel="noopener noreferrer" className="btn-primary text-xs">معاينة الصفحة</a>}
+     {item.status==='approved'&&linkFor(item)&&(onOpenPublishedLinks?
+       <button type="button" onClick={onOpenPublishedLinks} className="btn-primary text-xs">عرض في شاشة الروابط</button>:
+       <a href={linkFor(item)} target="_blank" rel="noopener noreferrer" className="btn-primary text-xs">معاينة الصفحة</a>)}
      {item.status==='pending'&&item.kind!=='technical_seo'&&item.kind!=='internal_link'&&<button className="btn-primary text-xs" disabled={saving} onClick={()=>void approve(item)}>اعتماد ونشر</button>}
      {item.status==='approved'&&<button className="btn-secondary text-xs" disabled={saving} onClick={()=>void reject(item)}>إلغاء النشر</button>}
      {item.status==='pending'&&<button className="btn-secondary text-xs" disabled={saving} onClick={()=>void reject(item)}>رفض</button>}
