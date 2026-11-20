@@ -63,9 +63,13 @@ const vm=require('node:vm');
    title:'دليل عملي لتخطيط تأسيس شركة أجنبية',summary:'تعرف على نقاط البداية قبل إعداد خطة تأسيس الشركة ومراجعة متطلباتها مع الجهات المختصة.'},
   en:{q:'What should an overseas founder prepare first?',a:'Outline your proposed business activity, ownership structure and intended operating model before consulting the relevant authority.',
    title:'Planning an overseas investment in Saudi Arabia',summary:'Identify the proposed business activities and the questions to confirm before preparing an application.'},
-  zh:{q:'外国投资者如何开始准备在沙特设立一家企业？',a:'在准备设立企业时，可以先明确拟开展的经营活动、出资安排和组织形式，并据此向有关主管部门确认适用的现行要求。',
+  zh:{q:'外国投资者如何开始准备在沙特设立一家企业？',a:'在准备设立企业时，可以先明确拟开展的经营活动、出资安排和组织形式，并据此向有关主管部门确认适用的现行要求。投资者应当核对文件的有效性以及业务范围是否符合监管规定，并将政府收费与专业咨询服务费用分开记录。正式申请前还要向主管部门核对最新公告，不应根据市场信息推断审批结果或所需时间。',
    title:'在沙特设立企业的准备工作',summary:'在开始准备申请资料以前，先记录企业计划涉及的活动以及需要向有关部门确认的问题。'}
  };
+ for(const [lang,{q,a}] of Object.entries(localeFixtures)){
+  const valid=require('./geo-generated-output-guard.cjs').screenDrafts([{q,a}]);
+  assert.equal(valid.accepted.length,1,'synthetic '+lang+' fixture must satisfy unchanged server-aligned draft guard');
+ }
  async function analyzeRepair(repairResult,{exhaustFirst=false}={}){
   const calls=[];
   const resultScope={...scope,stageResults:{evidence:{items:evidence}},require:p=>{
