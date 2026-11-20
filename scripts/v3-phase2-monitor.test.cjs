@@ -51,6 +51,7 @@ const githubFetch=async (url,options)=>{
   const u=new URL(url),route=u.pathname;
   const body=options.body?JSON.parse(options.body):null;
   calls.push({route,method:options.method||'GET',body});
+  if(route.includes('/actions/variables/'))return makeJson({},404);
   if(route.endsWith('/issues') && (!options.method||options.method==='GET'))return makeJson(openIssues);
   if(route.endsWith('/labels')&&options.method==='POST')return makeJson({name:body.name},201);
   if(route.endsWith('/issues')&&options.method==='POST'){
@@ -92,6 +93,7 @@ assert(calls.some(c=>c.route.endsWith('/labels')&&c.body.name==='failure'));
 
 const mockRunFetch=async (url,options)=>{
   const u=new URL(url);
+  if(u.pathname.includes('/actions/variables/'))return makeJson({},404);
   if(u.pathname.includes('/actions/workflows/'))return makeJson({workflow_runs:[scheduled(1)]});
   if(u.pathname.endsWith('/issues')&&(!options.method||options.method==='GET'))return makeJson([]);
   if(u.pathname.endsWith('/labels'))return makeJson({},201);
@@ -105,5 +107,48 @@ const report=await run({mode:'weekly',repository:'org/repo',token:'fake-token',n
  fetchImpl:mockRunFetch,supabaseUrl:'',supabaseKey:''});
 assert.equal(report.result,'created');
 assert.equal(report.number,44);
+
+const workflows=[
+ '.github/workflows/geo-analysis.yml',
+ '.github/workflows/market-radar.yml',
+ '.github/workflows/geo-auto-publication-daily.yml',
+ '.github/workflows/gsc-daily-sync.yml',
+ '.github/workflows/llm-feed-optimization.yml',
+ '.github/workflows/autonomous-site-maintenance.yml'
+];
+for(const name of workflows) {
+ const text=require('node:fs').readFileSync(name,'utf8');
+ assert(text.includes("vars.V3_MASTER_PAUSED != 'true'"),'missing master pause condition: '+name);
+}
+for(const [name,old] of [
+ ['.github/workflows/market-radar.yml','MARKET_RADAR_PAUSED'],
+ ['.github/workflows/llm-feed-optimization.yml','LLM_INDEX_PAUSED'],
+ ['.github/workflows/autonomous-site-maintenance.yml','AUTODEV_PAUSED']
+]){
+ assert(require('node:fs').readFileSync(name,'utf8').includes(old),'legacy pause flag lost: '+name);
+}
+const pausedClient=createClient({repository:'org/repo',token:'fake-token',fetchImpl:async (url,opts)=>{
+ const u=new URL(url);
+ if(u.pathname.endsWith('/actions/variables/V3_MASTER_PAUSED'))
+  return makeJson({value:'true'});
+ if(u.pathname.endsWith('/issues'))return makeJson([]);
+ throw Error('Unwanted operation under master pause '+u.pathname);
+}});
+assert.equal((await pausedClient.pauseStatus('W01')).status,'paused');
+assert.equal((await pausedClient.pauseStatus('W05')).reason,'V3_MASTER_PAUSED');
+assert.equal((await handleFailure(pausedClient,fakeEvent)).result,'ignored_paused_or_unknown');
+const legacyPausedClient=createClient({repository:'org/repo',token:'fake-token',fetchImpl:async(url)=>{
+ const p=new URL(url).pathname;
+ if(p.endsWith('V3_MASTER_PAUSED'))return makeJson({},404);
+ if(p.endsWith('MARKET_RADAR_PAUSED'))return makeJson({value:'true'});
+ throw Error('Unwanted HTTP '+p);
+}});
+assert.equal((await legacyPausedClient.pauseStatus('W02')).status,'paused');
+assert.equal((await legacyPausedClient.pauseStatus('W01')).status,'active');
+const unreadableClient=createClient({repository:'org/repo',token:'fake-token',fetchImpl:async()=>{
+ return makeJson({},403);
+}});
+assert.equal((await unreadableClient.pauseStatus('W01')).status,'unknown');
+
 console.log('PASS V3 Stage 2 isolated watchdog/issue-dedup/weekly/failure/storage and Saudi cutover tests');
 })().catch(err=>{console.error(err);process.exitCode=1;});
