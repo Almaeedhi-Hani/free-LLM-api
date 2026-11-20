@@ -31,9 +31,10 @@ async function fetchMock(url,options={}){
      ?'<main><a href="https://jewark.com/pricing">Competitor link</a></main>'
      :'<main><a href="https://misa.gov.sa">Official link</a></main>',200,true);
  }
- if(target.startsWith('https://mock-project.supabase.co/rest/v1/competitors?')){
+ if(target===CANONICAL+'/api/geo/data'){
+  assert.equal(options.headers['x-geo-api-key'],'local-geo-key','existing GEO auth required');
   if(state.missingDb)return response({},503);
-  return response([{domain:'custom-competitor.test',status:'active'},{domain:'deactivated.invalid',status:'disqualified'}]);
+  return response({source:'supabase',competitors:[{domain:'custom-competitor.test',status:'active'},{domain:'deactivated.invalid',status:'disqualified'}]});
  }
  if(target.startsWith('https://api.github.com/repos/o/r')){
   const p=new URL(target).pathname;
@@ -53,7 +54,7 @@ async function fetchMock(url,options={}){
  }
  throw Error('Unexpected network request '+target);
 }
-const env={SUPABASE_URL:'https://mock-project.supabase.co',SUPABASE_SERVICE_ROLE_KEY:'local-test-key',
+const env={GEO_API_KEY:'local-geo-key',
   GH_TOKEN:'local-github-key',GITHUB_REPOSITORY:'o/r'};
 (async()=>{
  const first=await publicAudit(fetchMock,env);
@@ -92,7 +93,7 @@ const env={SUPABASE_URL:'https://mock-project.supabase.co',SUPABASE_SERVICE_ROLE
  assert.equal(dry.result,'dry_run');
  assert(visited.every(x=>x.method==='GET'||x.target.startsWith('https://api.github.com/repos/o/r')));
  assert(!JSON.stringify(dry).includes(env.GH_TOKEN));
- assert(!JSON.stringify(dry).includes(env.SUPABASE_SERVICE_ROLE_KEY));
+ assert(!JSON.stringify(dry).includes(env.GEO_API_KEY));
  assert.equal(state.incident.filter(x=>x==='created').length,1,'stable title must deduplicate alerts');
  console.log('PASS stage2 quality: 24 published pages, registry + fallback, public-only links, cited_sources, Evals, dedup and unknown-safe recovery');
 })().catch(err=>{console.error(err);process.exitCode=1;});
