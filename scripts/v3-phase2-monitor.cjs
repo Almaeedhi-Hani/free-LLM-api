@@ -222,6 +222,79 @@ function gscSummaryLine(gsc) {
     ' distinct measured dates inspected. This does not prove indexing or a specific SERP rank.';
 }
 
+
+async function readWeeklyEvidence({url,key,now,fetchImpl=fetch}) {
+  const unknown=(reason)=>({status:'unknown',reason});
+  const result={feedback:unknown('not_checked'),page:unknown('not_checked')};
+  if(!url||!key)return {feedback:unknown('credentials_unavailable'),page:unknown('credentials_unavailable')};
+  if(!/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(url)||!Number.isFinite(now))
+    return {feedback:unknown('invalid_configuration'),page:unknown('invalid_configuration')};
+  const cutoff=new Date(now-7*86400000).toISOString();
+  const headers={apikey:key,Authorization:'Bearer '+key,Accept:'application/json'};
+  async function load(table,query) {
+    const r=await fetchImpl(url.replace(/\/$/,'')+'/rest/v1/'+table+'?'+query,{
+      headers,signal:AbortSignal.timeout(12000)
+    });
+    if(!r.ok)throw Error('readback_http_'+r.status);
+    const rows=await r.json();
+    if(!Array.isArray(rows))throw Error('invalid_json_rows');
+    return rows;
+  }
+  try {
+    const query='select=subject_type,decision,created_at&subject_type=eq.keyword&created_at=gte.'+
+      encodeURIComponent(cutoff)+'&order=created_at.desc&limit=501';
+    const rows=await load('geo_agent_feedback',query);
+    if(rows.length>500)throw Error('feedback_truncated');
+    const counts={relevant:0,irrelevant:0,approved:0,rejected:0,accepted:0,needs_review:0,other:0};
+    for(const row of rows) {
+      const date=Date.parse(row?.created_at);
+      if(row?.subject_type!=='keyword'||typeof row.decision!=='string'||
+        !Number.isFinite(date)||date<Date.parse(cutoff)||date>now)throw Error('feedback_invalid_row');
+      counts[Object.hasOwn(counts,row.decision)?row.decision:'other']++;
+    }
+    result.feedback={status:'observed',sampleSize:rows.length,counts,from:cutoff.slice(0,10)};
+  }catch(error){result.feedback=unknown(String(error.message).slice(0,64));}
+  try {
+    const since=cutoff.slice(0,10);
+    const query='select=metric_date,dimension_value,impressions,clicks,position&dimension=eq.page&metric_date=gte.'+
+      since+'&order=impressions.desc,metric_date.desc&limit=5';
+    const rows=await load('gsc_daily_metrics',query);
+    for(const row of rows) {
+      let parsed;
+      try{parsed=new URL(row.dimension_value);}catch{continue;}
+      if(row.impressions===null||row.impressions===undefined||
+         row.clicks===null||row.clicks===undefined)continue;
+      const impressions=Number(row.impressions),clicks=Number(row.clicks);
+      const position=row.position===null||row.position===undefined?null:Number(row.position);
+      if(parsed.origin!=='https://free-llm-api-1-didl.onrender.com'||parsed.search||parsed.hash||
+         !/^\/[a-z0-9/_-]*$/.test(parsed.pathname)||!row.metric_date||
+         !/^\d{4}-\d{2}-\d{2}$/.test(row.metric_date)||row.metric_date<since||
+         row.metric_date>new Date(now).toISOString().slice(0,10)||
+         !Number.isFinite(impressions)||!Number.isFinite(clicks)||impressions<0||
+         clicks<0||clicks>impressions||(position!==null&&(!Number.isFinite(position)||position<0)))continue;
+      result.page={status:'observed',date:row.metric_date,path:parsed.pathname,impressions,clicks,position};
+      break;
+    }
+    if(result.page.status!=='observed')result.page=unknown('no_verified_page_day');
+  }catch(error){result.page=unknown(String(error.message).slice(0,64));}
+  return result;
+}
+function weeklyEvidenceLines(data) {
+  const feedback=data.feedback,page=data.page;
+  const f=feedback.status==='observed'?
+    '- Recorded keyword feedback (seven days, '+feedback.sampleSize+' decisions): '+
+      (Object.entries(feedback.counts).filter(([,n])=>n>0).map(([k,n])=>k+'='+n).join(', ')||'none recorded')+
+      '. Historical feedback labels, not autonomous approval.' :
+    '- Recorded keyword feedback: unknown ('+feedback.reason+').';
+  const p=page.status==='observed'?
+    '- GSC highest-impression page-day sample (not weekly total): '+page.path+' on '+
+      page.date+', '+page.impressions+' impressions, '+page.clicks+' clicks, average position '+
+      (page.position===null?'unknown':page.position.toFixed(1))+
+      '. Small sample; this is not a live SERP rank.' :
+    '- GSC page-day sample: unknown ('+page.reason+').';
+  return [f,p];
+}
+
 function summaryLine(target,run,storage,nowMillis) {
   const age=run.ageHours===null||run.ageHours===undefined?'unknown':run.ageHours+'h';
   const record=storage.latestTimestamp||storage.note||'unknown';
@@ -303,6 +376,8 @@ async function run(options) {
   if(options.mode==='watchdog')return {results:await handleWatchdog(client,rows,options.now),observations:rows.map(x=>({id:x.target.id,...x.run,storage:x.storage.status,storageFreshness:persistedFreshness(x.storage,options.now)}))};
   if(options.mode==='weekly'){
     const gsc=await readGscMeasured({url:options.supabaseUrl,key:options.supabaseKey,fetchImpl:options.fetchImpl||fetch});
+    const weeklyEvidence=await readWeeklyEvidence({url:options.supabaseUrl,key:options.supabaseKey,
+      now:options.now,fetchImpl:options.fetchImpl||fetch});
     const title=issueKey('weekly',weeklyKey(options.now));
     const lines=rows.map(x=>summaryLine(x.target,x.run,x.storage,options.now));
     const body=['## V3 weekly operational report', 'Generated (UTC): '+formatUtc(options.now),
@@ -310,7 +385,7 @@ async function run(options) {
       '| System | Schedule | Age | Last run | Storage readback | Storage freshness |','| --- | --- | --- | --- | --- | --- |',
       ...lines,'',
       '### Evidence and outstanding decisions',
-      '- Keyword accepted/rejected: unknown unless independently collected (not fabricated).',
+      ...weeklyEvidenceLines(weeklyEvidence),
       '- V3 Evals: unknown until linked successful run is independently checked.',
       gscSummaryLine(gsc),
       '- AI visibility: search_grounded/manual samples unknown; model_only never counts as verified citations.',
@@ -337,4 +412,4 @@ if(require.main===module){
     console.log('[V3_SAFETY] '+JSON.stringify(result));
   })().catch(err=>{console.error('[V3_SAFETY] '+String(err.message).slice(0,200));process.exitCode=1;});
 }
-module.exports={WORKFLOWS,expectedIntervalHours,classifyRuns,weeklyKey,issueKey,safeOutcome,createClient,readStorage,persistedFreshness,readGscMeasured,gscSummaryLine,collect,handleFailure,handleWatchdog,run};
+module.exports={WORKFLOWS,expectedIntervalHours,classifyRuns,weeklyKey,issueKey,safeOutcome,createClient,readStorage,persistedFreshness,readGscMeasured,gscSummaryLine,readWeeklyEvidence,weeklyEvidenceLines,collect,handleFailure,handleWatchdog,run};

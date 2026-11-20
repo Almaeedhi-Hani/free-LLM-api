@@ -2,7 +2,7 @@
 const assert=require('node:assert/strict');
 const {
   WORKFLOWS,expectedIntervalHours,classifyRuns,weeklyKey,issueKey,safeOutcome,
-  readStorage,persistedFreshness,readGscMeasured,gscSummaryLine,createClient,handleFailure,handleWatchdog,run
+  readStorage,persistedFreshness,readGscMeasured,gscSummaryLine,readWeeklyEvidence,weeklyEvidenceLines,createClient,handleFailure,handleWatchdog,run
 }=require('./v3-phase2-monitor.cjs');
 
 const now=Date.parse('2026-11-20T14:00:00Z');
@@ -287,13 +287,76 @@ assert.equal((await readGscMeasured({url:'https://example.supabase.co',key:'fixt
   {metric_date:'2026-11-17',impressions:3,clicks:0}])})).status,'unknown');
 assert.equal((await readGscMeasured({url:'https://example.supabase.co',key:'fixture',
  fetchImpl:async()=>makeJson([{metric_date:'2026-11-17',impressions:null,clicks:0}])})).status,'unknown');
+
+// The Sunday report must count only persisted seven-day keyword feedback,
+// never infer acceptance from irrelevant votes or mix GSC total/page grains.
+const measuredFixture=async (url)=>{
+ const u=new URL(url);
+ if(u.pathname.endsWith('/geo_agent_feedback')){
+  assert.equal(u.searchParams.get('subject_type'),'eq.keyword');
+  assert.equal(u.searchParams.get('limit'),'501');
+  return makeJson([
+   {subject_type:'keyword',decision:'irrelevant',created_at:'2026-11-19T08:00:00Z'},
+   {subject_type:'keyword',decision:'irrelevant',created_at:'2026-11-18T08:00:00Z'}
+  ]);
+ }
+ if(u.pathname.endsWith('/gsc_daily_metrics')){
+  assert.equal(u.searchParams.get('dimension'),'eq.page');
+  assert.equal(u.searchParams.get('limit'),'5');
+  return makeJson([{metric_date:'2026-11-17',
+   dimension_value:'https://free-llm-api-1-didl.onrender.com/en/services/misa-license',
+   impressions:3,clicks:0,position:3}]);
+ }
+ throw Error('Unexpected measurement route '+u.pathname);
+};
+const measuredWeekly=await readWeeklyEvidence({
+ url:'https://example.supabase.co',key:'fixture-key',now,fetchImpl:measuredFixture
+});
+assert.equal(measuredWeekly.feedback.status,'observed');
+assert.equal(measuredWeekly.feedback.sampleSize,2);
+assert.equal(measuredWeekly.feedback.counts.irrelevant,2);
+assert.equal(measuredWeekly.feedback.counts.accepted,0);
+assert.equal(measuredWeekly.page.status,'observed');
+assert.equal(measuredWeekly.page.path,'/en/services/misa-license');
+assert.equal(measuredWeekly.page.impressions,3);
+assert.equal(measuredWeekly.page.clicks,0);
+assert(weeklyEvidenceLines(measuredWeekly).join('\n').includes('irrelevant=2'));
+assert(weeklyEvidenceLines(measuredWeekly).join('\n').includes('not weekly total'));
+const noEvidence=await readWeeklyEvidence({url:'',key:'',now});
+assert.equal(noEvidence.feedback.status,'unknown');
+assert.equal(noEvidence.page.status,'unknown');
+const untrustedPage=await readWeeklyEvidence({
+ url:'https://example.supabase.co',key:'fixture-key',now,fetchImpl:async url=>{
+  const u=new URL(url);
+  if(u.pathname.endsWith('/geo_agent_feedback'))return makeJson([]);
+  return makeJson([{metric_date:'2026-11-17',
+   dimension_value:'https://other.example/en/page',impressions:100,clicks:0,position:1}]);
+ }});
+assert.equal(untrustedPage.page.status,'unknown');
+assert.equal(untrustedPage.feedback.status,'observed');
+const truncated=await readWeeklyEvidence({
+ url:'https://example.supabase.co',key:'fixture-key',now,fetchImpl:async url=>{
+  if(String(url).includes('/geo_agent_feedback?'))
+    return makeJson(Array.from({length:501},()=>({
+      subject_type:'keyword',decision:'relevant',created_at:'2026-11-19T08:00:00Z'})));
+  return makeJson([]);
+ }});
+assert.equal(truncated.feedback.status,'unknown');
+
 let weeklyPayload='';
 await run({mode:'weekly',repository:'org/repo',token:'fake-token',now,
  supabaseUrl:'https://example.supabase.co',supabaseKey:'fixture-key',
  fetchImpl:async (url,options)=>{
   if(String(url).startsWith('https://example.supabase.co/')){
-    if(String(url).includes('/gsc_daily_metrics?'))
+    if(String(url).includes('/gsc_daily_metrics?')){
+      if(String(url).includes('dimension=eq.page'))
+        return makeJson([{metric_date:'2026-11-17',
+          dimension_value:'https://free-llm-api-1-didl.onrender.com/en/services/misa-license',
+          impressions:3,clicks:0,position:3}]);
       return makeJson([{metric_date:'2026-11-17',impressions:3,clicks:0}]);
+    }
+    if(String(url).includes('/geo_agent_feedback?'))
+      return makeJson([{subject_type:'keyword',decision:'irrelevant',created_at:'2026-11-19T08:00:00Z'}]);
     return makeJson([]);
   }
   const u=new URL(url);
@@ -303,6 +366,8 @@ await run({mode:'weekly',repository:'org/repo',token:'fake-token',now,
  }});
 assert(weeklyPayload.includes('GSC measured Search Console (total grain only): 2026-11-17, 3 impressions, 0 clicks'));
 assert(weeklyPayload.includes('model_only never counts as verified citations'));
+assert(weeklyPayload.includes('Recorded keyword feedback (seven days, 1 decisions): irrelevant=1'));
+assert(weeklyPayload.includes('GSC highest-impression page-day sample (not weekly total): /en/services/misa-license'));
 
 console.log('PASS V3 Stage 2 isolated watchdog/issue-dedup/weekly/failure/storage and Saudi cutover tests');
 })().catch(err=>{console.error(err);process.exitCode=1;});
