@@ -1,0 +1,70 @@
+name: V3 Stage 2 read-only public quality and Evals alerts
+on:
+  schedule:
+    - cron: '23 2 * * *' # daily 05:23 KSA; public GET only, no AI/search model calls
+  workflow_dispatch: # safe local fixture and public GET simulation only; no issue writes
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/v3-stage2-quality-audit.cjs'
+      - 'scripts/v3-stage2-quality-audit.test.cjs'
+      - '.github/workflows/v3-stage2-quality-watch.yml'
+      - 'docs/plans/phase2-quality-alarms-20261120.md'
+permissions:
+  contents: read
+  issues: write
+concurrency:
+  group: v3-stage2-quality-watch-${{ github.event_name }}
+  cancel-in-progress: false
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install pinned dependencies for offline regression Evals only
+        run: npm ci
+      - name: Verify quality audit script and 24-page safe mock fixture
+        run: |
+          node --check scripts/v3-stage2-quality-audit.cjs
+          node scripts/v3-stage2-quality-audit.test.cjs
+      - name: Execute existing trilingual keyword/source Evals without live providers
+        id: evals
+        shell: bash
+        run: |
+          set +e
+          npx tsc src/lib/keyword-relevance-eval.ts src/lib/source-policy.ts \
+            --target es2020 --module commonjs --rootDir src --outDir .v3-evals-build \
+            --lib es2020,dom --moduleResolution node --esModuleInterop \
+            --skipLibCheck --strict --types node &&
+            node scripts/v3-regression-evals.test.cjs
+          status=$?
+          set -e
+          if [ "$status" = 0 ]; then
+            echo "outcome=success" >> "$GITHUB_OUTPUT"
+          else
+            echo "outcome=failure" >> "$GITHUB_OUTPUT"
+            echo "::error::Existing V3 regression Evals failed; quality incident must be reported on schedule."
+          fi
+      - name: Inspect published own-domain pages and reconcile a single quality issue
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          V3_EVAL_OUTCOME: ${{ steps.evals.outputs.outcome }}
+        run: node scripts/v3-stage2-quality-audit.cjs
+      - name: Explicitly record safe dry-run without contacting production
+        if: github.event_name != 'schedule'
+        run: echo 'Offline fixtures and existing V3 Evals evaluated; no Issue, database, public GET or provider mutation.'
+      - name: Reject green CI when existing V3 Evals failed
+        if: steps.evals.outputs.outcome == 'failure'
+        run: |
+          echo '::error::V3 Evals failure requires review.'
+          exit 1
