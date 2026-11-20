@@ -73,17 +73,64 @@ function screenEditorial(items,lang){
  }
  return {accepted,rejected};
 }
+// Conservative local preflight mirrors the server's unchanged
+// src/lib/geo-draft-quality.ts. The authenticated server is authoritative.
+// Reject here *before* persistence so the existing one-repair allowance can
+// target real copy-quality errors without replaying ambiguous database writes.
+const DRAFT_GENERIC=[
+ /observed competitor guides/i,
+ /observed competitor pages/i,
+ /competitors observed/i,
+ /this is commercial advisory information/i,
+ /commercial advisory information, not a government service/i,
+ /تشير صفحات\s+competitors/i,
+ /requirements, approvals, fees and timelines are determined by official/i
+];
+function draftLetterCounts(value){
+ const ar=(value.match(/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/g)||[]).length;
+ const zh=(value.match(/[\u3400-\u9FFF]/g)||[]).length;
+ const en=(value.match(/[A-Za-z]/g)||[]).length;
+ const total=ar+zh+en;
+ return {ar,zh,en,total,arRatio:total?ar/total:0,zhRatio:total?zh/total:0,enRatio:total?en/total:0};
+}
+function draftQualityReason(q,a){
+ const question=String(q||'').trim(),answer=String(a||'').trim();
+ const ques=draftLetterCounts(question),res=draftLetterCounts(answer);
+ const locale=ques.zh>=2?'zh':ques.ar>=2?'ar':'en';
+ if(question.length<15||ques.total<8)return 'question_too_short';
+ if(answer.length<90||res.total<55)return 'answer_too_short';
+ if(question.includes('\uFFFD')||answer.includes('\uFFFD'))return 'replacement_character';
+ if(locale==='ar'){
+  if(ques.arRatio<0.65)return 'question_mixed_language';
+  if(res.ar<45||res.arRatio<0.72)return 'answer_mixed_language';
+ }else if(locale==='zh'){
+  if(ques.zhRatio<0.55)return 'question_mixed_language';
+  if(res.zh<35||res.zhRatio<0.48)return 'answer_mixed_language';
+ }else{
+  if(ques.enRatio<0.85)return 'question_mixed_language';
+  if(res.en<50||res.enRatio<0.85)return 'answer_mixed_language';
+ }
+ if(DRAFT_GENERIC.some(re=>re.test(answer)))return 'generic_competitor_filler';
+ if(/(?:guaranteed approval|\b100%\s+(?:approval|license)|مضمون\s+100%)/i.test(answer))
+  return 'unverified_guarantee';
+ return null;
+}
 function screenDrafts(items){
- const accepted=[],rejected=[];
+ const accepted=[],rejected=[],seenAnswers=new Set();
  const validText=(value,max)=>typeof value==='string'&&value.trim().length>0&&value.length<=max&&!value.includes('\uFFFD');
- for(const [index,item] of items.entries()){
+ for(const [index,item] of (Array.isArray(items)?items:[]).entries()){
   let reason;
   if(!item||typeof item!=='object'||Array.isArray(item))reason='invalid_item';
   else if(!validText(item.q||item.question,1000))reason='invalid_question';
   else if(!validText(item.a||item.answer,5000))reason='invalid_answer';
+  const q=item?.q||item?.question,a=item?.a||item?.answer;
+  if(!reason)reason=draftQualityReason(q,a);
+  const answerKey=reason?null:a.trim().toLocaleLowerCase().replace(/\s+/g,' ');
+  if(!reason&&seenAnswers.has(answerKey))reason='duplicate_answer';
   if(reason){rejected.push({index,reason});continue}
-  accepted.push({...item,q:item.q||item.question,a:item.a||item.answer});
+  seenAnswers.add(answerKey);
+  accepted.push({...item,q,a});
  }
  return {accepted,rejected};
 }
-module.exports={prepareGoals,screenEditorial,eligibleEditorial,screenDrafts,EDITORIAL_KINDS,EDITORIAL_TEXT_MINIMA,isValidTechnicalTarget};
+module.exports={prepareGoals,screenEditorial,eligibleEditorial,screenDrafts,draftQualityReason,EDITORIAL_KINDS,EDITORIAL_TEXT_MINIMA,isValidTechnicalTarget};
