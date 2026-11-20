@@ -64,6 +64,14 @@ assert.equal(validSiteLink(SITE+'/api/admin/seo'),null);
 assert.equal(validSiteLink(SITE+'/insights/foo?email=a%40b.com'),null);
 assert.equal(validSiteLink(SITE+'/insights/foo#x'),null);
 assert.equal(validSiteLink(SITE+'/en/insights/good-guide'),SITE+'/en/insights/good-guide');
+for(const lang of ['en','zh']){
+ assert.equal(validSiteLink(SITE+'/'+lang+'/'),SITE+'/'+lang+'/', 'approved localized home must index');
+ assert.equal(validSiteLink(SITE+'/'+lang+'/?private=1'),null,'query strings remain disallowed');
+ assert.equal(validSiteLink(SITE+'/'+lang+'/admin'),null,'private subpaths remain disallowed');
+}
+const homeEditorialIndex=generateIndex(makeFeed([SITE+'/',SITE+'/en/',SITE+'/zh/']));
+for(const url of [SITE+'/',SITE+'/en/',SITE+'/zh/'])
+ assert(homeEditorialIndex.includes('- '+url),'published home index is missing '+url);
 assert.throws(()=>validateFeed(raw.replace('Service fee: 27000 SAR','Service fee: 1 SAR')),/Fee/);
 assert.throws(()=>validateFeed(raw.replace('## Language: zh','## Language: fake')),/Missing|Malformed/);
 assert.throws(()=>validateFeed(raw.replace('site is an independent private service provider','site belongs to authority')),/policy/);
