@@ -1,0 +1,44 @@
+name: Phase 1 publisher transaction races (disposable PostgreSQL)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/phase1-publication-concurrency.yml'
+      - 'scripts/test-phase1-publication-concurrency.sh'
+      - 'tests/sql/phase1-publication-concurrency-fixture.sql'
+      - 'supabase/migrations/20261118_geo_guarded_automatic_publication.sql'
+      - 'supabase/migrations/20261118_geo_source_optional_unattended_publish.sql'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  postgres-publication-races:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: test-only-password
+          POSTGRES_DB: phase1_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d phase1_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify shared W01/W03 publication locks and cross-type quota in isolated real transactions
+        env:
+          PGHOST: localhost
+          PGPORT: '5432'
+          PGUSER: postgres
+          PGPASSWORD: test-only-password
+          PGDATABASE: phase1_test
+        run: bash scripts/test-phase1-publication-concurrency.sh
