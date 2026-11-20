@@ -15,6 +15,8 @@ import GeoEngineMonitor from '@/components/GeoEngineMonitor';
 import UnifiedRunHistory from '@/components/UnifiedRunHistory';
 import TechnicalTaskBoard from '@/components/TechnicalTaskBoard';
 import GeoFeedbackMemory from '@/components/GeoFeedbackMemory';
+import LegacyToolsArchive from '@/components/LegacyToolsArchive';
+import {ADMIN_LEGACY_ARCHIVE_ENABLED} from '@/lib/admin-consolidation-flags';
 import {validWhatsAppAdvisorField} from '@/lib/whatsapp-contacts';
 
 type Tab =
@@ -718,7 +720,7 @@ export default function AdminDashboard() {
             {tab === 'agent' && (
               <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
                 <h2 className="text-xl font-bold mb-4">وكيل GEO — حالة النظام</h2>
-                <details className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                {!ADMIN_LEGACY_ARCHIVE_ENABLED && <details className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
                   <summary className="cursor-pointer text-sm font-semibold">خيارات تشغيل الرادار والتحليل القديم (متقدمة)</summary>
                   <p className="my-2 text-xs text-slate-600">الرادار المستقل أصبح مجدولًا كل ساعتين حتى السبت 21 نوفمبر، ثم كل 4 ساعات من الأحد 22 نوفمبر، ويعمل منفصلًا عن محرك GEO الحديث. التشغيل اليدوي هنا يضيف دورة أخرى وقد يستهلك حدود مصادر البحث.</p>
                   <div className="flex gap-2">
@@ -737,7 +739,7 @@ export default function AdminDashboard() {
                         finally { setSaving(false); }
                       }}>تشغيل الرادار</button>
                     </div>
-                </details>
+                </details>}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="bg-slate-50 rounded-lg p-4">
                     <p className="text-xs text-slate-500">الحالة</p>
@@ -843,9 +845,11 @@ export default function AdminDashboard() {
                 <p className="text-slate-600 text-sm mb-2">الفقرة الذهبية (للقراءة هنا؛ يحدّثها الوكيل):</p>
                 <p className="text-slate-700 bg-slate-50 rounded-lg p-4">{content.goldenParagraph}</p>
                 <p className="text-xs text-slate-500 mt-4">آخر تحديث: {content.updatedAt ? new Date(content.updatedAt).toLocaleString('ar-SA') : '—'}</p>
-                <div className="mt-6 border-t border-slate-200 pt-4"><h3 className="font-bold mb-3">إدارة النظام</h3><p className="text-sm text-slate-600 mb-3">تُحدّث إعدادات مفاتيح API من Render، وتُدار جدولة الوكيل من GitHub Actions. لا تُعرض القيم السرية في اللوحة.</p><div className="flex flex-wrap gap-2"><button className="btn-secondary text-xs" onClick={()=>setTab('agent')}>مصادر البحث والوكيل</button><button className="btn-secondary text-xs" onClick={()=>setTab('contact')}>معلومات التواصل</button><button className="btn-secondary text-xs" onClick={()=>setTab('reviews')}>مسودات الموافقة</button><button className="btn-secondary text-xs" disabled={marketLoading||refreshingAll||saving} onClick={refreshAll}>تحديث جميع البيانات</button></div></div>
+                {!ADMIN_LEGACY_ARCHIVE_ENABLED && <div className="mt-6 border-t border-slate-200 pt-4"><h3 className="font-bold mb-3">إدارة النظام</h3><p className="text-sm text-slate-600 mb-3">تُحدّث إعدادات مفاتيح API من Render، وتُدار جدولة الوكيل من GitHub Actions. لا تُعرض القيم السرية في اللوحة.</p><div className="flex flex-wrap gap-2"><button className="btn-secondary text-xs" onClick={()=>setTab('agent')}>مصادر البحث والوكيل</button><button className="btn-secondary text-xs" onClick={()=>setTab('contact')}>معلومات التواصل</button><button className="btn-secondary text-xs" onClick={()=>setTab('reviews')}>مسودات الموافقة</button><button className="btn-secondary text-xs" disabled={marketLoading||refreshingAll||saving} onClick={refreshAll}>تحديث جميع البيانات</button></div></div>}
               </section>
             )}
+
+            {tab === 'settings' && ADMIN_LEGACY_ARCHIVE_ENABLED && <LegacyToolsArchive onNavigate={setTab} />}
 
             {tab === 'competitors' && (
               <div className="space-y-6">
