@@ -26,6 +26,7 @@ assert.equal(weeklyKey(Date.parse('2026-11-21T21:00:00Z')),'2026-11-22');
 assert.equal(issueKey('weekly','2026-11-22'),'[V3 weekly] 2026-11-22');
 assert.equal(safeOutcome('a malicious conclusion'),'unknown');
 
+(async()=>{
 const absent=await readStorage('W01',{url:'',key:''});
 assert.equal(absent.status,'unknown');
 const notApplicable=await readStorage('W05',{url:'',key:''});
@@ -105,3 +106,4 @@ const report=await run({mode:'weekly',repository:'org/repo',token:'fake-token',n
 assert.equal(report.result,'created');
 assert.equal(report.number,44);
 console.log('PASS V3 Stage 2 isolated watchdog/issue-dedup/weekly/failure/storage and Saudi cutover tests');
+})().catch(err=>{console.error(err);process.exitCode=1;});
