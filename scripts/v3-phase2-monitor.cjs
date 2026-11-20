@@ -120,6 +120,39 @@ async function readStorage(id,{url,key,fetchImpl=fetch}) {
     return {status:'observed',latestTimestamp:value,source:selection.table};
   }catch{return {status:'unknown',note:'readback_error'};}
 }
+/** Prefer the existing GEO API secret over duplicating a powerful Supabase
+ * service_role key into GitHub Actions. Only aggregate timestamps/statuses
+ * are returned by the protected /api/geo/ops-health route. */
+async function readProtectedSnapshot({url,key,fetchImpl=fetch}) {
+  if(!url||!key)return null;
+  try{
+    const endpoint=new URL(String(url).replace(/\\/+$/,'')+'/api/geo/ops-health');
+    if(endpoint.protocol!=='https:'||endpoint.username||endpoint.password||
+      endpoint.search||endpoint.hash)return null;
+    const response=await fetchImpl(endpoint.href,{
+      headers:{'x-geo-api-key':key,Accept:'application/json'},
+      cache:'no-store',signal:AbortSignal.timeout(12000)
+    });
+    if(!response.ok)return null;
+    const result=await response.json();
+    if(result?.source!=='supabase'||!result.persistence||typeof result.persistence!=='object')return null;
+    return result;
+  }catch{return null;}
+}
+function persistedFromSnapshot(id,snapshot) {
+  if(id==='W05'||id==='W06')return {status:'not_applicable',note:'verified_git_no_change_allowed'};
+  const record=snapshot?.persistence?.[id];
+  if(!record||typeof record!=='object')return {status:'unknown',note:'no_source_specific_persistence_evidence'};
+  if(typeof record.at!=='string'||!Number.isFinite(Date.parse(record.at)))
+    return {status:'unknown',note:'missing_source_timestamp'};
+  const valid=id==='W01'?record.status==='success':
+    id==='W02'?record.status==='success':
+    id==='W03'?record.status==='observed':
+    ['success_with_data','success_no_data'].includes(record.status);
+  if(!valid)return {status:'unknown',note:'persistence_status_unverified'};
+  return {status:'observed',latestTimestamp:record.at,source:String(record.evidence||'aggregate')};
+}
+
 function summaryLine(target,run,storage) {
   const age=run.ageHours===null||run.ageHours===undefined?'unknown':run.ageHours+'h';
   const record=storage.latestTimestamp||storage.note||'unknown';
@@ -127,11 +160,18 @@ function summaryLine(target,run,storage) {
 }
 async function collect(client,options) {
   const all=[];
+  const snapshot=await readProtectedSnapshot({
+    url:options.geoApiUrl,key:options.geoApiKey,fetchImpl:options.fetchImpl||fetch
+  });
   for(const target of WORKFLOWS) {
     let run;
     try{run=classifyRuns(await client.workflowRuns(target.filename),options.now);}
     catch{run={status:'unknown',reason:'github_read_error'};}
-    const storage=await readStorage(target.id,{url:options.supabaseUrl,key:options.supabaseKey,fetchImpl:options.fetchImpl||fetch});
+    const storage=snapshot
+      ? persistedFromSnapshot(target.id,snapshot)
+      : await readStorage(target.id,{
+          url:options.supabaseUrl,key:options.supabaseKey,fetchImpl:options.fetchImpl||fetch
+        });
     all.push({target,run,storage});
   }
   return all;
@@ -196,8 +236,9 @@ if(require.main===module){
     const mode=process.argv.find(a=>a.startsWith('--mode='))?.slice(7)||'watchdog';
     const event=process.env.GITHUB_EVENT_PATH?JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH,'utf8')):{};
     const result=await run({mode,repository:process.env.GITHUB_REPOSITORY,token:process.env.GH_TOKEN,
-      now:Date.now(),supabaseUrl:process.env.SUPABASE_URL,supabaseKey:process.env.SUPABASE_SERVICE_ROLE_KEY,event});
+      now:Date.now(),supabaseUrl:process.env.SUPABASE_URL,supabaseKey:process.env.SUPABASE_SERVICE_ROLE_KEY,
+      geoApiUrl:process.env.GEO_API_URL,geoApiKey:process.env.GEO_API_KEY,event});
     console.log('[V3_SAFETY] '+JSON.stringify(result));
   })().catch(err=>{console.error('[V3_SAFETY] '+String(err.message).slice(0,200));process.exitCode=1;});
 }
-module.exports={WORKFLOWS,expectedIntervalHours,classifyRuns,weeklyKey,issueKey,safeOutcome,createClient,readStorage,collect,handleFailure,handleWatchdog,run};
+module.exports={WORKFLOWS,expectedIntervalHours,classifyRuns,weeklyKey,issueKey,safeOutcome,createClient,readStorage,readProtectedSnapshot,persistedFromSnapshot,collect,handleFailure,handleWatchdog,run};
