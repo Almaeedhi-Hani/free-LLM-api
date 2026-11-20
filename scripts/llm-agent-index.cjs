@@ -23,7 +23,9 @@ function validSiteLink(value){
  try {
   const u=new URL(value);
   if(u.origin!==SITE||u.username||u.password||u.search||u.port)return null;
-  if(u.pathname!=='/'&&!/^\/(?:en\/|zh\/)?(?:services\/[a-z0-9-]+|packages|insights\/[a-z0-9-]+)$/.test(u.pathname))return null;
+  // Approved home editorials resolve to exact localized public roots.
+  // Other paths remain restricted to known public service/package/editorial routes.
+  if(u.pathname!=='/'&&!/^\/(?:en|zh)\/$/.test(u.pathname)&&!/^\/(?:en\/|zh\/)?(?:services\/[a-z0-9-]+|packages|insights\/[a-z0-9-]+)$/.test(u.pathname))return null;
   if(u.hash&&!(u.pathname.endsWith('/packages')&&/^#[a-z0-9-]+$/.test(u.hash)))return null;
   return u.href;
  }catch{return null}
