@@ -113,6 +113,18 @@
 - [ ] **المتبقي من 1.4:** إثبات `audit_logs` لطلب W01 حقيقي بعد PR #175 من `event=schedule`، مع `source_workflow=W01` ورقم التشغيل ونتيجة المحاولة. اختبار التزامن الفعلي المعزول أعلاه **نجح** لكنه لا يثبت مسار رؤوس API أو هوية W01 في الإنتاج. لا تُغلق المرحلة حتى يجتاز هذا الشرط مع W01/W05.
 - [ ] W01 وW05 يحتاجان تشغيل `event=schedule` حقيقيًا مع قراءة الحفظ/القرار بعد دمج إصلاحاتهما؛ لا انتقال إلى المرحلة 2.
 
+### 2026-11-20 14:08 KSA — نقطة تفتيش بمنسق واحد دون جلسات
+
+- [x] **مؤكد:** دمج PR #177 (إصلاح W05، SHA `0ce5a294`) وPR #178 (إصلاح W01، SHA `b93bd434`) بعد اجتياز جميع الاختبارات، ونشرهما على Render.
+- [x] **مؤكد:** دمج [PR #179](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/179) بعد اجتياز **7/7** فحوص، ومنها [اختبار PostgreSQL الفعلي #44720105512](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44720105512). `main=876565aa28c238472aa696c33044f97382dc0a41` وRender `dep-dc02ifc9v7es73cfq00g` **LIVE** عند 11:05:39 UTC / 14:05:39 KSA. اجتاز فحص الإنتاج غير المعدل [#44724540037](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44724540037). هذا لا يثبت مصدر محاولة W01 الحية.
+- [x] **مؤكد/Supabase SELECT 11:05–11:07 UTC:** النشر `enabled=true` و`allow_high_risk=true` و`daily_limit=3` دون تعديل؛ 3 أحداث editorial آخر 24 ساعة و0 FAQ؛ الإجمالي 6 editorial و0 FAQ. مجموعات التكرار `item_id+content_fingerprint` = صفر. `content_store`: 35 مسودة و55 اقتراح تحرير. `audit_logs`: 34 صفًا خاصًا بالنشر، جميعها W03 (7 started، 2 published، 5 quota_reached، 20 requires_finished_visitor_copy) و**صفر W01**.
+- [x] **مؤكد/W02:** [schedule #44720788156](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44720788156) success عند 10:37Z على `b93bd434`، مع سجلي `analysis_runs` مرتبطين radar/full؛ لا تعدّهما دورتين مستقلتين.
+- [x] **مؤكد/W04:** GSC 15–16 نوفمبر total=0؛ 17 نوفمبر total=3 impressions و0 clicks، وله 3 أبعاد أخرى لا تجمعها كمشاهدات جديدة.
+- [ ] **W01 باقية:** آخر schedule مفحوص [#44700969265](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44700969265) فشل على SHA قديم `2685e58` قبل PR #178؛ التحقق من نجاح post-fix schedule والحفظ وW01-origin audit غير مكتمل.
+- [ ] **W05 باقية:** آخر schedule مفحوص [#44715043426](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44715043426) فشل على SHA قديم `2685e58` قبل PR #177؛ نحتاج post-fix schedule وتحقق changed/no_change الحقيقي.
+- [x] **تغيير نمط التنفيذ:** طلب المالك المتابعة في المحادثة الحالية دون جلسات منفصلة؛ أُغلق PR #181 الخاص بفتح الجلسات **دون دمج**. يبقى [Issue #180](https://github.com/Almaeedhi-Hani/free-LLM-api/issues/180) سجلًا مركزيًا للأدلة فقط، لا وكيلًا نشطًا.
+- [ ] **بوابة خروج المرحلة 1 لا تزال مفتوحة؛ لا تنتقل إلى المرحلة 2.** لا تطبق الترحيل الأمني الإنتاجي دون الموافقة الصريحة.
+
 ## المرحلة 2 — شبكة الأمان
 
 - [ ] Watchdog كل 6 ساعات مع Issue dedup وحفظ حقيقي.
