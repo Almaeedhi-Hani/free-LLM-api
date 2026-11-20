@@ -16,5 +16,6 @@ for(const id of ['B15','V04-partial','B08-D08','V07-manual','cron-legacy','V18-s
 }
 assert(!dashboard.includes("key: 'archive'"),'Archive must not duplicate the main navigation');
 assert(component.includes('غير معروف')&&archive.includes('Unknown'),'Do not invent last-use evidence');
-assert(!component.includes("fetch(")&&!component.includes("POST"),'Archived diagnostics must not run workflows');
+assert(!/\\bfetch\\s*\\(/.test(component)&&!/method:\\s*['"]POST/.test(component),
+ 'Archived diagnostics must not run workflows; documentation mentioning POST is allowed');
 console.log('PASS Phase 4 legacy inventory: reversible, admin-only, one closed archive, no old API invocation');
