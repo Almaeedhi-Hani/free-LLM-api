@@ -150,5 +150,28 @@ const unreadableClient=createClient({repository:'org/repo',token:'fake-token',fe
 }});
 assert.equal((await unreadableClient.pauseStatus('W01')).status,'unknown');
 
+// GitHub Actions vars context is authoritative and requires no repo admin
+// read permission. All four variables are always passed, even when unset.
+const actionSnapshot={V3_MASTER_PAUSED:'',MARKET_RADAR_PAUSED:'',AUTODEV_PAUSED:'',LLM_INDEX_PAUSED:''};
+let contextHttp=0;
+const contextClient=createClient({repository:'org/repo',token:'fake-token',
+ pauseVarSnapshot:actionSnapshot,fetchImpl:async()=>{contextHttp++;throw Error('should not call variable REST API');}});
+assert.equal((await contextClient.pauseStatus('W01')).status,'active');
+assert.equal((await contextClient.pauseStatus('W06')).status,'active');
+assert.equal(contextHttp,0,'Actions context never needs variable REST permission');
+const masterContext=createClient({repository:'org/repo',token:'fake-token',
+ pauseVarSnapshot:{...actionSnapshot,V3_MASTER_PAUSED:'true'},
+ fetchImpl:async()=>{throw Error('No API call when paused');}});
+assert.equal((await masterContext.pauseStatus('W01')).status,'paused');
+assert.equal((await masterContext.pauseStatus('W05')).reason,'V3_MASTER_PAUSED');
+const legacyContext=createClient({repository:'org/repo',token:'fake-token',
+ pauseVarSnapshot:{...actionSnapshot,MARKET_RADAR_PAUSED:'true'},fetchImpl:async()=>{throw Error('No API call');}});
+assert.equal((await legacyContext.pauseStatus('W02')).status,'paused');
+assert.equal((await legacyContext.pauseStatus('W01')).status,'active');
+const missingContext=createClient({repository:'org/repo',token:'fake-token',
+ pauseVarSnapshot:{V3_MASTER_PAUSED:''},fetchImpl:async()=>{throw Error('No API call');}});
+assert.equal((await missingContext.pauseStatus('W02')).status,'unknown');
+
+
 console.log('PASS V3 Stage 2 isolated watchdog/issue-dedup/weekly/failure/storage and Saudi cutover tests');
 })().catch(err=>{console.error(err);process.exitCode=1;});
