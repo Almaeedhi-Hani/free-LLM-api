@@ -321,7 +321,7 @@ assert.equal(measuredWeekly.page.path,'/en/services/misa-license');
 assert.equal(measuredWeekly.page.impressions,3);
 assert.equal(measuredWeekly.page.clicks,0);
 assert(weeklyEvidenceLines(measuredWeekly).join('\n').includes('irrelevant=2'));
-assert(weeklyEvidenceLines(measuredWeekly).join('\n').includes('not cumulative traffic'));
+assert(weeklyEvidenceLines(measuredWeekly).join('\n').includes('not weekly total'));
 const noEvidence=await readWeeklyEvidence({url:'',key:'',now});
 assert.equal(noEvidence.feedback.status,'unknown');
 assert.equal(noEvidence.page.status,'unknown');
