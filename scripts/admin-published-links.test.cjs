@@ -39,9 +39,8 @@ const previews=buildUnpublishedPreviews(editorial,drafts);
 assert.equal(previews.length,2,'Pending editorial and FAQ drafts remain separate');
 assert(previews.every(x=>!('path' in x)&&!('url' in x)),'Unpublished drafts never receive a public URL');
 assert(admin.includes("key: 'published_links'")&&admin.includes('<PublishedLinksList'),'Independent published links navigation');
-assert(ui.includes('id="unpublished-previews"')&&ui.includes('open')===false?'':true); // semantic folded detail verified below
 assert(!/<details id="unpublished-previews"[^>]+\sopen(?:=|\s|>)/.test(ui),'Drafts collapsed by default');
-assert(ui.includes('role="status"')&&ui.includes('cache:\'no-store\''),'Fresh authenticated publication reads');
+assert(ui.includes('role="status"')&&ui.includes("cache:'no-store'"),'Fresh authenticated publication reads');
 (async()=>{
  const base=process.env.PUBLISHED_LINKS_TEST_BASE_URL;
  if(base){
