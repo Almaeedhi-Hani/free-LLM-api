@@ -1,0 +1,32 @@
+name: V3 Weekly Evidence and Operations Review
+on:
+  schedule:
+    - cron: '0 6 * * 0' # Sunday 09:00 Saudi (UTC+3)
+  workflow_dispatch: # default dry-run: do not create a report Issue
+permissions:
+  contents: read
+  actions: read
+  issues: write
+concurrency:
+  group: v3-stage2-weekly-review
+  cancel-in-progress: false
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Verify report truthfulness, schedule windows and no secrets offline
+        run: node scripts/v3-ops-monitor.test.cjs
+      - name: Publish one deduplicated weekly report from genuine stored evidence
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GEO_API_URL: ${{ secrets.GEO_API_URL }}
+          GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+        run: node scripts/v3-ops-monitor.cjs --mode=weekly
