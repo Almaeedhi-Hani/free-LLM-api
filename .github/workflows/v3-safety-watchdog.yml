@@ -1,0 +1,32 @@
+name: V3 Safety Watchdog (six production workflows)
+on:
+  schedule:
+    - cron: '0 0,6,12,18 * * *' # every six hours, UTC; report timestamps in KSA
+  workflow_dispatch: # safe dry-run by default: no issues are written
+permissions:
+  contents: read
+  actions: read
+  issues: write
+concurrency:
+  group: v3-stage2-watchdog
+  cancel-in-progress: false
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Verify watchdog source and simulated failure/no-change evidence offline
+        run: node scripts/v3-ops-monitor.test.cjs
+      - name: Inspect actual six scheduled workflows and read-only persistence
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GEO_API_URL: ${{ secrets.GEO_API_URL }}
+          GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+        run: node scripts/v3-ops-monitor.cjs --mode=watchdog
