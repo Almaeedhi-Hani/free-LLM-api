@@ -1,0 +1,82 @@
+name: V3 Stage 2 safety monitor and weekly report
+on:
+  schedule:
+    - cron: '17 */6 * * *' # Read-only watchdog every 6 UTC hours
+    - cron: '0 6 * * 0'   # Weekly Sunday 09:00 Saudi time
+  workflow_run:
+    workflows:
+      - 'GEO Intelligence Analysis'
+      - 'Market Intelligence Radar (Independent)'
+      - 'GEO Daily Auto Publication'
+      - 'GSC daily metrics sync'
+      - 'LLM Agent Feed Quality & Index'
+      - 'Autonomous Site Maintenance (bounded)'
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'dry-run tests only, watchdog issue reconcile, or weekly issue report'
+        required: true
+        default: 'dry-run'
+        type: choice
+        options: [dry-run, watchdog, weekly]
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+concurrency:
+  group: v3-stage2-safety-issues
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    if: github.event_name != 'workflow_run'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Exercise offline monitor safety and deduplicated issue contracts
+        run: |
+          node --check scripts/v3-phase2-monitor.cjs
+          node scripts/v3-phase2-monitor.test.cjs
+      - name: Run scheduled watchdog or weekly report (manual defaults to no writes)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          REQUEST_MODE: ${{ inputs.mode }}
+          SCHEDULE_CRON: ${{ github.event.schedule }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mode=watchdog
+          if [ "${SCHEDULE_CRON:-}" = '0 6 * * 0' ]; then mode=weekly; fi
+          if [ "${GITHUB_EVENT_NAME}" = 'workflow_dispatch' ]; then
+            mode="${REQUEST_MODE:-dry-run}"
+          fi
+          if [ "$mode" = 'dry-run' ]; then
+            echo '[V3_SAFETY] dry-run only: issue writes and provider calls skipped'
+            exit 0
+          fi
+          node scripts/v3-phase2-monitor.cjs "--mode=$mode"
+
+  failure-alert:
+    if: github.event_name == 'workflow_run'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Verify isolated failure webhooks and trusted head-repository rules
+        run: node scripts/v3-phase2-monitor.test.cjs
+      - name: Reconcile failure alert for a completed trusted real scheduled run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/v3-phase2-monitor.cjs --mode=failure

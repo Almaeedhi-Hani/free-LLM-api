@@ -1,0 +1,203 @@
+'use strict';
+
+/**
+ * V3 Stage 2 monitoring. Reads GitHub Actions and (when configured) Supabase.
+ * Never dispatches production jobs, runs AI, publishes content, or changes policy.
+ */
+const fs = require('node:fs');
+
+const WORKFLOWS = Object.freeze([
+  { id: 'W01', filename: 'geo-analysis.yml', name: 'GEO' },
+  { id: 'W02', filename: 'market-radar.yml', name: 'Market Radar' },
+  { id: 'W03', filename: 'geo-auto-publication-daily.yml', name: 'GEO publisher' },
+  { id: 'W04', filename: 'gsc-daily-sync.yml', name: 'Search Console' },
+  { id: 'W05', filename: 'llm-feed-optimization.yml', name: 'LLM Index' },
+  { id: 'W06', filename: 'autonomous-site-maintenance.yml', name: 'Bounded maintenance' },
+]);
+const POSTGREST_READS = Object.freeze({
+  W01: {table:'content_store',time:'updated_at',query:'select=updated_at&order=updated_at.desc&limit=1'},
+  W02: {table:'analysis_runs',time:'finished_at',query:'select=finished_at&run_type=eq.radar&status=eq.success&order=finished_at.desc&limit=1'},
+  W03: {table:'audit_logs',time:'created_at',query:'select=created_at&action=like.geo_publication_*&order=created_at.desc&limit=1'},
+  W04: {table:'gsc_sync_day_outcomes',time:'checked_at',query:'select=checked_at&order=checked_at.desc&limit=1'},
+});
+function expectedIntervalHours(utcMillis) {
+  // Nov 22 00:00 Asia/Riyadh is Nov 21 21:00 UTC.
+  return utcMillis >= Date.parse('2026-11-21T21:00:00Z') ? 4 : 2;
+}
+function classifyRuns(runs, nowMillis, thresholdFactor=2) {
+  if (!Array.isArray(runs)) return {status:'unknown',reason:'runs_unavailable'};
+  const scheduled=runs.filter(r=>r && r.event==='schedule' && r.head_branch==='main');
+  const successes=scheduled.filter(r=>r.status==='completed' && r.conclusion==='success')
+    .sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at));
+  const latest=successes[0];
+  const active=scheduled.some(r=>r.status==='in_progress'||r.status==='queued'||r.status==='waiting');
+  const intervalHours=expectedIntervalHours(nowMillis);
+  if (!latest) return {status:active?'pending':'stale',reason:active?'first_run_pending':'no_successful_schedule',intervalHours,runId:null,ageHours:null};
+  const ageHours=(nowMillis-Date.parse(latest.created_at))/3600000;
+  if (!Number.isFinite(ageHours)||ageHours<0) return {status:'unknown',reason:'invalid_schedule_timestamp',runId:latest.id};
+  if (ageHours > intervalHours*thresholdFactor && !active) {
+    return {status:'stale',reason:'schedule_older_than_twice_interval',intervalHours,ageHours:+ageHours.toFixed(2),runId:latest.id,url:latest.html_url};
+  }
+  return {status:active?'pending':'healthy',reason:active?'new_run_in_progress':'scheduled_success',intervalHours,ageHours:+ageHours.toFixed(2),runId:latest.id,url:latest.html_url};
+}
+function weeklyKey(nowMillis) {
+  // Fixed Sunday-start week in Saudi Arabia, stable regardless of runner locale.
+  const date=new Date(nowMillis+3*3600000);
+  date.setUTCHours(0,0,0,0);
+  date.setUTCDate(date.getUTCDate()-date.getUTCDay());
+  return date.toISOString().slice(0,10);
+}
+function issueKey(category, workflowId) {
+  if (category==='weekly') return '[V3 weekly] ' + workflowId;
+  return '[V3 ' + category + '] ' + workflowId;
+}
+function safeOutcome(value) {
+  return ['success','failure','timed_out','cancelled','action_required','startup_failure','skipped'].includes(value) ? value : 'unknown';
+}
+function formatUtc(ms) {return new Date(ms).toISOString();}
+function createClient({repository,token,fetchImpl=fetch}) {
+  if(!/^[\w.-]+\/[\w.-]+$/.test(repository)||!token) throw Error('Missing GitHub repository or token');
+  async function github(path, options={}) {
+    const response=await fetchImpl('https://api.github.com/repos/'+repository+path,{
+      ...options,
+      headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28',
+        ...(options.body?{'Content-Type':'application/json'}:{})},
+    });
+    if(!response.ok) throw Error('GitHub '+response.status+' '+path.split('?')[0]);
+    return response.status===204?{}:response.json();
+  }
+  async function ensureLabel(label) {
+    const color=label==='failure'?'cf222e':label==='watchdog'?'fb8500':'0e8a16';
+    try{await github('/labels',{method:'POST',body:JSON.stringify({name:label,color})});}
+    catch(error){if(!String(error.message).includes('GitHub 422'))throw error;}
+  }
+  async function findOpenIssue(title) {
+    for(let page=1;page<=5;page++){
+      const issues=await github('/issues?state=open&per_page=100&page='+page);
+      const match=issues.find(i=>!i.pull_request&&i.title===title);
+      if(match)return match;
+      if(issues.length<100)break;
+    }
+    return null;
+  }
+  async function upsertIssue({title,body,label}) {
+    const previous=await findOpenIssue(title);
+    if(previous) {
+      if(previous.body!==body) await github('/issues/'+previous.number,{method:'PATCH',body:JSON.stringify({body})});
+      return {result:'updated',number:previous.number};
+    }
+    await ensureLabel(label);
+    const created=await github('/issues',{method:'POST',body:JSON.stringify({title,body,labels:[label]})});
+    return {result:'created',number:created.number};
+  }
+  async function resolveIssue(title,body) {
+    const existing=await findOpenIssue(title);
+    if(!existing)return {result:'none'};
+    await github('/issues/'+existing.number,{method:'PATCH',body:JSON.stringify({state:'closed',body})});
+    return {result:'resolved',number:existing.number};
+  }
+  async function workflowRuns(filename) {
+    // Fetch 100 recent *scheduled* runs, not push/dispatch results.
+    const value=await github('/actions/workflows/'+encodeURIComponent(filename)+'/runs?event=schedule&per_page=100');
+    return value.workflow_runs;
+  }
+  return {github,workflowRuns,upsertIssue,resolveIssue};
+}
+async function readStorage(id,{url,key,fetchImpl=fetch}) {
+  const selection=POSTGREST_READS[id];
+  if(!selection)return {status:'not_applicable',note:'Index or maintenance can legitimately be no_change'};
+  if(!url||!key)return {status:'unknown',note:'SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY not configured for read-only monitor'};
+  if(!/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(url))return {status:'unknown',note:'Invalid Supabase URL'};
+  try {
+    const response=await fetchImpl(url.replace(/\/$/,'')+'/rest/v1/'+selection.table+'?'+selection.query,{
+      headers:{apikey:key,Authorization:'Bearer '+key,Accept:'application/json'},signal:AbortSignal.timeout(12000)
+    });
+    if(!response.ok)return {status:'unknown',note:'readback_http_'+response.status};
+    const body=await response.json();
+    if(!Array.isArray(body)||body.length===0)return {status:'unknown',note:'no_existing_rows'};
+    const value=body[0][selection.time];
+    if(typeof value!=='string'||!Number.isFinite(Date.parse(value)))return {status:'unknown',note:'missing_storage_timestamp'};
+    return {status:'observed',latestTimestamp:value,source:selection.table};
+  }catch{return {status:'unknown',note:'readback_error'};}
+}
+function summaryLine(target,run,storage) {
+  const age=run.ageHours===null||run.ageHours===undefined?'unknown':run.ageHours+'h';
+  const record=storage.latestTimestamp||storage.note||'unknown';
+  return '| '+target.id+' '+target.name+' | '+run.status+' | '+age+' | '+(run.runId||'none')+' | '+storage.status+': '+record+' |';
+}
+async function collect(client,options) {
+  const all=[];
+  for(const target of WORKFLOWS) {
+    let run;
+    try{run=classifyRuns(await client.workflowRuns(target.filename),options.now);}
+    catch{run={status:'unknown',reason:'github_read_error'};}
+    const storage=await readStorage(target.id,{url:options.supabaseUrl,key:options.supabaseKey,fetchImpl:options.fetchImpl||fetch});
+    all.push({target,run,storage});
+  }
+  return all;
+}
+async function handleWatchdog(client,rows,now) {
+  const result=[];
+  for(const row of rows){
+    const title=issueKey('watchdog',row.target.id+' '+row.target.name+' schedule stale');
+    const body='Latest assessment '+formatUtc(now)+'\n\nWorkflow: '+row.target.filename+
+      '\nStatus: '+row.run.status+'\nReason: '+row.run.reason+
+      '\nLast successful scheduled run: '+(row.run.runId||'unknown')+
+      '\nHours since schedule: '+(row.run.ageHours??'unknown')+
+      '\nStorage: '+row.storage.status+' ('+(row.storage.latestTimestamp||row.storage.note||'unknown')+')'+
+      '\n\nThis monitor never dispatches a production workflow. The issue is updated, not duplicated.';
+    if(row.run.status==='stale')result.push({workflow:row.target.id,...await client.upsertIssue({title,body,label:'watchdog'})});
+    if(row.run.status==='healthy')result.push({workflow:row.target.id,...await client.resolveIssue(title,body+'\nResolved by a genuine scheduled success.')});
+  }
+  return result;
+}
+async function handleFailure(client,event) {
+  const run=event&&event.workflow_run;
+  const target=WORKFLOWS.find(w=>run&&String(run.path).endsWith('/'+w.filename));
+  if(!target||run.event!=='schedule'||run.head_branch!=='main'||run.head_repository?.full_name!==event.repository?.full_name)
+    return {result:'ignored_untrusted_or_non_schedule'};
+  const title=issueKey('failure',target.id+' '+target.name+' scheduled run');
+  const result=safeOutcome(run.conclusion);
+  const body='Workflow: '+target.filename+'\nRun ID: '+run.id+
+    '\nEvent: schedule\nConclusion: '+result+
+    '\nURL: https://github.com/'+event.repository.full_name+'/actions/runs/'+run.id+
+    '\nObserved at: '+new Date().toISOString()+
+    '\nNo automatic retry or publication performed.';
+  if(result==='success')return client.resolveIssue(title,body+'\nResolved by a successful scheduled run.');
+  return client.upsertIssue({title,body,label:'failure'});
+}
+async function run(options) {
+  const client=createClient({repository:options.repository,token:options.token,fetchImpl:options.fetchImpl||fetch});
+  if(options.mode==='failure')return handleFailure(client,options.event);
+  const rows=await collect(client,options);
+  if(options.mode==='watchdog')return {results:await handleWatchdog(client,rows,options.now),observations:rows.map(x=>({id:x.target.id,...x.run,storage:x.storage.status}))};
+  if(options.mode==='weekly'){
+    const title=issueKey('weekly',weeklyKey(options.now));
+    const lines=rows.map(x=>summaryLine(x.target,x.run,x.storage));
+    const body=['## V3 weekly operational report', 'Generated (UTC): '+formatUtc(options.now),
+      'All dates are observed; missing storage or measurement remains unknown.',
+      '| System | Schedule | Age | Last run | Storage readback |','| --- | --- | --- | --- | --- |',
+      ...lines,'',
+      '### Evidence and outstanding decisions',
+      '- Keyword accepted/rejected: unknown unless independently collected (not fabricated).',
+      '- V3 Evals: unknown until linked successful run is independently checked.',
+      '- GSC: data availability indicated above; do not infer impressions/clicks from workflow success.',
+      '- AI visibility: search_grounded/manual samples unknown; model_only never counts as verified citations.',
+      '- Free provider quota usage: unknown unless explicit per-provider usage is available.',
+      '- Decisions: production security hardening, legal review policy, weekly sample activation.',
+      '- No paid AI/search provider calls and no live publication were made by this report.'
+    ].join('\n');
+    return client.upsertIssue({title,body,label:'weekly-report'});
+  }
+  throw Error('Unknown monitor mode');
+}
+if(require.main===module){
+  (async()=>{
+    const mode=process.argv.find(a=>a.startsWith('--mode='))?.slice(7)||'watchdog';
+    const event=process.env.GITHUB_EVENT_PATH?JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH,'utf8')):{};
+    const result=await run({mode,repository:process.env.GITHUB_REPOSITORY,token:process.env.GH_TOKEN,
+      now:Date.now(),supabaseUrl:process.env.SUPABASE_URL,supabaseKey:process.env.SUPABASE_SERVICE_ROLE_KEY,event});
+    console.log('[V3_SAFETY] '+JSON.stringify(result));
+  })().catch(err=>{console.error('[V3_SAFETY] '+String(err.message).slice(0,200));process.exitCode=1;});
+}
+module.exports={WORKFLOWS,expectedIntervalHours,classifyRuns,weeklyKey,issueKey,safeOutcome,createClient,readStorage,collect,handleFailure,handleWatchdog,run};
