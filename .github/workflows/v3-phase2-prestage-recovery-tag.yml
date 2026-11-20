@@ -1,0 +1,39 @@
+# One-time recovery of the pre-Phase-2 rollback ref; NEVER merge this workflow.
+name: V3 one-time Phase 2 rollback tag recovery
+on:
+  push:
+    branches:
+      - chore/phase2-prestage-recovery-tag-20261120
+    paths:
+      - '.github/workflows/v3-phase2-prestage-recovery-tag.yml'
+permissions:
+  contents: write
+jobs:
+  tag:
+    if: github.repository == 'Almaeedhi-Hani/free-LLM-api' && github.ref == 'refs/heads/chore/phase2-prestage-recovery-tag-20261120'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Create or verify immutable pre-implementation rollback tag
+        env:
+          TARGET: ee4ac44a603714e0f15e0c83ec13b9e07937d4f0
+          TAG: pre-phase2-20261120
+        shell: bash
+        run: |
+          set -euo pipefail
+          git cat-file -e "$TARGET^{commit}"
+          current="$(git ls-remote --tags origin "refs/tags/$TAG" | cut -f1 || true)"
+          if [ -n "$current" ]; then
+            test "$current" = "$TARGET" || { echo '::error::Existing tag references different commit'; exit 1; }
+            echo "PRE_PHASE2_TAG verified $TAG $TARGET"
+          else
+            git -c user.name='V3 tag bootstrap' -c user.email='no-reply@users.noreply.github.com' tag "$TAG" "$TARGET"
+            git push origin "refs/tags/$TAG"
+            current="$(git ls-remote --tags origin "refs/tags/$TAG" | cut -f1)"
+            test "$current" = "$TARGET"
+            echo "PRE_PHASE2_TAG created $TAG $TARGET"
+          fi
