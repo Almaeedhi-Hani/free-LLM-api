@@ -14,6 +14,7 @@ const WORKFLOWS = Object.freeze([
   { id: 'W05', filename: 'llm-feed-optimization.yml', name: 'LLM Index' },
   { id: 'W06', filename: 'autonomous-site-maintenance.yml', name: 'Bounded maintenance' },
 ]);
+const LEGACY_PAUSE_VARS=Object.freeze({W02:'MARKET_RADAR_PAUSED',W05:'LLM_INDEX_PAUSED',W06:'AUTODEV_PAUSED'});
 const POSTGREST_READS = Object.freeze({
   W01: {table:'content_store',time:'updated_at',query:'select=updated_at&order=updated_at.desc&limit=1'},
   W02: {table:'analysis_runs',time:'finished_at',query:'select=finished_at&run_type=eq.radar&status=eq.success&order=finished_at.desc&limit=1'},
@@ -101,7 +102,21 @@ function createClient({repository,token,fetchImpl=fetch}) {
     const value=await github('/actions/workflows/'+encodeURIComponent(filename)+'/runs?event=schedule&per_page=100');
     return value.workflow_runs;
   }
-  return {github,workflowRuns,upsertIssue,resolveIssue};
+  async function pauseStatus(id) {
+    // A missing repository variable means 'false'; API errors mean unknown.
+    const names=['V3_MASTER_PAUSED',...(LEGACY_PAUSE_VARS[id]?[LEGACY_PAUSE_VARS[id]]:[])];
+    for(const name of names) {
+      let current;
+      try {current=await github('/actions/variables/'+name);}
+      catch(error){
+        if(String(error.message).includes('GitHub 404'))continue;
+        return {status:'unknown',reason:'pause_variable_unreadable'};
+      }
+      if(current.value==='true')return {status:'paused',reason:name};
+    }
+    return {status:'active',reason:'no_pause_requested'};
+  }
+  return {github,workflowRuns,pauseStatus,upsertIssue,resolveIssue};
 }
 async function readStorage(id,{url,key,fetchImpl=fetch}) {
   const selection=POSTGREST_READS[id];
@@ -129,8 +144,13 @@ async function collect(client,options) {
   const all=[];
   for(const target of WORKFLOWS) {
     let run;
-    try{run=classifyRuns(await client.workflowRuns(target.filename),options.now);}
-    catch{run={status:'unknown',reason:'github_read_error'};}
+    const pause=await client.pauseStatus(target.id);
+    if(pause.status==='paused')run={status:'paused',reason:pause.reason};
+    else if(pause.status==='unknown')run={status:'unknown',reason:pause.reason};
+    else {
+      try{run=classifyRuns(await client.workflowRuns(target.filename),options.now);}
+      catch{run={status:'unknown',reason:'github_read_error'};}
+    }
     const storage=await readStorage(target.id,{url:options.supabaseUrl,key:options.supabaseKey,fetchImpl:options.fetchImpl||fetch});
     all.push({target,run,storage});
   }
@@ -147,7 +167,7 @@ async function handleWatchdog(client,rows,now) {
       '\nStorage: '+row.storage.status+' ('+(row.storage.latestTimestamp||row.storage.note||'unknown')+')'+
       '\n\nThis monitor never dispatches a production workflow. The issue is updated, not duplicated.';
     if(row.run.status==='stale')result.push({workflow:row.target.id,...await client.upsertIssue({title,body,label:'watchdog'})});
-    if(row.run.status==='healthy')result.push({workflow:row.target.id,...await client.resolveIssue(title,body+'\nResolved by a genuine scheduled success.')});
+    if(row.run.status==='healthy'||row.run.status==='paused')result.push({workflow:row.target.id,...await client.resolveIssue(title,body+'\nIncident resolved: '+(row.run.status==='paused'?'owner-requested pause':'genuine scheduled success')+'.')});
   }
   return result;
 }
@@ -156,6 +176,8 @@ async function handleFailure(client,event) {
   const target=WORKFLOWS.find(w=>run&&String(run.path).endsWith('/'+w.filename));
   if(!target||run.event!=='schedule'||run.head_branch!=='main'||run.head_repository?.full_name!==event.repository?.full_name)
     return {result:'ignored_untrusted_or_non_schedule'};
+  const pause=await client.pauseStatus(target.id);
+  if(pause.status!=='active')return {result:'ignored_paused_or_unknown',pause:pause.status};
   const title=issueKey('failure',target.id+' '+target.name+' scheduled run');
   const result=safeOutcome(run.conclusion);
   const body='Workflow: '+target.filename+'\nRun ID: '+run.id+

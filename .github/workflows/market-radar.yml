@@ -31,7 +31,7 @@ concurrency:
 
 jobs:
   run-radar:
-    if: github.ref == 'refs/heads/main' && vars.MARKET_RADAR_PAUSED != 'true'
+    if: github.ref == 'refs/heads/main' && vars.MARKET_RADAR_PAUSED != 'true' && vars.V3_MASTER_PAUSED != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
