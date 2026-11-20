@@ -91,6 +91,34 @@ assert.equal(openIssues.length,0);
 assert(calls.some(c=>c.route.endsWith('/labels')&&c.body.name==='watchdog'));
 assert(calls.some(c=>c.route.endsWith('/labels')&&c.body.name==='failure'));
 
+// Regression: GitHub can serve a stale /issues listing immediately after a
+// successful POST. Repeated upserts in one Actions job must never create two
+// incidents with the same stable title.
+const staleTitle='[V3 synthetic test] consistency lag';
+let staleCreates=0,staleUpdates=0,staleResolves=0;
+const staleClient=createClient({repository:'org/repo',token:'fake-token',fetchImpl:async(url,options={})=>{
+  const u=new URL(url),route=u.pathname,method=options.method||'GET';
+  if(route.endsWith('/issues')&&method==='GET')return makeJson([]); // intentionally forever stale
+  if(route.endsWith('/labels')&&method==='POST')return makeJson({},201);
+  if(route.endsWith('/issues')&&method==='POST'){
+    staleCreates++;
+    return makeJson({number:88,title:staleTitle,body:JSON.parse(options.body).body},201);
+  }
+  if(route.endsWith('/issues/88')&&method==='PATCH'){
+    const data=JSON.parse(options.body);
+    if(data.state==='closed')staleResolves++; else staleUpdates++;
+    return makeJson({number:88,...data});
+  }
+  throw Error('Unexpected stale-list fake HTTP '+route+' '+method);
+}});
+assert.deepEqual(await staleClient.upsertIssue({title:staleTitle,body:'first',label:'failure'}),{result:'created',number:88});
+assert.deepEqual(await staleClient.upsertIssue({title:staleTitle,body:'second',label:'failure'}),{result:'updated',number:88});
+assert.deepEqual(await staleClient.upsertIssue({title:staleTitle,body:'second',label:'failure'}),{result:'updated',number:88});
+assert.equal(staleCreates,1,'never create duplicate issue under stale list');
+assert.equal(staleUpdates,1,'only changed issue body is patched');
+assert.deepEqual(await staleClient.resolveIssue(staleTitle,'synthetic resolved'),{result:'resolved',number:88});
+assert.equal(staleResolves,1);
+
 const mockRunFetch=async (url,options)=>{
   const u=new URL(url);
   if(u.pathname.includes('/actions/variables/'))return makeJson({},404);
