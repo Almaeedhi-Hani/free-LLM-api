@@ -139,6 +139,12 @@
 - [x] **مؤكد:** لم تُغيّر سياسة النشر: `enabled=true`, `allow_high_risk=true`, `daily_limit=3`؛ بصمات الأحداث المكررة = صفر، وآخر `content_store.updated_at=2026-11-20T11:07:48.979Z`.
 - [ ] **المتبقي لإغلاق المرحلة 1:** W05 وحده ما زال يفتقر إلى تشغيل `event=schedule` ناجحًا بعد نشر #177 مع دليل `no_change` أو تحديث فهرس موثق. التأخير عن الجدولة لا يثبت سبب فشل جديد؛ لا تشغيل وهمي، ولا بدء المرحلة 2 حتى قبول W05 وتوثيق بوابة الخروج.
 
+### 2026-11-20 — حماية إضافية للتراجع وإعادة النشر، W05 البوابة الوحيدة
+
+- [x] **مؤكد:** [PR #183](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/183) دُمج في `main` commit `c0c277f455331e447986e667d53950c1b056e465`. [تشغيل PostgreSQL 17 المعزول #44727145381](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44727145381) `event=pull_request` و`success`: PASS التزامن والحد المشترك 3؛ PASS إعادة الطلب قبل وبعد التراجع عن editorial/FAQ دون حدث مكرر؛ PASS التراجع مرة واحدة، والتراجع المعاد `already_rolled_back`؛ PASS اكتشاف تعارض تعديل يدوي لاحق ومنع طمسه. التغييرات محصورة باختبارات SQL ضمن GitHub Actions، دون تعديل دوال النشر أو قاعدة الإنتاج أو سياسة المخاطر.
+- [x] **مؤكد:** W01 [#44724904649](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44724904649) نجح بعد الإصلاح وأثبت الحفظ الفعلي ومصدر W01 في `audit_logs` (`quota_reached` مشروع)، وW02/W03/W04/W06 لها دليل سابق مفصل. بوابة 1.4 محققة بالاختبارات والأثر الإنتاجي دون نشر اختباري.
+- [ ] **المتبقي وحده من بوابة التشغيل 1:** W05 بعد إصلاح [#177](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/177) يحتاج `event=schedule` حقيقيًا على نسخة منشورة حديثة، مع `EVENT_CADENCE RUN` و`[LLM_INDEX] verified=true changed=false` أو تغيير فهرس `public/llms.txt` وPR/CI/نشر مثبت. لا يحتسب نجاح اختبارات PR أو GET وحدهما دليلًا على `schedule`. حتى قبوله تبقى المرحلة 1 مفتوحة والمرحلة 2 محظورة.
+
 ## المرحلة 2 — شبكة الأمان
 
 - [ ] Watchdog كل 6 ساعات مع Issue dedup وحفظ حقيقي.
