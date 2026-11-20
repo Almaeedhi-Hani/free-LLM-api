@@ -2,7 +2,7 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
-const {buildPublishedLinks,buildUnpublishedPreviews}=require('../.published-links-test-build/published-links.js');
+const {buildPublishedLinks,buildUnpublishedPreviews}=require('../.published-links-test-build/lib/published-links.js');
 const admin=fs.readFileSync('src/app/admin/dashboard/page.tsx','utf8');
 const ui=fs.readFileSync('src/components/PublishedLinksList.tsx','utf8');
 const approved=(id,kind,lang,extra={})=>({
