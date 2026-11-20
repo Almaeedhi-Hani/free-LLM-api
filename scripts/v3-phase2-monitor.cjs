@@ -18,7 +18,7 @@ const LEGACY_PAUSE_VARS=Object.freeze({W02:'MARKET_RADAR_PAUSED',W05:'LLM_INDEX_
 const POSTGREST_READS = Object.freeze({
   W01: {table:'content_store',time:'updated_at',query:'select=updated_at&order=updated_at.desc&limit=1'},
   W02: {table:'analysis_runs',time:'finished_at',query:'select=finished_at&run_type=eq.radar&status=eq.success&order=finished_at.desc&limit=1'},
-  W03: {table:'audit_logs',time:'created_at',query:'select=created_at&action=like.geo_publication_*&order=created_at.desc&limit=1'},
+  W03: {table:'audit_logs',time:'created_at',query:'select=created_at&action=eq.geo_publication_rpc_result&metadata->>source_workflow=eq.W03&order=created_at.desc&limit=1'},
   W04: {table:'gsc_sync_day_outcomes',time:'checked_at',query:'select=checked_at&order=checked_at.desc&limit=1'},
 });
 function expectedIntervalHours(utcMillis) {
@@ -145,6 +145,49 @@ async function readStorage(id,{url,key,fetchImpl=fetch}) {
     return {status:'observed',latestTimestamp:value,source:selection.table};
   }catch{return {status:'unknown',note:'readback_error'};}
 }
+
+/**
+ * Only the GSC total grain is measured here. Other grains duplicate the
+ * same impressions; summing page, query, device and country would inflate
+ * observed organic performance. No external Search Console request is made.
+ */
+async function readGscMeasured({url,key,fetchImpl=fetch}) {
+  if(!url||!key)return {status:'unknown',note:'measurement_credentials_unavailable'};
+  if(!/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(url))
+    return {status:'unknown',note:'invalid_measurement_storage_url'};
+  try {
+    const query='select=metric_date,impressions,clicks&dimension=eq.total&order=metric_date.desc&limit=7';
+    const response=await fetchImpl(url.replace(/\/$/,'')+'/rest/v1/gsc_daily_metrics?'+query,{
+      headers:{apikey:key,Authorization:'Bearer '+key,Accept:'application/json'},
+      signal:AbortSignal.timeout(12000)
+    });
+    if(!response.ok)return {status:'unknown',note:'measurement_http_'+response.status};
+    const rows=await response.json();
+    if(!Array.isArray(rows)||!rows.length)return {status:'unknown',note:'measurement_total_rows_absent'};
+    const seen=new Set();
+    for(const row of rows) {
+      if(!row||typeof row.metric_date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(row.metric_date)||
+         seen.has(row.metric_date)||row.impressions===null||row.impressions===undefined||
+         row.clicks===null||row.clicks===undefined)
+        return {status:'unknown',note:'measurement_rows_invalid'};
+      const impressions=Number(row.impressions),clicks=Number(row.clicks);
+      if(!Number.isFinite(impressions)||!Number.isFinite(clicks)||impressions<0||clicks<0||clicks>impressions)
+        return {status:'unknown',note:'measurement_rows_invalid'};
+      seen.add(row.metric_date);
+    }
+    const latest=rows[0];
+    return {status:'observed',grain:'total',latestDate:latest.metric_date,
+      impressions:Number(latest.impressions),clicks:Number(latest.clicks),observedDays:seen.size};
+  }catch{return {status:'unknown',note:'measurement_readback_error'};}
+}
+function gscSummaryLine(gsc) {
+  if(gsc.status!=='observed')
+    return '- GSC measured organic performance: unknown ('+(gsc.note||'unavailable')+'). No invented impressions or clicks.';
+  return '- GSC measured Search Console (total grain only): '+gsc.latestDate+
+    ', '+gsc.impressions+' impressions, '+gsc.clicks+' clicks; '+gsc.observedDays+
+    ' distinct measured dates inspected. This does not prove indexing or a specific SERP rank.';
+}
+
 function summaryLine(target,run,storage) {
   const age=run.ageHours===null||run.ageHours===undefined?'unknown':run.ageHours+'h';
   const record=storage.latestTimestamp||storage.note||'unknown';
@@ -205,6 +248,7 @@ async function run(options) {
   const rows=await collect(client,options);
   if(options.mode==='watchdog')return {results:await handleWatchdog(client,rows,options.now),observations:rows.map(x=>({id:x.target.id,...x.run,storage:x.storage.status}))};
   if(options.mode==='weekly'){
+    const gsc=await readGscMeasured({url:options.supabaseUrl,key:options.supabaseKey,fetchImpl:options.fetchImpl||fetch});
     const title=issueKey('weekly',weeklyKey(options.now));
     const lines=rows.map(x=>summaryLine(x.target,x.run,x.storage));
     const body=['## V3 weekly operational report', 'Generated (UTC): '+formatUtc(options.now),
@@ -214,7 +258,7 @@ async function run(options) {
       '### Evidence and outstanding decisions',
       '- Keyword accepted/rejected: unknown unless independently collected (not fabricated).',
       '- V3 Evals: unknown until linked successful run is independently checked.',
-      '- GSC: data availability indicated above; do not infer impressions/clicks from workflow success.',
+      gscSummaryLine(gsc),
       '- AI visibility: search_grounded/manual samples unknown; model_only never counts as verified citations.',
       '- Free provider quota usage: unknown unless explicit per-provider usage is available.',
       '- Decisions: production security hardening, legal review policy, weekly sample activation.',
@@ -239,4 +283,4 @@ if(require.main===module){
     console.log('[V3_SAFETY] '+JSON.stringify(result));
   })().catch(err=>{console.error('[V3_SAFETY] '+String(err.message).slice(0,200));process.exitCode=1;});
 }
-module.exports={WORKFLOWS,expectedIntervalHours,classifyRuns,weeklyKey,issueKey,safeOutcome,createClient,readStorage,collect,handleFailure,handleWatchdog,run};
+module.exports={WORKFLOWS,expectedIntervalHours,classifyRuns,weeklyKey,issueKey,safeOutcome,createClient,readStorage,readGscMeasured,gscSummaryLine,collect,handleFailure,handleWatchdog,run};
