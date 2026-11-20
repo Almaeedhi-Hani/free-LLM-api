@@ -2,7 +2,7 @@
 const assert=require('node:assert/strict');
 const {
   WORKFLOWS,expectedIntervalHours,classifyRuns,weeklyKey,issueKey,safeOutcome,
-  readStorage,readGscMeasured,gscSummaryLine,createClient,handleFailure,handleWatchdog,run
+  readStorage,persistedFreshness,readGscMeasured,gscSummaryLine,createClient,handleFailure,handleWatchdog,run
 }=require('./v3-phase2-monitor.cjs');
 
 const now=Date.parse('2026-11-20T14:00:00Z');
@@ -27,6 +27,18 @@ assert.equal(issueKey('weekly','2026-11-22'),'[V3 weekly] 2026-11-22');
 assert.equal(safeOutcome('a malicious conclusion'),'unknown');
 
 (async()=>{
+// Schedule success and persisted-result freshness are independent evidence.
+// W05/W06 can be no_change and missing credentials never mean fresh.
+assert.equal(persistedFreshness({status:'observed',latestTimestamp:new Date(now-2*3600000).toISOString()},now).status,'fresh');
+assert.equal(persistedFreshness({status:'observed',latestTimestamp:new Date(now-4*3600000).toISOString()},now).status,'fresh');
+assert.equal(persistedFreshness({status:'observed',latestTimestamp:new Date(now-4.1*3600000).toISOString()},now).status,'stale');
+assert.equal(persistedFreshness({status:'unknown',note:'no credentials'},now).status,'unknown');
+assert.equal(persistedFreshness({status:'not_applicable'},now).status,'not_applicable');
+assert.equal(persistedFreshness({status:'observed',latestTimestamp:new Date(now+3600000).toISOString()},now).status,'unknown');
+assert.equal(persistedFreshness({status:'observed',latestTimestamp:'invalid'},now).status,'unknown');
+assert.equal(persistedFreshness({status:'observed',latestTimestamp:new Date(Date.parse('2026-11-22T01:00:00Z')-7*3600000).toISOString()},Date.parse('2026-11-22T01:00:00Z')).status,'fresh');
+assert.equal(persistedFreshness({status:'observed',latestTimestamp:new Date(Date.parse('2026-11-22T01:00:00Z')-9*3600000).toISOString()},Date.parse('2026-11-22T01:00:00Z')).status,'stale');
+
 const absent=await readStorage('W01',{url:'',key:''});
 assert.equal(absent.status,'unknown');
 const notApplicable=await readStorage('W05',{url:'',key:''});
@@ -107,6 +119,30 @@ result=await handleWatchdog(client,[{...rows[0],run:classifyRuns([scheduled(1)],
 assert.equal(result[0].result,'resolved');
 assert.equal(openIssues.length,0);
 
+// A successful W02 GitHub schedule with no recent stored radar result
+// must raise an independently named watchdog Issue, then resolve only when
+// new stored evidence exists. Do not duplicate the schedule-stale Issue.
+const savedTarget={target:WORKFLOWS[1],run:classifyRuns([scheduled(1)],now),
+ storage:{status:'observed',latestTimestamp:new Date(now-6*3600000).toISOString()}};
+let savedAlert=await handleWatchdog(client,[savedTarget],now);
+assert.equal(savedAlert.length,1);
+assert.equal(savedAlert[0].kind,'persisted_output');
+assert.equal(savedAlert[0].result,'created');
+assert(openIssues[0].title.includes('persisted output stale'));
+savedAlert=await handleWatchdog(client,[savedTarget],now);
+assert.equal(savedAlert[0].result,'updated');
+assert.equal(openIssues.length,1,'stale stored output must not create duplicate Issues');
+const resolvedStorage={...savedTarget,storage:{status:'observed',
+ latestTimestamp:new Date(now-0.5*3600000).toISOString()}};
+savedAlert=await handleWatchdog(client,[resolvedStorage],now);
+assert.equal(savedAlert[0].result,'resolved');
+assert.equal(openIssues.length,0);
+savedAlert=await handleWatchdog(client,[{...savedTarget,storage:{status:'unknown',note:'credentials_unavailable'}}],now);
+assert.equal(savedAlert.length,0,'unknown storage cannot be claimed fresh or generate false incidents');
+savedAlert=await handleWatchdog(client,[{target:WORKFLOWS[4],run:classifyRuns([scheduled(1)],now),
+ storage:{status:'not_applicable'}}],now);
+assert.equal(savedAlert.length,0,'W05 no_change must not be an artificial storage incident');
+
 const fakeEvent={repository:{full_name:'org/repo'},workflow_run:{
  path:'.github/workflows/geo-analysis.yml',id:999,event:'schedule',head_branch:'main',
  head_repository:{full_name:'org/repo'},conclusion:'failure'
@@ -130,6 +166,8 @@ const mockRunFetch=async (url,options)=>{
   if(u.pathname.endsWith('/labels'))return makeJson({},201);
   if(u.pathname.endsWith('/issues')&&options.method==='POST'){
     assert(options.body.includes('model_only never counts as verified citations'));
+    assert(options.body.includes('| Storage freshness |'));
+    assert(options.body.includes('unknown'), 'absent storage remains explicitly unknown');
     return makeJson({number:44},201);
   }
   throw Error('Unexpected weekly mock '+u.pathname);
