@@ -9,6 +9,8 @@ on:
       - 'tests/sql/phase1-publication-concurrency-fixture.sql'
       - 'supabase/migrations/20261118_geo_guarded_automatic_publication.sql'
       - 'supabase/migrations/20261118_geo_source_optional_unattended_publish.sql'
+      - 'docs/plans/PROGRESS.md'
+      - 'docs/plans/phase1-evidence-20261119.md'
   workflow_dispatch:
 
 permissions:
