@@ -23,6 +23,11 @@ const visited=[];
 async function fetchMock(url,options={}){
  const target=String(url),method=options.method||'GET';visited.push({target,method});
  if(target===CANONICAL+'/sitemap.xml')return response(sitemap,200,true);
+ if(target===CANONICAL+'/api/geo/data'){
+  assert.equal(options.headers['x-geo-api-key'],'local-geo-key','existing GEO auth required');
+  if(state.missingDb)return response({},503);
+  return response({source:'supabase',competitors:[{domain:'custom-competitor.test',status:'active'},{domain:'deactivated.invalid',status:'disqualified'}]});
+ }
  if(target.startsWith(CANONICAL+'/')){
    const path=new URL(target).pathname;
    if(!PUBLIC_PATHS.includes(path))throw Error('unallowlisted path '+path);
@@ -31,11 +36,7 @@ async function fetchMock(url,options={}){
      ?'<main><a href="https://jewark.com/pricing">Competitor link</a></main>'
      :'<main><a href="https://misa.gov.sa">Official link</a></main>',200,true);
  }
- if(target===CANONICAL+'/api/geo/data'){
-  assert.equal(options.headers['x-geo-api-key'],'local-geo-key','existing GEO auth required');
-  if(state.missingDb)return response({},503);
-  return response({source:'supabase',competitors:[{domain:'custom-competitor.test',status:'active'},{domain:'deactivated.invalid',status:'disqualified'}]});
- }
+
  if(target.startsWith('https://api.github.com/repos/o/r')){
   const p=new URL(target).pathname;
   const body=options.body?JSON.parse(options.body):null;
