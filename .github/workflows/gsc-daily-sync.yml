@@ -25,6 +25,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   sync:
+    if: vars.V3_MASTER_PAUSED != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:

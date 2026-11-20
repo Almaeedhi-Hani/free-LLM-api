@@ -31,6 +31,7 @@ concurrency:
 
 jobs:
   geo-analysis:
+    if: vars.V3_MASTER_PAUSED != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
