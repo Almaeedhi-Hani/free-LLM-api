@@ -21,7 +21,7 @@ const latestActiveEvent=(events:readonly PublicationEventSummary[],kind:'editori
  const latest=matches[0];
  return latest?.status==='published'&&!latest.rolled_back_at?latest:null;
 };
-const source=(method:'human'|'automated'|undefined,event:PublicationEventSummary|null)=>
+const source=(method:'human'|'automated'|undefined,event:PublicationEventSummary|null):PublishedLink['publicationSource']=>
   event||method==='automated'?'آلي':method==='human'?'يدوي':'غير معروف';
 
 /** Exactly the live route's approval gate, with links derived from editorialPath.
