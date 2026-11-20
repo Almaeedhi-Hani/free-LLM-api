@@ -1,5 +1,21 @@
 'use strict';
 const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const fixturePath=process.env.CONTENT_STORE_PATH;
+assert(fixturePath?.startsWith('/tmp/'),'Only isolated /tmp content store is allowed in this browser test');
+fs.writeFileSync(fixturePath,JSON.stringify({
+ editorialItems:[{
+  id:'isolated-published-service',kind:'service',lang:'en',target:'misa-license',
+  title:'Test approved investor advisory',summary:'An approved local browser fixture for a public service route.',
+  body:'Only test fixture copy, without external claims. '.repeat(12),
+  status:'approved',risk_level:'low',createdAt:'2026-11-19T00:00:00Z',
+  reviewedAt:'2026-11-20T00:00:00Z',approval_method:'human',
+  evidence_ids:[],evidence_refs:[],verified_sources:['https://example.gov.sa']
+ }],
+ faqs:[{q:'سؤال اختباري منشور',a:'إجابة منشورة في الصفحة العربية',approval_method:'human'}],
+ drafts:[{q:'سؤال قيد المراجعة',a:'هذه معاينة غير منشورة',status:'pending',createdAt:'2026-11-20T00:00:00Z'}]
+}));
+
 const {chromium}=require('playwright');
 const base='http://127.0.0.1:3100';
 const secret=process.env.E2E_ADMIN_SECRET;
@@ -31,6 +47,18 @@ const secret=process.env.E2E_ADMIN_SECRET;
   await navigate('المحتوى والنشر','المحتوى المنشور: الروابط');
   const published=page.locator('section[aria-label="المحتوى المنشور: الروابط"]');
   await published.waitFor();
+  await published.getByText('عدد العناصر المنشورة المؤكدة في المصدر: 2',{exact:false}).waitFor();
+  const cards=published.locator('a[aria-label^="فتح المحتوى المنشور:"]');
+  assert.equal(await cards.count(),2,'Source count equals 1 approved live editorial + 1 FAQ');
+  const paths=await cards.evaluateAll(nodes=>nodes.map(node=>new URL(node.href).pathname).sort());
+  assert.deepEqual(paths,['/','/en/services/misa-license'],'Published items use actual public paths');
+  const results=await page.evaluate(async requested=>Promise.all(requested.map(async pathname=>{
+   const response=await fetch(pathname,{method:'GET',redirect:'follow'});
+   return {pathname,status:response.status};
+  })),paths);
+  assert(results.every(result=>result.status===200),'Every isolated published path must return HTTP 200: '+JSON.stringify(results));
+  assert.equal(await published.locator('#unpublished-previews li').count(),1,'Pending FAQ must be in draft section, not live list');
+
   assert.equal(await published.getAttribute('dir'),'rtl','Published links screen stays RTL on phone');
   assert.equal(await published.locator('#unpublished-previews').getAttribute('open'),null,'Drafts stay folded');
   assert.equal(await published.locator('#unpublished-previews a[href]').count(),0,'Pending drafts have no clickable public URLs');
