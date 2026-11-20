@@ -47,8 +47,8 @@ jobs:
       - name: Run scheduled watchdog or weekly report (manual defaults to no writes)
         env:
           GH_TOKEN: ${{ github.token }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GEO_API_URL: ${{ secrets.GEO_API_URL }}
+          GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
           REQUEST_MODE: ${{ inputs.mode }}
           SCHEDULE_CRON: ${{ github.event.schedule }}
         shell: bash
