@@ -125,23 +125,25 @@ assert.equal(openIssues.length,0);
 const savedTarget={target:WORKFLOWS[1],run:classifyRuns([scheduled(1)],now),
  storage:{status:'observed',latestTimestamp:new Date(now-6*3600000).toISOString()}};
 let savedAlert=await handleWatchdog(client,[savedTarget],now);
-assert.equal(savedAlert.length,1);
-assert.equal(savedAlert[0].kind,'persisted_output');
-assert.equal(savedAlert[0].result,'created');
+// The existing schedule reconciler also emits a harmless result:'none' when
+// its own independent schedule-stale issue does not exist.
+const persistedResults=items=>items.filter(x=>x.kind==='persisted_output');
+assert.equal(persistedResults(savedAlert).length,1);
+assert.equal(persistedResults(savedAlert)[0].result,'created');
 assert(openIssues[0].title.includes('persisted output stale'));
 savedAlert=await handleWatchdog(client,[savedTarget],now);
-assert.equal(savedAlert[0].result,'updated');
+assert.equal(persistedResults(savedAlert)[0].result,'updated');
 assert.equal(openIssues.length,1,'stale stored output must not create duplicate Issues');
 const resolvedStorage={...savedTarget,storage:{status:'observed',
  latestTimestamp:new Date(now-0.5*3600000).toISOString()}};
 savedAlert=await handleWatchdog(client,[resolvedStorage],now);
-assert.equal(savedAlert[0].result,'resolved');
+assert.equal(persistedResults(savedAlert)[0].result,'resolved');
 assert.equal(openIssues.length,0);
 savedAlert=await handleWatchdog(client,[{...savedTarget,storage:{status:'unknown',note:'credentials_unavailable'}}],now);
-assert.equal(savedAlert.length,0,'unknown storage cannot be claimed fresh or generate false incidents');
+assert.equal(persistedResults(savedAlert).length,0,'unknown storage cannot be claimed fresh or generate false incidents');
 savedAlert=await handleWatchdog(client,[{target:WORKFLOWS[4],run:classifyRuns([scheduled(1)],now),
  storage:{status:'not_applicable'}}],now);
-assert.equal(savedAlert.length,0,'W05 no_change must not be an artificial storage incident');
+assert.equal(persistedResults(savedAlert).length,0,'W05 no_change must not be an artificial storage incident');
 
 const fakeEvent={repository:{full_name:'org/repo'},workflow_run:{
  path:'.github/workflows/geo-analysis.yml',id:999,event:'schedule',head_branch:'main',
