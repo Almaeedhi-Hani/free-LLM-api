@@ -2,7 +2,7 @@
 const assert=require('node:assert/strict');
 const {
   WORKFLOWS,expectedIntervalHours,classifyRuns,weeklyKey,issueKey,safeOutcome,
-  readStorage,createClient,handleFailure,handleWatchdog,run
+  readStorage,readGscMeasured,gscSummaryLine,createClient,handleFailure,handleWatchdog,run
 }=require('./v3-phase2-monitor.cjs');
 
 const now=Date.parse('2026-11-20T14:00:00Z');
@@ -172,6 +172,66 @@ const missingContext=createClient({repository:'org/repo',token:'fake-token',
  pauseVarSnapshot:{V3_MASTER_PAUSED:''},fetchImpl:async()=>{throw Error('No API call');}});
 assert.equal((await missingContext.pauseStatus('W02')).status,'unknown');
 
+
+
+// W03 persistence MUST be an attributed outcome from W03, not W01's
+// later publication attempt. All checks use mocked HTTPS responses only.
+let w03Reads=0;
+const w03Storage=await readStorage('W03',{
+ url:'https://example.supabase.co',key:'fixture-key',fetchImpl:async url=>{
+  w03Reads++;
+  const query=new URL(url).searchParams;
+  assert.equal(query.get('action'),'eq.geo_publication_rpc_result');
+  assert.equal(query.get('metadata->>source_workflow'),'eq.W03');
+  assert.equal(query.get('select'),'created_at');
+  return makeJson([{created_at:'2026-11-20T11:07:54Z'}]);
+ }});
+assert.equal(w03Reads,1);
+assert.equal(w03Storage.status,'observed');
+assert.equal(w03Storage.source,'audit_logs');
+
+// GSC weekly numbers come only from the measured total grain; language,
+// country, page, query and device views cannot be double-counted.
+const gscMeasured=await readGscMeasured({
+ url:'https://example.supabase.co',key:'fixture-key',fetchImpl:async url=>{
+  const u=new URL(url);
+  assert(u.pathname.endsWith('/rest/v1/gsc_daily_metrics'));
+  assert.equal(u.searchParams.get('dimension'),'eq.total');
+  assert.equal(u.searchParams.get('select'),'metric_date,impressions,clicks');
+  assert.equal(u.searchParams.get('limit'),'7');
+  return makeJson([{metric_date:'2026-11-17',impressions:3,clicks:0},
+    {metric_date:'2026-11-16',impressions:0,clicks:0}]);
+ }});
+assert.equal(gscMeasured.status,'observed');
+assert.equal(gscMeasured.latestDate,'2026-11-17');
+assert.equal(gscMeasured.impressions,3);
+assert.equal(gscMeasured.clicks,0);
+assert.equal(gscMeasured.observedDays,2);
+assert(gscSummaryLine(gscMeasured).includes('3 impressions, 0 clicks'));
+assert(gscSummaryLine({status:'unknown',note:'unavailable'}).includes('unknown'));
+assert.equal((await readGscMeasured({url:'',key:''})).status,'unknown');
+assert.equal((await readGscMeasured({url:'http://example.com',key:'fixture'})).status,'unknown');
+assert.equal((await readGscMeasured({url:'https://example.supabase.co',key:'fixture',
+ fetchImpl:async()=>makeJson([{metric_date:'2026-11-17',impressions:3,clicks:0},
+  {metric_date:'2026-11-17',impressions:3,clicks:0}])})).status,'unknown');
+assert.equal((await readGscMeasured({url:'https://example.supabase.co',key:'fixture',
+ fetchImpl:async()=>makeJson([{metric_date:'2026-11-17',impressions:null,clicks:0}])})).status,'unknown');
+let weeklyPayload='';
+await run({mode:'weekly',repository:'org/repo',token:'fake-token',now,
+ supabaseUrl:'https://example.supabase.co',supabaseKey:'fixture-key',
+ fetchImpl:async (url,options)=>{
+  if(String(url).startsWith('https://example.supabase.co/')){
+    if(String(url).includes('/gsc_daily_metrics?'))
+      return makeJson([{metric_date:'2026-11-17',impressions:3,clicks:0}]);
+    return makeJson([]);
+  }
+  const u=new URL(url);
+  if(u.pathname.endsWith('/issues')&&options.method==='POST')
+    weeklyPayload=JSON.parse(options.body).body;
+  return mockRunFetch(url,options);
+ }});
+assert(weeklyPayload.includes('GSC measured Search Console (total grain only): 2026-11-17, 3 impressions, 0 clicks'));
+assert(weeklyPayload.includes('model_only never counts as verified citations'));
 
 console.log('PASS V3 Stage 2 isolated watchdog/issue-dedup/weekly/failure/storage and Saudi cutover tests');
 })().catch(err=>{console.error(err);process.exitCode=1;});
