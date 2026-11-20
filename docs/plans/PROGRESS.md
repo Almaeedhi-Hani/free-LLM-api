@@ -131,6 +131,14 @@
 - [x] **مؤكد/1.4:** Supabase `audit_logs` يحفظ 6 صفوف W01 جديدة مرتبطة بنفس رقم التشغيل و`event_type=schedule`، منها محاولة RPC فعلية بنتيجة `quota_reached`. مع نجاح اختبار معاملات PostgreSQL #44720105512 وغياب البصمات المكررة يبقى التزامن والمصدر مثبتين دون نشر اختباري.
 - [ ] **فقط W05:** ينتظر دليل تشغيل schedule لاحق لإصلاح #177 (تغيير صحيح أو no_change مشروع). لا تتجاوز هذه البوابة إلى المرحلة 2.
 
+### 2026-11-20 14:15 KSA — قبول W01 بعد الدورة المجدولة الحقيقية
+
+- [x] **W01 مؤكد على الإصدار الإنتاجي:** [run #44724904649](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44724904649)، `event=schedule`، `head_sha=876565aa28c238472aa696c33044f97382dc0a41`، `conclusion=success`؛ حدث `EVENT_CADENCE RUN kind=geo reason=scheduled_slot`، ثم نجحت خطوات التحليل والحفظ والنشر. بدأ التشغيل الفعلي عند 11:07Z (14:07 KSA) رغم أن حدث cron الاسمي 03:00Z؛ لا تخلط بين وقت الحدث وبدء المهمة المتأخر.
+- [x] **مؤكد — نتائج حفظ W01:** السجل `persisted_opportunities=4`, `persisted_goals=4`, `persisted_drafts=2`, `persisted_editorial_actions=1`، و`persisted_discovery_candidates=10` و14 كلمة بحثية **موجودة مسبقًا** (`inserted=0,existing=14`). فحص Supabase SELECT عند 11:13–11:14Z وجد فرصتين جديدتين وهدفين جديدين خلال نافذة الدورة، ومسودتين لهما `createdAt` في نافذة الدورة ومقترحًا تحريريًا واحدًا؛ قد تشمل العدادات الأخرى تحديث/إعادة استخدام عناصر سابقة، فلا تعتبر كل عدد محفوظ سجلًا جديدًا.
+- [x] **مؤكد — مصدر النشر W01:** `audit_logs` يحوي ستة صفوف موثقة برأس `source_workflow=W01`, `github_run_id=44724904649`, `github_run_attempt=1`, `event_type=schedule`: أربع حالات `requires_finished_visitor_copy`، سجل `rpc_started` واحد، وسجل `rpc_result=quota_reached` واحد (11:07:52–11:07:54Z). `published=0` لأن الحصة ممتلئة، وهو قرار سياسة صحيح وليس فشل المهمة. يثبت هذا هوية محاولة W01 في الإنتاج بعد إثبات تزامن SQL الفعلي داخل PostgreSQL المعزول عبر #179.
+- [x] **مؤكد:** لم تُغيّر سياسة النشر: `enabled=true`, `allow_high_risk=true`, `daily_limit=3`؛ بصمات الأحداث المكررة = صفر، وآخر `content_store.updated_at=2026-11-20T11:07:48.979Z`.
+- [ ] **المتبقي لإغلاق المرحلة 1:** W05 وحده ما زال يفتقر إلى تشغيل `event=schedule` ناجحًا بعد نشر #177 مع دليل `no_change` أو تحديث فهرس موثق. التأخير عن الجدولة لا يثبت سبب فشل جديد؛ لا تشغيل وهمي، ولا بدء المرحلة 2 حتى قبول W05 وتوثيق بوابة الخروج.
+
 ## المرحلة 2 — شبكة الأمان
 
 - [ ] Watchdog كل 6 ساعات مع Issue dedup وحفظ حقيقي.
