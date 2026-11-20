@@ -14,6 +14,11 @@ const WORKFLOWS = Object.freeze({
   W05: 'llm-feed-optimization.yml',
   W06: 'autonomous-site-maintenance.yml',
 });
+const WORKFLOW_NAMES=Object.freeze({
+  W01:'GEO Intelligence Analysis',W02:'Market Intelligence Radar (Independent)',
+  W03:'GEO Daily Auto Publication',W04:'GSC daily metrics sync',
+  W05:'LLM Agent Feed Quality & Index',W06:'Autonomous Site Maintenance (bounded)',
+});
 const CUTOVER = Date.parse('2026-11-21T21:00:00Z');
 const trim = x => String(x || '').slice(0, 180);
 const ageHours = (timestamp, now) => {
@@ -130,7 +135,8 @@ async function upsertIssue(fetchImpl,env,{title,body,label}) {
 function periodEnd(now){return new Date(now).toISOString().slice(0,10);}
 async function execute({fetchImpl=fetch,env=process.env,now=Date.now(),mode='watchdog',dryRun=false}={}) {
   if(mode==='failure') {
-    const id=String(env.FAILED_WORKFLOW_ID||'');
+    const id=String(env.FAILED_WORKFLOW_ID||
+      Object.keys(WORKFLOW_NAMES).find(x=>WORKFLOW_NAMES[x]===env.FAILED_WORKFLOW_NAME)||'');
     if(!Object.hasOwn(WORKFLOWS,id)) throw Error('Failure alert source not allowlisted');
     const run=String(env.FAILED_RUN_ID||'');
     if(!/^\d{1,18}$/.test(run))throw Error('Invalid run ID');
@@ -173,4 +179,4 @@ if(require.main===module){
     if(result.body)console.log(result.body);
   }).catch(e=>{console.error('[V3_MONITOR] failed '+String(e.message).slice(0,120));process.exitCode=1;});
 }
-module.exports={WORKFLOWS,CUTOVER,ageHours,inspectWorkflow,inspectPersistence,safeReport,issueTitle,execute,upsertIssue};
+module.exports={WORKFLOWS,WORKFLOW_NAMES,CUTOVER,ageHours,inspectWorkflow,inspectPersistence,safeReport,issueTitle,execute,upsertIssue};
