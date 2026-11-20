@@ -38,6 +38,8 @@ jobs:
         run: npm run test:packages
       - name: Verify W05 automatic index PR fails closed until its independent checks pass
         run: node scripts/llm-pr-ci-gate.test.cjs
+      - name: Verify V3 watchdog, weekly and scheduled failure issue safety offline
+        run: node scripts/v3-phase2-monitor.test.cjs
       - name: Evidence-gated organic ranking, indexing, AI visibility and conversion tests
         run: npm run test:visibility
       - name: OpenCode multilingual topic architect and source-diversity contract
