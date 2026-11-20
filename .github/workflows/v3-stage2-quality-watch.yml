@@ -56,8 +56,7 @@ jobs:
         if: github.event_name == 'schedule'
         env:
           GH_TOKEN: ${{ github.token }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
           V3_EVAL_OUTCOME: ${{ steps.evals.outputs.outcome }}
         run: node scripts/v3-stage2-quality-audit.cjs
       - name: Explicitly record safe dry-run without contacting production
