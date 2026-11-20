@@ -163,6 +163,24 @@ async function readStorage(id,{url,key,fetchImpl=fetch}) {
 }
 
 /**
+ * A green scheduled job does not prove that its output was stored. W01-W04
+ * have persisted readbacks; W05/W06 can legitimately be no_change. Unknown
+ * or invalid database reads never become fabricated healthy evidence.
+ */
+function persistedFreshness(storage,nowMillis) {
+  if(storage?.status==='not_applicable')return {status:'not_applicable',reason:'legitimate_no_change_possible'};
+  if(storage?.status!=='observed')return {status:'unknown',reason:'storage_readback_unverified'};
+  const saved=Date.parse(storage.latestTimestamp);
+  if(!Number.isFinite(saved)||!Number.isFinite(nowMillis)||saved>nowMillis)
+    return {status:'unknown',reason:'invalid_persisted_timestamp'};
+  const ageHours=(nowMillis-saved)/3600000;
+  const limitHours=2*expectedIntervalHours(nowMillis);
+  return {status:ageHours>limitHours?'stale':'fresh',
+    reason:ageHours>limitHours?'persisted_output_older_than_twice_interval':'recent_persisted_output',
+    ageHours:+ageHours.toFixed(2),limitHours};
+}
+
+/**
  * Only the GSC total grain is measured here. Other grains duplicate the
  * same impressions; summing page, query, device and country would inflate
  * observed organic performance. No external Search Console request is made.
@@ -204,10 +222,12 @@ function gscSummaryLine(gsc) {
     ' distinct measured dates inspected. This does not prove indexing or a specific SERP rank.';
 }
 
-function summaryLine(target,run,storage) {
+function summaryLine(target,run,storage,nowMillis) {
   const age=run.ageHours===null||run.ageHours===undefined?'unknown':run.ageHours+'h';
   const record=storage.latestTimestamp||storage.note||'unknown';
-  return '| '+target.id+' '+target.name+' | '+run.status+' | '+age+' | '+(run.runId||'none')+' | '+storage.status+': '+record+' |';
+  const freshness=persistedFreshness(storage,nowMillis);
+  return '| '+target.id+' '+target.name+' | '+run.status+' | '+age+' | '+(run.runId||'none')+
+    ' | '+storage.status+': '+record+' | '+freshness.status+' |';
 }
 async function collect(client,options) {
   const all=[];
@@ -237,6 +257,24 @@ async function handleWatchdog(client,rows,now) {
       '\n\nThis monitor never dispatches a production workflow. The issue is updated, not duplicated.';
     if(row.run.status==='stale')result.push({workflow:row.target.id,...await client.upsertIssue({title,body,label:'watchdog'})});
     if(row.run.status==='healthy'||row.run.status==='paused')result.push({workflow:row.target.id,...await client.resolveIssue(title,body+'\nIncident resolved: '+(row.run.status==='paused'?'owner-requested pause':'genuine scheduled success')+'.')});
+
+    // The second, source-backed alarm is independent of a green workflow.
+    // Never alert solely because credentials are missing or a no_change
+    // workflow has no storage table; such observations stay explicit unknown.
+    const freshness=persistedFreshness(row.storage,now);
+    if(freshness.status==='not_applicable')continue;
+    const savedTitle=issueKey('watchdog',row.target.id+' '+row.target.name+' persisted output stale');
+    const savedBody='Latest assessment '+formatUtc(now)+'\n\nWorkflow: '+row.target.filename+
+      '\nSchedule: '+row.run.status+'\nPersistence: '+freshness.status+
+      '\nReason: '+freshness.reason+'\nHours since verified save: '+(freshness.ageHours??'unknown')+
+      '\nLimit hours: '+(freshness.limitHours??'unknown')+
+      '\nLast observed save: '+(row.storage.latestTimestamp||row.storage.note||'unknown')+
+      '\nNo provider calls, forced publishing, or synthetic records were made by the monitor.';
+    if(row.run.status==='healthy'&&freshness.status==='stale')
+      result.push({workflow:row.target.id,kind:'persisted_output',...await client.upsertIssue({title:savedTitle,body:savedBody,label:'watchdog'})});
+    if(row.run.status==='paused'||(row.run.status==='healthy'&&freshness.status==='fresh'))
+      result.push({workflow:row.target.id,kind:'persisted_output',...await client.resolveIssue(savedTitle,savedBody+
+        '\nResolved: '+(row.run.status==='paused'?'owner-requested pause':'genuine schedule and recent stored output')+'.')});
   }
   return result;
 }
@@ -262,14 +300,14 @@ async function run(options) {
     pauseVarSnapshot:options.pauseVarSnapshot??null});
   if(options.mode==='failure')return handleFailure(client,options.event);
   const rows=await collect(client,options);
-  if(options.mode==='watchdog')return {results:await handleWatchdog(client,rows,options.now),observations:rows.map(x=>({id:x.target.id,...x.run,storage:x.storage.status}))};
+  if(options.mode==='watchdog')return {results:await handleWatchdog(client,rows,options.now),observations:rows.map(x=>({id:x.target.id,...x.run,storage:x.storage.status,storageFreshness:persistedFreshness(x.storage,options.now)}))};
   if(options.mode==='weekly'){
     const gsc=await readGscMeasured({url:options.supabaseUrl,key:options.supabaseKey,fetchImpl:options.fetchImpl||fetch});
     const title=issueKey('weekly',weeklyKey(options.now));
-    const lines=rows.map(x=>summaryLine(x.target,x.run,x.storage));
+    const lines=rows.map(x=>summaryLine(x.target,x.run,x.storage,options.now));
     const body=['## V3 weekly operational report', 'Generated (UTC): '+formatUtc(options.now),
       'All dates are observed; missing storage or measurement remains unknown.',
-      '| System | Schedule | Age | Last run | Storage readback |','| --- | --- | --- | --- | --- |',
+      '| System | Schedule | Age | Last run | Storage readback | Storage freshness |','| --- | --- | --- | --- | --- | --- |',
       ...lines,'',
       '### Evidence and outstanding decisions',
       '- Keyword accepted/rejected: unknown unless independently collected (not fabricated).',
@@ -299,4 +337,4 @@ if(require.main===module){
     console.log('[V3_SAFETY] '+JSON.stringify(result));
   })().catch(err=>{console.error('[V3_SAFETY] '+String(err.message).slice(0,200));process.exitCode=1;});
 }
-module.exports={WORKFLOWS,expectedIntervalHours,classifyRuns,weeklyKey,issueKey,safeOutcome,createClient,readStorage,readGscMeasured,gscSummaryLine,collect,handleFailure,handleWatchdog,run};
+module.exports={WORKFLOWS,expectedIntervalHours,classifyRuns,weeklyKey,issueKey,safeOutcome,createClient,readStorage,persistedFreshness,readGscMeasured,gscSummaryLine,collect,handleFailure,handleWatchdog,run};
