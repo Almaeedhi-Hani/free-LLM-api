@@ -22,6 +22,8 @@ assert(plan.planned.every(x=>x.status==='proposal_only'&&x.requires_owner_policy
 assert.equal(JSON.stringify(candidates),before,'pure gate cannot change original work items');
 const one=planTechnicalIssues(candidates,{maxPerUtcDay:1});
 assert.equal(one.planned.length,1);
+assert.equal(planTechnicalIssues(candidates,{alreadyOpenedToday:2}).planned.length,1,'honor existing same-day issue count');
+assert.equal(planTechnicalIssues(candidates,{alreadyOpenedToday:3}).planned.length,0,'no new issues after three already created');
 const duplicates=planTechnicalIssues(candidates,{alreadyOpened:[plan.planned[0].fingerprint]});
 assert.equal(duplicates.planned.length,3);
 assert(duplicates.review.some(x=>x.reason==='duplicate_technical_handoff'));
