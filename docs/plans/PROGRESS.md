@@ -113,6 +113,32 @@
 - [ ] **المتبقي من 1.4:** إثبات `audit_logs` لطلب W01 حقيقي بعد PR #175 من `event=schedule`، مع `source_workflow=W01` ورقم التشغيل ونتيجة المحاولة. اختبار التزامن الفعلي المعزول أعلاه **نجح** لكنه لا يثبت مسار رؤوس API أو هوية W01 في الإنتاج. لا تُغلق المرحلة حتى يجتاز هذا الشرط مع W01/W05.
 - [ ] W01 وW05 يحتاجان تشغيل `event=schedule` حقيقيًا مع قراءة الحفظ/القرار بعد دمج إصلاحاتهما؛ لا انتقال إلى المرحلة 2.
 
+### 2026-11-20 14:08 KSA — نقطة تفتيش بمنسق واحد دون جلسات
+
+- [x] **مؤكد:** دمج PR #177 (إصلاح W05، SHA `0ce5a294`) وPR #178 (إصلاح W01، SHA `b93bd434`) بعد اجتياز جميع الاختبارات، ونشرهما على Render.
+- [x] **مؤكد:** دمج [PR #179](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/179) بعد اجتياز **7/7** فحوص، ومنها [اختبار PostgreSQL الفعلي #44720105512](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44720105512). `main=876565aa28c238472aa696c33044f97382dc0a41` وRender `dep-dc02ifc9v7es73cfq00g` **LIVE** عند 11:05:39 UTC / 14:05:39 KSA. اجتاز فحص الإنتاج غير المعدل [#44724540037](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44724540037). هذا لا يثبت مصدر محاولة W01 الحية.
+- [x] **مؤكد/Supabase SELECT 11:05–11:07 UTC:** النشر `enabled=true` و`allow_high_risk=true` و`daily_limit=3` دون تعديل؛ 3 أحداث editorial آخر 24 ساعة و0 FAQ؛ الإجمالي 6 editorial و0 FAQ. مجموعات التكرار `item_id+content_fingerprint` = صفر. `content_store`: 35 مسودة و55 اقتراح تحرير. `audit_logs`: 34 صفًا خاصًا بالنشر، جميعها W03 (7 started، 2 published، 5 quota_reached، 20 requires_finished_visitor_copy) و**صفر W01**.
+- [x] **مؤكد/W02:** [schedule #44720788156](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44720788156) success عند 10:37Z على `b93bd434`، مع سجلي `analysis_runs` مرتبطين radar/full؛ لا تعدّهما دورتين مستقلتين.
+- [x] **مؤكد/W04:** GSC 15–16 نوفمبر total=0؛ 17 نوفمبر total=3 impressions و0 clicks، وله 3 أبعاد أخرى لا تجمعها كمشاهدات جديدة.
+- [x] **W01 مكتملة بعد الإصلاح:** [schedule #44724904649](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44724904649) success، SHA `876565aa`، التشغيل الفعلي `2026-11-20 11:07–11:08Z`، وكان nominal event slot `2026-11-20 03:00Z` (تأخير GitHub دون تزوير نوع الحدث). GitHub سجل معالجة/حفظ 4 فرص، 4 أهداف، 2 مسودات FAQ و1 editorial، بدون رفض أو إعادة إصلاح؛ تحقق Supabase SELECT أن **2 فرص و2 أهداف جديدة** أنشئت خلال الدقيقة، و2 مسودات و1 editorial لها `createdAt` أثناء التشغيل (العداد الإجمالي تداخل مع إعادة الاستخدام/الدمج). نُفّذت خطوة النشر بعد GEO ونتيجتها `published=0` لانتهاء الحصة، و4 `requires_finished_visitor_copy`. **دليل المصدر مكتمل:** 6 صفوف `audit_logs` ذات `source_workflow=W01`, `github_run_id=44724904649`, `event_type=schedule`, attempt=1: 4 تقييمات، و`rpc_started` واحدة و`rpc_result=quota_reached` واحدة. هذه نتيجة نشر مشروعة بلا تجاوز الحد.
+- [ ] **W05 باقية:** آخر schedule مفحوص [#44715043426](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44715043426) فشل على SHA قديم `2685e58` قبل PR #177؛ نحتاج post-fix schedule وتحقق changed/no_change الحقيقي.
+- [x] **تغيير نمط التنفيذ:** طلب المالك المتابعة في المحادثة الحالية دون جلسات منفصلة؛ أُغلق PR #181 الخاص بفتح الجلسات **دون دمج**. يبقى [Issue #180](https://github.com/Almaeedhi-Hani/free-LLM-api/issues/180) سجلًا مركزيًا للأدلة فقط، لا وكيلًا نشطًا.
+- [ ] **بوابة خروج المرحلة 1 لا تزال مفتوحة بسبب W05 فقط** بعد إثبات W01 وW02/W03/W04/W06، ومزامنة دليل النشر ذات المصدر. المرحلة 2 ممنوعة حتى تحقق schedule W05 بعد PR #177 وتحديث التقرير النهائي. لا يطبق الترحيل الأمني على الإنتاج دون موافقة صريحة.
+
+### 2026-11-20 14:13 KSA — قبول W01 الموثق و1.4 مصدر النشر
+
+- [x] **مؤكد:** W01 post-PR178 schedule [#44724904649](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44724904649) success على `876565aa`. أربع مراحل GEO كلها ناجحة، وفرص/أهداف/FAQ/editorial محفوظة، وأُجريت خطوة W01 publisher دون نشر جديد بموجب limit=3.
+- [x] **مؤكد/1.4:** Supabase `audit_logs` يحفظ 6 صفوف W01 جديدة مرتبطة بنفس رقم التشغيل و`event_type=schedule`، منها محاولة RPC فعلية بنتيجة `quota_reached`. مع نجاح اختبار معاملات PostgreSQL #44720105512 وغياب البصمات المكررة يبقى التزامن والمصدر مثبتين دون نشر اختباري.
+- [ ] **فقط W05:** ينتظر دليل تشغيل schedule لاحق لإصلاح #177 (تغيير صحيح أو no_change مشروع). لا تتجاوز هذه البوابة إلى المرحلة 2.
+
+### 2026-11-20 14:15 KSA — قبول W01 بعد الدورة المجدولة الحقيقية
+
+- [x] **W01 مؤكد على الإصدار الإنتاجي:** [run #44724904649](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44724904649)، `event=schedule`، `head_sha=876565aa28c238472aa696c33044f97382dc0a41`، `conclusion=success`؛ حدث `EVENT_CADENCE RUN kind=geo reason=scheduled_slot`، ثم نجحت خطوات التحليل والحفظ والنشر. بدأ التشغيل الفعلي عند 11:07Z (14:07 KSA) رغم أن حدث cron الاسمي 03:00Z؛ لا تخلط بين وقت الحدث وبدء المهمة المتأخر.
+- [x] **مؤكد — نتائج حفظ W01:** السجل `persisted_opportunities=4`, `persisted_goals=4`, `persisted_drafts=2`, `persisted_editorial_actions=1`، و`persisted_discovery_candidates=10` و14 كلمة بحثية **موجودة مسبقًا** (`inserted=0,existing=14`). فحص Supabase SELECT عند 11:13–11:14Z وجد فرصتين جديدتين وهدفين جديدين خلال نافذة الدورة، ومسودتين لهما `createdAt` في نافذة الدورة ومقترحًا تحريريًا واحدًا؛ قد تشمل العدادات الأخرى تحديث/إعادة استخدام عناصر سابقة، فلا تعتبر كل عدد محفوظ سجلًا جديدًا.
+- [x] **مؤكد — مصدر النشر W01:** `audit_logs` يحوي ستة صفوف موثقة برأس `source_workflow=W01`, `github_run_id=44724904649`, `github_run_attempt=1`, `event_type=schedule`: أربع حالات `requires_finished_visitor_copy`، سجل `rpc_started` واحد، وسجل `rpc_result=quota_reached` واحد (11:07:52–11:07:54Z). `published=0` لأن الحصة ممتلئة، وهو قرار سياسة صحيح وليس فشل المهمة. يثبت هذا هوية محاولة W01 في الإنتاج بعد إثبات تزامن SQL الفعلي داخل PostgreSQL المعزول عبر #179.
+- [x] **مؤكد:** لم تُغيّر سياسة النشر: `enabled=true`, `allow_high_risk=true`, `daily_limit=3`؛ بصمات الأحداث المكررة = صفر، وآخر `content_store.updated_at=2026-11-20T11:07:48.979Z`.
+- [ ] **المتبقي لإغلاق المرحلة 1:** W05 وحده ما زال يفتقر إلى تشغيل `event=schedule` ناجحًا بعد نشر #177 مع دليل `no_change` أو تحديث فهرس موثق. التأخير عن الجدولة لا يثبت سبب فشل جديد؛ لا تشغيل وهمي، ولا بدء المرحلة 2 حتى قبول W05 وتوثيق بوابة الخروج.
+
 ## المرحلة 2 — شبكة الأمان
 
 - [ ] Watchdog كل 6 ساعات مع Issue dedup وحفظ حقيقي.
