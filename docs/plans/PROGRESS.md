@@ -21,8 +21,8 @@
 | --- | --- | --- | --- | --- | --- |
 | 0 التحضير والسلامة | [x] | **مكتملة ومندمجة؛ بوابة الخروج ناجحة** | 2026-11-19 | [PR #165](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/165) — merged `4b2b64f` | [baseline-20261119.md](baseline-20261119.md) محفوظة على main؛ Git tag مثبت؛ CI/Browser/Evals **6/6 ناجحة** على SHA `a4a38a4` |
 | 1 ضمان التشغيل | [x] | **مكتملة تشغيليًا: W01–W06 event=schedule ناجح مع دليل حفظ/no_change؛ حارس دمج W05 CI أصلح ودُمج ونُشر** | 2026-11-20 16:07 KSA | [#177](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/177)، [#178](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/178)، [#179](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/179)، [#183](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/183)، [#185](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/185)، [#186](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/186) | [W01 #44724904649](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44724904649)، W02 #44720788156، W03 #44641523397، W04 #44643584048، [W05 #44738293680](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44738293680)، W06 #44718852351. [#186](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/186) 7/7 CI; Render LIVE `fddb9978`; [postmerge production GET #44741285728](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44741285728) success. **تحفظ موثق:** البوت دمج #185 قبل فحوص PR؛ فشلت 4 runs بلا jobs؛ منع التكرار بكود #186؛ لم يختبر الحارس عبر PR bot حي جديد بعد الإصلاح. الترحيل الأمني جاهز وغير مطبق بانتظار موافقة المالك؛ المرحلة 2 تنتظر نقطة التفتيش. |
-| 2 شبكة الأمان | [ ] | لم تبدأ | — | — | محاكاة آمنة لكل إنذار + تقرير أسبوعي منتج |
-| 3 بوابات آلية | [ ] | لم تبدأ | — | — | Evals وقبول ودورة تقبل/ترفض وفحص الروابط العامة |
+| 2 شبكة الأمان | [ ] | **قيد التنفيذ: المراقب/تنبيهات التشغيل #189، إيقاف workflows الستة #194، فحص الروابط العامة وEvals #197 — جميعها مدمجة؛ البوابات التشغيلية لم تُقبل بعد** | 2026-11-20 | [#189](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/189)، [#194](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/194)، [#197](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/197)؛ [#199](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/199) (Draft) | PR #197 7/7 CI، Render LIVE `3c839d8`، postmerge admin + GET acceptance نجحا؛ watchdog أول schedule والتقرير الأسبوعي Issue لم يثبتا بعد؛ Master Pause في GitHub Variable فقط ولا زر آمن في اللوحة؛ حارس 80% يوميًا لم يفعّل (لا قياس/ترحيل معتمد). |
+| 3 بوابات آلية | [ ] | **تحضير فقط: بوابات استشارية متعددة اللغات ومصادر/FAQ ومقترحات تقنية مقيّدة في Draft #198؛ لا تتدخل في الإنتاج** | 2026-11-20 | [#198](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/198) (Draft) | تظل `needs_review` والمراجعة البشرية نافذتين؛ لا دمج ولا نشر قبل اجتياز المرحلة 2 وموافقة قرارات السياسة اللازمة؛ Evals على الرأس النهائي ما زالت قيد التحقق. |
 | 4 أرشيف موحد | [ ] | لم تبدأ | — | — | كل أداة مرة واحدة، جرد APIs/DB ثابت، قبول |
 | 5 روابط المحتوى | [ ] | لم تبدأ | — | — | مقارنة عددية مع المنشور، HTTP 200، اختبار واجهة |
 | 6 دمج التبويبات | [ ] | لم تبدأ | — | — | تكافؤ وظيفي وقبول ودورة بلا أخطاء لكل مجال |
@@ -168,6 +168,18 @@
 **نتيجة نقطة التفتيش:** `PASS` لبوابة خروج المرحلة 1 التشغيلية وفق شرط W01–W06؛ مع فصل الاستثناء التاريخي PR #185 (فحوص PR لم تنفذ) عن الحارس المصحح في #186، وترك موافقة تنفيذ الأمن والمرحلة 2 معلقة.
 
 ## المرحلة 2 — شبكة الأمان
+
+### 2026-11-20 — متابعة تنفيذ المرحلتين 2/3 بالتوازي المقيّد
+
+- [x] **2.1–2.3 بنية المراقبة:** [PR #189](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/189) مدمج؛ GitHub `v3-phase2-safety-monitor.yml` يفحص فقط ستة workflows مجدولة، يعد تقارير أسبوعية ويحدّث Issues بلا تكرار، مع اختبارات اصطناعية لموعد التحول 22 نوفمبر. **لا تعنِ الاختبارات وحدها وصول Issue مجدول حقيقي**.
+- [x] **2.5 حماية الإيقاف من المصدر:** [PR #194](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/194) مدمج؛ كل W01–W06 يحترم `vars.V3_MASTER_PAUSED='true'` مع الحفاظ على أعلام الإيقاف القديمة. لم يُفعّل العلم ولم يُختبر إيقاف إنتاجي حقيقي؛ تحكم مالك المشروع الآمن عبر متغير GitHub موجود، ولا زر UI بعد لتجنب توسيع GitHub PAT.
+- [x] **2.4 فحوص الجودة الأساسية:** [PR #197](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/197) مدمج SHA `3c839d8e4d243ab825fd8b24bd70679d1a342eab`، 7/7 فحوص PR ناجحة؛ تنبيه يومي مجدول في `.github/workflows/v3-stage2-quality-watch.yml` يفحص 24 صفحة عامة وروابط insights الموجودة وEvals محليًا، بالاستناد إلى قائمة المنافسين من GEO API المحمي وfallback. لا تغيّر بيانات؛ محاكاة الفشل/تكرار Issue/نقص دليل الاسترجاع ناجحة، **انتظار أول schedule حقيقي**.
+- [ ] **2.5 زر الواجهة** لم ينفذ لعدم توسيع أذونات GitHub من Render ولأن ملفات لوحة الإدارة مملوكة مؤقتًا للمحادثة الثانية (المراحل 4/5). البديل الآمن الحالي: GitHub Actions Repository Variable، ويتطلب قرار المالك إن كان رابط الإعدادات داخل اللوحة يكفي بدل تغيير مباشر.
+- [ ] **2.6 حد 80% اليومي:** SELECT Supabase لم يجد جداول عدادات quota/provider usage ولا أحداث provider metering؛ [Draft PR #199](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/199) يجهز عقد الرياضيات/التكرار ومقترح حجز ذري، **لا يفعّل ولا يندمج كحارس** قبل تصريح المالك بترحيل إضافي وتوثيق حدود حساب كل مزود. حدود الطلبات لكل تشغيل ليست دليلًا على حدود اليوم.
+- [ ] **بوابة خروج المرحلة 2 مفتوحة:** تحتاج إثبات Issue مراقبة وإبلاغ فشل آمن وتقرير أسبوعي حقيقي، إثبات صحة أول فحص جودة schedule، الربط الآمن للإيقاف/الاستئناف، وحساب يومي ذري بحسب خطة المرحلة. لا تدّعِ أن النظام جاهز كاملًا لمجرد نجاح CI.
+- [ ] **المرحلة 3 قيد التحضير فقط:** [Draft PR #198](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/198) يحتفظ بالبوابات الاستشارية الموجودة ويضيف معاينة Issue تقنية بحد يومي 3 ومراجعة قواعد feedback مشروطة بموافقة المالك واجتياز Evals. لا دمج قبل اجتياز 2 ولا تغيير سياسة النشر أو مراجعة المحتوى القانوني.
+
+
 
 - [ ] Watchdog كل 6 ساعات مع Issue dedup وحفظ حقيقي.
 - [ ] if: failure() في الإنتاج يرسل Issue مرة واحدة لكل عطل.
