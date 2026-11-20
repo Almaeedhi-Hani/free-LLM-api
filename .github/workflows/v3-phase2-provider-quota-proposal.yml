@@ -1,0 +1,27 @@
+name: V3 Phase 2 provider quota proposal (offline only)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/v3-provider-quota-contract.cjs'
+      - 'scripts/v3-provider-quota-contract.test.cjs'
+      - 'docs/plans/phase2-provider-quota-owner-gate-20261120.md'
+      - '.github/workflows/v3-phase2-provider-quota-proposal.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  quota-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Assert mathematical 80 percent cap and no live grant
+        run: |
+          node --check scripts/v3-provider-quota-contract.cjs
+          node scripts/v3-provider-quota-contract.test.cjs
