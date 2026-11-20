@@ -1,0 +1,32 @@
+name: V3 Phase 3 Advisory Gates (no production writes)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/lib/v3-gates-preview.ts'
+      - 'scripts/v3-stage3-preview.test.cjs'
+      - '.github/workflows/v3-stage3-advisory-gates.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify-advisory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Type-check the existing contracts and new read-only preview
+        run: |
+          npx tsc --noEmit
+          npx tsc src/lib/v3-gates-preview.ts --outDir .phase3-preview-build --rootDir src --module commonjs --target es2020 --lib es2020,dom --moduleResolution node --esModuleInterop --resolveJsonModule --skipLibCheck --strict --types node
+      - name: Exercise acceptance, rejection and human-review gates in offline fixtures
+        run: node scripts/v3-stage3-preview.test.cjs
+      - name: Preserve production source/keyword Evals behavior
+        run: npm run test:visibility
