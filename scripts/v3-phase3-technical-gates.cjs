@@ -14,8 +14,8 @@ function safeRoute(path) {
    return null;
  return path;
 }
-function planTechnicalIssues(candidates,{alreadyOpened=[],alreadyOpenedToday=0,maxPerUtcDay=MAX_DAILY_TECHNICAL_ISSUES}={}){
- if(!Array.isArray(candidates)||candidates.length>500||!Array.isArray(alreadyOpened))throw Error('Invalid technical input');
+function planTechnicalIssues(candidates,{alreadyOpened=[],alreadyOpenedToday=0,maxPerUtcDay=MAX_DAILY_TECHNICAL_ISSUES,now=Date.now()}={}){
+ if(!Array.isArray(candidates)||candidates.length>500||!Array.isArray(alreadyOpened)||!Number.isFinite(now))throw Error('Invalid technical input');
  const dailyCap=Math.min(MAX_DAILY_TECHNICAL_ISSUES,Math.max(0,Number.isInteger(maxPerUtcDay)?maxPerUtcDay:0));
  const taken=Number.isInteger(alreadyOpenedToday)&&alreadyOpenedToday>=0?alreadyOpenedToday:MAX_DAILY_TECHNICAL_ISSUES;
  const remaining=Math.max(0,dailyCap-taken);
@@ -27,7 +27,7 @@ function planTechnicalIssues(candidates,{alreadyOpened=[],alreadyOpenedToday=0,m
   // An unsourced idea or provider search suggestion is NOT a measured result.
   const observedMs=Date.parse(row?.observed_at||'');
   if(!title||!target||quality!=='verified_serp'||!Number.isFinite(observedMs)||
-    observedMs>Date.now()||Date.now()-observedMs>90*86400000){
+    observedMs>now||now-observedMs>90*86400000){
    review.push({reason:'unverified_evidence_or_target',title:title||null});continue;
   }
   const hash=createHash('sha256').update([title.toLowerCase(),target].join('|')).digest('hex');
