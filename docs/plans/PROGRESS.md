@@ -169,13 +169,19 @@
 
 ## المرحلة 2 — شبكة الأمان
 
+### 2026-11-20 — قبول قناة التنبيه جزئيًا وفشل اختبار منع التكرار
+
+- [x] **تنبيه حقيقي مثبت:** [Issue #203](https://github.com/Almaeedhi-Hani/free-LLM-api/issues/203) تلقائيًا بعنوان `[V3 failure] W01 GEO scheduled run`، يشير إلى [Run #44767261138](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44767261138) (`event=schedule`, `conclusion=failure`). السجل الفعلي: `DRAFTS Eligible 1 rejected 1 persisted 1 partial` بسبب `unresolved_draft_schema`؛ فرص وأهداف ومقترحات تحرير حفظت، لكن انقطع نشر W01؛ لا يجوز إضعاف جودة المسودة أو استنتاج فشل API آخر.
+- [ ] **منع التكرار في GitHub Issue لم يجتز الاختبار الحقيقي أولًا:** [اختبار GitHub Actions المعزول #44768192717](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44768192717) أنشأ قضيتين اصطناعيتين بنفس العنوان (#204 و#205) بسبب تأخر ظهورهما في GitHub Issues GET، وفشل عند `Dedup failed`. أُغلقت القضيتان ولم يحدث نشر أو استدعاء مزود. [Draft PR #208](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/208) يعالج ذاكرة issue في نفس عملية التحقق، مع اختبار `stale GET`؛ **لا تدّع نجاح اختبار الإعادة قبل حصوله فعلًا بعد الدمج**.
+- [ ] **الشروط المتبقية للمرحلة الثانية:** أول schedule طبيعي للمراقب والجودة، تقرير أسبوعي مجدول، اختبار جديد لإنشاء/عدم تكرار/إغلاق Issue، مسار Pause آمن للمالك، حدود مزودين مثبتة وحجز ذري لحصة 80%، إضافةً إلى موافقات السياسة. لا تنشر محتوى اختبارياً ولا تغير `daily_limit=3`.
+
 ### 2026-11-20 18:50 KSA — استعادة وسم الاسترجاع بعد بدء المرحلة
 - [x] **مؤكد:** `refs/tags/pre-phase2-20261120` صار موجودًا ويشير إلى `ee4ac44a603714e0f15e0c83ec13b9e07937d4f0` (وهو commit الأساس لطلب المرحلة 2 #189). نجاح [GitHub Actions #44767833532](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44767833532)، ثم حذف workflow المؤقت من فرع التنفيذ؛ لا workflow جديد على main. **الوسم استُعيد متأخرًا**، فلا يُقال إنه كان موجودًا قبل البدء.
 
 ### 2026-11-20 18:45 KSA — حقيقة الإصدار وأدلة البوابات (دون جلسات إضافية)
 
 - [x] **مؤكد — آخر إصدار:** #201 (أعلام إيقاف GitHub Actions من سياق vars) و#202 (دقة W03/GSC)، كلاهما مدمج مع 6/6 اختبارات، والفرع `main=b1db7e4021b6ea0d5d1e15fe0fa4d94a2176ff2d` مطابق Render LIVE؛ فحوص Admin وProduction GET على الإصدار نفسه ناجحة.
-- [x] **مؤكد — استلام حدث حقيقي:** مراقب Stage-2 اشتغل بنمط `workflow_run` بعد W06 [#44765896904](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44765896904) ونجح، لكن لا يثبت إنشاء تنبيه عند فشل حقيقي.
+- [x] **مؤكد — استلام حدث حقيقي:** مراقب Stage-2 اشتغل بنمط `workflow_run` بعد W06 [#44765896904](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44765896904) ونجح، لكن نشأ عن تشغيل W01 #44767261138 تنبيه الفشل الفعلي [Issue #203](https://github.com/Almaeedhi-Hani/free-LLM-api/issues/203)؛ لم يكن مجرد محاكاة.
 - [ ] **معلق — دورة المجدول الطبيعي:** أول Watchdog بعد لحظة الفحص `18:17 UTC` يوم 20 نوفمبر، والتقرير الأسبوعي الأحد 22 نوفمبر `06:00 UTC`، وفحص الجودة مجدول `02:23 UTC`؛ لا تختلق schedule أو weekly Issue قبل ظهوره. غياب عينات هذه التشغيلات يمنع الاعتماد النهائي.
 - [ ] **معلق — إيقاف و80%:** Master Pause آمن عبر GitHub Variable ولا زر داخل الواجهة؛ [#199](https://github.com/Almaeedhi-Hani/free-LLM-api/pull/199) عقد offline اختبارات 7/7 بلا ledger إنتاجي أو حدود حسابات مثبتة، ويتطلب موافقة مستقلة على schema/RLS وبيانات الحصص. أُنشئ `pre-phase2-20261120` لاحقًا على `ee4ac44a` عبر [#44767833532](https://github.com/Almaeedhi-Hani/free-LLM-api/actions/runs/44767833532) (success)، ثم أُزيل workflow المؤقت؛ وثّق أنه recovery tag لاحق وليس شرط توقيت سابق.
 - [ ] **معلق — المراحل 3/4/5:** #198 Draft 6/6 CI؛ #190 Draft 7/7؛ #195 Draft تابعة لـ#190. تأكيد المالك إنجاز 4 و5 يعني اكتمال التطوير في فروعهما، لا دمجًا/نشرًا لم يحدث. لا يبدأ دمج 3 قبل اكتمال البوابة 2، و4 ثم 5 بعد القبول.
