@@ -15,6 +15,7 @@ on:
       - 'scripts/admin-legacy-archive.test.cjs'
       - 'scripts/admin-published-links.test.cjs'
       - 'scripts/admin-consolidation-browser-e2e.cjs'
+      - 'docs/plans/phase5-published-links-evidence-20261120.md'
       - '.github/workflows/v3-admin-consolidation-checks.yml'
   workflow_dispatch:
 
