@@ -36,6 +36,8 @@ jobs:
         run: npm run test:market
       - name: Verify original multilingual packages and pricing
         run: npm run test:packages
+      - name: Verify W05 automatic index PR fails closed until its independent checks pass
+        run: node scripts/llm-pr-ci-gate.test.cjs
       - name: Evidence-gated organic ranking, indexing, AI visibility and conversion tests
         run: npm run test:visibility
       - name: OpenCode multilingual topic architect and source-diversity contract
