@@ -47,6 +47,10 @@ jobs:
       - name: Run scheduled watchdog or weekly report (manual defaults to no writes)
         env:
           GH_TOKEN: ${{ github.token }}
+          V3_MASTER_PAUSED: ${{ vars.V3_MASTER_PAUSED }}
+          MARKET_RADAR_PAUSED: ${{ vars.MARKET_RADAR_PAUSED }}
+          LLM_INDEX_PAUSED: ${{ vars.LLM_INDEX_PAUSED }}
+          AUTODEV_PAUSED: ${{ vars.AUTODEV_PAUSED }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           REQUEST_MODE: ${{ inputs.mode }}
@@ -79,4 +83,8 @@ jobs:
       - name: Reconcile failure alert for a completed trusted real scheduled run
         env:
           GH_TOKEN: ${{ github.token }}
+          V3_MASTER_PAUSED: ${{ vars.V3_MASTER_PAUSED }}
+          MARKET_RADAR_PAUSED: ${{ vars.MARKET_RADAR_PAUSED }}
+          LLM_INDEX_PAUSED: ${{ vars.LLM_INDEX_PAUSED }}
+          AUTODEV_PAUSED: ${{ vars.AUTODEV_PAUSED }}
         run: node scripts/v3-phase2-monitor.cjs --mode=failure

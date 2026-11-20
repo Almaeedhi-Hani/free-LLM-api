@@ -56,7 +56,7 @@ function safeOutcome(value) {
   return ['success','failure','timed_out','cancelled','action_required','startup_failure','skipped'].includes(value) ? value : 'unknown';
 }
 function formatUtc(ms) {return new Date(ms).toISOString();}
-function createClient({repository,token,fetchImpl=fetch}) {
+function createClient({repository,token,fetchImpl=fetch,pauseVarSnapshot=null}) {
   if(!/^[\w.-]+\/[\w.-]+$/.test(repository)||!token) throw Error('Missing GitHub repository or token');
   async function github(path, options={}) {
     const response=await fetchImpl('https://api.github.com/repos/'+repository+path,{
@@ -103,8 +103,18 @@ function createClient({repository,token,fetchImpl=fetch}) {
     return value.workflow_runs;
   }
   async function pauseStatus(id) {
-    // A missing repository variable means 'false'; API errors mean unknown.
+    // Prefer the trusted GitHub Actions vars context injected by the workflow.
+    // GITHUB_TOKEN does not necessarily have Administration:read for the
+    // repository Variables REST endpoint. No additional token scope is needed.
     const names=['V3_MASTER_PAUSED',...(LEGACY_PAUSE_VARS[id]?[LEGACY_PAUSE_VARS[id]]:[])];
+    if (pauseVarSnapshot !== null) {
+      if (!pauseVarSnapshot || !names.every(name=>Object.hasOwn(pauseVarSnapshot,name)))
+        return {status:'unknown',reason:'pause_context_incomplete'};
+      const selected=names.find(name=>pauseVarSnapshot[name]==='true');
+      return selected ? {status:'paused',reason:selected} : {status:'active',reason:'no_pause_requested'};
+    }
+    // Retain the conservative REST fallback for non-Actions callers. An API
+    // permission error is unknown, never mistaken for a healthy active run.
     for(const name of names) {
       let current;
       try {current=await github('/actions/variables/'+name);}
@@ -189,7 +199,8 @@ async function handleFailure(client,event) {
   return client.upsertIssue({title,body,label:'failure'});
 }
 async function run(options) {
-  const client=createClient({repository:options.repository,token:options.token,fetchImpl:options.fetchImpl||fetch});
+  const client=createClient({repository:options.repository,token:options.token,fetchImpl:options.fetchImpl||fetch,
+    pauseVarSnapshot:options.pauseVarSnapshot??null});
   if(options.mode==='failure')return handleFailure(client,options.event);
   const rows=await collect(client,options);
   if(options.mode==='watchdog')return {results:await handleWatchdog(client,rows,options.now),observations:rows.map(x=>({id:x.target.id,...x.run,storage:x.storage.status}))};
@@ -218,7 +229,13 @@ if(require.main===module){
     const mode=process.argv.find(a=>a.startsWith('--mode='))?.slice(7)||'watchdog';
     const event=process.env.GITHUB_EVENT_PATH?JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH,'utf8')):{};
     const result=await run({mode,repository:process.env.GITHUB_REPOSITORY,token:process.env.GH_TOKEN,
-      now:Date.now(),supabaseUrl:process.env.SUPABASE_URL,supabaseKey:process.env.SUPABASE_SERVICE_ROLE_KEY,event});
+      now:Date.now(),supabaseUrl:process.env.SUPABASE_URL,supabaseKey:process.env.SUPABASE_SERVICE_ROLE_KEY,event,
+      pauseVarSnapshot:{
+        V3_MASTER_PAUSED:process.env.V3_MASTER_PAUSED??'',
+        MARKET_RADAR_PAUSED:process.env.MARKET_RADAR_PAUSED??'',
+        AUTODEV_PAUSED:process.env.AUTODEV_PAUSED??'',
+        LLM_INDEX_PAUSED:process.env.LLM_INDEX_PAUSED??'',
+      }});
     console.log('[V3_SAFETY] '+JSON.stringify(result));
   })().catch(err=>{console.error('[V3_SAFETY] '+String(err.message).slice(0,200));process.exitCode=1;});
 }
