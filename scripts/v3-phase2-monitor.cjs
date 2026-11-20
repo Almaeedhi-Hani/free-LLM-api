@@ -126,7 +126,7 @@ async function readStorage(id,{url,key,fetchImpl=fetch}) {
 async function readProtectedSnapshot({url,key,fetchImpl=fetch}) {
   if(!url||!key)return null;
   try{
-    const endpoint=new URL(String(url).replace(/\\/+$/,'')+'/api/geo/ops-health');
+    const endpoint=new URL('/api/geo/ops-health',new URL(String(url)));
     if(endpoint.protocol!=='https:'||endpoint.username||endpoint.password||
       endpoint.search||endpoint.hash)return null;
     const response=await fetchImpl(endpoint.href,{
