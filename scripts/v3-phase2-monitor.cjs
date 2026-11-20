@@ -72,11 +72,21 @@ function createClient({repository,token,fetchImpl=fetch,pauseVarSnapshot=null}) 
     try{await github('/labels',{method:'POST',body:JSON.stringify({name:label,color})});}
     catch(error){if(!String(error.message).includes('GitHub 422'))throw error;}
   }
+  // GitHub's issue-list API can lag behind an issue POST for several seconds.
+  // Remember issues created/updated by this single workflow process, so a
+  // subsequent upsert never creates a duplicate while the list is stale.
+  // The workflow also uses a concurrency group to prevent parallel writers.
+  const knownOpenIssues = new Map();
   async function findOpenIssue(title) {
+    const known = knownOpenIssues.get(title);
+    if(known)return known;
     for(let page=1;page<=5;page++){
       const issues=await github('/issues?state=open&per_page=100&page='+page);
       const match=issues.find(i=>!i.pull_request&&i.title===title);
-      if(match)return match;
+      if(match){
+        knownOpenIssues.set(title,match);
+        return match;
+      }
       if(issues.length<100)break;
     }
     return null;
@@ -85,16 +95,20 @@ function createClient({repository,token,fetchImpl=fetch,pauseVarSnapshot=null}) 
     const previous=await findOpenIssue(title);
     if(previous) {
       if(previous.body!==body) await github('/issues/'+previous.number,{method:'PATCH',body:JSON.stringify({body})});
+      knownOpenIssues.set(title,{...previous,body});
       return {result:'updated',number:previous.number};
     }
     await ensureLabel(label);
     const created=await github('/issues',{method:'POST',body:JSON.stringify({title,body,labels:[label]})});
+    // Do not rely on the eventual consistency of /issues after this POST.
+    knownOpenIssues.set(title,{number:created.number,title,body});
     return {result:'created',number:created.number};
   }
   async function resolveIssue(title,body) {
     const existing=await findOpenIssue(title);
     if(!existing)return {result:'none'};
     await github('/issues/'+existing.number,{method:'PATCH',body:JSON.stringify({state:'closed',body})});
+    knownOpenIssues.delete(title);
     return {result:'resolved',number:existing.number};
   }
   async function workflowRuns(filename) {
