@@ -262,11 +262,14 @@ async function readWeeklyEvidence({url,key,now,fetchImpl=fetch}) {
     for(const row of rows) {
       let parsed;
       try{parsed=new URL(row.dimension_value);}catch{continue;}
+      if(row.impressions===null||row.impressions===undefined||
+         row.clicks===null||row.clicks===undefined)continue;
       const impressions=Number(row.impressions),clicks=Number(row.clicks);
       const position=row.position===null||row.position===undefined?null:Number(row.position);
       if(parsed.origin!=='https://free-llm-api-1-didl.onrender.com'||parsed.search||parsed.hash||
          !/^\/[a-z0-9/_-]*$/.test(parsed.pathname)||!row.metric_date||
          !/^\d{4}-\d{2}-\d{2}$/.test(row.metric_date)||row.metric_date<since||
+         row.metric_date>new Date(now).toISOString().slice(0,10)||
          !Number.isFinite(impressions)||!Number.isFinite(clicks)||impressions<0||
          clicks<0||clicks>impressions||(position!==null&&(!Number.isFinite(position)||position<0)))continue;
       result.page={status:'observed',date:row.metric_date,path:parsed.pathname,impressions,clicks,position};
