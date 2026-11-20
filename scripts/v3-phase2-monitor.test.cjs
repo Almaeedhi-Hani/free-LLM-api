@@ -66,6 +66,37 @@ const githubFetch=async (url,options)=>{
   throw Error('Unhandled fake GitHub HTTP '+route+' '+options.method);
 };
 const client=createClient({repository:'org/repo',token:'fake-token',fetchImpl:githubFetch});
+// Live rehearsal found GitHub Issues GET can temporarily omit an Issue that
+// POST /issues just created. In one job, a repeated upsert must reuse its ID.
+let delayedListReads=0,createdIds=[],issuePatchCalls=[];
+const staleReadClient=createClient({repository:'org/repo',token:'fake-token',fetchImpl:async(url,options={})=>{
+ const u=new URL(url),p=u.pathname,method=options.method||'GET';
+ if(p.endsWith('/issues') && method==='GET'){delayedListReads++;return makeJson([]);}
+ if(p.endsWith('/labels') && method==='POST')return makeJson({name:'failure'},201);
+ if(p.endsWith('/issues') && method==='POST'){
+   createdIds.push(991);
+   return makeJson({number:991,title:JSON.parse(options.body).title},201);
+ }
+ if(p.endsWith('/issues/991') && method==='PATCH'){
+   issuePatchCalls.push(JSON.parse(options.body));
+   return makeJson({number:991},200);
+ }
+ throw Error('Unexpected delayed Issue read fixture '+p+' '+method);
+}});
+const syntheticTitle='[rehearsal fixture] source specific failure';
+const initial=await staleReadClient.upsertIssue({title:syntheticTitle,body:'synthetic 1',label:'failure'});
+const retry=await staleReadClient.upsertIssue({title:syntheticTitle,body:'synthetic 2',label:'failure'});
+assert.deepEqual([initial.result,retry.result],['created','updated']);
+assert.equal(initial.number,retry.number);
+assert.equal(createdIds.length,1,'eventually-consistent GET must not create duplicate Issue');
+assert.equal(delayedListReads,1,'repeat lookup should reuse local created Issue');
+assert.equal(issuePatchCalls.length,1,'updated body must patch same Issue');
+await staleReadClient.upsertIssue({title:syntheticTitle,body:'synthetic 2',label:'failure'});
+assert.equal(issuePatchCalls.length,1,'unchanged issue body is not rewritten');
+const resolved=await staleReadClient.resolveIssue(syntheticTitle,'synthetic resolved');
+assert.equal(resolved.result,'resolved');
+assert.equal(issuePatchCalls.at(-1).state,'closed');
+
 const rows=[{target:WORKFLOWS[0],run:classifyRuns([scheduled(10)],now),storage:{status:'unknown',note:'not configured'}}];
 let result=await handleWatchdog(client,rows,now);
 assert.equal(result[0].result,'created');
