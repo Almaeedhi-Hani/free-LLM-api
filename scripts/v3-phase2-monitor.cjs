@@ -351,6 +351,36 @@ async function handleWatchdog(client,rows,now) {
   }
   return result;
 }
+
+/**
+ * Alert on a *verified configuration condition* only, never a transient
+ * failed GET. Repository/environment-scoped secrets may be unavailable to
+ * one Actions job without having been deleted from GitHub. Suppress alerts
+ * under the explicit owner master pause and do not print secret material.
+ */
+async function handleReadbackCredentialStatus(client,rows,now) {
+  const required=WORKFLOWS.slice(0,4).map(w=>rows.find(row=>row.target?.id===w.id));
+  if(required.some(row=>!row))return {kind:'storage_config',result:'unknown',reason:'incomplete_observations'};
+  if(required.some(row=>row.run?.status==='paused'))
+    return {kind:'storage_config',result:'suppressed_paused'};
+  const title=issueKey('watchdog','Supabase readback credentials unavailable in Actions');
+  const marker='SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY not configured for read-only monitor';
+  const missing=required.every(row=>row.storage?.status==='unknown' && row.storage?.note===marker);
+  const allObserved=required.every(row=>row.storage?.status==='observed');
+  const body='Stage-2 monitor at '+formatUtc(now)+
+    '\n\nW01-W04 read-only Supabase readbacks: '+(missing?'all unavailable':allObserved?'all observed':'partially unverified')+
+    '\nStatus: '+(missing?'required secret values not visible to this GitHub Actions job':'readback evaluated')+
+    '\nExpected Actions environment variable names: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.'+
+    '\nThis does NOT prove repository secrets were deleted; they may be missing, differently named, or scoped to a GitHub Environment/branch.'+
+    '\nOwner action: verify the secrets or provide an approved least-privilege read-only access route.'+
+    '\nNever post secret values in Issues, make database roles public, or change production publishing settings.'+
+    '\nThis monitor made only authorized GET requests and did not run any AI/search provider.';
+  if(missing)return {kind:'storage_config',...await client.upsertIssue({title,body,label:'watchdog'})};
+  if(allObserved)return {kind:'storage_config',...await client.resolveIssue(title,body+
+    '\nResolved: all W01-W04 readbacks returned observed data in the same GitHub Actions job.')};
+  return {kind:'storage_config',result:'unknown',reason:'partial_or_unreadable_readback'};
+}
+
 async function handleFailure(client,event) {
   const run=event&&event.workflow_run;
   const target=WORKFLOWS.find(w=>run&&String(run.path).endsWith('/'+w.filename));
@@ -373,7 +403,12 @@ async function run(options) {
     pauseVarSnapshot:options.pauseVarSnapshot??null});
   if(options.mode==='failure')return handleFailure(client,options.event);
   const rows=await collect(client,options);
-  if(options.mode==='watchdog')return {results:await handleWatchdog(client,rows,options.now),observations:rows.map(x=>({id:x.target.id,...x.run,storage:x.storage.status,storageFreshness:persistedFreshness(x.storage,options.now)}))};
+  if(options.mode==='watchdog'){
+    const results=await handleWatchdog(client,rows,options.now);
+    results.push(await handleReadbackCredentialStatus(client,rows,options.now));
+    return {results,observations:rows.map(x=>({id:x.target.id,...x.run,storage:x.storage.status,
+      storageFreshness:persistedFreshness(x.storage,options.now)}))};
+  }
   if(options.mode==='weekly'){
     const gsc=await readGscMeasured({url:options.supabaseUrl,key:options.supabaseKey,fetchImpl:options.fetchImpl||fetch});
     const weeklyEvidence=await readWeeklyEvidence({url:options.supabaseUrl,key:options.supabaseKey,
@@ -412,4 +447,4 @@ if(require.main===module){
     console.log('[V3_SAFETY] '+JSON.stringify(result));
   })().catch(err=>{console.error('[V3_SAFETY] '+String(err.message).slice(0,200));process.exitCode=1;});
 }
-module.exports={WORKFLOWS,expectedIntervalHours,classifyRuns,weeklyKey,issueKey,safeOutcome,createClient,readStorage,persistedFreshness,readGscMeasured,gscSummaryLine,readWeeklyEvidence,weeklyEvidenceLines,collect,handleFailure,handleWatchdog,run};
+module.exports={WORKFLOWS,expectedIntervalHours,classifyRuns,weeklyKey,issueKey,safeOutcome,createClient,readStorage,persistedFreshness,readGscMeasured,gscSummaryLine,readWeeklyEvidence,weeklyEvidenceLines,collect,handleFailure,handleWatchdog,handleReadbackCredentialStatus,run};
