@@ -24,6 +24,7 @@ permissions:
   contents: write
   pull-requests: write
   actions: write
+  checks: read # read CI verdicts for the bot-created narrow index PR
 
 concurrency:
   group: llm-agent-index-optimization
@@ -60,6 +61,7 @@ jobs:
         if: steps.cadence.outputs.run == 'true'
         run: |
           node scripts/llm-agent-index.test.cjs
+          node scripts/llm-pr-ci-gate.test.cjs
           node scripts/scheduled-cadence-gate.test.cjs
           node scripts/llm-feed-contract.test.cjs
 
@@ -96,6 +98,7 @@ jobs:
           set -euo pipefail
           npm ci
           node scripts/llm-agent-index.test.cjs
+          node scripts/llm-pr-ci-gate.test.cjs
           node scripts/llm-feed-contract.test.cjs
           npm run test:packages
           npm run test:editorial
@@ -125,6 +128,33 @@ jobs:
             --title 'LLM agents: verified public site index update' \
             --body 'Deterministic index from already-published /api/llm-version. Exact file scope public/llms.txt, all three locales, service URLs, professional-fee disclosures, source fidelity, and full local tests/build verified before PR. No model-generated legal copy, pricing changes, unapproved drafts, or new claims.')"
           echo "LLM index PR: $pr_url"
+          # A bot-created PR may be merged before its independent GitHub CI
+          # starts. Never count the earlier local tests as the PR checks.
+          # Preserve the PR branch if checks are unavailable, pending or red.
+          pr_head="$(gh pr view "$pr_url" --json headRefOid --jq .headRefOid)"
+          if [ -z "$pr_head" ]; then
+            echo '::error::Missing index PR head SHA; refusing merge.'
+            exit 1
+          fi
+          ci_ready=false
+          for poll in $(seq 1 70); do
+            gh api "repos/$GITHUB_REPOSITORY/commits/$pr_head/check-runs?per_page=100"               > "$RUNNER_TEMP/llm-index-pr-checks.json"
+            gate_status=0
+            node scripts/llm-pr-ci-gate.cjs < "$RUNNER_TEMP/llm-index-pr-checks.json" || gate_status=$?
+            if [ "$gate_status" -eq 0 ]; then
+              ci_ready=true
+              break
+            fi
+            if [ "$gate_status" -ne 2 ]; then
+              echo '::error::Index PR CI failed or was cancelled; leaving PR open for diagnosis.'
+              exit 1
+            fi
+            sleep 15
+          done
+          if [ "$ci_ready" != true ]; then
+            echo '::error::Index PR checks never became green; leaving PR open without merge.'
+            exit 1
+          fi
           expected_base="$(git rev-parse HEAD^)"
           merged=false
           for attempt in 1 2 3; do
