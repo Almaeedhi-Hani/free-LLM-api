@@ -20,3 +20,17 @@ Base: Stage 4 branch at `6e5855243a355331fb91dd60b6f9ad12b7bb935e`. No updates t
 **Rollback:** Set `NEXT_PUBLIC_ADMIN_PUBLISHED_LINKS=false` at build/deploy time; the new tab disappears and the previous per-item page links stay available.
 
 **No changes:** Production publishing approvals and daily limits, manual legal review, Supabase schema, legacy records, API GET authorization, scheduler cron and page copy untouched.
+
+
+## Read-only production source check — 2026-11-20 (current snapshot, not release acceptance)
+
+A SELECT-only Supabase query of `public.content_store.content` (project already used in the baseline) applies the **public** editorial gate (approved, reviewedAt, automated or verified source; valid route), the Arabic-only non-test FAQ rules, and compares existing D06/FAQ events. Result at time of query:
+
+- `editorialItems`: **56** total; **6** route-backed live editorial elements.
+- Current site FAQs rendered by the Arabic homepage: **2**.
+- Expected **published elements = 8**; **6 distinct public paths**, because FAQ elements both live on the same `/` homepage:
+  `/insights/foreign-investor-company-documents`, `/insights/investor-services-package-scope`, `/insights/misa-registration-process-guide`, `/zh/`, `/zh/packages`, `/zh/services/company-formation` (and `/` for FAQ; i.e., **7** distinct public routes including FAQ home).
+- D06 editorial publication events: **6** currently published; FAQ publication events: **0**. Event totals are **not** the authoritative display element count. Manual FAQs do not need auto-publication events.
+- Note: The **6 distinct editorial paths** plus Arabic FAQ `/` make **7 distinct paths** among the 8 elements. The screen intentionally counts elements, not deduplicated paths.
+
+External direct HTTP tooling could not reach production from the available environment (connection returned no HTTP status). Existing GitHub production read-only acceptance is separate evidence; **HTTP 200 for every current published path and screen-vs-source equality after authorized deployment are still acceptance gates**. The isolated browser test exercises actual fixture-backed paths with HTTP 200 and exact source count, but must not be represented as a production test.
