@@ -14,31 +14,33 @@ function safeRoute(path) {
    return null;
  return path;
 }
-function planTechnicalIssues(candidates,{alreadyOpened=[],maxPerUtcDay=MAX_DAILY_TECHNICAL_ISSUES}={}){
+function planTechnicalIssues(candidates,{alreadyOpened=[],alreadyOpenedToday=0,maxPerUtcDay=MAX_DAILY_TECHNICAL_ISSUES}={}){
  if(!Array.isArray(candidates)||candidates.length>500||!Array.isArray(alreadyOpened))throw Error('Invalid technical input');
  const dailyCap=Math.min(MAX_DAILY_TECHNICAL_ISSUES,Math.max(0,Number.isInteger(maxPerUtcDay)?maxPerUtcDay:0));
+ const taken=Number.isInteger(alreadyOpenedToday)&&alreadyOpenedToday>=0?alreadyOpenedToday:MAX_DAILY_TECHNICAL_ISSUES;
+ const remaining=Math.max(0,dailyCap-taken);
  const existing=new Set(alreadyOpened.filter(x=>typeof x==='string'&&x.length===64));
  const planned=[],review=[];
  for(const row of candidates){
   const title=clean(row?.title),target=safeRoute(row?.target_route);
   const quality=String(row?.evidence_status||'');
   // An unsourced idea or provider search suggestion is NOT a measured result.
-  if(!title||!target||quality!=='verified_serp'||!row?.observed_at||
-    !Number.isFinite(Date.parse(row.observed_at))){
+  const observedMs=Date.parse(row?.observed_at||'');
+  if(!title||!target||quality!=='verified_serp'||!Number.isFinite(observedMs)||
+    observedMs>Date.now()||Date.now()-observedMs>90*86400000){
    review.push({reason:'unverified_evidence_or_target',title:title||null});continue;
   }
-  const day=new Date(row.observed_at).toISOString().slice(0,10);
-  const hash=createHash('sha256').update([title.toLowerCase(),target,day].join('|')).digest('hex');
+  const hash=createHash('sha256').update([title.toLowerCase(),target].join('|')).digest('hex');
   if(existing.has(hash)||planned.some(x=>x.fingerprint===hash)){
    review.push({reason:'duplicate_technical_handoff',title});continue;
   }
-  if(planned.length>=dailyCap){
+  if(planned.length>=remaining){
    review.push({reason:'daily_technical_issue_cap',title});continue;
   }
   planned.push({title,target_route:target,source:'verified_serp',observed_at:row.observed_at,
     fingerprint:hash,status:'proposal_only',requires_owner_policy_check:true});
  }
- return {planned,review,cap:dailyCap,writes:0};
+ return {planned,review,cap:dailyCap,remaining_before_run:remaining,writes:0};
 }
 function proposeFeedbackRule(feedback,{
   weeklyOwnerApproval=false,regressionEvalsPassed=false,actualEvidenceReviewed=false
