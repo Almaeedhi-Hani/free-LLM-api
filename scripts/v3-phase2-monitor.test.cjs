@@ -2,7 +2,7 @@
 const assert=require('node:assert/strict');
 const {
   WORKFLOWS,expectedIntervalHours,classifyRuns,weeklyKey,issueKey,safeOutcome,
-  readStorage,createClient,handleFailure,handleWatchdog,run
+  readStorage,readProtectedSnapshot,persistedFromSnapshot,collect,createClient,handleFailure,handleWatchdog,run
 }=require('./v3-phase2-monitor.cjs');
 
 const now=Date.parse('2026-11-20T14:00:00Z');
@@ -43,6 +43,42 @@ assert.equal(readCount,1);
 assert.equal(storage.status,'observed');
 assert.equal(storage.latestTimestamp,'2026-11-20T13:37:00Z');
 assert.equal((await readStorage('W02',{url:'https://evil.test',key:'xx'})).status,'unknown');
+
+// Exact source-specific, read-only GEO authentication means GitHub Actions
+// does not need a new powerful Supabase service-role key.
+const protectedCalls=[];
+const protectedSnapshot={
+ source:'supabase',
+ persistence:{
+  W01:{at:'2026-11-20T13:00:00Z',status:'success',evidence:'persisted_agent_run'},
+  W02:{at:'2026-11-20T12:37:00Z',status:'success',evidence:'analysis_runs_radar'},
+  W03:{at:'2026-11-20T12:36:00Z',status:'observed',evidence:'audit_logs_w03'},
+  W04:{at:'2026-11-20T12:35:00Z',status:'success_with_data',evidence:'gsc_sync_day_outcomes'},
+ },
+ gsc:{latest_metric_date:'2026-11-17',latest_outcome:'success_with_data',rows_fetched:4},
+};
+const secretRoute=async (url,options={})=>{
+ protectedCalls.push({url:String(url),method:options.method||'GET',headers:options.headers});
+ if(!String(url).endsWith('/api/geo/ops-health'))throw Error('Unexpected outbound URL');
+ return {ok:true,json:async()=>protectedSnapshot};
+};
+const protectedResult=await readProtectedSnapshot({
+ url:'https://free-llm-api-1-didl.onrender.com',key:'existing-geo-key',fetchImpl:secretRoute
+});
+assert.equal(protectedResult.source,'supabase');
+assert.equal(protectedCalls.length,1);
+assert.equal(protectedCalls[0].method,'GET');
+assert.equal(protectedCalls[0].headers['x-geo-api-key'],'existing-geo-key');
+assert.equal(persistedFromSnapshot('W01',protectedResult).status,'observed');
+assert.equal(persistedFromSnapshot('W02',protectedResult).source,'analysis_runs_radar');
+assert.equal(persistedFromSnapshot('W03',protectedResult).source,'audit_logs_w03');
+assert.equal(persistedFromSnapshot('W04',protectedResult).status,'observed');
+assert.equal(persistedFromSnapshot('W05',protectedResult).status,'not_applicable');
+assert.equal(persistedFromSnapshot('W03',{source:'supabase',persistence:{W03:{at:'2026-11-20T12:00:00Z',status:'unknown'}}}).status,'unknown');
+const protectedNoData=await readProtectedSnapshot({
+ url:'http://unsafe.example',key:'existing-geo-key',fetchImpl:secretRoute
+});
+assert.equal(protectedNoData,null,'only https endpoints are allowed');
 
 const calls=[];
 let openIssues=[];
