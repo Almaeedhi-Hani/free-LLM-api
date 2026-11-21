@@ -79,10 +79,13 @@
 
 ## Other already-published editorial pages
 
+- https://free-llm-api-1-didl.onrender.com/en/insights/saudi-investment-registration-verification
+- https://free-llm-api-1-didl.onrender.com/en/services/misa-license
 - https://free-llm-api-1-didl.onrender.com/insights/foreign-investor-company-documents
 - https://free-llm-api-1-didl.onrender.com/insights/investor-services-package-scope
 - https://free-llm-api-1-didl.onrender.com/insights/misa-registration-process-guide
 - https://free-llm-api-1-didl.onrender.com/zh/
+- https://free-llm-api-1-didl.onrender.com/zh/insights/saudi-company-formation-documents
 - https://free-llm-api-1-didl.onrender.com/zh/packages
 - https://free-llm-api-1-didl.onrender.com/zh/services/company-formation
 
