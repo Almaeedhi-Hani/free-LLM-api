@@ -51,8 +51,9 @@ jobs:
           MARKET_RADAR_PAUSED: ${{ vars.MARKET_RADAR_PAUSED }}
           LLM_INDEX_PAUSED: ${{ vars.LLM_INDEX_PAUSED }}
           AUTODEV_PAUSED: ${{ vars.AUTODEV_PAUSED }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # Reuse the already-configured GEO API key (also used by Stage-2 quality).
+          # Supabase service_role remains ONLY on the existing Render server.
+          GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
           REQUEST_MODE: ${{ inputs.mode }}
           SCHEDULE_CRON: ${{ github.event.schedule }}
         shell: bash
