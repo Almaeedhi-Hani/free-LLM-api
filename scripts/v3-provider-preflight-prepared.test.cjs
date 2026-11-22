@@ -36,6 +36,8 @@ const model=require('./geo-direct-model-providers.cjs');
  });
  assert.equal(outcome.results.length,1);
  assert.equal(outcome.results[0].source,'tavily');
+ assert.deepEqual(outcome.diagnostics.map(d=>d.status),['quota_reached','ok'],
+   'denied quota must not masquerade as a network error');
  assert.equal(realCalls,1,'denied exa must never reach outbound fetch, even through fallback');
  assert.deepEqual(reservations.map(r=>r.provider),['exa','tavily']);
  assert(reservations.every(r=>r.tokenUnits===0&&r.requestUnits===1&&r.attemptKey.startsWith(id.runId+':')));
@@ -65,8 +67,9 @@ const model=require('./geo-direct-model-providers.cjs');
   const ans=await model.generate('Public research, no claim',p.id+':'+p.model,
     {env:modelEnv,fetchFn:modelGuard});
   if(p.id==='groq')assert.deepEqual(ans.data,good);
-  else assert.equal(ans.error,'network_or_response_error',
-    'legacy adapter masks unapproved result; user-facing quota status must be wired later');
+  else assert.equal(ans.error,
+    p.id==='gemini'?'quota_reached':p.id==='nvidia'?'duplicate_reservation':'unconfigured',
+    'preflight-denied model must report its exact fail-closed status');
  }
  assert.equal(modelHTTP,1,'only the genuinely reserved model may reach network');
  assert.equal(modelReserves.length,4);
@@ -88,7 +91,7 @@ const model=require('./geo-direct-model-providers.cjs');
  const key='groq:'+groq.model;
  assert.deepEqual((await model.generate('same prompt',key,{env:modelEnv,fetchFn:idempotent})).data,good);
  assert.equal((await model.generate('same prompt',key,{env:modelEnv,fetchFn:idempotent})).error,
-   'network_or_response_error');
+   'duplicate_reservation');
  assert.equal(duplicateHTTP,1,'ambiguous same prompt retry must not resend');
  let deniedHTTP=0;
  const noBudget=createPreparedQuotaFetch({
@@ -98,7 +101,7 @@ const model=require('./geo-direct-model-providers.cjs');
   fetchFn:async()=>{deniedHTTP++;return {};}
  });
  assert.equal((await model.generate('test',key,{env:modelEnv,fetchFn:noBudget})).error,
-  'network_or_response_error');
+  'verified_model_token_budget_missing');
  assert.equal(deniedHTTP,0);
  await assert.rejects(()=>noBudget('https://untrusted.example/collect',
    {method:'POST',body:'{}'}),e=>e instanceof QuotaPreflightError&&e.code==='unrecognized_request');
@@ -111,6 +114,14 @@ const model=require('./geo-direct-model-providers.cjs');
  await assert.rejects(()=>offline(exa.url,{method:'POST',body:JSON.stringify(exa.body)}),
   e=>e.code==='reservation_unavailable');
  assert.equal(deniedHTTP,0,'no verified reservation = no outbound network request');
+ const reportedOffline=await search.search({
+   queries:[{query:'Saudi investor services',language:'en'}],
+   providers:['exa'],env:{EXA_API_KEY:'offline-fixture'},maxCalls:1,fetchFn:offline
+ });
+ assert.equal(reportedOffline.request_count,1);
+ assert.equal(reportedOffline.diagnostics[0].status,'reservation_unavailable');
+ assert.equal(deniedHTTP,0,'database outage cannot result in outbound search calls');
+
  assert.throws(()=>createPreparedQuotaFetch({runId:'45077365233',stage:'w01',fetchFn:()=>{}}),
   e=>e.code==='atomic_reservation_unavailable');
  console.log('PASS prepared quota preflight: stable payload-derived keys, retry blocked, missing budget/DB/endpoint fail-closed');
