@@ -4,6 +4,7 @@ import {collectGscDimensionRows} from '@/lib/gsc-sync-collector';
 import {executeGscCatchup,GscQuotaReached} from '@/lib/gsc-backfill-plan';
 import {createGscAtomicStore} from '@/lib/gsc-atomic-storage';
 import type {GscDimension,GscRow} from '@/lib/gsc-sync-collector';
+import {classifyGscSyncFailure} from '@/lib/gsc-oauth-failure';
 
 export const dynamic = 'force-dynamic';
 const property = process.env.GSC_PROPERTY_URL || 'https://free-llm-api-1-didl.onrender.com/';
@@ -82,6 +83,9 @@ export async function GET(req: NextRequest) {
    page_data_status:results[2].length?'observed_rows':'no_page_rows_from_google',
    empty: records.length === 0, checked_at: new Date().toISOString() });
  } catch (error) {
-  return NextResponse.json({ status: 'error', error: error instanceof Error ? error.message : 'unknown_error' }, { status: 502 });
+  // Google token 400/401 is an OWNER reauthorization, not a transient retry.
+  // Never emit the OAuth response body, refresh token, or client secret.
+  const failure=classifyGscSyncFailure(error);
+  return NextResponse.json({status:'error',...failure},{status:502});
  }
 }
