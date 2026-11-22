@@ -69,8 +69,17 @@ async function search({queries,env=process.env,fetchFn=fetch,maxCalls=LIMITS.max
     diagnostics.push({provider,language:q.language,http_status:response.status,results:candidates.length,added,
       duration_ms:Date.now()-start,status:response.ok?(added?'ok':'empty'):(response.status===429?'rate_limited':response.status===401||response.status===403?'auth_error':'http_error')});
     languageHasResults=added>0;
-   }catch(e){diagnostics.push({provider,language:q.language,http_status:0,results:0,added:0,
-     duration_ms:Date.now()-start,status:e?.name==='TimeoutError'?'timeout':'network_error'});}
+   }catch(e){
+    // Prepared quota preflight can reject before provider HTTP. Preserve the
+    // exact typed result; "quota_reached" is NOT an internet outage.
+    const quotaCodes=['quota_reached','unconfigured','duplicate_reservation',
+      'reservation_unavailable','reservation_unverified','verified_model_token_budget_missing',
+      'stable_attempt_missing','unrecognized_request'];
+    const status=e?.name==='QuotaPreflightError'&&quotaCodes.includes(e.code)
+      ?e.code:e?.name==='TimeoutError'?'timeout':'network_error';
+    diagnostics.push({provider,language:q.language,http_status:0,results:0,added:0,
+     duration_ms:Date.now()-start,status});
+   }
   }
  }
  return {results:found,diagnostics,status:found.length?'success':'no_results',
