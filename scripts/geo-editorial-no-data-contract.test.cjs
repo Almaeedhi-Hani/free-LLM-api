@@ -23,7 +23,7 @@ const guard=require('./geo-generated-output-guard.cjs');
 
  const source=fs.readFileSync('scripts/opencode-geo-analysis.js','utf8');
  const start=source.indexOf('async function stageEditorialActions()');
- const end=source.indexOf('\n // --- Main pipeline ---',start);
+ const end=source.indexOf('\n// --- Main pipeline ---',start);
  assert(start>=0&&end>start,'extract actual editorial handler without network');
  const step=source.slice(start,end)+'\nthis.handleEditorial=stageEditorialActions;';
  let persistCalls=0,savedItems=[];
