@@ -103,8 +103,15 @@ async function generate(prompt,selected,{env=process.env,fetchFn=fetch,timeoutMs
   if(!data)return {error:'invalid_model_response',model:selected};
   return {data,model:selected,provider:provider.id};
  }catch(e){
-  const error=e?.name==='TimeoutError'?'timeout':
-   e?.name==='AbortError'?'timeout':'network_or_response_error';
+  // A trusted, prepared quota preflight may refuse before HTTP. Do not turn
+  // exhausted/duplicate/unverified reservations into generic network errors.
+  // Without an injected preflight, the original runtime behavior is unchanged.
+  const quotaCodes=['quota_reached','unconfigured','duplicate_reservation',
+   'reservation_unavailable','reservation_unverified','verified_model_token_budget_missing',
+   'stable_attempt_missing','unrecognized_request'];
+  const error=e?.name==='QuotaPreflightError'&&quotaCodes.includes(e.code)
+   ?e.code:e?.name==='TimeoutError'?'timeout':
+    e?.name==='AbortError'?'timeout':'network_or_response_error';
   return {error,model:selected};
  }
 }
