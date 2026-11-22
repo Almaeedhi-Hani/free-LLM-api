@@ -1,0 +1,74 @@
+# ONE-TIME isolated manual verification. Branch only. Never merge to main.
+name: V3 isolated manual read-only quality verification
+on:
+  push:
+    branches: [test/v3-manual-readonly-quality-20261123]
+    paths: ['.github/workflows/v3-one-time-manual-readonly-20261123.yml']
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: v3-manual-readonly-20261123
+  cancel-in-progress: false
+jobs:
+  manual-readonly:
+    if: github.repository == 'Almaeedhi-Hani/free-LLM-api' && github.ref == 'refs/heads/test/v3-manual-readonly-quality-20261123'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Test actual W01 editorial and guarded publication contracts (offline)
+        run: node scripts/geo-editorial-no-data-contract.test.cjs
+      - name: Test exact watchdog recovery and W05 verified-step contracts (offline)
+        run: node scripts/v3-phase2-monitor.test.cjs
+      - name: Test published-page quality audit contract (offline)
+        run: node scripts/v3-stage2-quality-audit.test.cjs
+      - name: Manually verify current production stored readback and public quality — strictly GET-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          'use strict';
+          const {readGeoSnapshot}=require('./scripts/v3-phase2-monitor.cjs');
+          const {publicAudit}=require('./scripts/v3-stage2-quality-audit.cjs');
+          (async()=>{
+            const key=process.env.GEO_API_KEY||'';
+            console.log('MANUAL_V3 existing_geo_key_present='+Boolean(key));
+            if(!key)throw Error('Existing GEO_API_KEY Actions secret missing');
+            const now=Date.now();
+            const snap=await readGeoSnapshot({key,mode:'weekly',now});
+            if(!snap)throw Error('Missing/unauthorized/stale or invalid protected Supabase snapshot');
+            const storage=Object.fromEntries(['W01','W02','W03','W04']
+              .map(id=>[id,snap.storage[id]?.status||'missing']));
+            const metrics={
+              gsc:snap.gsc?.status||'missing',
+              feedback:snap.weeklyEvidence?.feedback?.status||'missing',
+              page:snap.weeklyEvidence?.page?.status||'missing'
+            };
+            console.log('MANUAL_V3 storage_status='+JSON.stringify(storage));
+            console.log('MANUAL_V3 weekly_status='+JSON.stringify(metrics));
+            if(Object.values(storage).some(x=>x!=='observed'))
+              throw Error('Some saved W01-W04 timestamps are not observed');
+            const quality=await publicAudit(fetch,{GEO_API_KEY:key});
+            console.log('MANUAL_V3 public_quality='+JSON.stringify({
+              verified:quality.verified_pages,total:quality.total_pages,
+              registry:quality.competitor_registry,registry_reason:quality.registry_reason,
+              violation_count:quality.violations?.length,
+              unavailable_count:quality.unavailable?.length,complete:quality.complete
+            }));
+            if(!quality.complete||quality.competitor_registry!=='complete'||
+                quality.violations?.length||quality.unavailable?.length)
+              throw Error('Actual production quality audit is incomplete or contains violations');
+            console.log('MANUAL_V3 PASS isolated=true provider_calls=0 mutations=0');
+          })().catch(e=>{
+            console.error('MANUAL_V3 FAILED '+e.message);
+            process.exitCode=1;
+          });
+          NODE
