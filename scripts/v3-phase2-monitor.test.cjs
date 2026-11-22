@@ -2,7 +2,7 @@
 const assert=require('node:assert/strict');
 const {
   WORKFLOWS,expectedIntervalHours,classifyRuns,weeklyKey,issueKey,safeOutcome,
-  readStorage,persistedFreshness,readGscMeasured,gscSummaryLine,readWeeklyEvidence,weeklyEvidenceLines,createClient,handleFailure,handleWatchdog,handleReadbackCredentialStatus,run
+  readStorage,persistedFreshness,readGscMeasured,gscSummaryLine,readWeeklyEvidence,weeklyEvidenceLines,readGeoSnapshot,createClient,handleFailure,handleWatchdog,handleReadbackCredentialStatus,run
 }=require('./v3-phase2-monitor.cjs');
 
 const now=Date.parse('2026-11-20T14:00:00Z');
@@ -202,6 +202,63 @@ assert.equal(openIssues.length,0);
 assert(calls.some(c=>c.route.endsWith('/labels')&&c.body.name==='watchdog'));
 assert(calls.some(c=>c.route.endsWith('/labels')&&c.body.name==='failure'));
 
+
+// Reuse the already existing GEO key for a narrow server-side snapshot.
+// NEVER copy a Supabase service_role key into Actions or browser code.
+const geoSnapshot={
+ source:'supabase',scope:'weekly',checkedAt:new Date(now).toISOString(),
+ storage:{
+  W01:{status:'observed',latestTimestamp:new Date(now-3600000).toISOString(),source:'content_store'},
+  W02:{status:'observed',latestTimestamp:new Date(now-3600000).toISOString(),source:'analysis_runs'},
+  W03:{status:'observed',latestTimestamp:new Date(now-3600000).toISOString(),source:'audit_logs'},
+  W04:{status:'observed',latestTimestamp:new Date(now-3600000).toISOString(),source:'gsc_sync_day_outcomes'}
+ },
+ gsc:{status:'observed',grain:'total',latestDate:'2026-11-17',impressions:3,clicks:0,observedDays:2},
+ weeklyEvidence:{
+  feedback:{status:'observed',from:'2026-11-13',sampleSize:1,
+   counts:{relevant:0,irrelevant:1,approved:0,rejected:0,accepted:0,needs_review:0,other:0}},
+  page:{status:'observed',date:'2026-11-17',path:'/en/services/misa-license',
+   impressions:3,clicks:0,position:3}
+ }
+};
+let guardedReadbackRequests=0;
+const readbackFixture=async (url,opts)=>{
+ guardedReadbackRequests++;
+ assert.equal(url,'https://free-llm-api-1-didl.onrender.com/api/geo/monitor-readback?scope=weekly');
+ assert.equal(opts.headers['x-geo-api-key'],'existing-geo-fixture');
+ assert.equal(opts.method,'GET');
+ assert.equal(opts.redirect,'error');
+ assert(!JSON.stringify(opts).includes('service_role'));
+ return makeJson(geoSnapshot);
+};
+const trustedSnapshot=await readGeoSnapshot({
+ key:'existing-geo-fixture',mode:'weekly',now,fetchImpl:readbackFixture
+});
+assert.equal(guardedReadbackRequests,1);
+assert.equal(trustedSnapshot.storage.W03.status,'observed');
+assert.equal(trustedSnapshot.gsc.impressions,3);
+assert.equal(trustedSnapshot.weeklyEvidence.feedback.counts.irrelevant,1);
+assert.equal((await readGeoSnapshot({key:'',mode:'weekly',now,fetchImpl:readbackFixture})),null);
+assert.equal(guardedReadbackRequests,1,'absent GEO key never calls server');
+assert.equal((await readGeoSnapshot({key:'fixture',mode:'weekly',now,
+ fetchImpl:async()=>makeJson({},401)})),null);
+assert.equal((await readGeoSnapshot({key:'fixture',mode:'weekly',now,
+ fetchImpl:async()=>makeJson({...geoSnapshot,checkedAt:'2026-01-01T00:00:00Z'})})),null);
+assert.equal((await readGeoSnapshot({key:'fixture',mode:'weekly',now,
+ fetchImpl:async()=>makeJson({...geoSnapshot,storage:{
+  ...geoSnapshot.storage,W03:{...geoSnapshot.storage.W03,source:'content_store'}})})),null,
+ 'wrong W03 provenance must fail closed');
+const damagedSnapshot=await readGeoSnapshot({key:'fixture',mode:'weekly',now,
+ fetchImpl:async()=>makeJson({...geoSnapshot,gsc:{status:'observed',grain:'page',
+   latestDate:'2026-11-17',impressions:999,clicks:0,observedDays:1},
+  weeklyEvidence:{...geoSnapshot.weeklyEvidence,page:{
+    ...geoSnapshot.weeklyEvidence.page,path:'https://external.example/steal'}}})});
+assert.equal(damagedSnapshot.gsc.status,'unknown');
+assert.equal(damagedSnapshot.weeklyEvidence.page.status,'unknown');
+assert.equal((await readGeoSnapshot({key:'fixture',mode:'watchdog',now,
+ fetchImpl:async(url)=>{assert(url.endsWith('scope=watchdog'));return makeJson({...geoSnapshot,scope:'watchdog'});}}))
+ .storage.W01.status,'observed');
+
 const mockRunFetch=async (url,options)=>{
   const u=new URL(url);
   if(u.pathname.includes('/actions/variables/'))return makeJson({},404);
@@ -220,6 +277,26 @@ const report=await run({mode:'weekly',repository:'org/repo',token:'fake-token',n
  fetchImpl:mockRunFetch,supabaseUrl:'',supabaseKey:''});
 assert.equal(report.result,'created');
 assert.equal(report.number,44);
+
+let readbackReportBody='';
+const readbackReport=await run({mode:'weekly',repository:'org/repo',token:'fake-token',
+ now,geoApiKey:'existing-geo-fixture',supabaseUrl:'',supabaseKey:'',
+ fetchImpl:async (url,opts)=>{
+  if(String(url).includes('/api/geo/monitor-readback?'))return readbackFixture(url,opts);
+  if(String(url).endsWith('/issues')&&opts.method==='POST') {
+    readbackReportBody=JSON.parse(opts.body).body;
+    return makeJson({number:51},201);
+  }
+  return mockRunFetch(url,opts);
+ }});
+assert.equal(readbackReport.number,51);
+assert(readbackReportBody.includes('3 impressions, 0 clicks'));
+assert(readbackReportBody.includes('Recorded keyword feedback (seven days, 1 decisions): irrelevant=1'));
+assert(readbackReportBody.includes('/en/services/misa-license'));
+assert(readbackReportBody.includes('W03 GEO publisher | healthy'));
+assert(!readbackReportBody.includes('SUPABASE_SERVICE_ROLE_KEY not configured'),
+ 'server-mediated successful readback must not claim missing secret');
+
 
 const workflows=[
  '.github/workflows/geo-analysis.yml',
