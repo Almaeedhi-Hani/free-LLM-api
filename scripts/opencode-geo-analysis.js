@@ -600,7 +600,7 @@ async function updateGEOAgentRun(outcome) {
   const key=process.env.GEO_API_KEY;
   if(!base||!key)return false;
   try{
-    const status=Object.values(outcome.stages).every(s=>s.status==='success')?'success':'partial';
+    const status=require('./geo-editorial-no-data-contract.cjs').completeGeoPipeline(outcome.stages)?'success':'partial';
     const statuses=outcome.stage_results?.geo_analysis?.languages||{};
     const localeSummary=['ar','en','zh'].map(lang=>lang+':'+(statuses[lang]?.status||'not_run')).join(',');
     const last_result=['discovery','evidence','geo_analysis','opportunities','goals','drafts','editorial_actions'].map(stage=>stage+':'+(outcome.stages[stage]?.status||'not_run')).join(' | ')+
@@ -676,13 +676,22 @@ async function stageEditorialActions() {
  if(screened.rejected.length)console.warn('[EDITORIAL] Rejected unsupported model proposals:',
   JSON.stringify(screened.rejected).slice(0,500));
  if(!items.length){
-  stageResults.editorial_actions={count:initialCount,persisted:0,rejected_count:rejected+screened.rejected.length,repaired_count:repaired,
-    reason:'No valid cross-site proposals in this evidence batch'};
-  console.log('[EDITORIAL] No valid evidence-backed cross-site proposals to persist');
+  // A genuinely empty batch is not an invalid proposal. Preserve the unchanged
+  // schema guard: rejected/unrepaired suggestions are still partial.
+  const cleanNoData=require('./geo-editorial-no-data-contract.cjs')
+    .cleanEditorialNoData({generated,rejected,repaired,screenedRejected:screened.rejected.length});
+  stageResults.editorial_actions={count:initialCount,persisted:0,
+    rejected_count:rejected+screened.rejected.length,repaired_count:repaired,
+    status:cleanNoData?'success_no_data':'partial',no_data:cleanNoData,
+    reason:cleanNoData?'No evidence-backed editorial proposals generated':
+      'No valid cross-site editorial proposals; validation still partial'};
+  console.log('[EDITORIAL] No valid evidence-backed cross-site proposals to persist'+
+    (cleanNoData?' (verified no-data)':' (rejected/partial)'));
+  if(cleanNoData)return {records_processed:0,status:'success_no_data',error:null};
   return {records_processed:0,status:'partial',
     error:initialCount
       ?'Rejected '+unresolved+' malformed editorial proposal(s)'
-      :'No evidence-backed editorial proposals generated; inspect model output'};
+      :'Editorial suggestions rejected/partial; review the validation log'};
  }
  const byId=new Map((stageResults.evidence?.items||[]).map(e=>[e.id,e]));
  const crypto=require('node:crypto');
@@ -778,7 +787,8 @@ async function runFullPipeline() {
         reviewer_excluded:stageResults.drafts?.reviewer_excluded||0,error:stageResults.drafts?.error||undefined},
       editorial_actions:{rejected_count:stageResults.editorial_actions?.rejected_count||0,
         repaired_count:stageResults.editorial_actions?.repaired_count||0,
-        reviewer_excluded:stageResults.editorial_actions?.reviewer_excluded||0,error:stageResults.editorial_actions?.error||undefined},
+        reviewer_excluded:stageResults.editorial_actions?.reviewer_excluded||0,
+        no_data:stageResults.editorial_actions?.no_data===true,error:stageResults.editorial_actions?.error||undefined},
     },
   };
 
@@ -800,7 +810,7 @@ async function runFullPipeline() {
   output.summary.persisted_goals=stageResults.goals?.persisted||0;
   output.summary.persisted_drafts=stageResults.drafts?.persisted||0;
   output.summary.persisted_editorial_actions=stageResults.editorial_actions?.persisted||0;
-  output.pipeline_ok=Object.values(results).length===stageOrder.length && Object.values(results).every(s=>s.status==='success');
+  output.pipeline_ok=require('./geo-editorial-no-data-contract.cjs').completeGeoPipeline(results);
   output.dashboard_synced=await updateGEOAgentRun(output);
   if(!output.dashboard_synced)output.pipeline_ok=false;
   // Update the persisted workflow artifact with the verified remote outcome.
