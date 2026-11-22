@@ -38,3 +38,5 @@ jobs:
           psql -X -v ON_ERROR_STOP=1 -f tests/sql/phase2-provider-quota-prepared.sql
           # Open 20 independent PG sessions in bursts; still disposable DB only.
           bash tests/sql/phase2-provider-quota-concurrency.sh
+          # Actual search/LLM adapters through mocked HTTP; no provider calls.
+          node scripts/v3-provider-preflight-prepared.test.cjs
