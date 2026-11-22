@@ -32,4 +32,7 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: test-only-password
           PGDATABASE: phase2_test
-        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/phase2-security.sql
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -f tests/sql/phase2-security.sql
+          # Proposal ONLY, using this disposable CI Postgres 17 service.
+          psql -X -v ON_ERROR_STOP=1 -f tests/sql/phase2-provider-quota-prepared.sql
