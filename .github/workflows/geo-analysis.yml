@@ -76,6 +76,21 @@ jobs:
           GEO_API_URL: ${{ secrets.GEO_API_URL }}
           GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
         run: |
+          # A verified empty editorial batch is an honest no-data research
+          # outcome, but must NOT unlock the W01 publication endpoint.
+          # Other partial/invalid status or missing artifact fails closed.
+          decision="$(node scripts/geo-editorial-no-data-contract.cjs --decision market-intel/geo-persisted-results.json)" || {
+            echo "::error::W01 publication readiness could not be verified"
+            exit 1
+          }
+          if [ "$decision" = "skip_no_data" ]; then
+            echo "[W01_PUBLICATION] SKIP clean editorial success_no_data; independent W03 remains scheduled"
+            exit 0
+          fi
+          if [ "$decision" != "ready" ]; then
+            echo "::error::W01 publication readiness rejected"
+            exit 1
+          fi
           if [ -z "$GEO_API_URL" ] || [ -z "$GEO_API_KEY" ]; then
             echo "::error::Missing GEO API endpoint/key"
             exit 1

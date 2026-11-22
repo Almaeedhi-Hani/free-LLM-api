@@ -79,7 +79,16 @@ const {normalizeGeoBatch,persistGeoBatch}=require('../.geo-ingest-test-build/lib
  assert(runner.indexOf("'opencode/glm-5.3-flash-free'")>0 && runner.indexOf("'opencode/glm-5.3-flash-free'")<runner.indexOf("'opencode/deepseek-v4.1-flash-free'"),'Try the free GLM fallback before previously timed-out alternatives');
  assert(runner.includes("const replaySafe = stage==='opportunities' || stage==='editorial_actions'"),'Only deduplicated GEO stages may retry on ambiguous request failures');
  assert(runner.includes("const maxAttempts = replaySafe ? 3 : 1"),'GEO retries must be strictly bounded');
- assert(runner.includes("No evidence-backed editorial proposals generated; inspect model output"),'Zero editorial output must not silently pass');
+ assert(runner.includes("if(cleanNoData)return {records_processed:0,status:'success_no_data',error:null};"),
+   'Only strictly validated empty editorial batches may be reported as success_no_data');
+ assert(runner.includes("return {records_processed:0,status:'partial'"),
+   'Rejected editorial candidates must continue to fail closed');
+ assert(require('./geo-editorial-no-data-contract.cjs').publicationDecision({
+   pipeline_ok:true,
+   stages:Object.fromEntries(['discovery','evidence','geo_analysis','opportunities','goals','drafts','editorial_actions']
+     .map(stage=>[stage,stage==='editorial_actions'?{status:'success_no_data',records_processed:0}:
+       {status:'success',records_processed:1}]))
+ })==='skip_no_data','Clean empty editorials never unlock W01 auto publication');
 
  assert(runner.includes('output.dashboard_synced=await updateGEOAgentRun(output)'));
  const {supportedSchemaSuggestions,promptForLocale}=require('./geo-opencode-planner.cjs');

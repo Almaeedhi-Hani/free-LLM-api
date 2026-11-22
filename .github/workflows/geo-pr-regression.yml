@@ -65,6 +65,8 @@ jobs:
         run: node scripts/geo-provider-fallback.test.cjs
       - name: Four free-plan direct providers and multilingual failover
         run: node scripts/geo-direct-model-providers.test.cjs && node scripts/geo-direct-stage-integration.test.cjs && node scripts/geo-direct-prompt-quota.test.cjs
+      - name: W01 honest empty editorial outcomes and no-publication gate
+        run: node scripts/geo-editorial-no-data-contract.test.cjs
       - name: Opportunity contract and partial persistence regression
         run: node scripts/geo-opportunity-contract.test.cjs
       - name: Multilingual evidence-to-prompt integration
