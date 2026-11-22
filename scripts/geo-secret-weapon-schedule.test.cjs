@@ -12,7 +12,9 @@ for(const hour of [1,3,5,7,9,11,13,15,17,19,21,23])
  assert(geo.includes("- cron: '0 "+hour+" * * *'"),'GEO preserves each original UTC trigger '+hour);
 assert(!geo.includes("- cron: '0 2 * * 0'"),'Weekly schedule must be replaced');
 assert(geo.includes('  workflow_dispatch:'),'Manual GEO dispatch must remain');
-assert(geo.includes("      - '.github/workflows/geo-analysis.yml'"),'One-time main push bootstrap');
+// That one-time bootstrap caused a real W01 provider run after PR #245 merged.
+assert(!/^  push:\s*$/m.test(geo),'W01 must never invoke model/search providers just because a commit merged');
+assert(geo.includes('  workflow_dispatch:'),'Explicit operator-run path remains available');
 assert(geo.includes('group: geo-analysis')&&geo.includes('cancel-in-progress: false'),'No overlapping analyses');
 assert(geo.includes('node scripts/opencode-geo-analysis.js --full-pipeline'),'Actual GEO pipeline preserved');
 assert(geo.includes('GEO_LLM_MODE: direct'),'Four direct providers replace unreliable CLI in production');
