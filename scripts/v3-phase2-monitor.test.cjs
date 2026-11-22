@@ -199,7 +199,7 @@ const w05Client=createClient({repository:'org/repo',token:'test-token',fetchImpl
  const p=new URL(url).pathname;
  if(p.endsWith('/actions/workflows/llm-feed-optimization.yml/runs'))
    return makeJson({workflow_runs:w05Runs});
- const id=Number(p.match(/\\/actions\\/runs\\/(\\d+)\\/jobs$/)?.[1]);
+ const id=Number(p.match(/\/actions\/runs\/(\d+)\/jobs$/)?.[1]);
  if(Number.isInteger(id)){
    w05Seen.push(id);
    return makeJson({total_count:1,jobs:[{name:'verify-and-optimize',status:'completed',
