@@ -63,6 +63,23 @@ const env={GEO_API_KEY:'local-geo-key',
  assert.equal(first.verified_pages,24);
  assert.equal(first.complete,true);
  assert.equal(first.competitor_registry,'complete');
+ // Real production has 107 competitor rows. Verify the newly widened bounded
+ // endpoint response is complete, and still fail closed at its exact cap.
+ const originalMissingDb=state.missingDb;
+ const sample107=await publicAudit(async (url,opts)=>{
+   if(String(url)===CANONICAL+'/api/geo/data')return response({source:'supabase',competitors:
+     Array.from({length:107},(_,i)=>({domain:'competitor-'+i+'.example',status:'active'}))});
+   return fetchMock(url,opts);
+ },env);
+ assert.equal(sample107.competitor_registry,'complete');
+ const sample250=await publicAudit(async (url,opts)=>{
+   if(String(url)===CANONICAL+'/api/geo/data')return response({source:'supabase',competitors:
+     Array.from({length:250},(_,i)=>({domain:'competitor-'+i+'.example',status:'active'}))});
+   return fetchMock(url,opts);
+ },env);
+ assert.equal(sample250.competitor_registry,'partial','registry at the endpoint cap is not complete');
+ assert.equal(sample250.complete,false);
+ assert.equal(state.missingDb,originalMissingDb);
  assert.equal(first.violations.length,1);
  assert.equal(first.violations[0].path,'/en/packages');
  assert.deepEqual(first.violations[0].competitor_hosts,['jewark.com']);

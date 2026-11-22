@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const GEO_API_KEY = process.env.GEO_API_KEY || '';
-const MAX_COMPETITORS = 100;
+const MAX_COMPETITORS = 250; // Still bounded; Stage-2 needs all 107 registered competitors.
 const MAX_OBSERVATIONS = 200;
 const MAX_KEYWORDS = 200;
 
