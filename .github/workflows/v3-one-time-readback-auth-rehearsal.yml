@@ -1,0 +1,60 @@
+# One-time, isolated, GET-only rehearsal; NEVER merge to main.
+name: V3 one-time protected monitor readback rehearsal
+on:
+  push:
+    branches: [chore/phase2-readback-auth-rehearsal-20261123]
+    paths: ['.github/workflows/v3-one-time-readback-auth-rehearsal.yml']
+permissions:
+  contents: read
+concurrency:
+  group: v3-one-time-readback-rehearsal
+  cancel-in-progress: false
+jobs:
+  readback:
+    if: github.repository == 'Almaeedhi-Hani/free-LLM-api' && github.ref == 'refs/heads/chore/phase2-readback-auth-rehearsal-20261123'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: One-time read-only server-mediated monitor contract
+        env:
+          GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          (async()=>{
+            const key=process.env.GEO_API_KEY||'';
+            console.log('MONITOR_READBACK_REHEARSAL credential_present='+Boolean(key));
+            if(!key)throw Error('Missing existing GitHub Actions GEO key; no network request made');
+            const uri='https://free-llm-api-1-didl.onrender.com/api/geo/monitor-readback?scope=weekly';
+            const r=await fetch(uri,{method:'GET',
+              headers:{'x-geo-api-key':key,Accept:'application/json'},
+              redirect:'error',signal:AbortSignal.timeout(15000)});
+            console.log('MONITOR_READBACK_REHEARSAL http_status='+r.status);
+            if(!r.ok)throw Error('Existing GEO-authenticated monitor readback unavailable; HTTP '+r.status);
+            const j=await r.json();
+            if(j?.scope!=='weekly'||j?.source!=='supabase'||!j?.storage||
+               !Number.isFinite(Date.parse(j.checkedAt))||
+               Math.abs(Date.now()-Date.parse(j.checkedAt))>5*60000)
+              throw Error('Invalid or outdated server snapshot');
+            const ids=['W01','W02','W03','W04'];
+            const data=Object.fromEntries(ids.map(id=>[id,j.storage[id]?.status||'absent']));
+            for(const [id,status] of Object.entries(data))
+              if(!['observed','unknown'].includes(status))
+                throw Error('Bad storage status '+id);
+            const result={storage:data,gsc:j.gsc?.status||'absent',
+              feedback:j.weeklyEvidence?.feedback?.status||'absent',
+              page:j.weeklyEvidence?.page?.status||'absent'};
+            // Only status names; never output database rows, credentials or exact timestamps.
+            console.log('MONITOR_READBACK_REHEARSAL result='+JSON.stringify(result));
+            if(ids.some(id=>data[id]!=='observed'))
+              throw Error('One or more actual W01-W04 data timestamps not independently observed');
+            console.log('MONITOR_READBACK_REHEARSAL SUCCESS read_only=true no_provider_calls=true');
+          })().catch(e=>{console.error('MONITOR_READBACK_REHEARSAL ERROR '+e.message);process.exitCode=1;});
+          NODE
