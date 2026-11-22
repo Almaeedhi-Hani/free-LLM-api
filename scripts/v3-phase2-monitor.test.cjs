@@ -244,9 +244,10 @@ assert.equal((await readGeoSnapshot({key:'fixture',mode:'weekly',now,
  fetchImpl:async()=>makeJson({},401)})),null);
 assert.equal((await readGeoSnapshot({key:'fixture',mode:'weekly',now,
  fetchImpl:async()=>makeJson({...geoSnapshot,checkedAt:'2026-01-01T00:00:00Z'})})),null);
-assert.equal((await readGeoSnapshot({key:'fixture',mode:'weekly',now,
- fetchImpl:async()=>makeJson({...geoSnapshot,storage:{
-  ...geoSnapshot.storage,W03:{...geoSnapshot.storage.W03,source:'content_store'}})})),null,
+const forgedStorage={...geoSnapshot.storage,
+ W03:{...geoSnapshot.storage.W03,source:'content_store'}};
+assert.equal(await readGeoSnapshot({key:'fixture',mode:'weekly',now,
+ fetchImpl:async()=>makeJson({...geoSnapshot,storage:forgedStorage})}),null,
  'wrong W03 provenance must fail closed');
 const damagedSnapshot=await readGeoSnapshot({key:'fixture',mode:'weekly',now,
  fetchImpl:async()=>makeJson({...geoSnapshot,gsc:{status:'observed',grain:'page',
