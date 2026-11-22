@@ -187,6 +187,51 @@ assert.equal(openIssues.length,0,'transient unknown does not imply credentials m
 configured=await handleReadbackCredentialStatus(client,[missingReadbackRows[0]],now);
 assert.equal(configured.result,'unknown','incomplete sampling must not create incident');
 
+// Regression from genuine W05 schedule #45073616338: GitHub success but
+// cadence gate skipped index read. A skipped green run must NOT close #238
+// or make W05 "healthy". A genuine no_change index read does count.
+const w05Runs=[
+ {...scheduled(0.5),id:301}, // half-slot: all index checks skipped
+ {...scheduled(1.2),id:302}, // actual index-read step ran
+];
+const w05Seen=[];
+const w05Client=createClient({repository:'org/repo',token:'test-token',fetchImpl:async(url,opts={})=>{
+ const p=new URL(url).pathname;
+ if(p.endsWith('/actions/workflows/llm-feed-optimization.yml/runs'))
+   return makeJson({workflow_runs:w05Runs});
+ const id=Number(p.match(/\/actions\/runs\/(\d+)\/jobs$/)?.[1]);
+ if(Number.isInteger(id)){
+   w05Seen.push(id);
+   return makeJson({total_count:1,jobs:[{name:'verify-and-optimize',status:'completed',
+     steps:[{name:'Read canonical public LLM feed and detect meaningful index updates',
+       conclusion:id===301?'skipped':'success'}]}]});
+ }
+ throw Error('Unexpected W05 fixture '+p);
+}});
+const verifiedW05Runs=await w05Client.workflowRuns('llm-feed-optimization.yml');
+assert.deepEqual(verifiedW05Runs.map(r=>r.conclusion),['skipped','success']);
+assert.equal(classifyRuns(verifiedW05Runs,now).runId,302,
+  'monitor must use most recent actual W05 index read, not later cadence SKIP');
+assert.deepEqual(w05Seen,[301,302]);
+const unsafeW05Event={repository:{full_name:'org/repo'},workflow_run:{
+ path:'.github/workflows/llm-feed-optimization.yml',id:301,event:'schedule',
+ head_branch:'main',head_repository:{full_name:'org/repo'},conclusion:'success'}};
+let w05Resolutions=0;
+const w05FailureClient={
+ pauseStatus:async()=>({status:'active'}),
+ w05RunVerified:async()=>false,
+ resolveIssue:async()=>{w05Resolutions++;return {result:'resolved'};},
+ upsertIssue:async()=>({result:'created'})
+};
+assert.equal((await handleFailure(w05FailureClient,unsafeW05Event)).result,'ignored_cadence_skip');
+assert.equal(w05Resolutions,0,'skipped run cannot close real index failure');
+w05FailureClient.w05RunVerified=async()=>null;
+assert.equal((await handleFailure(w05FailureClient,unsafeW05Event)).result,'ignored_unverified_w05_success');
+assert.equal(w05Resolutions,0,'unreadable job evidence must fail closed');
+w05FailureClient.w05RunVerified=async()=>true;
+assert.equal((await handleFailure(w05FailureClient,unsafeW05Event)).result,'resolved');
+assert.equal(w05Resolutions,1,'real successful index read can resolve alert');
+
 const fakeEvent={repository:{full_name:'org/repo'},workflow_run:{
  path:'.github/workflows/geo-analysis.yml',id:999,event:'schedule',head_branch:'main',
  head_repository:{full_name:'org/repo'},conclusion:'failure'
