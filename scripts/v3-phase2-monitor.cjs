@@ -302,6 +302,75 @@ function summaryLine(target,run,storage,nowMillis) {
   return '| '+target.id+' '+target.name+' | '+run.status+' | '+age+' | '+(run.runId||'none')+
     ' | '+storage.status+': '+record+' | '+freshness.status+' |';
 }
+
+/**
+ * Narrow server readback instead of exporting the production Supabase
+ * service_role secret to GitHub Actions. The existing GEO_API_KEY is already
+ * used by the quality workflow; do not accept caller-configurable origins.
+ * Network/auth/malformed data is always unknown, never synthetic success.
+ */
+async function readGeoSnapshot({key,mode,now,fetchImpl=fetch}) {
+  if(!key)return null;
+  const scope=mode==='weekly'?'weekly':'watchdog';
+  try {
+    const endpoint='https://free-llm-api-1-didl.onrender.com/api/geo/monitor-readback?scope='+scope;
+    const response=await fetchImpl(endpoint,{
+      method:'GET',headers:{'x-geo-api-key':key,Accept:'application/json'},
+      redirect:'error',signal:AbortSignal.timeout(15000)
+    });
+    if(!response.ok)return null;
+    const data=await response.json();
+    if(data?.source!=='supabase'||data.scope!==scope||!data.storage||
+       !Number.isFinite(Date.parse(data.checkedAt))||
+       Math.abs(now-Date.parse(data.checkedAt))>5*60000)return null;
+    const expected={W01:'content_store',W02:'analysis_runs',W03:'audit_logs',
+      W04:'gsc_sync_day_outcomes'};
+    const storage={};
+    for(const [id,table] of Object.entries(expected)){
+      const row=data.storage[id];
+      if(row?.status==='observed'){
+        if(row.source!==table||typeof row.latestTimestamp!=='string'||
+           !Number.isFinite(Date.parse(row.latestTimestamp))||
+           Date.parse(row.latestTimestamp)>now)return null;
+        storage[id]={status:'observed',source:table,latestTimestamp:row.latestTimestamp};
+      }else {
+        storage[id]={status:'unknown',note:'server_readback_unverified'};
+      }
+    }
+    const result={storage};
+    if(scope==='weekly') {
+      const gsc=data.gsc;
+      const metrics=(gsc?.status==='observed'&&gsc.grain==='total'&&
+        typeof gsc.latestDate==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(gsc.latestDate)&&
+        Number.isInteger(gsc.impressions)&&gsc.impressions>=0&&
+        Number.isInteger(gsc.clicks)&&gsc.clicks>=0&&gsc.clicks<=gsc.impressions&&
+        Number.isInteger(gsc.observedDays)&&gsc.observedDays>=1&&gsc.observedDays<=7)
+        ?gsc:{status:'unknown',note:'server_gsc_unverified'};
+      const feedback=data.weeklyEvidence?.feedback;
+      const page=data.weeklyEvidence?.page;
+      let f={status:'unknown',reason:'server_feedback_unverified'};
+      if(feedback?.status==='observed'&&Number.isInteger(feedback.sampleSize)&&
+         feedback.sampleSize>=0&&feedback.sampleSize<=500&&
+         feedback.counts&&typeof feedback.counts==='object'&&
+         Object.values(feedback.counts).every(v=>Number.isInteger(v)&&v>=0)&&
+         Object.values(feedback.counts).reduce((a,b)=>a+b,0)===feedback.sampleSize)
+        f=feedback;
+      let p={status:'unknown',reason:'server_page_unverified'};
+      if(page?.status==='observed'&&typeof page.path==='string'&&
+         /^\/[a-z0-9/_-]*$/.test(page.path)&&
+         typeof page.date==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(page.date)&&
+         Number.isInteger(page.impressions)&&page.impressions>=0&&
+         Number.isInteger(page.clicks)&&page.clicks>=0&&page.clicks<=page.impressions&&
+         (page.position===null||(typeof page.position==='number'&&
+         Number.isFinite(page.position)&&page.position>=0)))
+        p=page;
+      result.gsc=metrics;
+      result.weeklyEvidence={feedback:f,page:p};
+    }
+    return result;
+  }catch{return null;}
+}
+
 async function collect(client,options) {
   const all=[];
   for(const target of WORKFLOWS) {
@@ -313,7 +382,7 @@ async function collect(client,options) {
       try{run=classifyRuns(await client.workflowRuns(target.filename),options.now);}
       catch{run={status:'unknown',reason:'github_read_error'};}
     }
-    const storage=await readStorage(target.id,{url:options.supabaseUrl,key:options.supabaseKey,fetchImpl:options.fetchImpl||fetch});
+    const storage=options.monitorSnapshot?.storage?.[target.id] || await readStorage(target.id,{url:options.supabaseUrl,key:options.supabaseKey,fetchImpl:options.fetchImpl||fetch});
     all.push({target,run,storage});
   }
   return all;
@@ -402,7 +471,9 @@ async function run(options) {
   const client=createClient({repository:options.repository,token:options.token,fetchImpl:options.fetchImpl||fetch,
     pauseVarSnapshot:options.pauseVarSnapshot??null});
   if(options.mode==='failure')return handleFailure(client,options.event);
-  const rows=await collect(client,options);
+  const monitorSnapshot=(!options.supabaseUrl||!options.supabaseKey)?
+    await readGeoSnapshot({key:options.geoApiKey,mode:options.mode,now:options.now,fetchImpl:options.fetchImpl||fetch}):null;
+  const rows=await collect(client,{...options,monitorSnapshot});
   if(options.mode==='watchdog'){
     const results=await handleWatchdog(client,rows,options.now);
     results.push(await handleReadbackCredentialStatus(client,rows,options.now));
@@ -410,8 +481,8 @@ async function run(options) {
       storageFreshness:persistedFreshness(x.storage,options.now)}))};
   }
   if(options.mode==='weekly'){
-    const gsc=await readGscMeasured({url:options.supabaseUrl,key:options.supabaseKey,fetchImpl:options.fetchImpl||fetch});
-    const weeklyEvidence=await readWeeklyEvidence({url:options.supabaseUrl,key:options.supabaseKey,
+    const gsc=monitorSnapshot?.gsc || await readGscMeasured({url:options.supabaseUrl,key:options.supabaseKey,fetchImpl:options.fetchImpl||fetch});
+    const weeklyEvidence=monitorSnapshot?.weeklyEvidence || await readWeeklyEvidence({url:options.supabaseUrl,key:options.supabaseKey,
       now:options.now,fetchImpl:options.fetchImpl||fetch});
     const title=issueKey('weekly',weeklyKey(options.now));
     const lines=rows.map(x=>summaryLine(x.target,x.run,x.storage,options.now));
@@ -437,7 +508,7 @@ if(require.main===module){
     const mode=process.argv.find(a=>a.startsWith('--mode='))?.slice(7)||'watchdog';
     const event=process.env.GITHUB_EVENT_PATH?JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH,'utf8')):{};
     const result=await run({mode,repository:process.env.GITHUB_REPOSITORY,token:process.env.GH_TOKEN,
-      now:Date.now(),supabaseUrl:process.env.SUPABASE_URL,supabaseKey:process.env.SUPABASE_SERVICE_ROLE_KEY,event,
+      now:Date.now(),supabaseUrl:process.env.SUPABASE_URL,supabaseKey:process.env.SUPABASE_SERVICE_ROLE_KEY,geoApiKey:process.env.GEO_API_KEY,event,
       pauseVarSnapshot:{
         V3_MASTER_PAUSED:process.env.V3_MASTER_PAUSED??'',
         MARKET_RADAR_PAUSED:process.env.MARKET_RADAR_PAUSED??'',
@@ -447,4 +518,4 @@ if(require.main===module){
     console.log('[V3_SAFETY] '+JSON.stringify(result));
   })().catch(err=>{console.error('[V3_SAFETY] '+String(err.message).slice(0,200));process.exitCode=1;});
 }
-module.exports={WORKFLOWS,expectedIntervalHours,classifyRuns,weeklyKey,issueKey,safeOutcome,createClient,readStorage,persistedFreshness,readGscMeasured,gscSummaryLine,readWeeklyEvidence,weeklyEvidenceLines,collect,handleFailure,handleWatchdog,handleReadbackCredentialStatus,run};
+module.exports={WORKFLOWS,expectedIntervalHours,classifyRuns,weeklyKey,issueKey,safeOutcome,createClient,readStorage,persistedFreshness,readGscMeasured,gscSummaryLine,readWeeklyEvidence,weeklyEvidenceLines,readGeoSnapshot,collect,handleFailure,handleWatchdog,handleReadbackCredentialStatus,run};
