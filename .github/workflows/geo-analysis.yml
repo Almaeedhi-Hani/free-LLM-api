@@ -15,10 +15,9 @@ on:
     - cron: '0 19 * * *'
     - cron: '0 21 * * *'
     - cron: '0 23 * * *'
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/geo-analysis.yml' # One-time persistence-contract smoke after schema guard fix; Saudi cadence unchanged
+  # No push trigger: merging changes must never start paid/free provider
+  # searches or models. Code validation runs in GEO PR + admin regression CI.
+  # Keep only cadence-verified natural schedules and explicit manual dispatch.
   workflow_dispatch:  # Manual trigger
 
 permissions:
