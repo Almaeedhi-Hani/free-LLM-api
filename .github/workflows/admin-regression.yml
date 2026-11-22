@@ -48,6 +48,8 @@ jobs:
         run: npm run test:editorial
       - name: GEO persistence and pipeline truthfulness tests
         run: npm run test:geo-persist
+      - name: W01 empty editorial research must not unlock automatic publication
+        run: node scripts/geo-editorial-no-data-contract.test.cjs
       - name: GEO agent tests
         run: npm run test:agent
       - name: GEO Content & Impact Center contracts and fail-closed auto publication
