@@ -36,3 +36,5 @@ jobs:
           psql -X -v ON_ERROR_STOP=1 -f tests/sql/phase2-security.sql
           # Proposal ONLY, using this disposable CI Postgres 17 service.
           psql -X -v ON_ERROR_STOP=1 -f tests/sql/phase2-provider-quota-prepared.sql
+          # Open 20 independent PG sessions in bursts; still disposable DB only.
+          bash tests/sql/phase2-provider-quota-concurrency.sh
