@@ -3,19 +3,6 @@ on:
   # Approved automatic GSC: restore the original 12 UTC slots while the
   # immutable Saudi cadence gate executes only due 4-hour windows.
   # 00:45 UTC = 03:45 KSA; preserves original slot and dedup behavior.
-  schedule:
-    - cron: '0 0 * * *'
-    - cron: '45 0 * * *'
-    - cron: '0 4 * * *'
-    - cron: '0 6 * * *'
-    - cron: '0 8 * * *'
-    - cron: '0 10 * * *'
-    - cron: '0 12 * * *'
-    - cron: '0 14 * * *'
-    - cron: '0 16 * * *'
-    - cron: '0 18 * * *'
-    - cron: '0 20 * * *'
-    - cron: '0 22 * * *'
   workflow_dispatch:
 permissions:
   contents: read

@@ -6,12 +6,10 @@ const { scheduledSlot, chooseGscSync } = require('./gsc-scheduled-slot.cjs');
 
 const workflow = readFileSync('.github/workflows/gsc-daily-sync.yml', 'utf8');
 const crons = Array.from(workflow.matchAll(/- cron: '([^']+)'/g), match => match[1]);
-// GSC runs on its OWN automatic schedule, independently of the Master.
-const originalUtc=['0 0 * * *','45 0 * * *','0 4 * * *','0 6 * * *',
-  '0 8 * * *','0 10 * * *','0 12 * * *','0 14 * * *',
-  '0 16 * * *','0 18 * * *','0 20 * * *','0 22 * * *'];
-assert.deepEqual(crons, originalUtc);
-assert.match(workflow, /^  schedule:/m);
+// Temporarily pause native GSC schedule while W02 is being validated alone.
+// Keep immutable nominal slot arithmetic covered by fixture tests below.
+assert.deepEqual(crons, []);
+assert.doesNotMatch(workflow, /^  schedule:/m);
 assert.deepEqual(scheduledSlot('*/5 * * * *', '2026-11-23T01:13:22Z'),
   { allowed: true, instant: '2026-11-23T01:10:00.000Z' });
 assert.match(workflow, /^  workflow_dispatch:/m);

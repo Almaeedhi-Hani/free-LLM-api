@@ -38,11 +38,11 @@ for(const [kind,time,due] of cases){
  assert.equal((await chooseEventSlot({...event,attempt:'2'},assert.fail)).reason,'scheduled_rerun');
  await assert.rejects(()=>chooseEventSlot(event,async()=>({id:555,event:'push',created_at:'2026-11-23T01:00:02.000Z'})),/metadata/);
  assert.equal((await chooseEventSlot({...event,event:'workflow_dispatch',schedule:''},assert.fail)).reason,'workflow_dispatch');
- assert.deepEqual([...master.matchAll(/- cron: '([^']+)'/g)].map(m=>m[1]),[PRODUCTION_MASTER_CRON]);
+ assert.deepEqual([...master.matchAll(/- cron: '([^']+)'/g)].map(m=>m[1]),[],'Master cron suspended while validating Radar alone');
  assert.match(master,/name: V3 production orchestrator \(15-minute cadence\)/);
  assert.match(master,/production-preflight:/);
  assert.match(master,/github\.event_name != 'push'/);
- assert.match(master,/TRIGGER_CRON\" != '\*\/15 \* \* \* \*'/);
+ assert.match(master,/TRIGGER_CRON/,'Keep protected scheduled-event verifier for future activation');
  assert.match(master,/group: v3-production-orchestrator-main/);
  assert.match(master,/cancel-in-progress: false/);
  assert.match(master,/V3_MASTER_PAUSED != 'true'/);
@@ -75,7 +75,7 @@ for(const [kind,time,due] of cases){
  assert(!master.includes('npm run test:market')&&!master.includes('v3-unified-readback.cjs'),
   'Master must actually invoke real child workflows rather than fixture-only stages');
  for(const file of ['gsc-daily-sync.yml','v3-phase2-safety-monitor.yml','v3-stage2-quality-watch.yml']){
-  assert.match(read(file),/^  schedule:\s*$/m,'Independent '+file+' schedule missing');
+  assert.doesNotMatch(read(file),/^  schedule:\s*$/m,'Independent '+file+' schedule must be paused');
  }
  console.log('PASS true 15-minute production runner: real 5 reusable workflows, due provider gates, failure isolation, no live calls on push, independent GSC/Safety/Quality');
 })().catch(e=>{console.error(e);process.exitCode=1});

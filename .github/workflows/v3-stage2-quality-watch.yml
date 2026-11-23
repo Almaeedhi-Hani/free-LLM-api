@@ -1,8 +1,6 @@
 name: V3 Stage 2 read-only public quality and Evals alerts
 on:
   # Independent daily quality check; unaffected by Radar/Master failures.
-  schedule:
-    - cron: '23 2 * * *' # 05:23 KSA
   workflow_dispatch: # safe local fixture and public GET simulation only; no issue writes
   pull_request:
     branches: [main]
