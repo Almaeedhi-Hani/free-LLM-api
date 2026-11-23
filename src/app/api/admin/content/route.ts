@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
   }
   try {
     const content = await getContent();
-    return NextResponse.json(content);
+    return NextResponse.json(content, { headers: { 'Cache-Control': 'private, no-store, max-age=0' } });
   } catch (e) {
     return errorResponse(e);
   }
