@@ -42,10 +42,11 @@ jobs:
         run: node scripts/llm-pr-ci-gate.test.cjs
       - name: Verify V3 watchdog, weekly and scheduled failure issue safety offline
         run: node scripts/v3-phase2-monitor.test.cjs
-      - name: Enforce one unified 10-minute cron and protected eight-stage readbacks
+      - name: Validate hybrid schedules, independent Master watchdog, and protected storage readbacks
         run: |
           node scripts/v3-unified-schedule.test.cjs
           node scripts/v3-unified-readback.test.cjs
+          node scripts/v3-master-health.test.cjs
       - name: Evidence-gated organic ranking, indexing, AI visibility and conversion tests
         run: npm run test:visibility
       - name: GSC OAuth failure is explicit owner action without revealing secrets
