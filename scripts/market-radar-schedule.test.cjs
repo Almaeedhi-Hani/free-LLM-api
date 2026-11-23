@@ -2,12 +2,14 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const {shouldRun,SWITCH_UTC}=require('./scheduled-cadence-gate.cjs');
+const {INDEPENDENT_RADAR_CRON}=require('./scheduled-event-slot.cjs');
 
 const workflow=fs.readFileSync('.github/workflows/market-radar.yml','utf8');
 const endpoint=fs.readFileSync('src/app/api/cron-market/route.ts','utf8');
 const budget=fs.readFileSync('scripts/radar-discovery-budget.test.cjs','utf8');
 
-assert.doesNotMatch(workflow,/^  schedule:/m,'independent radar cron removed in favor of unified scheduler');
+assert.deepEqual([...workflow.matchAll(/- cron: '([^']+)'/g)].map(m=>m[1]),[INDEPENDENT_RADAR_CRON],
+ 'Only W02 is scheduled on owner-approved non-round minutes');
 assert(workflow.includes("scheduled-event-slot.cjs --kind=market"),
  'standalone radar must preserve nominal event slot, not runner wall clock');
 assert(workflow.includes("steps.cadence.outputs.run == 'true'"),
