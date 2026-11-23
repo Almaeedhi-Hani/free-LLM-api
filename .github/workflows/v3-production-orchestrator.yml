@@ -2,6 +2,8 @@ name: V3 production orchestrator (10-minute cadence)
 on:
   # Real production scheduler. Provider/publisher calls are due-gated by
   # scripts/scheduled-event-slot.cjs; NEVER paid calls on every tick.
+  # Scheduler re-registration on default branch: 2026-11-23.
+  # Cron, due gates, child workflows and provider quotas remain unchanged.
   schedule:
     - cron: '7-57/10 * * * *'
   # Non-production smoke on workflow definition changes; only preflight runs.
