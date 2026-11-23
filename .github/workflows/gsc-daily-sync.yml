@@ -4,7 +4,8 @@ on:
     # Same UTC trigger hours as the original 0 0-22/2 cron. Individual expressions
     # preserve the scheduled hour when GitHub queues the job past that hour.
     - cron: '0 0 * * *'
-    - cron: '0 2 * * *'
+    # Owner-approved replacement of 05:00 KSA with 03:45 KSA (00:45 UTC).
+    - cron: '45 0 * * *'
     - cron: '0 4 * * *'
     - cron: '0 6 * * *'
     - cron: '0 8 * * *'

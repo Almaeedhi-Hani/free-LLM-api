@@ -7,7 +7,7 @@ const { SWITCH_UTC } = require('./scheduled-cadence-gate.cjs');
 function scheduledSlot(expression, createdAt) {
   // One cron expression per UTC hour preserves that hour in the event payload.
   // Use the immutable run creation time only to anchor the UTC calendar day.
-  const match = /^0 (0|2|4|6|8|10|12|14|16|18|20|22) \* \* \*$/.exec(expression);
+  const match = /^(0 (?:0|2|4|6|8|10|12|14|16|18|20|22)|45 0) \* \* \*$/.exec(expression);
   if (!match) throw Error('Unrecognized GSC cron expression');
   const created = new Date(createdAt);
   if (typeof createdAt !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(createdAt) ||
@@ -16,10 +16,13 @@ function scheduledSlot(expression, createdAt) {
     throw Error('Invalid GSC workflow creation timestamp');
   }
   const slot = new Date(created);
-  const hour = Number(match[1]);
-  slot.setUTCHours(hour, 0, 0, 0);
+  const [minuteText, hourText] = match[1].split(' ');
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  slot.setUTCHours(hour, minute, 0, 0);
   if (slot > created) slot.setUTCDate(slot.getUTCDate() - 1);
-  const allowed = slot.getTime() < Date.parse(SWITCH_UTC) || (hour + 3) % 4 === 1;
+  const allowed = (minute === 45 && hour === 0) ||
+    (minute === 0 && (slot.getTime() < Date.parse(SWITCH_UTC) || (hour + 3) % 4 === 1));
   return { allowed, instant: slot.toISOString() };
 }
 
