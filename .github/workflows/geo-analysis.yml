@@ -1,20 +1,6 @@
 name: GEO Intelligence Analysis
 
 on:
-  schedule:
-    # Identical UTC timing; each event carries its exact hour to survive delayed runners.
-    - cron: '0 1 * * *'
-    - cron: '0 3 * * *'
-    - cron: '0 5 * * *'
-    - cron: '0 7 * * *'
-    - cron: '0 9 * * *'
-    - cron: '0 11 * * *'
-    - cron: '0 13 * * *'
-    - cron: '0 15 * * *'
-    - cron: '0 17 * * *'
-    - cron: '0 19 * * *'
-    - cron: '0 21 * * *'
-    - cron: '0 23 * * *'
   # No push trigger: merging changes must never start paid/free provider
   # searches or models. Code validation runs in GEO PR + admin regression CI.
   # Keep only cadence-verified natural schedules and explicit manual dispatch.
