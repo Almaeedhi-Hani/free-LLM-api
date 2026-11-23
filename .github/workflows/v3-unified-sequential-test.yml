@@ -4,6 +4,11 @@ on:
   # GitHub cron is best-effort, and queued full pipelines may exceed ten minutes.
   schedule:
     - cron: '*/10 * * * *'
+  # One-time smoke test of the merged orchestrator before the next cron fires.
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/v3-unified-sequential-test.yml'
   workflow_dispatch:
 
 permissions:
@@ -17,7 +22,7 @@ concurrency:
 
 jobs:
   sequential-test:
-    if: vars.V3_MASTER_PAUSED != 'true'
+    if: github.ref == 'refs/heads/main' && vars.V3_MASTER_PAUSED != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 50
     env:
