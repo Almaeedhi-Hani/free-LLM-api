@@ -16,7 +16,9 @@ const minutes=source.match(/- cron: '([^']+)'/)[1].split(' ')[0].split(',').map(
 assert.deepEqual(minutes,[3,8,13,18,23,28,33,38,43,48,53,58]);
 assert.equal(minutes.length,12);
 assert(minutes.every((m,i)=>(minutes[(i+1)%minutes.length]+60-m)%60===5));
-assert.match(source,/Diagnose GitHub event delivery/);
+assert.match(source,/Diagnose GitHub event delivery and workflow activation/);
+assert.match(source,/workflow_state=\$workflow_state/);
+assert.match(source,/actions\/workflows\/v3-unified-sequential-test.yml/);
 assert.match(source,/event=\$GITHUB_EVENT_NAME/);
 assert.match(source,/^  workflow_dispatch:/m);
 assert.match(source,/group: v3-unified-sequential-testing/);
