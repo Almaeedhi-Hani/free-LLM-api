@@ -1,10 +1,5 @@
 name: Autonomous Site Maintenance (bounded)
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/autonomous-site-maintenance.yml' # one-time rollout verification
-      - 'scripts/autodev-safe-topic.test.cjs' # verify guard after test refinements
   workflow_dispatch:
 
 permissions:
