@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
   if (!githubToken()) return NextResponse.json({ configured: false, message: 'GEO_GITHUB_TOKEN is not configured' });
   try {
     const [response, detailsResponse, indexResponse] = await Promise.all([
-      github('/actions/workflows/' + workflow + '/runs?per_page=5'),
+      github('/actions/workflows/' + unifiedWorkflow + '/runs?per_page=5'),
       github('/actions/workflows/' + unifiedWorkflow),
       github('/actions/workflows/' + llmWorkflow + '/runs?per_page=3'),
     ]);
