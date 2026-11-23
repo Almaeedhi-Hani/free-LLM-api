@@ -33,8 +33,8 @@ for(const [path,kind,minute,hours] of [
  const matches=Array.from(src.matchAll(/- cron: '(\d+) (\d+) \* \* \*'/g))
    .map(x=>[Number(x[1]),Number(x[2])]);
  assert.deepEqual(matches,path==='market-radar.yml'?
-   Array.from({length:12},(_,i)=>[55,i*2]):[],
-   'Only W02 may restore 19 Nov cron lanes; other schedules stay paused: '+path);
+   Array.from({length:12},(_,i)=>[55,i*2]).filter((_,i)=>i!==9):[],
+   'Only W02 may run restored historical lanes with the 20:09 one-time substitution: '+path);
 }
 const llm=fs.readFileSync('.github/workflows/llm-feed-optimization.yml','utf8');
 assert(llm.includes('node scripts/llm-agent-index.cjs --update'));
