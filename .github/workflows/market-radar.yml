@@ -1,22 +1,7 @@
 name: Market Intelligence Radar (Independent)
 
 on:
-  schedule:
-    # Identical UTC timing; each event carries its exact hour to survive delayed runners.
-    - cron: '55 0 * * *'
-    - cron: '55 2 * * *'
-    - cron: '55 4 * * *'
-    - cron: '55 6 * * *'
-    - cron: '55 8 * * *'
-    - cron: '55 10 * * *'
-    - cron: '55 12 * * *'
-    - cron: '55 14 * * *'
-    - cron: '55 16 * * *'
-    # One-time Monday 23 Nov 2026 20:09 KSA (17:09 UTC), replacing today's 21:55 slot.
-    # Remove after verification; restore the historical 18:55 UTC lane for future days.
-    - cron: '9 17 23 11 *'
-    - cron: '55 20 * * *'
-    - cron: '55 22 * * *'
+  # GitHub native schedule disabled: W02 now owned by Supabase pg_cron.
   workflow_dispatch:
   workflow_call: # trusted reusable production job, invoked only by Master on approved schedule
 
