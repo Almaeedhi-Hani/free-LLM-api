@@ -32,6 +32,20 @@ assert(zhRepair.instructions.some(line=>line.includes("ZH FAQ QUESTION FINAL CHE
   "same Chinese question guard must apply during the single allowed repair");
 const directEn=JSON.parse(promptForDirectLocale("en",evidence.slice(0,2)));
 assert(!directEn.instructions.some(line=>line.includes("ZH FAQ QUESTION FINAL CHECK")));
+// Regression for production run #45149050032: guide/comparison slug mismatch
+// must be prevented in the model brief, not silently rewritten or accepted.
+for(const locale of LANGS){
+ const source=JSON.parse(promptForDirectLocale(locale,evidence.slice(0,2)));
+ const rule=source.instructions.find(line=>line.includes('GUIDE/COMPARISON SLUG FINAL CHECK'));
+ assert(rule,'guide/comparison slug contract must be present for '+locale);
+ for(const required of ['target and slug','exactly equal','1..90','ASCII lowercase','OMIT']){
+  assert(rule.includes(required),'missing slug guard '+required+' for '+locale);
+ }
+ const repair=JSON.parse(promptForDirectLocale(locale,evidence.slice(0,2),
+  {editorial_actions:[{index:0,reason:'invalid_guide_slug'}]}));
+ assert(repair.instructions.some(line=>line.includes('GUIDE/COMPARISON SLUG FINAL CHECK')),
+  'single allowed repair must retain slug guard for '+locale);
+}
 assert.throws(()=>promptForLocale("fr",evidence),/Unsupported/);
 assert.throws(()=>promptForLocale("ar",[]),/Evidence must/);
 const worker=require("node:fs").readFileSync("scripts/opencode-geo-analysis.js","utf8");
