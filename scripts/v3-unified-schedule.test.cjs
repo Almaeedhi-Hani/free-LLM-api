@@ -18,6 +18,8 @@ assert.match(source,/V3_MASTER_PAUSED != 'true'/);
 assert.match(source,/contents: read/);
 assert.doesNotMatch(source,/contents: write|pull-requests: write|gh pr merge|gh pr create/);
 assert.match(source,/GSC_CRON_SECRET/);
+assert.match(source,/env -u GEO_API_KEY -u GEO_API_URL npm run test:market/,
+ 'offline market fixtures must not inherit production GEO credentials');
 assert.match(source,/node scripts\/v3-unified-readback.cjs W04/);
 const schedules=fs.readdirSync(dir).filter(x=>/\.ya?ml$/.test(x))
  .filter(x=>/^  schedule:\s*$/m.test(fs.readFileSync(dir+'/'+x,'utf8')));
