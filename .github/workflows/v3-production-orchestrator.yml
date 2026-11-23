@@ -1,11 +1,10 @@
-name: V3 production orchestrator (10-minute cadence)
+name: V3 production orchestrator (15-minute cadence)
 on:
   # Real production scheduler. Provider/publisher calls are due-gated by
   # scripts/scheduled-event-slot.cjs; NEVER paid calls on every tick.
-  # Scheduler re-registration on default branch: 2026-11-23.
-  # Cron, due gates, child workflows and provider quotas remain unchanged.
+  # 15-minute owner-approved schedule; provider quotas remain unchanged.
   schedule:
-    - cron: '7-57/10 * * * *'
+    - cron: '*/15 * * * *'
   # Non-production smoke on workflow definition changes; only preflight runs.
   push:
     branches: [main]
@@ -45,7 +44,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "[V3_PRODUCTION] event=$GITHUB_EVENT_NAME ref=$GITHUB_REF cron=${TRIGGER_CRON:-none} run=$GITHUB_RUN_ID"
-          if [ "$GITHUB_EVENT_NAME" = schedule ] && [ "$TRIGGER_CRON" != '7-57/10 * * * *' ]; then
+          if [ "$GITHUB_EVENT_NAME" = schedule ] && [ "$TRIGGER_CRON" != '*/15 * * * *' ]; then
             echo '::error::Unexpected cron source — refuse production'
             exit 1
           fi
@@ -54,7 +53,7 @@ jobs:
           echo "[V3_PRODUCTION] preflight=success production_paths_armed=$([ "$GITHUB_EVENT_NAME" = push ] && echo false || echo true)"
 
   # W02→W01→W03 preserve ordering, but each is allowed to fail independently.
-  # Shared 10-minute clock; live work only at its old approved four-hour slot.
+  # Shared 15-minute clock; live work only at its old approved four-hour slot.
   market-radar:
     needs: production-preflight
     if: needs.production-preflight.result == 'success' && github.event_name != 'push' && github.ref == 'refs/heads/main' && vars.V3_MASTER_PAUSED != 'true' && vars.MARKET_RADAR_PAUSED != 'true'
@@ -109,7 +108,7 @@ jobs:
         run: |
           set -euo pipefail
           {
-            echo '## V3 Production — automatic every 10 minutes'
+            echo '## V3 Production — automatic every 15 minutes'
             echo "- Trigger: $GITHUB_EVENT_NAME"
             echo "- This is real production orchestration, NOT eight mocked tests."
             echo '- Due-gated W02/W01/W03/W05/W06 invoke their existing real workflows.'
