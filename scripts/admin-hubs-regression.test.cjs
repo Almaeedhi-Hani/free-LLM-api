@@ -13,7 +13,7 @@ assert.equal(new Set(hubs.map(m=>m[2])).size,7);
 for(const m of hubs)assert(m[4].includes("'"+m[3]+"'"),m[2]+' default page must be in its group');
 assert(!admin.includes('TABS.map((t)'),'No obsolete flat eighteen-item sidebar');
 assert(admin.includes('NAV_HUBS.map(hub=>'),'Grouped sidebar must actually render');
-assert(admin.includes('aria-expanded={expanded}'),'Accessible menu state');
+assert(admin.includes('aria-expanded={hub.tabs.length>1?expanded:undefined}'),'Accessible menu state only for expandable hubs');
 assert(admin.includes("setSidebarOpen(false)"),'Mobile child menu must close after selecting destination');
 assert(admin.includes('<UnifiedRunHistory secret={secret} legacyRuns={runs} />'));
 const store=fs.readFileSync('src/lib/content-store.ts','utf8');
