@@ -51,8 +51,8 @@ jobs:
         env:
           GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
         run: |
-          node scripts/radar-discovery-budget.test.cjs
-          node scripts/market-radar-schedule.test.cjs
+          # Compile the market test fixture before its radar-budget tests run.
+          npm run test:market
           node scripts/v3-unified-readback.cjs W02
 
       # Stage 2. GEO's direct provider contracts are tested with mocked
