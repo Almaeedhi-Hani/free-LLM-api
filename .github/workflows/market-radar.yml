@@ -1,9 +1,20 @@
 name: Market Intelligence Radar (Independent)
 
 on:
-  # Delivery probe on non-round minutes; provider call only when the 4h market slot is due.
   schedule:
-    - cron: '2,9,16,23,30,37,44,51,58 * * * *'
+    # Identical UTC timing; each event carries its exact hour to survive delayed runners.
+    - cron: '55 0 * * *'
+    - cron: '55 2 * * *'
+    - cron: '55 4 * * *'
+    - cron: '55 6 * * *'
+    - cron: '55 8 * * *'
+    - cron: '55 10 * * *'
+    - cron: '55 12 * * *'
+    - cron: '55 14 * * *'
+    - cron: '55 16 * * *'
+    - cron: '55 18 * * *'
+    - cron: '55 20 * * *'
+    - cron: '55 22 * * *'
   workflow_dispatch:
   workflow_call: # trusted reusable production job, invoked only by Master on approved schedule
 
