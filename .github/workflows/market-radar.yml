@@ -12,7 +12,9 @@ on:
     - cron: '55 12 * * *'
     - cron: '55 14 * * *'
     - cron: '55 16 * * *'
-    - cron: '55 18 * * *'
+    # One-time Monday 23 Nov 2026 20:09 KSA (17:09 UTC), replacing today's 21:55 slot.
+    # Remove after verification; restore the historical 18:55 UTC lane for future days.
+    - cron: '9 17 23 11 *'
     - cron: '55 20 * * *'
     - cron: '55 22 * * *'
   workflow_dispatch:

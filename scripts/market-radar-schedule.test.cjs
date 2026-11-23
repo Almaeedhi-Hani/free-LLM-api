@@ -8,9 +8,9 @@ const workflow=fs.readFileSync('.github/workflows/market-radar.yml','utf8');
 const endpoint=fs.readFileSync('src/app/api/cron-market/route.ts','utf8');
 const budget=fs.readFileSync('scripts/radar-discovery-budget.test.cjs','utf8');
 
-const historicalRadarCrons=Array.from({length:12},(_,i)=>'55 '+(i*2)+' * * *');
+const historicalRadarCrons=Array.from({length:12},(_,i)=>i===9?'9 17 23 11 *':'55 '+(i*2)+' * * *');
 assert.deepEqual([...workflow.matchAll(/- cron: '([^']+)'/g)].map(m=>m[1]),historicalRadarCrons,
- 'W02 alone restores the separately identifiable 19 Nov UTC cron slots');
+ 'W02 replaces the 21:55 KSA slot with a one-time 20:09 KSA schedule');
 assert.equal(eventSlot('market','55 22 * * *','2026-11-20T01:21:00.000Z').allowed,true,
  'A several-hour delayed GitHub schedule remains eligible');
 assert.equal(eventSlot('market','55 20 * * *','2026-11-23T00:21:00.000Z').allowed,false,

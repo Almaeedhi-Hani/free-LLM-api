@@ -50,6 +50,9 @@ const PRODUCTION_MASTER_CRON='*/15 * * * *';
 // W02 alone: scheduler delivery is frequent, but real provider requests remain
 // restricted to a single non-round-minute trigger in each approved 4h window.
 const INDEPENDENT_RADAR_CRON='2,9,16,23,30,37,44,51,58 * * * *';
+// Isolated owner-approved W02 reschedule: Monday 23 Nov 2026 20:09 Saudi time.
+const W02_ONE_OFF_CRON='9 17 23 11 *';
+const W02_ONE_OFF_UTC='2026-11-23T17:09:00.000Z';
 function tenMinuteDue(kind,createdAt){
  const lane=lanes[kind];
  if(!lane)throw Error('Unknown scheduled lane');
@@ -84,6 +87,13 @@ async function chooseEventSlot({kind,event,schedule,runId,attempt},lookup){
  const info=await lookup('/actions/runs/'+runId);
  if(String(info?.id)!==String(runId)||info.event!=='schedule')
   throw Error('Scheduled run metadata does not match GitHub event');
+ if(kind==='market'&&schedule===W02_ONE_OFF_CRON){
+  const created=parseUtcDate(info.created_at);
+  const age=created.getTime()-Date.parse(W02_ONE_OFF_UTC);
+  // Accept GitHub's delayed schedule once, but never activate outside the one-day probe.
+  const allowed=age>=0&&age<6*60*60*1000;
+  return {run:allowed,reason:allowed?'w02_2009_one_off':'w02_2009_expired',nominal:allowed?W02_ONE_OFF_UTC:null};
+ }
  if(kind==='market'&&schedule===INDEPENDENT_RADAR_CRON){
   const slot=independentRadarDue(info.created_at);
   return {run:slot.allowed,reason:slot.allowed?'radar_due':'radar_not_due',nominal:slot.instant};
@@ -126,4 +136,4 @@ if(require.main===module){
   process.exitCode=1;
  });
 }
-module.exports={eventSlot,chooseEventSlot,parseUtcDate,tenMinuteDue,independentRadarDue,PRODUCTION_MASTER_CRON,INDEPENDENT_RADAR_CRON};
+module.exports={eventSlot,chooseEventSlot,parseUtcDate,tenMinuteDue,independentRadarDue,PRODUCTION_MASTER_CRON,INDEPENDENT_RADAR_CRON,W02_ONE_OFF_CRON,W02_ONE_OFF_UTC};

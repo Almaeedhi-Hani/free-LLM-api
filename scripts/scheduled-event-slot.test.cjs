@@ -1,7 +1,7 @@
 'use strict';
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
-const {eventSlot,chooseEventSlot,independentRadarDue,INDEPENDENT_RADAR_CRON}=require('./scheduled-event-slot.cjs');
+const {eventSlot,chooseEventSlot,independentRadarDue,INDEPENDENT_RADAR_CRON,W02_ONE_OFF_CRON,W02_ONE_OFF_UTC}=require('./scheduled-event-slot.cjs');
 
 const market='55 22 * * *',geo='0 21 * * *';
 assert.deepEqual(eventSlot('market',market,'2026-11-21T23:50:00.000Z'),
@@ -61,6 +61,19 @@ assert.equal(independentRadarDue('2026-11-23T06:51:10.000Z').allowed,false);
  await assert.rejects(()=>chooseEventSlot({
   kind:'market',event:'schedule',schedule:market,runId:'bad',attempt:'1'},lookup),/ID/);
 
+ const w02Due=await chooseEventSlot({kind:'market',event:'schedule',schedule:W02_ONE_OFF_CRON,runId:'777',attempt:'1'},
+  async()=>({id:777,event:'schedule',created_at:'2026-11-23T17:09:10.000Z'}));
+ assert.deepEqual(w02Due,{run:true,reason:'w02_2009_one_off',nominal:W02_ONE_OFF_UTC},
+  '20:09 Saudi schedule calls real W02 provider once');
+ const w02Late=await chooseEventSlot({kind:'market',event:'schedule',schedule:W02_ONE_OFF_CRON,runId:'777',attempt:'1'},
+  async()=>({id:777,event:'schedule',created_at:'2026-11-23T19:30:00.000Z'}));
+ assert.equal(w02Late.run,true,'Delayed GitHub delivery still accepted');
+ const w02Expired=await chooseEventSlot({kind:'market',event:'schedule',schedule:W02_ONE_OFF_CRON,runId:'777',attempt:'1'},
+  async()=>({id:777,event:'schedule',created_at:'2027-11-23T17:09:00.000Z'}));
+ assert.equal(w02Expired.run,false,'Never run the one-time event a year later');
+ const w02Rerun=await chooseEventSlot({kind:'market',event:'schedule',schedule:W02_ONE_OFF_CRON,runId:'777',attempt:'2'},assert.fail);
+ assert.equal(w02Rerun.run,false,'Rerunning schedule never repeats provider calls');
+
  for(const [file,kind,minute,hours] of [
   ['market-radar.yml','market',55,[0,2,4,6,8,10,12,14,16,18,20,22]],
   ['geo-analysis.yml','geo',0,[1,3,5,7,9,11,13,15,17,19,21,23]]
@@ -68,10 +81,10 @@ assert.equal(independentRadarDue('2026-11-23T06:51:10.000Z').allowed,false);
   const workflow=fs.readFileSync('.github/workflows/'+file,'utf8');
   const matches=Array.from(workflow.matchAll(/- cron: '(\d+) (\d+) \* \* \*'/g)).map(x=>[Number(x[1]),Number(x[2])]);
   assert.deepEqual(matches,file==='market-radar.yml'?
-   Array.from({length:12},(_,i)=>[55,i*2]):[],
+   Array.from({length:12},(_,i)=>[55,i*2]).filter((_,i)=>i!==9):[],
    'W02 restores historical separate lanes; GEO must remain paused: '+file);
   assert.deepEqual([...workflow.matchAll(/- cron: '([^']+)'/g)].map(m=>m[1]),
-   file==='market-radar.yml'?Array.from({length:12},(_,i)=>'55 '+(i*2)+' * * *'):[],
+   file==='market-radar.yml'?Array.from({length:12},(_,i)=>i===9?W02_ONE_OFF_CRON:'55 '+(i*2)+' * * *'):[],
    'Only W02 may have historical separate UTC schedule slots');
   assert(workflow.includes('node scripts/scheduled-event-slot.cjs --kind='+kind));
   assert(workflow.includes('CADENCE_EVENT_CRON: ${{ github.event.schedule }}'));
