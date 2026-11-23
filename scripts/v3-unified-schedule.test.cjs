@@ -69,6 +69,11 @@ for(const file of manual){
 const workflows=fs.readdirSync(dir).filter(x=>/\.ya?ml$/.test(x))
  .filter(x=>/^  schedule:\s*$/m.test(source(x))).sort();
 assert.deepEqual(workflows,
- [master,'v3-phase2-safety-monitor.yml','v3-stage2-quality-watch.yml','gsc-daily-sync.yml'].sort(),
- 'Only the approved four scheduling owners can define crons');
+ [master,'v3-phase2-safety-monitor.yml','v3-stage2-quality-watch.yml','gsc-daily-sync.yml','v3-schedule-delivery-sentinel.yml'].sort(),
+ 'Only four operational schedules plus temporary isolated sentinel are allowed');
+const sentinel=source('v3-schedule-delivery-sentinel.yml');
+assert.deepEqual(cron(sentinel),['1,6,11,16,21,26,31,36,41,46,51,56 * * * *']);
+assert.match(sentinel,/^  workflow_dispatch:/m);
+assert.match(sentinel,/SENTINEL REAL_GITHUB_SCHEDULE_DELIVERED/);
+assert.doesNotMatch(sentinel,/GSC_CRON_SECRET|GEO_API_KEY|npm ci|fetch\(|curl |issues: write|contents: write/);
 console.log('PASS hybrid topology: linked W02/W01/W03; independent W05/W06, Safety (6h), Quality (daily), automatic GSC with 12 historical slots and 5-minute Master test');
