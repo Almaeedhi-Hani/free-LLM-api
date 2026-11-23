@@ -1,10 +1,6 @@
 name: Market Intelligence Radar (Independent)
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/market-radar.yml' # One-time rollout verification only
   workflow_dispatch:
 
 permissions:
