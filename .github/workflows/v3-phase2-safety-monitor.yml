@@ -12,7 +12,7 @@ on:
       - 'GSC daily metrics sync'
       - 'LLM Agent Feed Quality & Index'
       - 'Autonomous Site Maintenance (bounded)'
-      - 'V3 hybrid linked pipeline and independent checks (5-minute test)'
+      - 'V3 production orchestrator (10-minute cadence)'
       - 'V3 Stage 2 read-only public quality and Evals alerts'
     types: [completed]
   workflow_dispatch:
