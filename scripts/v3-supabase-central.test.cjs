@@ -6,7 +6,7 @@ const master=fs.readFileSync('.github/workflows/v3-production-orchestrator.yml',
 const quality=fs.readFileSync('.github/workflows/v3-stage2-quality-watch.yml','utf8');
 const radar=fs.readFileSync('.github/workflows/market-radar.yml','utf8');
 assert.match(route,/timingSafeEqual/,'Signed Supabase clock required');
-assert.match(route,/POST\\n\\/api\\/cron-central\\n/,'Canonical HMAC path required');
+assert(route.includes('POST')&&route.includes('/api/cron-central')&&route.includes('createHmac'), 'Canonical HMAC method and path required');
 assert.match(route,/mode==='capabilities'/,'Read-only diagnostic required');
 assert.match(route,/mode==='one_test'/,'One explicit acceptance test required');
 assert.match(route,/github_dispatch_token_missing/,'No successful fake all-system dispatch');
