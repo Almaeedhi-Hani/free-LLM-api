@@ -1,0 +1,40 @@
+name: One-time Stage 2 protected readback verification (isolated)
+on:
+  push:
+    branches: [verification/stage2-server-readback-20261123]
+    paths:
+      - '.github/workflows/stage2-readback-once-20261123.yml'
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Verify existing GEO credential and protected readback without leaking data
+        env:
+          GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
+        run: |
+          node <<'NODE'
+          (async()=>{
+            const origin='https://free-llm-api-1-didl.onrender.com';
+            const key=process.env.GEO_API_KEY||'';
+            if(!key){console.error('STAGE2_SECRET_STATUS unavailable');process.exitCode=2;return;}
+            const fetchSafe=async path=>{
+              const res=await fetch(origin+path,{method:'GET',redirect:'manual',
+                headers:{'x-geo-api-key':key},signal:AbortSignal.timeout(20000)});
+              if(res.status!==200){console.error('STAGE2_ENDPOINT path='+path.split('?')[0]+' status='+res.status);throw Error('readback_not_200');}
+              return await res.json();
+            };
+            const snapshot=await fetchSafe('/api/geo/monitor-readback?scope=weekly');
+            const storage=Object.fromEntries(['W01','W02','W03','W04'].map(k=>[k,snapshot?.storage?.[k]?.status||'unknown']));
+            console.log('STAGE2_READBACK '+JSON.stringify({source:snapshot?.source,scope:snapshot?.scope,storage,
+              gsc_status:snapshot?.gsc?.status,weekly_feedback_status:snapshot?.weeklyEvidence?.feedback?.status,
+              weekly_page_status:snapshot?.weeklyEvidence?.page?.status}));
+            if(snapshot?.source!=='supabase'||snapshot?.scope!=='weekly')throw Error('invalid_source');
+            const registry=await fetchSafe('/api/geo/data');
+            const count=Array.isArray(registry?.competitors)?registry.competitors.length:-1;
+            console.log('STAGE2_REGISTRY '+JSON.stringify({source:registry?.source,count,complete:count>0&&count<250}));
+            if(registry?.source!=='supabase'||count<1||count>=250)throw Error('registry_unverified');
+          })().catch(e=>{console.error('STAGE2_DIAG '+String(e.message).slice(0,60));process.exitCode=1;});
+          NODE
