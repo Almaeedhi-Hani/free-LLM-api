@@ -1,13 +1,10 @@
 name: Phase 8 weekly report generation
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '15 6 * * 0'
 permissions:
   contents: read
 jobs:
   generate:
-    if: github.event_name == 'workflow_dispatch' || vars.PHASE8_WEEKLY_REPORT_ENABLED == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
