@@ -6,13 +6,9 @@ const { scheduledSlot, chooseGscSync } = require('./gsc-scheduled-slot.cjs');
 
 const workflow = readFileSync('.github/workflows/gsc-daily-sync.yml', 'utf8');
 const crons = Array.from(workflow.matchAll(/- cron: '([^']+)'/g), match => match[1]);
-// Exact owner-approved pre-removal GSC schedule. Never silently reduce its slots.
-const originalUtc = ["0 0 * * *","45 0 * * *","0 4 * * *","0 6 * * *","0 8 * * *","0 10 * * *","0 12 * * *","0 14 * * *","0 16 * * *","0 18 * * *","0 20 * * *","0 22 * * *"];
-assert.deepEqual(crons, originalUtc);
-assert.equal(new Set(crons).size, 12);
-assert.match(workflow, /^  schedule:/m);
-assert.deepEqual(crons.filter(expression => scheduledSlot(expression, '2026-11-23T23:59:59Z').allowed),
-  ['45 0 * * *','0 6 * * *','0 10 * * *','0 14 * * *','0 18 * * *','0 22 * * *']);
+// The unified master owns the only cron; historic slot parsing is still validated below.
+assert.deepEqual(crons, []);
+assert.doesNotMatch(workflow, /^  schedule:/m);
 assert.deepEqual(scheduledSlot('*/5 * * * *', '2026-11-23T01:13:22Z'),
   { allowed: true, instant: '2026-11-23T01:10:00.000Z' });
 assert.match(workflow, /^  workflow_dispatch:/m);
