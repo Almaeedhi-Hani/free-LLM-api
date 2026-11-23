@@ -58,7 +58,15 @@ assert(source('v3-phase2-safety-monitor.yml').includes('node scripts/v3-master-h
 assert(source('v3-stage2-quality-watch.yml').includes("if: github.event_name == 'schedule'"));
 assert(source('gsc-daily-sync.yml').includes('gsc-scheduled-slot.cjs'));
 assert(source('gsc-daily-sync.yml').includes('if-no-files-found: error'));
+// Separate short-lived diagnostic is intentionally NOT a production scheduler.
+const diagnostic='v3-six-minute-schedule-probe.yml';
+const probe=source(diagnostic);
+assert.deepEqual(crons(probe),['4-58/6 * * * *']);
+assert.match(probe,/^  workflow_dispatch:/m);
+assert.match(probe,/^  event-delivery-only:/m);
+assert.match(probe,/permissions:\s*\n  contents: read/);
+assert.doesNotMatch(probe,/uses: \.\/\.github\/workflows\/|secrets:|GEO_API_KEY|workflow_call:|curl |wget |dispatches|supabase|npm install/);
 const actual=fs.readdirSync(dir).filter(x=>/\.ya?ml$/.test(x)).filter(x=>/^  schedule:\s*$/m.test(source(x))).sort();
-assert.deepEqual(actual,[master,...Object.keys(independent)].sort(),'Only owner-approved four schedule owners remain');
+assert.deepEqual(actual,[master,diagnostic,...Object.keys(independent)].sort(),'Only approved production schedules and isolated diagnostic exist');
 assert(!fs.existsSync(dir+'/v3-schedule-delivery-sentinel.yml'),'Temporary five-minute test must be retired');
-console.log('PASS production Master 15-minute events, real W01-W03/W05-W06, quota gates, independent GSC Safety Quality, no fixture Master, no 5m sentinel');
+console.log('PASS production Master 15-minute events, real W01-W03/W05-W06, quota gates, independent GSC Safety Quality, no fixture Master, no 5m sentinel, isolated 6m probe');

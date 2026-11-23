@@ -1,0 +1,39 @@
+name: V3 six-minute schedule delivery probe
+on:
+  # Diagnostic only. Deliberately offset from the top of the hour.
+  schedule:
+    - cron: '4-58/6 * * * *'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/v3-six-minute-schedule-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-six-minute-schedule-probe
+  cancel-in-progress: false
+
+jobs:
+  event-delivery-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Record GitHub scheduler delivery
+        env:
+          TRIGGER_CRON: ${{ github.event.schedule }}
+          TRIGGER_EVENT: ${{ github.event_name }}
+          REPO_REF: ${{ github.ref }}
+          RUN_ID: ${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "SCHEDULER_PROBE event=$TRIGGER_EVENT cron=${TRIGGER_CRON:-none} ref=$REPO_REF run_id=$RUN_ID"
+          echo "SCHEDULER_PROBE runner_utc=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          if [[ "$TRIGGER_EVENT" == schedule && "$TRIGGER_CRON" != '4-58/6 * * * *' ]]; then
+            echo "::error::Unexpected cron source"
+            exit 1
+          fi
+          echo 'SCHEDULER_PROBE no network, providers, databases, deployments, dispatch, or secrets'
