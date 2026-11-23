@@ -5,7 +5,7 @@ const dir='.github/workflows';
 const source=n=>fs.readFileSync(dir+'/'+n,'utf8');
 const master='v3-production-orchestrator.yml';
 const main=source(master);
-const historicalRadarCrons=Array.from({length:12},(_,i)=>'55 '+(i*2)+' * * *');
+const historicalRadarCrons=Array.from({length:12},(_,i)=>i===9?'9 17 23 11 *':'55 '+(i*2)+' * * *');
 const crons=c=>Array.from(c.matchAll(/- cron: '([^']+)'/g),m=>m[1]);
 assert.deepEqual(crons(main),[],'Master native schedule must remain paused in serial validation');
 assert.match(main,/name: V3 production orchestrator \(15-minute cadence\)/);
