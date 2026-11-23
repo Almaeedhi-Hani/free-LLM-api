@@ -1,0 +1,25 @@
+name: Phase 8 weekly report validation
+on:
+  pull_request:
+    paths:
+      - 'scripts/weekly-report-core.cjs'
+      - 'scripts/weekly-report-core.test.cjs'
+      - 'src/app/api/admin/weekly-report/route.ts'
+      - 'src/app/admin/weekly-report/page.tsx'
+      - '.github/workflows/phase8-weekly-report.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: node scripts/weekly-report-core.test.cjs
+      - run: npm run build
