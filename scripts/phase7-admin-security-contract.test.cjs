@@ -1,0 +1,14 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const admin=fs.readFileSync('src/app/admin/dashboard/page.tsx','utf8');
+const browser=fs.readFileSync('scripts/admin-consolidation-browser-e2e.cjs','utf8');
+assert(admin.includes("headers: { 'x-admin-secret': saved }"),'Session restoration must authenticate with admin API');
+assert(admin.includes("if (r.status === 401)"),'Admin API rejects expired credentials');
+assert(admin.includes("sessionStorage.removeItem('admin_secret')"),'Expired credentials removed');
+assert(browser.includes("assert.equal(unauthorized,401"),'Browser test covers unauthenticated publication API');
+assert(browser.includes("getByRole('button',{name:'تسجيل الخروج'})"),'Browser test covers logout');
+assert(browser.includes("Pending drafts have no clickable public URLs"),'Drafts are not exposed as published links');
+const flags=fs.readFileSync('src/lib/admin-consolidation-flags.ts','utf8');
+assert(flags.includes("NEXT_PUBLIC_ADMIN_PUBLISHED_LINKS"),'Published links remains reversible');
+console.log('PASS phase 7 baseline security invariants (static checks; not a penetration test)');
