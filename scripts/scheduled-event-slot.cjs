@@ -43,6 +43,26 @@ function eventSlot(kind,cron,createdAt){
  const allowed=!afterSwitch||ksaHour%4===lane.postSwitchSaudiRemainder;
  return {instant:nominal.toISOString(),allowed,kind};
 }
+// Production Master ticks every 10 minutes. Only due four-hour lanes may
+// call real providers or publish. This preserves original free quotas/caps;
+// the 10-minute scheduler is real production orchestration, not mocked tests.
+const PRODUCTION_MASTER_CRON='7-57/10 * * * *';
+function tenMinuteDue(kind,createdAt){
+ const lane=lanes[kind];
+ if(!lane)throw Error('Unknown scheduled lane');
+ const created=parseUtcDate(createdAt);
+ // Only the single Master tick 0-9 minutes after the OLD approved nominal
+ // execution can run. Avoid 10m polling becoming 6 paid calls/hour.
+ const slot=new Date(created);
+ slot.setUTCMinutes(lane.minute,0,0);
+ if(slot.getTime()>created.getTime())slot.setUTCHours(slot.getUTCHours()-1);
+ const age=created.getTime()-slot.getTime();
+ const eligible=age>=0&&age<10*60*1000 &&
+   lane.hours.includes(slot.getUTCHours()) &&
+   (slot.getTime()<Date.parse(SWITCH_UTC) ||
+     (slot.getUTCHours()+3)%4===lane.postSwitchSaudiRemainder);
+ return {allowed:eligible,instant:eligible?slot.toISOString():null,kind};
+}
 async function chooseEventSlot({kind,event,schedule,runId,attempt},lookup){
  if(event==='workflow_dispatch'||event==='push')
   return {run:true,reason:event,nominal:null};
@@ -53,6 +73,10 @@ async function chooseEventSlot({kind,event,schedule,runId,attempt},lookup){
  const info=await lookup('/actions/runs/'+runId);
  if(String(info?.id)!==String(runId)||info.event!=='schedule')
   throw Error('Scheduled run metadata does not match GitHub event');
+ if(schedule===PRODUCTION_MASTER_CRON){
+  const slot=tenMinuteDue(kind,info.created_at);
+  return {run:slot.allowed,reason:slot.allowed?'production_due':'production_not_due',nominal:slot.instant};
+ }
  const slot=eventSlot(kind,schedule,info.created_at);
  return {run:slot.allowed,reason:slot.allowed?'scheduled_slot':'four_hour_half_slot',nominal:slot.instant};
 }
@@ -87,4 +111,4 @@ if(require.main===module){
   process.exitCode=1;
  });
 }
-module.exports={eventSlot,chooseEventSlot,parseUtcDate};
+module.exports={eventSlot,chooseEventSlot,parseUtcDate,tenMinuteDue,PRODUCTION_MASTER_CRON};
