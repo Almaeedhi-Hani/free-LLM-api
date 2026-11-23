@@ -16,10 +16,8 @@ async function query(table:string,select:string,filter=''){
  if(!response.ok)throw new Error(table+' read failed HTTP '+response.status);
  return response.json();
 }
-export async function GET(req:NextRequest){
- if(!authorized(req))return NextResponse.json({error:'unauthorized'},{status:401,headers:{'Cache-Control':'no-store'}});
- try{
-  const content=await getContent();
+async function generate(){
+ const content=await getContent();
   const [runs,gsc,published,ai,opportunities]=await Promise.all([
    query('analysis_runs','run_type,status,started_at,finished_at,error','&order=started_at.desc&limit=150'),
    query('gsc_daily_metrics','metric_date,dimension,clicks,impressions,position','&order=metric_date.desc&limit=500'),
@@ -34,7 +32,48 @@ export async function GET(req:NextRequest){
   report.metrics.publishedLinks=Array.isArray(published)?{sampleRows:published.length,published:published.filter((r:any)=>r.status==='published').length}:null;
   report.metrics.aiVisibility=Array.isArray(ai)?{sampleSize:ai.length,observations:ai}:null;
   report.metrics.opportunities=Array.isArray(opportunities)?opportunities:null;
-  report.warnings.push('Live preview only: not persisted, not scheduled, and not delivery-verified');
-  return NextResponse.json({report},{headers:{'Cache-Control':'private, no-store'}});
- }catch(error){console.error('weekly report read failed',error);return NextResponse.json({error:'report_sources_unavailable'},{status:503,headers:{'Cache-Control':'no-store'}});}
+  return report;
+}
+
+
+function dbHeaders(){const c=getSupabaseCredentials();if(!c)throw new Error('Missing persistent credentials');return {url:c.url,headers:{apikey:c.key,Authorization:'Bearer '+c.key,'Content-Type':'application/json'}};}
+async function stored(week:string){
+ const db=dbHeaders();
+ const r=await fetch(db.url+'/rest/v1/weekly_reports?week_key=eq.'+encodeURIComponent(week)+'&select=week_key,report,generated_at,verified_at',{headers:db.headers,cache:'no-store'});
+ if(!r.ok)throw new Error('weekly_reports read failed: '+r.status);
+ const rows=await r.json();return rows[0]||null;
+}
+export async function GET(req:NextRequest){
+ if(!authorized(req))return NextResponse.json({error:'unauthorized'},{status:401,headers:{'Cache-Control':'no-store'}});
+ try{
+  const saved=req.nextUrl.searchParams.get('saved');
+  if(saved==='1'){
+   const week=req.nextUrl.searchParams.get('week');
+   if(!week||!/^\\d{4}-\\d{2}-\\d{2}$/.test(week))return NextResponse.json({error:'invalid_week'},{status:400});
+   return NextResponse.json({saved:await stored(week)},{headers:{'Cache-Control':'private, no-store'}});
+  }
+  return NextResponse.json({report:await generate()},{headers:{'Cache-Control':'private, no-store'}});
+ }catch(e){console.error('weekly report GET',e);return NextResponse.json({error:'report_unavailable'},{status:503});}
+}
+export async function POST(req:NextRequest){
+ if(!authorized(req))return NextResponse.json({error:'unauthorized'},{status:401,headers:{'Cache-Control':'no-store'}});
+ try{
+  const report=await generate();
+  const db=dbHeaders();
+  const existing=await stored(report.week);
+  if(existing)return NextResponse.json({saved:existing,idempotent:true},{headers:{'Cache-Control':'no-store'}});
+  const r=await fetch(db.url+'/rest/v1/weekly_reports?on_conflict=week_key',{
+   method:'POST',headers:{...db.headers,Prefer:'resolution=ignore-duplicates,return=minimal'},
+   body:JSON.stringify({week_key:report.week,report,generated_at:report.generatedAt}),cache:'no-store'
+  });
+  if(!r.ok)throw new Error('Weekly report save failed: '+r.status);
+  const verified=await stored(report.week);
+  if(!verified||verified.report?.week!==report.week)throw new Error('Weekly report readback verification failed');
+  const vr=await fetch(db.url+'/rest/v1/weekly_reports?week_key=eq.'+encodeURIComponent(report.week),{
+   method:'PATCH',headers:{...db.headers,Prefer:'return=minimal'},
+   body:JSON.stringify({verified_at:new Date().toISOString()}),cache:'no-store'
+  });
+  if(!vr.ok)throw new Error('Weekly report verification marker failed');
+  return NextResponse.json({saved:await stored(report.week),idempotent:false},{headers:{'Cache-Control':'no-store'}});
+ }catch(e){console.error('weekly report POST',e);return NextResponse.json({error:'report_save_or_verification_failed'},{status:503,headers:{'Cache-Control':'no-store'}});}
 }
