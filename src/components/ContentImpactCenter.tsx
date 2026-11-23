@@ -157,7 +157,7 @@ export default function ContentImpactCenter({
     <label htmlFor="geo-publish-limit" className="text-sm">الحد الأقصى يوميًا:</label>
     <select id="geo-publish-limit" className="rounded-lg border border-slate-300 p-2 text-sm"
      value={autoLimit} onChange={e=>setAutoLimit(Number(e.target.value))} disabled={!autoStatus?.available||autoBusy}>
-      <option value={1}>1</option><option value={2}>2</option><option value={3}>3</option>
+      {Array.from({length:10},(_,index)=>index+1).map(limit=><option key={limit} value={limit}>{limit}</option>)}
     </select>
     <button className="btn-secondary text-xs" disabled={!autoStatus?.available||autoBusy}
       onClick={()=>void autoAction({action:'dry_run'})}>محاكاة دون نشر</button>
