@@ -6,12 +6,10 @@ const { scheduledSlot, chooseGscSync } = require('./gsc-scheduled-slot.cjs');
 
 const workflow = readFileSync('.github/workflows/gsc-daily-sync.yml', 'utf8');
 const crons = Array.from(workflow.matchAll(/- cron: '([^']+)'/g), match => match[1]);
-const updatedUtc = Array.from({ length: 12 }, (_, index) =>
-  index === 1 ? '45 0 * * *' : `0 ${index * 2} * * *`);
-assert.deepEqual(crons, updatedUtc);
-assert(crons.every(expression => scheduledSlot(expression, '2026-11-20T23:59:59Z').allowed));
-assert.deepEqual(crons.filter(expression => scheduledSlot(expression, '2026-11-22T23:59:59Z').allowed),
-  ['45 0 * * *', '0 6 * * *', '0 10 * * *', '0 14 * * *', '0 18 * * *', '0 22 * * *']);
+// All automatic GSC triggers are deliberately disabled by owner decision.
+assert.deepEqual(crons, []);
+assert.doesNotMatch(workflow, /^  schedule:/m);
+assert.match(workflow, /^  workflow_dispatch:/m);
 assert.deepEqual(scheduledSlot('45 0 * * *', '2026-11-23T00:46:00Z'),
   { allowed: true, instant: '2026-11-23T00:45:00.000Z' });
 assert.deepEqual(scheduledSlot('0 20 * * *', '2026-11-22T01:12:00Z'),

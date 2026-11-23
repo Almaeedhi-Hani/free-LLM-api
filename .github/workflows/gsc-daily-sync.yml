@@ -1,21 +1,5 @@
 name: GSC daily metrics sync
 on:
-  schedule:
-    # Same UTC trigger hours as the original 0 0-22/2 cron. Individual expressions
-    # preserve the scheduled hour when GitHub queues the job past that hour.
-    - cron: '0 0 * * *'
-    # Owner-approved replacement of 05:00 KSA with 03:45 KSA (00:45 UTC).
-    - cron: '45 0 * * *'
-    - cron: '0 4 * * *'
-    - cron: '0 6 * * *'
-    - cron: '0 8 * * *'
-    - cron: '0 10 * * *'
-    - cron: '0 12 * * *'
-    - cron: '0 14 * * *'
-    - cron: '0 16 * * *'
-    - cron: '0 18 * * *'
-    - cron: '0 20 * * *'
-    - cron: '0 22 * * *'
   workflow_dispatch:
 permissions:
   contents: read
