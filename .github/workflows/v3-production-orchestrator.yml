@@ -3,8 +3,6 @@ on:
   # Real production scheduler. Provider/publisher calls are due-gated by
   # scripts/scheduled-event-slot.cjs; NEVER paid calls on every tick.
   # 15-minute owner-approved schedule; provider quotas remain unchanged.
-  schedule:
-    - cron: '*/15 * * * *'
   # Non-production smoke on workflow definition changes; only preflight runs.
   push:
     branches: [main]
