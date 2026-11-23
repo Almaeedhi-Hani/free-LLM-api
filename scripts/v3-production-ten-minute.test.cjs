@@ -5,21 +5,21 @@ const {tenMinuteDue,chooseEventSlot,PRODUCTION_MASTER_CRON}=require('./scheduled
 const read=x=>fs.readFileSync('.github/workflows/'+x,'utf8');
 const master=read('v3-production-orchestrator.yml');
 const cases=[
- ['market','2026-11-23T02:57:02.000Z',true],
- ['market','2026-11-23T03:07:02.000Z',false],
- ['market','2026-11-23T00:57:02.000Z',false],
- ['geo','2026-11-23T01:07:02.000Z',true],
- ['geo','2026-11-23T01:17:02.000Z',false],
- ['geo','2026-11-23T03:07:02.000Z',false],
- ['publication','2026-11-23T01:57:02.000Z',true],
- ['publication','2026-11-23T02:07:02.000Z',false],
- ['llm','2026-11-23T02:17:02.000Z',true],
- ['llm','2026-11-23T02:27:02.000Z',false],
- ['maintenance','2026-11-23T02:37:02.000Z',true],
- ['maintenance','2026-11-23T02:47:02.000Z',false],
- ['maintenance','2026-11-23T00:37:02.000Z',false]
+ ['market','2026-11-23T03:00:02.000Z',true],
+ ['market','2026-11-23T03:15:02.000Z',false],
+ ['market','2026-11-23T01:00:02.000Z',false],
+ ['geo','2026-11-23T01:00:02.000Z',true],
+ ['geo','2026-11-23T01:15:02.000Z',false],
+ ['geo','2026-11-23T03:00:02.000Z',false],
+ ['publication','2026-11-23T02:00:02.000Z',true],
+ ['publication','2026-11-23T02:15:02.000Z',false],
+ ['llm','2026-11-23T02:15:02.000Z',true],
+ ['llm','2026-11-23T02:30:02.000Z',false],
+ ['maintenance','2026-11-23T02:45:02.000Z',true],
+ ['maintenance','2026-11-23T03:00:02.000Z',false],
+ ['maintenance','2026-11-23T00:45:02.000Z',false]
 ];
-assert.equal(PRODUCTION_MASTER_CRON,'7-57/10 * * * *');
+assert.equal(PRODUCTION_MASTER_CRON,'*/15 * * * *');
 for(const [kind,time,due] of cases){
  const d=tenMinuteDue(kind,time);
  assert.equal(d.allowed,due,kind+' due for '+time);
@@ -29,20 +29,20 @@ for(const [kind,time,due] of cases){
  const event={kind:'geo',event:'schedule',schedule:PRODUCTION_MASTER_CRON,runId:'555',attempt:'1'};
  const lookup=async p=>{
   assert.equal(p,'/actions/runs/555');
-  return {id:555,event:'schedule',created_at:'2026-11-23T01:07:02.000Z'};
+  return {id:555,event:'schedule',created_at:'2026-11-23T01:00:02.000Z'};
  };
  assert.deepEqual(await chooseEventSlot(event,lookup),{
   run:true,reason:'production_due',nominal:'2026-11-23T01:00:00.000Z'
  });
  assert.equal((await chooseEventSlot({...event,kind:'market'},lookup)).run,false);
  assert.equal((await chooseEventSlot({...event,attempt:'2'},assert.fail)).reason,'scheduled_rerun');
- await assert.rejects(()=>chooseEventSlot(event,async()=>({id:555,event:'push',created_at:'2026-11-23T01:07:02.000Z'})),/metadata/);
+ await assert.rejects(()=>chooseEventSlot(event,async()=>({id:555,event:'push',created_at:'2026-11-23T01:00:02.000Z'})),/metadata/);
  assert.equal((await chooseEventSlot({...event,event:'workflow_dispatch',schedule:''},assert.fail)).reason,'workflow_dispatch');
  assert.deepEqual([...master.matchAll(/- cron: '([^']+)'/g)].map(m=>m[1]),[PRODUCTION_MASTER_CRON]);
- assert.match(master,/name: V3 production orchestrator \(10-minute cadence\)/);
+ assert.match(master,/name: V3 production orchestrator \(15-minute cadence\)/);
  assert.match(master,/production-preflight:/);
  assert.match(master,/github\.event_name != 'push'/);
- assert.match(master,/TRIGGER_CRON\" != '7-57\/10 \* \* \* \*'/);
+ assert.match(master,/TRIGGER_CRON\" != '\*\/15 \* \* \* \*'/);
  assert.match(master,/group: v3-production-orchestrator-main/);
  assert.match(master,/cancel-in-progress: false/);
  assert.match(master,/V3_MASTER_PAUSED != 'true'/);
@@ -77,5 +77,5 @@ for(const [kind,time,due] of cases){
  for(const file of ['gsc-daily-sync.yml','v3-phase2-safety-monitor.yml','v3-stage2-quality-watch.yml']){
   assert.match(read(file),/^  schedule:\s*$/m,'Independent '+file+' schedule missing');
  }
- console.log('PASS true 10-minute production runner: real 5 reusable workflows, due provider gates, failure isolation, no live calls on push, independent GSC/Safety/Quality');
+ console.log('PASS true 15-minute production runner: real 5 reusable workflows, due provider gates, failure isolation, no live calls on push, independent GSC/Safety/Quality');
 })().catch(e=>{console.error(e);process.exitCode=1});
