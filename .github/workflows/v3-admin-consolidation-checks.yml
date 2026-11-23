@@ -50,6 +50,8 @@ jobs:
           fi
       - name: Phase 6 contract regression
         run: node scripts/phase6-navigation-contract.test.cjs
+      - name: Phase 7 contract regression
+        run: node scripts/phase7-admin-security-contract.test.cjs
       - name: Production TypeScript build (no deployment)
         run: npm run build
       - name: Isolated RTL/mobile/browser acceptance
