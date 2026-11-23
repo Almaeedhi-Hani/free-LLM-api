@@ -3,7 +3,7 @@
 // No external providers, code publication, database mutation, or secret logging.
 const fs=require('node:fs');
 const {createClient,issueKey}=require('./v3-phase2-monitor.cjs');
-const MASTER_FILE='v3-unified-sequential-test.yml';
+const MASTER_FILE='v3-production-orchestrator.yml';
 const MASTER_ISSUE=issueKey('watchdog','Master Workflow schedule stale or failed');
 const GRACE_MS=60*60000; // GitHub scheduled events can be delayed.
 function masterState(runs,now){

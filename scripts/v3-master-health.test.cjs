@@ -8,7 +8,7 @@ const item=(minutes,conclusion='success',event='schedule')=>({
  created_at:new Date(now-minutes*60000).toISOString()
 });
 (async()=>{
- assert.equal(MASTER_FILE,'v3-unified-sequential-test.yml');
+ assert.equal(MASTER_FILE,'v3-production-orchestrator.yml');
  assert.equal(GRACE_MS,3600000);
  assert.equal(masterState([],now).status,'stale');
  assert.equal(masterState([item(10)],now).status,'healthy');

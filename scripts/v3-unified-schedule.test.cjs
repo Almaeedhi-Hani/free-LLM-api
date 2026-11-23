@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const dir='.github/workflows';
 const source=n=>fs.readFileSync(dir+'/'+n,'utf8');
-const master='v3-unified-sequential-test.yml';
+const master='v3-production-orchestrator.yml';
 const main=source(master);
 const crons=c=>Array.from(c.matchAll(/- cron: '([^']+)'/g),m=>m[1]);
 assert.deepEqual(crons(main),['7-57/10 * * * *'],'Master is production every ten minutes');

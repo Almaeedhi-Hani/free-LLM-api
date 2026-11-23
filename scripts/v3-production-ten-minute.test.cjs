@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const {tenMinuteDue,chooseEventSlot,PRODUCTION_MASTER_CRON}=require('./scheduled-event-slot.cjs');
 const read=x=>fs.readFileSync('.github/workflows/'+x,'utf8');
-const master=read('v3-unified-sequential-test.yml');
+const master=read('v3-production-orchestrator.yml');
 const cases=[
  ['market','2026-11-23T02:57:02.000Z',true],
  ['market','2026-11-23T03:07:02.000Z',false],

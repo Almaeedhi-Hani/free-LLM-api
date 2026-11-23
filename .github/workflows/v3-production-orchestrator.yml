@@ -8,7 +8,7 @@ on:
   push:
     branches: [main]
     paths:
-      - '.github/workflows/v3-unified-sequential-test.yml'
+      - '.github/workflows/v3-production-orchestrator.yml'
   workflow_dispatch:
 
 permissions:

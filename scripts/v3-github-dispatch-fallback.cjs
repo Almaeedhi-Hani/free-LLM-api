@@ -3,7 +3,7 @@
 // This module is NOT scheduled or deployed by a repository merge alone.
 // No AI calls, DB access, publishing, secrets in logs, or dynamic URL routing.
 const REPO='Almaeedhi-Hani/free-LLM-api';
-const WORKFLOW='v3-unified-sequential-test.yml';
+const WORKFLOW='v3-production-orchestrator.yml';
 const ROOT='https://api.github.com/repos/'+REPO;
 const LOOKBACK_MS=4*60*1000;
 const ACTIVE_MS=45*60*1000;

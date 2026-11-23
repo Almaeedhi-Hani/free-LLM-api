@@ -35,7 +35,7 @@ assert(gsc.includes('gsc-scheduled-slot.cjs')&&gsc.includes('github.event.schedu
 assert(geo.includes('scheduled-event-slot.cjs --kind=geo'),'GEO uses original event time');
 assert(api.includes("github('/actions/workflows/' + unifiedWorkflow)"),'Unified GitHub workflow status must be read');
 assert(api.includes("state === 'unknown' ? null : state === 'active'"),'Unknown not displayed as active');
-const master=read('.github/workflows/v3-unified-sequential-test.yml');
+const master=read('.github/workflows/v3-production-orchestrator.yml');
 const cron=master.match(/- cron: '([^']+)'/)?.[1];
 assert.equal(cron,'7-57/10 * * * *',
  'Master launches real production orchestration exactly every ten minutes');

@@ -5,7 +5,7 @@ import { getContent } from '@/lib/content-store';
 export const dynamic = 'force-dynamic';
 const repo = 'Almaeedhi-Hani/free-LLM-api';
 const workflow = 'geo-analysis.yml';
-const unifiedWorkflow = 'v3-unified-sequential-test.yml';
+const unifiedWorkflow = 'v3-production-orchestrator.yml';
 const llmWorkflow = 'llm-feed-optimization.yml';
 function authorized(req: NextRequest) {
   const supplied = Buffer.from((req.headers.get('x-admin-secret') || '').trim());

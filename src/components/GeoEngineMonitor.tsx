@@ -82,7 +82,7 @@ export default function GeoEngineMonitor({secret,runs,competitors,keywords,oppor
         <p>GSC: مزامنة تلقائية مستقلة (03:45 و09:00 و13:00 و17:00 و21:00 و01:00 بتوقيت السعودية) مع منع تكرار الأيام في الخادم.</p>
         <p>LLM Feed: فحص حيّ لملف /llms.txt دون إنشاء PR.</p>
         <p>Safety Monitor يعمل كل 6 ساعات ويكشف غياب Master حتى لو توقف تمامًا؛ Quality Watch يوميًا، وكلاهما مستقل عن نجاح Radar.</p>
-        <p><a href="https://github.com/Almaeedhi-Hani/free-LLM-api/actions/workflows/v3-unified-sequential-test.yml" target="_blank" rel="noopener noreferrer" className="underline">عرض التشغيلات الموحدة في GitHub</a></p>
+        <p><a href="https://github.com/Almaeedhi-Hani/free-LLM-api/actions/workflows/v3-production-orchestrator.yml" target="_blank" rel="noopener noreferrer" className="underline">عرض التشغيلات الموحدة في GitHub</a></p>
         <p><a href="/llms.txt" target="_blank" rel="noopener noreferrer" className="underline">فتح فهرس LLM المنشور</a></p>
         {workflow.llmIndex?.runs?.slice(0,2).map(run=><p key={run.id}>
           {run.html_url?<a href={run.html_url} target="_blank" rel="noopener noreferrer" className="underline">مراجعة LLM #{run.id}</a>:'LLM #'+run.id}
