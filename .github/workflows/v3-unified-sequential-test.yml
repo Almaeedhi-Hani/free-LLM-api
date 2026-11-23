@@ -31,15 +31,27 @@ jobs:
       CI: 'true'
       NODE_ENV: test
     steps:
-      - name: Diagnose GitHub event delivery (no secrets)
+      - name: Diagnose GitHub event delivery and workflow activation (no secrets)
         env:
           TRIGGER_CRON: ${{ github.event.schedule }}
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           echo "[V3_SCHEDULE_DIAG] event=$GITHUB_EVENT_NAME ref=$GITHUB_REF cron=${TRIGGER_CRON:-none} run_id=$GITHUB_RUN_ID"
           if [ "$GITHUB_EVENT_NAME" = schedule ] && [ "$TRIGGER_CRON" != '3,8,13,18,23,28,33,38,43,48,53,58 * * * *' ]; then
             echo "::error::Unexpected cron source for the only V3 scheduler"
             exit 1
+          fi
+          # Read GitHub's actual workflow registration state (active/disabled).
+          # This helps distinguish a disabled workflow from delayed schedule delivery.
+          if workflow_state=$(curl --fail --silent --show-error --max-time 15 \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/v3-unified-sequential-test.yml" \
+            | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{const a=JSON.parse(s);if(typeof a.state!=="string")process.exit(1);console.log(a.state)})'); then
+            echo "[V3_SCHEDULE_DIAG] workflow_state=$workflow_state"
+          else
+            echo "[V3_SCHEDULE_DIAG] workflow_state=unavailable"
           fi
       - uses: actions/checkout@v4
         with:
