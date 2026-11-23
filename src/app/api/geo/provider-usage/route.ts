@@ -110,9 +110,9 @@ export async function GET(req:NextRequest){
    if(lastBlocked&&!lastAfterBlock){
     const stamp=Date.parse(lastBlocked.created_at);
     const retry=lastBlocked.metadata?.retry_after_seconds;
-    const backoff=limit(retry,604800)?retry:(lastBlocked.metadata.http_status===402?86400:900);
+    const backoff=limit(retry,604800)?retry:(lastBlocked.metadata?.http_status===402?86400:900);
     holdUntil=stamp+backoff*1000;
-    if(holdUntil>now)reason=lastBlocked.metadata.http_status===402?"provider_quota_error":"rate_limit_backoff";
+    if(holdUntil>now)reason=lastBlocked.metadata?.http_status===402?"provider_quota_error":"rate_limit_backoff";
    }
    // Daily ceiling is known ONLY when the provider identifies it explicitly.
    // Groq's request headers are documented as RPD; generic rate-limit
