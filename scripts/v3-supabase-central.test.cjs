@@ -14,8 +14,14 @@ assert.match(route,/v3-production-orchestrator.yml/,'Reuse actual GitHub orchest
 assert.match(route,/gsc-daily-sync.yml/,'Keep GSC collector');
 assert.match(route,/v3-phase2-safety-monitor.yml/,'Keep safety watchdog');
 assert.match(route,/v3-stage2-quality-watch.yml/,'Keep daily quality Evals');
-assert.match(route,/geoHours.includes\(h\)/,'Retain four-hour GEO slots');
-assert.match(route,/marketHours.includes\(h\)/,'Retain four-hour Radar slots');
+assert.match(route,/threeHourSlots=\[0,3,6,9,12,15,18,21\]/,'Eight three-hour UTC slots required');
+assert.match(route,/m===0&&threeHourSlots.includes\(h\)/,'Master runs every three hours');
+assert.match(route,/m===55&&threeHourSlots.includes\(h\)/,'Radar runs every three hours');
+assert.match(route,/m===45&&threeHourSlots.includes\(h\)/,'GSC runs every three hours');
+assert.match(route,/m===20&&threeHourSlots.includes\(h\)/,'Safety runs every three hours');
+assert.match(route,/m===25&&threeHourSlots.includes\(h\)/,'Quality runs every three hours');
+assert.match(route,/getUTCDay\(\)===0&&h===6&&m===15/,'Sunday 09:15 Saudi weekly report');
+assert.match(route,/weekly_report_readback_unverified/,'Weekly report must verify saved row');
 assert.match(route,/recentRadarCompleted/,'Avoid Radar repeated provider usage');
 assert.match(master,/inputs.source != 'supabase'/,'Supabase master must not duplicate Radar');
 assert.match(master,/CENTRAL_SOURCE/,'Master reporting must accept centrally-owned Radar');
