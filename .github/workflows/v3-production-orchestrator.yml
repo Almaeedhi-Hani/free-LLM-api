@@ -9,6 +9,13 @@ on:
     paths:
       - '.github/workflows/v3-production-orchestrator.yml'
   workflow_dispatch:
+    inputs:
+      source:
+        description: 'Manual or signed Supabase central scheduler'
+        required: false
+        default: manual
+        type: choice
+        options: [manual, supabase]
 
 permissions:
   contents: write # Only the existing W05/W06 bounded PR paths may write.
@@ -54,7 +61,7 @@ jobs:
   # Shared 15-minute clock; live work only at its old approved four-hour slot.
   market-radar:
     needs: production-preflight
-    if: needs.production-preflight.result == 'success' && github.event_name != 'push' && github.ref == 'refs/heads/main' && vars.V3_MASTER_PAUSED != 'true' && vars.MARKET_RADAR_PAUSED != 'true'
+    if: needs.production-preflight.result == 'success' && github.event_name != 'push' && github.ref == 'refs/heads/main' && vars.V3_MASTER_PAUSED != 'true' && vars.MARKET_RADAR_PAUSED != 'true' && inputs.source != 'supabase'
     uses: ./.github/workflows/market-radar.yml
     secrets: inherit
 
@@ -98,6 +105,7 @@ jobs:
       W05: ${{ needs.llm-feed.result }}
       W06: ${{ needs.maintenance.result }}
       RADAR_PAUSED: ${{ vars.MARKET_RADAR_PAUSED }}
+      CENTRAL_SOURCE: ${{ inputs.source }}
       LLM_PAUSED: ${{ vars.LLM_INDEX_PAUSED }}
       MAINT_PAUSED: ${{ vars.AUTODEV_PAUSED }}
     steps:
@@ -129,7 +137,7 @@ jobs:
           for result in "$W01" "$W03"; do
             [ "$result" = success ] || { echo "::error::Required production child workflow failed: $result"; exit 1; }
           done
-          if [ "$RADAR_PAUSED" != true ] && [ "$W02" != success ]; then
+          if [ "$CENTRAL_SOURCE" != supabase ] && [ "$RADAR_PAUSED" != true ] && [ "$W02" != success ]; then
             echo '::error::Radar failed while not paused'; exit 1
           fi
           if [ "$LLM_PAUSED" != true ] && [ "$W05" != success ]; then
