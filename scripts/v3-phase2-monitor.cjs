@@ -127,17 +127,31 @@ function createClient({repository,token,fetchImpl=fetch,pauseVarSnapshot=null}) 
       return step?.conclusion==='success'?true:step?.conclusion==='skipped'?false:null;
     }catch{return null;}
   }
+  // A green scheduled GSC job can still SKIP collection at the cadence gate.
+  // Only the actual Collect step proves the GSC endpoint was contacted.
+  async function w04RunVerified(runId) {
+    if(!Number.isInteger(runId)||runId<1)return null;
+    try {
+      const output=await github('/actions/runs/'+runId+'/jobs?per_page=100');
+      if(!Array.isArray(output.jobs)||!output.jobs.length||output.total_count>100)return null;
+      const job=output.jobs.find(j=>j.name==='sync'&&j.status==='completed');
+      if(!job||!Array.isArray(job.steps))return null;
+      const step=job.steps.find(j=>j.name==='Collect GSC metrics');
+      return step?.conclusion==='success'?true:step?.conclusion==='skipped'?false:null;
+    }catch{return null;}
+  }
   async function workflowRuns(filename) {
     // Fetch actual *scheduled* runs, not push/dispatch results.
     const value=await github('/actions/workflows/'+encodeURIComponent(filename)+'/runs?event=schedule&per_page=100');
     if(!Array.isArray(value.workflow_runs))throw Error('invalid_schedule_runs');
-    if(filename!=='llm-feed-optimization.yml')return value.workflow_runs;
-    // Check only recent successful W05 schedule candidates. Cadence SKIP is
-    // not "no_change": no index read was performed, so it cannot close alarms.
+    const verify=filename==='llm-feed-optimization.yml'?w05RunVerified:
+      filename==='gsc-daily-sync.yml'?w04RunVerified:null;
+    if(!verify)return value.workflow_runs;
+    // Green schedule + skipped work is not a successful collection or a no-change.
     const recent=value.workflow_runs.filter(r=>r?.event==='schedule'&&r.status==='completed'&&r.conclusion==='success')
       .slice(0,12);
     const verified=new Map();
-    for(const r of recent)verified.set(r.id,await w05RunVerified(r.id));
+    for(const r of recent)verified.set(r.id,await verify(r.id));
     return value.workflow_runs.map(r=> {
       if(!verified.has(r.id))return r;
       const didWork=verified.get(r.id);
@@ -168,7 +182,7 @@ function createClient({repository,token,fetchImpl=fetch,pauseVarSnapshot=null}) 
     }
     return {status:'active',reason:'no_pause_requested'};
   }
-  return {github,workflowRuns,w05RunVerified,pauseStatus,upsertIssue,resolveIssue};
+  return {github,workflowRuns,w05RunVerified,w04RunVerified,pauseStatus,upsertIssue,resolveIssue};
 }
 async function readStorage(id,{url,key,fetchImpl=fetch}) {
   const selection=POSTGREST_READS[id];
@@ -491,9 +505,10 @@ async function handleFailure(client,event) {
     '\nObserved at: '+new Date().toISOString()+
     '\nNo automatic retry or publication performed.';
   if(result==='success') {
-    if(target.id==='W05'){
-      const actuallyRan=await client.w05RunVerified(run.id);
-      if(actuallyRan!==true)return {result:actuallyRan===false?'ignored_cadence_skip':'ignored_unverified_w05_success'};
+    if(target.id==='W05'||target.id==='W04'){
+      const actuallyRan=await (target.id==='W05'?client.w05RunVerified(run.id):client.w04RunVerified(run.id));
+      if(actuallyRan!==true)return {result:actuallyRan===false?'ignored_cadence_skip':
+        'ignored_unverified_'+target.id.toLowerCase()+'_success'};
     }
     return client.resolveIssue(title,body+'\nResolved by a successful scheduled run.');
   }
