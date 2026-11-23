@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
       [lang,allowed.has(fields[lang])?fields[lang]:'not_run']));
     return NextResponse.json({ configured: true,
       schedule: { cadence: 'every_10_minutes_test',
-        cron_utc: '*/10 * * * *',
+        cron_utc: '3,13,23,33,43,53 * * * *',
         saudi_time: 'كل 10 دقائق',
         transitionSaudi: '2026-11-23T00:00:00+03:00',
         time_zone: 'Asia/Riyadh',
