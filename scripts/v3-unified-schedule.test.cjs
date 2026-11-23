@@ -79,5 +79,8 @@ const sentinel=source('v3-schedule-delivery-sentinel.yml');
 assert.deepEqual(cron(sentinel),['1,6,11,16,21,26,31,36,41,46,51,56 * * * *']);
 assert.match(sentinel,/^  workflow_dispatch:/m);
 assert.match(sentinel,/SENTINEL REAL_GITHUB_SCHEDULE_DELIVERED/);
+assert.match(sentinel,/actions: read/);
+assert.match(sentinel,/gh api/);
+assert.match(sentinel,/SENTINEL_REGISTRY read_only=success/);
 assert.doesNotMatch(sentinel,/GSC_CRON_SECRET|GEO_API_KEY|npm ci|fetch\(|curl |issues: write|contents: write/);
 console.log('PASS hybrid topology: linked W02/W01/W03; independent W05/W06, Safety (6h), Quality (daily), automatic GSC with 12 historical slots and 5-minute Master test');
