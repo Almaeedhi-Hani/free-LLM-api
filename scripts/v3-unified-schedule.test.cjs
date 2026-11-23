@@ -56,7 +56,9 @@ for(const [file,expected] of Object.entries(independent)){
 }
 assert(source('v3-phase2-safety-monitor.yml').includes('V3 production orchestrator (15-minute cadence)'));
 assert(source('v3-phase2-safety-monitor.yml').includes('node scripts/v3-master-health.cjs --mode=watchdog'));
-assert(source('v3-stage2-quality-watch.yml').includes("if: github.event_name == 'schedule'"));
+assert(source('v3-stage2-quality-watch.yml').includes("inputs.mode == 'live'"), 'Central live quality audit must run on dispatch');
+assert(main.includes("inputs.source != 'supabase'"),'Central master must not call Radar already owned by Supabase');
+assert(main.includes('CENTRAL_SOURCE'),'Supabase master outcome must explicitly accept skipped W02');
 assert(source('gsc-daily-sync.yml').includes('gsc-scheduled-slot.cjs'));
 assert(source('gsc-daily-sync.yml').includes('if-no-files-found: error'));
 // Separate short-lived diagnostic is intentionally NOT a production scheduler.
