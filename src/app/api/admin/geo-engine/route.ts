@@ -5,6 +5,7 @@ import { getContent } from '@/lib/content-store';
 export const dynamic = 'force-dynamic';
 const repo = 'Almaeedhi-Hani/free-LLM-api';
 const workflow = 'geo-analysis.yml';
+const unifiedWorkflow = 'v3-unified-sequential-test.yml';
 const llmWorkflow = 'llm-feed-optimization.yml';
 function authorized(req: NextRequest) {
   const supplied = Buffer.from((req.headers.get('x-admin-secret') || '').trim());
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
   try {
     const [response, detailsResponse, indexResponse] = await Promise.all([
       github('/actions/workflows/' + workflow + '/runs?per_page=5'),
-      github('/actions/workflows/' + workflow),
+      github('/actions/workflows/' + unifiedWorkflow),
       github('/actions/workflows/' + llmWorkflow + '/runs?per_page=3'),
     ]);
     if (!response.ok) return NextResponse.json({ configured: true, message: 'GitHub status unavailable' }, { status: 502 });
@@ -34,7 +35,8 @@ export async function GET(req: NextRequest) {
     const details = detailsResponse.ok ? await detailsResponse.json() : null;
     const state = typeof details?.state === 'string' ? details.state : 'unknown';
     const indexStatus = indexResponse.ok ? await indexResponse.json() : null;
-    const shortCadence = Date.now() < Date.parse('2026-11-21T21:00:00.000Z');
+    // The single automated schedule is an isolated 10-minute test loop; GEO's
+    // direct full pipeline remains a separate explicit manual dispatch.
     // The authenticated dashboard gets persisted locale statuses without
     // parsing model logs, disclosing any LLM prompts or exposing credentials.
     const stored=await getContent().catch(()=>null);
@@ -46,10 +48,10 @@ export async function GET(req: NextRequest) {
     const languages=Object.fromEntries(['ar','en','zh'].map(lang=>
       [lang,allowed.has(fields[lang])?fields[lang]:'not_run']));
     return NextResponse.json({ configured: true,
-      schedule: { cadence: shortCadence?'every_2_hours':'every_4_hours',
-        cron_utc: '0 1-23/2 * * *',
-        saudi_time: shortCadence?'00:00,02:00,...':'00:00,04:00,...',
-        transitionSaudi: '2026-11-22T00:00:00+03:00',
+      schedule: { cadence: 'every_10_minutes_test',
+        cron_utc: '*/10 * * * *',
+        saudi_time: 'كل 10 دقائق',
+        transitionSaudi: '2026-11-23T00:00:00+03:00',
         time_zone: 'Asia/Riyadh',
         state, active: state === 'unknown' ? null : state === 'active' },
       llmIndex: { available: Boolean(indexStatus),
