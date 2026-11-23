@@ -71,13 +71,13 @@ export default function GeoEngineMonitor({secret,runs,competitors,keywords,oppor
       <p className="text-sm">{workflow.configured?'GitHub Actions متصل':'غير مهيأ: '+(workflow.message||'يلزم إعداد GEO_GITHUB_TOKEN')}</p>
       <p className="text-sm font-semibold" role="status">{!workflow.schedule?
         'جدولة السلاح السري: الحالة غير متاحة':
-        workflow.schedule.active===true?'جدولة الاختبار الموحدة مفعّلة: كل 10 دقائق — فحص متسلسل للأنظمة الثمانية (دون نشر أو طلبات AI إضافية)':
+        workflow.schedule.active===true?'جدولة الاختبار الموحدة مفعّلة: كل 5 دقائق — فحص متسلسل للأنظمة الثمانية (دون نشر أو طلبات AI إضافية)':
         workflow.schedule.active===false?'ملف الاختبار الموحد معطّل في GitHub Actions':
         'تعذّر تأكيد تفعيل جدولة الاختبار الموحدة من GitHub'}</p>
-      <p className="text-xs text-slate-500">جدولة GitHub الوحيدة تعمل كل 10 دقائق للاختبارات المتسلسلة. W01/W02 والنشر والصيانة تُفحص دون استدعاءات مزودين أو نشر تلقائي؛ W04 ينفّذ مزامنة فعلية وW05 يقرأ الفهرس. قد تتأخر تشغيلات GitHub، ولا تعني نتيجة GitHub الخضراء وحدها حفظ بيانات جديدة.</p>
+      <p className="text-xs text-slate-500">جدولة GitHub الوحيدة تعمل كل 5 دقائق للاختبارات المتسلسلة. W01/W02 والنشر والصيانة تُفحص دون استدعاءات مزودين أو نشر تلقائي؛ W04 ينفّذ مزامنة فعلية وW05 يقرأ الفهرس. قد تتأخر تشغيلات GitHub، ولا تعني نتيجة GitHub الخضراء وحدها حفظ بيانات جديدة.</p>
       <div className="rounded-lg border border-slate-200 p-3 text-xs space-y-1">
         <p className="font-semibold">الأنظمة ضمن اختبار الجدولة الموحدة</p>
-        <p>كل 10 دقائق (بتوقيت السعودية): Radar ← GEO ← النشر ← GSC ← LLM Feed ← الصيانة ← Watchdog ← الجودة.</p>
+        <p>كل 5 دقائق (بتوقيت السعودية): Radar ← GEO ← النشر ← GSC ← LLM Feed ← الصيانة ← Watchdog ← الجودة.</p>
         <p>يُختبر Radar وGEO والنشر والصيانة دون عمليات بحث أو نشر أو دمج جديدة أثناء الاختبار السريع.</p>
         <p>GSC: استدعاء المزامنة المحمي فعليًا، مع احترام منع تكرار البيانات في الخادم.</p>
         <p>LLM Feed: فحص حيّ لملف /llms.txt دون إنشاء PR.</p>
