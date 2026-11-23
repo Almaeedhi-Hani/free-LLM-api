@@ -1,0 +1,15 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {weekKey,buildReport}=require('./weekly-report-core.cjs');
+assert.equal(weekKey(new Date('2026-11-21T20:59:59Z')),'2026-11-15');
+assert.equal(weekKey(new Date('2026-11-21T21:00:00Z')),'2026-11-22');
+const report=buildReport({now:new Date('2026-11-23T20:00:00Z'),content:{updatedAt:'2026-11-23T19:00:00Z',drafts:[{status:'approved'},{status:'rejected'}],editorialItems:[{status:'pending'}]}});
+assert.equal(report.week,'2026-11-22');
+assert.equal(report.faqDrafts.approved,1);
+assert.equal(report.editorial.pending,1);
+assert.equal(report.metrics.gsc,null);
+assert.equal(report.health.length,6);
+assert.equal(report.deliveryStatus,'generated_not_verified');
+assert.equal(buildReport({content:{}}).faqDrafts.approved,null);
+assert.throws(()=>buildReport({content:null}),/required/);
+console.log('Phase 8 core weekly report contracts passed');
