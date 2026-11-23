@@ -1,0 +1,141 @@
+name: V3 production orchestrator (10-minute cadence)
+on:
+  # Real production scheduler. Provider/publisher calls are due-gated by
+  # scripts/scheduled-event-slot.cjs; NEVER paid calls on every tick.
+  schedule:
+    - cron: '7-57/10 * * * *'
+  # Non-production smoke on workflow definition changes; only preflight runs.
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/v3-production-orchestrator.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write # Only the existing W05/W06 bounded PR paths may write.
+  pull-requests: write
+  actions: write
+  checks: read # Existing W05 CI-gated narrow index PR.
+  issues: read
+
+concurrency:
+  group: v3-production-orchestrator-main
+  cancel-in-progress: false
+
+jobs:
+  # Cheap preflight tests on push; on schedule, fail closed if cadence or
+  # reusable production workflow wiring is not what the owner approved.
+  production-preflight:
+    if: github.ref == 'refs/heads/main' && vars.V3_MASTER_PAUSED != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Validate the production scheduler and source event
+        env:
+          TRIGGER_CRON: ${{ github.event.schedule }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "[V3_PRODUCTION] event=$GITHUB_EVENT_NAME ref=$GITHUB_REF cron=${TRIGGER_CRON:-none} run=$GITHUB_RUN_ID"
+          if [ "$GITHUB_EVENT_NAME" = schedule ] && [ "$TRIGGER_CRON" != '7-57/10 * * * *' ]; then
+            echo '::error::Unexpected cron source — refuse production'
+            exit 1
+          fi
+          node scripts/v3-production-ten-minute.test.cjs
+          node scripts/scheduled-event-slot.test.cjs
+          echo "[V3_PRODUCTION] preflight=success production_paths_armed=$([ "$GITHUB_EVENT_NAME" = push ] && echo false || echo true)"
+
+  # W02→W01→W03 preserve ordering, but each is allowed to fail independently.
+  # Shared 10-minute clock; live work only at its old approved four-hour slot.
+  market-radar:
+    needs: production-preflight
+    if: needs.production-preflight.result == 'success' && github.event_name != 'push' && github.ref == 'refs/heads/main' && vars.V3_MASTER_PAUSED != 'true' && vars.MARKET_RADAR_PAUSED != 'true'
+    uses: ./.github/workflows/market-radar.yml
+    secrets: inherit
+
+  geo-intelligence:
+    needs: [production-preflight, market-radar]
+    if: always() && !cancelled() && needs.production-preflight.result == 'success' && github.event_name != 'push' && github.ref == 'refs/heads/main' && vars.V3_MASTER_PAUSED != 'true'
+    uses: ./.github/workflows/geo-analysis.yml
+    secrets: inherit
+
+  geo-publisher:
+    needs: [production-preflight, geo-intelligence]
+    if: always() && !cancelled() && needs.production-preflight.result == 'success' && github.event_name != 'push' && github.ref == 'refs/heads/main' && vars.V3_MASTER_PAUSED != 'true'
+    uses: ./.github/workflows/geo-auto-publication-daily.yml
+    secrets: inherit
+
+  # W05 and W06 are production executions but independent of Radar/GEO.
+  llm-feed:
+    needs: production-preflight
+    if: needs.production-preflight.result == 'success' && github.event_name != 'push' && github.ref == 'refs/heads/main' && vars.V3_MASTER_PAUSED != 'true' && vars.LLM_INDEX_PAUSED != 'true'
+    uses: ./.github/workflows/llm-feed-optimization.yml
+    secrets: inherit
+
+  maintenance:
+    needs: production-preflight
+    if: needs.production-preflight.result == 'success' && github.event_name != 'push' && github.ref == 'refs/heads/main' && vars.V3_MASTER_PAUSED != 'true' && vars.AUTODEV_PAUSED != 'true'
+    uses: ./.github/workflows/autonomous-site-maintenance.yml
+    secrets: inherit
+
+  # The Master is RED for any real unsuccessful, non-paused stage, but one
+  # stage's failure cannot prevent an unrelated stage from running.
+  outcome:
+    if: always() && github.ref == 'refs/heads/main' && vars.V3_MASTER_PAUSED != 'true'
+    needs: [production-preflight, market-radar, geo-intelligence, geo-publisher, llm-feed, maintenance]
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      PRECHECK: ${{ needs.production-preflight.result }}
+      W02: ${{ needs.market-radar.result }}
+      W01: ${{ needs.geo-intelligence.result }}
+      W03: ${{ needs.geo-publisher.result }}
+      W05: ${{ needs.llm-feed.result }}
+      W06: ${{ needs.maintenance.result }}
+      RADAR_PAUSED: ${{ vars.MARKET_RADAR_PAUSED }}
+      LLM_PAUSED: ${{ vars.LLM_INDEX_PAUSED }}
+      MAINT_PAUSED: ${{ vars.AUTODEV_PAUSED }}
+    steps:
+      - name: Summarize real scheduler (not a fixture)
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo '## V3 Production — automatic every 10 minutes'
+            echo "- Trigger: $GITHUB_EVENT_NAME"
+            echo "- This is real production orchestration, NOT eight mocked tests."
+            echo '- Due-gated W02/W01/W03/W05/W06 invoke their existing real workflows.'
+            echo '- Existing four-hour expensive provider/publisher cadence is preserved.'
+            echo '- GSC, Safety Watchdog and Quality are independently scheduled.'
+            echo '| Component | Job result |'
+            echo '| --- | --- |'
+            echo "| Preflight | $PRECHECK |"
+            echo "| W02 Market Radar | $W02 |"
+            echo "| W01 GEO | $W01 |"
+            echo "| W03 Publisher | $W03 |"
+            echo "| W05 Index | $W05 |"
+            echo "| W06 Maintenance | $W06 |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          [ "$PRECHECK" = success ] || { echo '::error::Production cadence preflight failed'; exit 1; }
+          if [ "$GITHUB_EVENT_NAME" = push ]; then
+            echo '[V3_PRODUCTION] definition smoke only; production calls were intentionally disabled'
+            exit 0
+          fi
+          for result in "$W01" "$W03"; do
+            [ "$result" = success ] || { echo "::error::Required production child workflow failed: $result"; exit 1; }
+          done
+          if [ "$RADAR_PAUSED" != true ] && [ "$W02" != success ]; then
+            echo '::error::Radar failed while not paused'; exit 1
+          fi
+          if [ "$LLM_PAUSED" != true ] && [ "$W05" != success ]; then
+            echo '::error::Index failed while not paused'; exit 1
+          fi
+          if [ "$MAINT_PAUSED" != true ] && [ "$W06" != success ]; then
+            echo '::error::Maintenance failed while not paused'; exit 1
+          fi
