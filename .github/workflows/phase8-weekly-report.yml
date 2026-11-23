@@ -7,6 +7,7 @@ on:
       - 'src/app/api/admin/weekly-report/route.ts'
       - 'src/app/admin/weekly-report/page.tsx'
       - '.github/workflows/phase8-weekly-report.yml'
+      - '.github/workflows/phase8-weekly-report-generate.yml'
   workflow_dispatch:
 permissions:
   contents: read
