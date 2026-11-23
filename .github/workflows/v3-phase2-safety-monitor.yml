@@ -1,8 +1,5 @@
 name: V3 Stage 2 safety monitor and weekly report
 on:
-  schedule:
-    - cron: '17 */6 * * *' # Read-only watchdog every 6 UTC hours
-    - cron: '0 6 * * 0'   # Weekly Sunday 09:00 Saudi time
   workflow_run:
     workflows:
       - 'GEO Intelligence Analysis'
