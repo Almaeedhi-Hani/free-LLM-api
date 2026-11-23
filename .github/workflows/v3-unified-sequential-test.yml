@@ -52,7 +52,9 @@ jobs:
           GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
         run: |
           # Compile the market test fixture before its radar-budget tests run.
-          npm run test:market
+          # Keep provider credentials OUT of mocked test fetches; only the
+          # authenticated readback step below receives the existing key.
+          env -u GEO_API_KEY -u GEO_API_URL npm run test:market
           node scripts/v3-unified-readback.cjs W02
 
       # Stage 2. GEO's direct provider contracts are tested with mocked
