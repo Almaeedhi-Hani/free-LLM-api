@@ -67,10 +67,12 @@ assert.equal(independentRadarDue('2026-11-23T06:51:10.000Z').allowed,false);
  ]){
   const workflow=fs.readFileSync('.github/workflows/'+file,'utf8');
   const matches=Array.from(workflow.matchAll(/- cron: '(\d+) (\d+) \* \* \*'/g)).map(x=>[Number(x[1]),Number(x[2])]);
-  assert.deepEqual(matches,[],file+' must not restore original 12 separate cron slots');
+  assert.deepEqual(matches,file==='market-radar.yml'?
+   Array.from({length:12},(_,i)=>[55,i*2]):[],
+   'W02 restores historical separate lanes; GEO must remain paused: '+file);
   assert.deepEqual([...workflow.matchAll(/- cron: '([^']+)'/g)].map(m=>m[1]),
-   file==='market-radar.yml'?[INDEPENDENT_RADAR_CRON]:[],
-   'Only W02 may have independent non-round cron');
+   file==='market-radar.yml'?Array.from({length:12},(_,i)=>'55 '+(i*2)+' * * *'):[],
+   'Only W02 may have historical separate UTC schedule slots');
   assert(workflow.includes('node scripts/scheduled-event-slot.cjs --kind='+kind));
   assert(workflow.includes('CADENCE_EVENT_CRON: ${{ github.event.schedule }}'));
   assert(workflow.includes('GH_TOKEN: ${{ github.token }}'));
