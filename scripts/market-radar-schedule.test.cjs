@@ -34,8 +34,7 @@ assert(workflow.includes('curl --fail-with-body --retry 0 --connect-timeout 15 -
  'never retry a data-changing radar request');
 assert(workflow.includes('/api/cron-market'),'existing bounded radar route must be reused');
 assert(!workflow.includes('--full-pipeline'),'this workflow must not run GEO again');
-assert(workflow.includes("paths:\n      - '.github/workflows/market-radar.yml'"),
- 'first-rollout push must not fire radar on every code change');
+assert.doesNotMatch(workflow,/^  push:/m,'independent workflow push trigger must remain removed');
 
 assert(endpoint.includes("req.headers.get('authorization')")&&
  endpoint.includes('CRON_SECRET'),'radar endpoint authenticates calls');

@@ -40,4 +40,8 @@ for(const name of systems){
  assert.doesNotMatch(text,/^  schedule:\s*$/m,'old automatic scheduler remains: '+name);
  assert(text.includes('workflow_dispatch:'),'manual operation removed: '+name);
 }
+for(const name of ['market-radar.yml','llm-feed-optimization.yml','autonomous-site-maintenance.yml']){
+ const content=fs.readFileSync(dir+'/'+name,'utf8');
+ assert.doesNotMatch(content,/^  push:/m,'old independent rollout push would bypass master: '+name);
+}
 console.log('PASS exactly one ten-minute cron, eight sequential no-write test stages, pause, no overlap, safe alerts and legacy manual operation');
