@@ -5,21 +5,21 @@ export default function WeeklyReportPage(){
  const [report,setReport]=useState<any>(null);
  const [error,setError]=useState('');
  const [loading,setLoading]=useState(false);
- async function load(){
+ async function load(save=false){
   setLoading(true);setError('');
   try{
-   const response=await fetch('/api/admin/weekly-report',{headers:{'x-admin-secret':secret},cache:'no-store'});
+   const response=await fetch('/api/admin/weekly-report',{method:save?'POST':'GET',headers:{'x-admin-secret':secret},cache:'no-store'});
    if(!response.ok)throw new Error(response.status===401?'بيانات الدخول غير صحيحة':'تعذر قراءة مصادر التقرير');
-   const data=await response.json();setReport(data.report);
+   const data=await response.json();setReport(data.report??data.saved?.report);
   }catch(e){setError(e instanceof Error?e.message:'تعذر تحميل التقرير');setReport(null)}
   finally{setLoading(false)}
  }
  return <main dir="rtl" className="min-h-screen bg-slate-950 text-slate-100 p-6 max-w-5xl mx-auto">
  <h1 className="text-2xl font-bold mb-3">التقرير الأسبوعي — Invest in Saudi</h1>
- <p className="text-amber-300 mb-6">معاينة مباشرة من السجلات المحفوظة؛ لم تُفعّل الجدولة أو الحفظ التلقائي بعد.</p>
+ <p className="text-amber-300 mb-6">معاينة مباشرة من السجلات المحفوظة؛ الجدولة الأسبوعية موقوفة حتى تفعيل إعدادات الإنتاج. يمكن حفظ التقرير يدويًا والتحقق من سجله.</p>
  <label className="block mb-2" htmlFor="secret">رمز إدارة النظام</label>
  <input id="secret" type="password" autoComplete="off" value={secret} onChange={e=>setSecret(e.target.value)} className="bg-slate-800 border border-slate-600 rounded p-3 w-full mb-3" />
- <button onClick={load} disabled={loading||!secret} className="bg-orange-600 rounded px-5 py-3 disabled:opacity-50">{loading?'جارٍ التحميل':'عرض التقرير'}</button>
+ <button onClick={()=>load(false)} disabled={loading||!secret} className="bg-orange-600 rounded px-5 py-3 disabled:opacity-50">{loading?'جارٍ التحميل':'عرض التقرير'}</button> <button onClick={()=>load(true)} disabled={loading||!secret} className="bg-slate-700 rounded px-5 py-3 mr-2 disabled:opacity-50">حفظ التقرير والتحقق</button>
  {error&&<p role="alert" className="text-red-300 mt-4">{error}</p>}
  {report&&<section className="mt-8 space-y-4">
  <h2 className="text-xl">الأسبوع: {report.week} — آخر توليد: {report.generatedAt}</h2>
