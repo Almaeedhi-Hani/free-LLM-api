@@ -32,9 +32,7 @@ for(const [path,kind,minute,hours] of [
  assert(src.includes('steps.cadence.outputs.run'),'Missing guarded job steps in '+path);
  const matches=Array.from(src.matchAll(/- cron: '(\d+) (\d+) \* \* \*'/g))
    .map(x=>[Number(x[1]),Number(x[2])]);
- assert.deepEqual(matches,path==='market-radar.yml'?
-   []:[],
-   'Only W02 may run restored historical lanes with the 20:09 one-time substitution: '+path);
+ assert.deepEqual(matches,[],'GitHub native schedule paused during Supabase cutover: '+path);
 }
 const llm=fs.readFileSync('.github/workflows/llm-feed-optimization.yml','utf8');
 assert(llm.includes('node scripts/llm-agent-index.cjs --update'));
