@@ -33,7 +33,7 @@ function errorResponse(error: unknown) {
 
 export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) {
-    return NextResponse.json({ status: 'unauthorized' }, { status: 401 });
+    return NextResponse.json({ status: 'unauthorized' }, { status: 401, headers: { 'Cache-Control': 'no-store' } });
   }
   try {
     const content = await getContent();
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   if (!isAuthorized(req)) {
-    return NextResponse.json({ status: 'unauthorized' }, { status: 401 });
+    return NextResponse.json({ status: 'unauthorized' }, { status: 401, headers: { 'Cache-Control': 'no-store' } });
   }
   try {
     const body = await req.json();
