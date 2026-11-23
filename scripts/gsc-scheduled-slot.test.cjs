@@ -6,9 +6,11 @@ const { scheduledSlot, chooseGscSync } = require('./gsc-scheduled-slot.cjs');
 
 const workflow = readFileSync('.github/workflows/gsc-daily-sync.yml', 'utf8');
 const crons = Array.from(workflow.matchAll(/- cron: '([^']+)'/g), match => match[1]);
-// All automatic GSC triggers are deliberately disabled by owner decision.
-assert.deepEqual(crons, []);
-assert.doesNotMatch(workflow, /^  schedule:/m);
+// Temporary five-minute schedule for real GitHub event=schedule acceptance.
+assert.deepEqual(crons, ['*/5 * * * *']);
+assert.match(workflow, /^  schedule:/m);
+assert.deepEqual(scheduledSlot('*/5 * * * *', '2026-11-23T01:13:22Z'),
+  { allowed: true, instant: '2026-11-23T01:10:00.000Z' });
 assert.match(workflow, /^  workflow_dispatch:/m);
 assert.deepEqual(scheduledSlot('45 0 * * *', '2026-11-23T00:46:00Z'),
   { allowed: true, instant: '2026-11-23T00:45:00.000Z' });
@@ -41,6 +43,15 @@ assert.doesNotMatch(workflow, /curl[^\n]*--retry/);
     return { total_count: 0, artifacts: [] };
   });
   assert.deepEqual(decision, { run: true, reason: 'scheduled_slot', instant, marker });
+  // Five-minute acceptance events must produce minute-scoped claim markers.
+  const fiveMinuteEvent = { event:'schedule', schedule:'*/5 * * * *', runId:'125', attempt:'1' };
+  const fiveMinuteRun = { id:125, event:'schedule', created_at:'2026-11-23T01:13:22Z' };
+  assert.deepEqual(await chooseGscSync(fiveMinuteEvent, async path => {
+    if (path === '/actions/runs/125') return fiveMinuteRun;
+    assert.equal(path, '/actions/artifacts?name=gsc-scheduled-slot-2026-11-23-01-10&per_page=1');
+    return { total_count:0, artifacts:[] };
+  }), {run:true, reason:'scheduled_slot', instant:'2026-11-23T01:10:00.000Z',
+    marker:'gsc-scheduled-slot-2026-11-23-01-10'});
   // A separate workflow run for the same nominal slot sees the first run's claim.
   assert.deepEqual(await chooseGscSync({ ...event, runId: '124' }, async path => {
     if (path === '/actions/runs/124') return { ...runMeta, id: 124, created_at: '2026-11-22T02:33:00Z' };
