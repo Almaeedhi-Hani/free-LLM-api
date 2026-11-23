@@ -18,15 +18,11 @@ const threeHourSlots=[0,3,6,9,12,15,18,21];
 
 function dueTasks(instant:Date):Task[]{
   const h=instant.getUTCHours(),m=instant.getUTCMinutes();
-  const out:Task[]=[];
-  if(m===55&&threeHourSlots.includes(h))out.push('W02');
-  if(m===0&&threeHourSlots.includes(h))out.push('master');
-  if(m===45&&threeHourSlots.includes(h))out.push('W04');
-  if(m===20&&threeHourSlots.includes(h))out.push('safety');
-  if(m===25&&threeHourSlots.includes(h))out.push('quality');
-  // Sunday 09:15 Asia/Riyadh = 06:15 UTC, once per weekly slot.
-  if(instant.getUTCDay()===0&&h===6&&m===15)out.push('weekly');
-  return out;
+  // One Supabase invocation per three-hour slot, not a five-minute polling clock.
+  if(m!==0||!threeHourSlots.includes(h))return [];
+  const tasks:Task[]=['W02','master','W04','safety','quality'];
+  if(instant.getUTCDay()===0&&h===6)tasks.push('weekly');
+  return tasks;
 }
 function verifySignature(req:NextRequest):boolean{
   const key=process.env.W02_SUPABASE_HMAC_SECRET||'';
