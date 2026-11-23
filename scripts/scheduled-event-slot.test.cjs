@@ -1,7 +1,7 @@
 'use strict';
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
-const {eventSlot,chooseEventSlot}=require('./scheduled-event-slot.cjs');
+const {eventSlot,chooseEventSlot,independentRadarDue,INDEPENDENT_RADAR_CRON}=require('./scheduled-event-slot.cjs');
 
 const market='55 22 * * *',geo='0 21 * * *';
 assert.deepEqual(eventSlot('market',market,'2026-11-21T23:50:00.000Z'),
@@ -22,6 +22,13 @@ assert.throws(()=>eventSlot('market','55 1 * * *','2026-11-22T01:00:00.000Z'),/U
 assert.throws(()=>eventSlot('geo','0 1-23\/2 * * *','2026-11-22T01:00:00.000Z'),/Invalid/);
 assert.throws(()=>eventSlot('geo','0 1 * * *','2026-02-30T01:00:00Z'),/Invalid/);
 
+assert.deepEqual(independentRadarDue('2026-11-23T02:58:10.000Z'),
+ {allowed:true,instant:'2026-11-23T02:55:00.000Z',kind:'market'});
+assert.equal(independentRadarDue('2026-11-23T03:02:10.000Z').allowed,false,
+ 'Next 7-minute tick must not repeat a due provider call');
+assert.equal(independentRadarDue('2026-11-23T00:58:10.000Z').allowed,false,
+ 'Old two-hour half-slot must remain skipped in 4h mode');
+assert.equal(independentRadarDue('2026-11-23T06:51:10.000Z').allowed,false);
 (async()=>{
  const calls=[];
  const lookup=async path=>{
@@ -32,6 +39,14 @@ assert.throws(()=>eventSlot('geo','0 1 * * *','2026-02-30T01:00:00Z'),/Invalid/)
   kind:'geo',event:'schedule',schedule:geo,runId:'777',attempt:'1'},lookup),{
   run:true,reason:'scheduled_slot',nominal:'2026-11-21T21:00:00.000Z'});
  assert.deepEqual(calls,['/actions/runs/777']);
+ const radarDue=await chooseEventSlot({kind:'market',event:'schedule',schedule:INDEPENDENT_RADAR_CRON,runId:'777',attempt:'1'},
+   async()=>({id:777,event:'schedule',created_at:'2026-11-23T02:58:10.000Z'}));
+ assert.deepEqual(radarDue,{run:true,reason:'radar_due',nominal:'2026-11-23T02:55:00.000Z'});
+ const radarSkip=await chooseEventSlot({kind:'market',event:'schedule',schedule:INDEPENDENT_RADAR_CRON,runId:'777',attempt:'1'},
+   async()=>({id:777,event:'schedule',created_at:'2026-11-23T03:02:10.000Z'}));
+ assert.deepEqual(radarSkip,{run:false,reason:'radar_not_due',nominal:null});
+ const radarRetry=await chooseEventSlot({kind:'market',event:'schedule',schedule:INDEPENDENT_RADAR_CRON,runId:'777',attempt:'2'},assert.fail);
+ assert.equal(radarRetry.run,false,'GitHub rerun must never repeat provider call');
  const noRepeat=await chooseEventSlot({
   kind:'geo',event:'schedule',schedule:geo,runId:'777',attempt:'2'},lookup);
  assert.deepEqual(noRepeat,{run:false,reason:'scheduled_rerun',nominal:null});
@@ -52,7 +67,10 @@ assert.throws(()=>eventSlot('geo','0 1 * * *','2026-02-30T01:00:00Z'),/Invalid/)
  ]){
   const workflow=fs.readFileSync('.github/workflows/'+file,'utf8');
   const matches=Array.from(workflow.matchAll(/- cron: '(\d+) (\d+) \* \* \*'/g)).map(x=>[Number(x[1]),Number(x[2])]);
-  assert.deepEqual(matches,[],file+' must use only the unified master schedule');
+  assert.deepEqual(matches,[],file+' must not restore original 12 separate cron slots');
+  assert.deepEqual([...workflow.matchAll(/- cron: '([^']+)'/g)].map(m=>m[1]),
+   file==='market-radar.yml'?[INDEPENDENT_RADAR_CRON]:[],
+   'Only W02 may have independent non-round cron');
   assert(workflow.includes('node scripts/scheduled-event-slot.cjs --kind='+kind));
   assert(workflow.includes('CADENCE_EVENT_CRON: ${{ github.event.schedule }}'));
   assert(workflow.includes('GH_TOKEN: ${{ github.token }}'));

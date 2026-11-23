@@ -59,7 +59,10 @@ for(const [kind,time,due] of cases){
   assert(master.includes('uses: ./.github/workflows/'+file),'Not executing real workflow: '+file);
   assert(read(file).includes('  workflow_call:'),'Production job not reusable: '+file);
   assert(read(file).includes('scheduled-event-slot.cjs --kind='),'Real due gate missing: '+file);
-  assert(!/^  schedule:/m.test(read(file)),'Stand-alone duplicate cron: '+file);
+  if(file==='market-radar.yml'){
+   assert.match(read(file),/^  schedule:/m,'W02 must have its isolated test cron');
+   assert(read(file).includes("- cron: '2,9,16,23,30,37,44,51,58 * * * *'"));
+  } else assert(!/^  schedule:/m.test(read(file)),'Other standalone schedule still paused: '+file);
  }
  const radar=master.split('  market-radar:')[1].split('  geo-intelligence:')[0];
  const geo=master.split('  geo-intelligence:')[1].split('  geo-publisher:')[0];

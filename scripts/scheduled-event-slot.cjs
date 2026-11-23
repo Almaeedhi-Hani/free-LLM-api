@@ -47,6 +47,9 @@ function eventSlot(kind,cron,createdAt){
 // call real providers or publish. This preserves original free quotas/caps;
 // the 10-minute scheduler is real production orchestration, not mocked tests.
 const PRODUCTION_MASTER_CRON='*/15 * * * *';
+// W02 alone: scheduler delivery is frequent, but real provider requests remain
+// restricted to a single non-round-minute trigger in each approved 4h window.
+const INDEPENDENT_RADAR_CRON='2,9,16,23,30,37,44,51,58 * * * *';
 function tenMinuteDue(kind,createdAt){
  const lane=lanes[kind];
  if(!lane)throw Error('Unknown scheduled lane');
@@ -63,6 +66,14 @@ function tenMinuteDue(kind,createdAt){
      (slot.getUTCHours()+3)%4===lane.postSwitchSaudiRemainder);
  return {allowed:eligible,instant:eligible?slot.toISOString():null,kind};
 }
+function independentRadarDue(createdAt){
+ const created=parseUtcDate(createdAt);
+ // GitHub run.created_at does not identify which member of a multi-minute cron
+ // emitted this event. Fail closed unless created in the unique :58 slot;
+ // never infer an older :58 event from the subsequent :02/:09 events.
+ if(created.getUTCMinutes()!==58)return {allowed:false,instant:null,kind:'market'};
+ return tenMinuteDue('market',createdAt);
+}
 async function chooseEventSlot({kind,event,schedule,runId,attempt},lookup){
  if(event==='workflow_dispatch'||event==='push')
   return {run:true,reason:event,nominal:null};
@@ -73,6 +84,10 @@ async function chooseEventSlot({kind,event,schedule,runId,attempt},lookup){
  const info=await lookup('/actions/runs/'+runId);
  if(String(info?.id)!==String(runId)||info.event!=='schedule')
   throw Error('Scheduled run metadata does not match GitHub event');
+ if(kind==='market'&&schedule===INDEPENDENT_RADAR_CRON){
+  const slot=independentRadarDue(info.created_at);
+  return {run:slot.allowed,reason:slot.allowed?'radar_due':'radar_not_due',nominal:slot.instant};
+ }
  if(schedule===PRODUCTION_MASTER_CRON){
   const slot=tenMinuteDue(kind,info.created_at);
   return {run:slot.allowed,reason:slot.allowed?'production_due':'production_not_due',nominal:slot.instant};
@@ -111,4 +126,4 @@ if(require.main===module){
   process.exitCode=1;
  });
 }
-module.exports={eventSlot,chooseEventSlot,parseUtcDate,tenMinuteDue,PRODUCTION_MASTER_CRON};
+module.exports={eventSlot,chooseEventSlot,parseUtcDate,tenMinuteDue,independentRadarDue,PRODUCTION_MASTER_CRON,INDEPENDENT_RADAR_CRON};

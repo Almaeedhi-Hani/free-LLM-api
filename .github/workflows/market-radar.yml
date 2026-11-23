@@ -1,6 +1,9 @@
 name: Market Intelligence Radar (Independent)
 
 on:
+  # Delivery probe on non-round minutes; provider call only when the 4h market slot is due.
+  schedule:
+    - cron: '2,9,16,23,30,37,44,51,58 * * * *'
   workflow_dispatch:
   workflow_call: # trusted reusable production job, invoked only by Master on approved schedule
 
