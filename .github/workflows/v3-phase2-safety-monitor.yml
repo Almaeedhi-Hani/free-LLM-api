@@ -1,5 +1,9 @@
 name: V3 Stage 2 safety monitor and weekly report
 on:
+  # Independent watchdog: continues even if the Master never starts.
+  schedule:
+    - cron: '17 */6 * * *' # 03:17,09:17,15:17,21:17 KSA
+    - cron: '0 6 * * 0' # original Sunday weekly report (09:00 KSA)
   workflow_run:
     workflows:
       - 'GEO Intelligence Analysis'
@@ -8,6 +12,8 @@ on:
       - 'GSC daily metrics sync'
       - 'LLM Agent Feed Quality & Index'
       - 'Autonomous Site Maintenance (bounded)'
+      - 'V3 hybrid linked pipeline and independent checks (5-minute test)'
+      - 'V3 Stage 2 read-only public quality and Evals alerts'
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -66,6 +72,9 @@ jobs:
             exit 0
           fi
           node scripts/v3-phase2-monitor.cjs "--mode=$mode"
+          # Independent health check of the Master schedule itself; no
+          # provider requests or publication. Missing cron generates Issue.
+          node scripts/v3-master-health.cjs --mode=watchdog
 
   failure-alert:
     if: github.event_name == 'workflow_run'
@@ -85,4 +94,8 @@ jobs:
           MARKET_RADAR_PAUSED: ${{ vars.MARKET_RADAR_PAUSED }}
           LLM_INDEX_PAUSED: ${{ vars.LLM_INDEX_PAUSED }}
           AUTODEV_PAUSED: ${{ vars.AUTODEV_PAUSED }}
-        run: node scripts/v3-phase2-monitor.cjs --mode=failure
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/v3-phase2-monitor.cjs --mode=failure
+          node scripts/v3-master-health.cjs --mode=on-completion
