@@ -48,9 +48,9 @@ export async function GET(req: NextRequest) {
     const languages=Object.fromEntries(['ar','en','zh'].map(lang=>
       [lang,allowed.has(fields[lang])?fields[lang]:'not_run']));
     return NextResponse.json({ configured: true,
-      schedule: { cadence: 'every_5_minutes_hybrid_test',
-        cron_utc: '3-58/5 * * * *',
-        saudi_time: 'كل 5 دقائق',
+      schedule: { cadence: 'every_10_minutes_production',
+        cron_utc: '7-57/10 * * * *',
+        saudi_time: 'كل 10 دقائق',
         transitionSaudi: '2026-11-23T00:00:00+03:00',
         time_zone: 'Asia/Riyadh',
         state, active: state === 'unknown' ? null : state === 'active' },
