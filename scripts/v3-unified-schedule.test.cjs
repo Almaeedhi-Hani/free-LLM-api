@@ -10,11 +10,14 @@ const systems=[
  'v3-stage2-quality-watch.yml'
 ];
 const source=fs.readFileSync(dir+'/'+master,'utf8');
-assert.match(source,/- cron: '3,13,23,33,43,53 \* \* \* \*'/,
- 'one offset 10-minute cron, not an on-the-hour high-load slot');
+assert.match(source,/- cron: '3,8,13,18,23,28,33,38,43,48,53,58 \\* \\* \\* \\*'/,
+ 'one offset five-minute cron, not an on-the-hour high-load slot');
 const minutes=source.match(/- cron: '([^']+)'/)[1].split(' ')[0].split(',').map(Number);
-assert.deepEqual(minutes,[3,13,23,33,43,53]);
-assert(minutes.every((m,i)=>minutes[(i+1)%minutes.length]!==m));
+assert.deepEqual(minutes,[3,8,13,18,23,28,33,38,43,48,53,58]);
+assert.equal(minutes.length,12);
+assert(minutes.every((m,i)=>(minutes[(i+1)%minutes.length]+60-m)%60===5));
+assert.match(source,/Diagnose GitHub event delivery/);
+assert.match(source,/event=\\$GITHUB_EVENT_NAME/);
 assert.match(source,/^  workflow_dispatch:/m);
 assert.match(source,/group: v3-unified-sequential-testing/);
 assert.match(source,/cancel-in-progress: false/);
@@ -50,4 +53,4 @@ for(const name of ['market-radar.yml','llm-feed-optimization.yml','autonomous-si
  const content=fs.readFileSync(dir+'/'+name,'utf8');
  assert.doesNotMatch(content,/^  push:/m,'old independent rollout push would bypass master: '+name);
 }
-console.log('PASS exactly one ten-minute cron, eight sequential no-write test stages, pause, no overlap, safe alerts and legacy manual operation');
+console.log('PASS exactly one five-minute cron, eight sequential no-write test stages, pause, no overlap, safe alerts and legacy manual operation');
