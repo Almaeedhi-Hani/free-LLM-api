@@ -2,6 +2,7 @@ name: LLM Agent Feed Quality & Index
 
 on:
   workflow_dispatch:
+  workflow_call: # callable from the production 10-minute Master; manual remains
 
 permissions:
   contents: write
