@@ -5,6 +5,7 @@ const dir='.github/workflows';
 const source=n=>fs.readFileSync(dir+'/'+n,'utf8');
 const master='v3-production-orchestrator.yml';
 const main=source(master);
+const {INDEPENDENT_RADAR_CRON}=require('./scheduled-event-slot.cjs');
 const crons=c=>Array.from(c.matchAll(/- cron: '([^']+)'/g),m=>m[1]);
 assert.deepEqual(crons(main),[],'Master native schedule must remain paused in serial validation');
 assert.match(main,/name: V3 production orchestrator \(15-minute cadence\)/);
@@ -30,7 +31,8 @@ for(const [job,file] of Object.entries(stages)){
  const child=source(file);
  assert.match(child,/^  workflow_call:/m);
  assert.match(child,/^  workflow_dispatch:/m);
- assert.deepEqual(crons(child),[],'No independent paid 10m trigger for '+file);
+ assert.deepEqual(crons(child),file==='market-radar.yml'?[INDEPENDENT_RADAR_CRON]:[],
+  'Only W02 independent schedule allowed; other production schedules paused: '+file);
  assert(child.includes('scheduled-event-slot.cjs --kind='),'No real due gate for '+file);
  assert(child.includes('V3_MASTER_PAUSED'),'Pause missing in '+file);
 }
@@ -67,6 +69,6 @@ assert.match(probe,/^  event-delivery-only:/m);
 assert.match(probe,/permissions:\s*\n  contents: read/);
 assert.doesNotMatch(probe,/uses: \.\/\.github\/workflows\/|secrets:|GEO_API_KEY|workflow_call:|curl |wget |dispatches|supabase|npm install/);
 const actual=fs.readdirSync(dir).filter(x=>/\.ya?ml$/.test(x)).filter(x=>/^  schedule:\s*$/m.test(source(x))).sort();
-assert.deepEqual(actual,[],'No native production or diagnostic schedule until Radar completes two verified runs');
+assert.deepEqual(actual,['market-radar.yml'],'Only W02 native cron after two verified manual runs');
 assert(!fs.existsSync(dir+'/v3-schedule-delivery-sentinel.yml'),'Temporary five-minute test must be retired');
 console.log('PASS production Master 15-minute events, real W01-W03/W05-W06, quota gates, independent GSC Safety Quality, no fixture Master, no 5m sentinel, isolated 6m probe');
