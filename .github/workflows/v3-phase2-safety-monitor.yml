@@ -1,9 +1,6 @@
 name: V3 Stage 2 safety monitor and weekly report
 on:
   # Independent watchdog: continues even if the Master never starts.
-  schedule:
-    - cron: '17 */6 * * *' # 03:17,09:17,15:17,21:17 KSA
-    - cron: '0 6 * * 0' # original Sunday weekly report (09:00 KSA)
   workflow_run:
     workflows:
       - 'GEO Intelligence Analysis'
