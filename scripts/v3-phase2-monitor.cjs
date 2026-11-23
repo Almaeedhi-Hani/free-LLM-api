@@ -449,6 +449,11 @@ async function collect(client,options) {
     const pause=await client.pauseStatus(target.id);
     if(pause.status==='paused')run={status:'paused',reason:pause.reason};
     else if(pause.status==='unknown')run={status:'unknown',reason:pause.reason};
+    else if(options.hybridTopology && target.id!=='W04') {
+      // These workflows have *no standalone cron*. The Master tests their
+      // contracts but does not claim production provider/publish execution.
+      run={status:'delegated',reason:'hybrid_master_test_only'};
+    }
     else {
       try{run=classifyRuns(await client.workflowRuns(target.filename),options.now);}
       catch{run={status:'unknown',reason:'github_read_error'};}
@@ -470,6 +475,7 @@ async function handleWatchdog(client,rows,now) {
       '\n\nThis monitor never dispatches a production workflow. The issue is updated, not duplicated.';
     if(row.run.status==='stale')result.push({workflow:row.target.id,...await client.upsertIssue({title,body,label:'watchdog'})});
     if(row.run.status==='healthy'||row.run.status==='paused')result.push({workflow:row.target.id,...await client.resolveIssue(title,body+'\nIncident resolved: '+(row.run.status==='paused'?'owner-requested pause':'genuine scheduled success')+'.')});
+    if(row.run.status==='delegated')result.push({workflow:row.target.id,...await client.resolveIssue(title,body+'\nThe retired standalone cron is no longer expected; Master owns test-only checks. This does not prove that a production provider ran.')});
 
     // The second, source-backed alarm is independent of a green workflow.
     // Never alert solely because credentials are missing or a no_change
@@ -588,6 +594,7 @@ if(require.main===module){
     const event=process.env.GITHUB_EVENT_PATH?JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH,'utf8')):{};
     const result=await run({mode,repository:process.env.GITHUB_REPOSITORY,token:process.env.GH_TOKEN,
       now:Date.now(),supabaseUrl:process.env.SUPABASE_URL,supabaseKey:process.env.SUPABASE_SERVICE_ROLE_KEY,geoApiKey:process.env.GEO_API_KEY,event,
+      hybridTopology:true,
       pauseVarSnapshot:{
         V3_MASTER_PAUSED:process.env.V3_MASTER_PAUSED??'',
         MARKET_RADAR_PAUSED:process.env.MARKET_RADAR_PAUSED??'',
