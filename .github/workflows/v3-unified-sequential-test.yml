@@ -1,12 +1,11 @@
-name: V3 unified sequential 10-minute integration test
+name: V3 unified sequential 5-minute integration test
 on:
   # ONLY recurring GitHub Actions trigger for the eight V3 systems.
-  # GitHub cron is best-effort, and queued full pipelines may exceed ten minutes.
+  # GitHub cron is best-effort; queued full pipelines may exceed five minutes.
   schedule:
-    # Keep exact 10-minute intervals, but avoid minute 00 and re-register
-    # this new workflow's schedule with GitHub's asynchronous cron service.
-    # Six UTC instants/hour: 03,13,23,33,43,53 (same in Saudi minutes).
-    - cron: '3,13,23,33,43,53 * * * *'
+    # Temporary diagnostic five-minute cadence: avoid minute 00, keep exactly
+    # 12 UTC slots/hour, single source of scheduling for all eight systems.
+    - cron: '3,8,13,18,23,28,33,38,43,48,53,58 * * * *'
   # One-time smoke test of the merged orchestrator before the next cron fires.
   push:
     branches: [main]
@@ -32,6 +31,16 @@ jobs:
       CI: 'true'
       NODE_ENV: test
     steps:
+      - name: Diagnose GitHub event delivery (no secrets)
+        env:
+          TRIGGER_CRON: ${{ github.event.schedule }}
+        shell: bash
+        run: |
+          echo "[V3_SCHEDULE_DIAG] event=$GITHUB_EVENT_NAME ref=$GITHUB_REF cron=${TRIGGER_CRON:-none} run_id=$GITHUB_RUN_ID"
+          if [ "$GITHUB_EVENT_NAME" = schedule ] && [ "$TRIGGER_CRON" != '3,8,13,18,23,28,33,38,43,48,53,58 * * * *' ]; then
+            echo "::error::Unexpected cron source for the only V3 scheduler"
+            exit 1
+          fi
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
@@ -178,7 +187,7 @@ jobs:
         shell: bash
         run: |
           {
-            echo '## V3 single-scheduler 10-minute sequential test'
+            echo '## V3 single-scheduler 5-minute sequential test'
             echo 'High-frequency checks are read-only/offline except GSC sync and quality Issue reconciliation.'
             echo 'No AI/search API probing, visitor publishing, pull requests or autonomous merging.'
             echo '| Sequence | System | Real step result |'
