@@ -5,7 +5,6 @@ const dir='.github/workflows';
 const source=n=>fs.readFileSync(dir+'/'+n,'utf8');
 const master='v3-production-orchestrator.yml';
 const main=source(master);
-const githubRadarCrons=[];
 const crons=c=>Array.from(c.matchAll(/- cron: '([^']+)'/g),m=>m[1]);
 assert.deepEqual(crons(main),[],'Master native schedule must remain paused in serial validation');
 assert.match(main,/name: V3 production orchestrator \(15-minute cadence\)/);
@@ -31,8 +30,8 @@ for(const [job,file] of Object.entries(stages)){
  const child=source(file);
  assert.match(child,/^  workflow_call:/m);
  assert.match(child,/^  workflow_dispatch:/m);
- assert.deepEqual(crons(child),file==='market-radar.yml'?githubRadarCrons:[],
-  'Only W02 independent schedule allowed; other production schedules paused: '+file);
+ assert.deepEqual(crons(child),[],
+  'Supabase owns W02, no GitHub schedule allowed: '+file);
  assert(child.includes('scheduled-event-slot.cjs --kind='),'No real due gate for '+file);
  assert(child.includes('V3_MASTER_PAUSED'),'Pause missing in '+file);
 }
