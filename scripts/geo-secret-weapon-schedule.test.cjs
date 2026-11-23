@@ -33,7 +33,7 @@ assert.doesNotMatch(radar,/^  schedule:/m,'radar now uses the unified single sch
 assert(radar.includes('scheduled-event-slot.cjs --kind=market'),'Independent market radar uses original event time');
 assert(gsc.includes('gsc-scheduled-slot.cjs')&&gsc.includes('github.event.schedule'),'GSC uses immutable cron trigger');
 assert(geo.includes('scheduled-event-slot.cjs --kind=geo'),'GEO uses original event time');
-assert(api.includes("github('/actions/workflows/' + workflow)"),'Real GitHub workflow status must be read');
+assert(api.includes("github('/actions/workflows/' + unifiedWorkflow)"),'Unified GitHub workflow status must be read');
 assert(api.includes("state === 'unknown' ? null : state === 'active'"),'Unknown not displayed as active');
 assert(api.includes("cron_utc: '*/10 * * * *'"),'Dashboard reports the unified 10-minute test schedule');
 assert(ui.includes('جدولة الاختبار الموحدة مفعّلة')&&ui.includes('تعذّر تأكيد تفعيل جدولة الاختبار الموحدة'),'Visible accurate unified schedule state');
