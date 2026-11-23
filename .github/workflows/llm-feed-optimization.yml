@@ -98,7 +98,15 @@ jobs:
           set -euo pipefail
           branch='bot/llm-agent-index'
           if git ls-remote --exit-code --heads origin "refs/heads/$branch" >/dev/null 2>&1; then
-            echo '::error::Existing index PR branch must be resolved first; no duplicate PR.'
+            # A pending, reviewable PR is a normal state, not a broken pipeline.
+            # Never overwrite the branch or auto-merge without required CI.
+            existing_pr="$(gh pr list --state open --head "$branch" --base main --json number --jq '.[0].number // empty')"
+            if [ -n "$existing_pr" ]; then
+              echo "::notice::Index update already awaits CI/review in PR #$existing_pr; no duplicate PR."
+              echo "- Existing index PR: #$existing_pr (pending; no merge)" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            echo '::error::Orphan index branch exists without an open PR; manual cleanup required.'
             exit 1
           fi
           git config user.name 'github-actions[bot]'
