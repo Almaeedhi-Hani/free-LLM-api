@@ -1,0 +1,27 @@
+name: Phase 8 weekly report generation
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '15 6 * * 0'
+permissions:
+  contents: read
+jobs:
+  generate:
+    if: github.event_name == 'workflow_dispatch' || vars.PHASE8_WEEKLY_REPORT_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Generate and verify persisted weekly report
+        env:
+          REPORT_URL: ${{ secrets.PHASE8_REPORT_URL }}
+          REPORT_SECRET: ${{ secrets.PHASE8_REPORT_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "$REPORT_URL" && test -n "$REPORT_SECRET"
+          test "${REPORT_URL#https://}" != "$REPORT_URL"
+          curl --fail-with-body --retry 2 --max-time 120 -sS \
+            -X POST "$REPORT_URL/api/admin/weekly-report" \
+            -H "x-admin-secret: $REPORT_SECRET" \
+            -H "Content-Type: application/json" \
+            -o /tmp/weekly-report-response.json
+          node -e "const r=require('/tmp/weekly-report-response.json');if(!r.saved?.verified_at||!r.saved?.week_key)process.exit(1);console.log('Verified weekly report:',r.saved.week_key)"
