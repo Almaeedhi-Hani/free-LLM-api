@@ -47,6 +47,14 @@ assert(endpoint.includes("req.headers.get('authorization')")&&
  endpoint.includes('CRON_SECRET'),'radar endpoint authenticates calls');
 assert(endpoint.includes("runRadar({ triggeredBy: 'cron' })"),
  'existing market intelligence pipeline must be preserved');
+assert(endpoint.includes('W02_SUPABASE_HMAC_SECRET') &&
+ endpoint.includes('x-w02-cron-ts') && endpoint.includes('x-w02-cron-signature') &&
+ endpoint.includes("createHmac('sha256'") && endpoint.includes('timingSafeEqual'),
+ 'Supabase cron must authenticate without disclosing Vault key in HTTP headers');
+assert(endpoint.includes('Math.abs(Math.floor(Date.now() / 1000) - epochSeconds) > 300') &&
+ endpoint.includes('originalGitHubAuth') &&
+ endpoint.includes('signedSupabaseAuth'),
+ 'Five-minute replay window and original GitHub bearer rollback path must be retained');
 assert(budget.includes('search_requests_limit')&&budget.includes('suggestion_requests_limit'),
  'bounded query/provider budget must remain tested');
 console.log('PASS independent radar 2h-to-4h Saudi scheduling, no overlap, existing auth and provider limits');
