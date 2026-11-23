@@ -3,7 +3,10 @@ on:
   # ONLY recurring GitHub Actions trigger for the eight V3 systems.
   # GitHub cron is best-effort, and queued full pipelines may exceed ten minutes.
   schedule:
-    - cron: '*/10 * * * *'
+    # Keep exact 10-minute intervals, but avoid minute 00 and re-register
+    # this new workflow's schedule with GitHub's asynchronous cron service.
+    # Six UTC instants/hour: 03,13,23,33,43,53 (same in Saudi minutes).
+    - cron: '3,13,23,33,43,53 * * * *'
   # One-time smoke test of the merged orchestrator before the next cron fires.
   push:
     branches: [main]
