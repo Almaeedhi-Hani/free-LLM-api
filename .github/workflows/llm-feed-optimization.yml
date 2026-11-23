@@ -1,10 +1,6 @@
 name: LLM Agent Feed Quality & Index
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/llm-feed-optimization.yml' # One-time rollout audit
   workflow_dispatch:
 
 permissions:
