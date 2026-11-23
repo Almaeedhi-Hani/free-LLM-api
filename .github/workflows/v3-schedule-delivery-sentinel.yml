@@ -12,6 +12,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read # narrow GitHub workflow-registry inspection only
 concurrency:
   group: v3-schedule-delivery-sentinel
   cancel-in-progress: false
@@ -37,6 +38,26 @@ jobs:
           else
             echo "SENTINEL NOT_SCHEDULE; a successful push is not scheduling evidence"
           fi
+      - name: Inspect GitHub scheduler registrations (read-only)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v gh >/dev/null
+          registry="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows?per_page=100")"
+          for file in v3-unified-sequential-test.yml gsc-daily-sync.yml v3-phase2-safety-monitor.yml v3-stage2-quality-watch.yml v3-schedule-delivery-sentinel.yml; do
+            state="$(printf '%s' "$registry" | jq -r --arg path ".github/workflows/$file" '.workflows[]? | select(.path == $path) | .state' | head -1)"
+            workflow_id="$(printf '%s' "$registry" | jq -r --arg path ".github/workflows/$file" '.workflows[]? | select(.path == $path) | .id' | head -1)"
+            echo "SENTINEL_REGISTRY file=$file id=${workflow_id:-unknown} state=${state:-missing}"
+            if [ "$state" != active ]; then
+              echo "::error::Required GitHub scheduled workflow is not active: $file"
+              exit 1
+            fi
+          done
+          recent="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?event=schedule&per_page=5")"
+          printf '%s' "$recent" | jq -r '.workflow_runs[]? | "SENTINEL_SCHEDULE_HISTORY id=\(.id) name=\(.name) created_at=\(.created_at)"'
+          echo "SENTINEL_REGISTRY read_only=success"
       - name: Publish diagnostic summary
         env:
           TRIGGER_CRON: ${{ github.event.schedule }}
