@@ -6,12 +6,14 @@ const { scheduledSlot, chooseGscSync } = require('./gsc-scheduled-slot.cjs');
 
 const workflow = readFileSync('.github/workflows/gsc-daily-sync.yml', 'utf8');
 const crons = Array.from(workflow.matchAll(/- cron: '([^']+)'/g), match => match[1]);
-const updatedUtc = Array.from({ length: 12 }, (_, index) =>
-  index === 1 ? '45 0 * * *' : `0 ${index * 2} * * *`);
-assert.deepEqual(crons, updatedUtc);
-assert(crons.every(expression => scheduledSlot(expression, '2026-11-20T23:59:59Z').allowed));
-assert.deepEqual(crons.filter(expression => scheduledSlot(expression, '2026-11-22T23:59:59Z').allowed),
-  ['45 0 * * *', '0 6 * * *', '0 10 * * *', '0 14 * * *', '0 18 * * *', '0 22 * * *']);
+const activeUtc = ['45 0 * * *', '0 6 * * *', '0 10 * * *',
+  '0 14 * * *', '0 18 * * *', '0 22 * * *'];
+assert.deepEqual(crons, activeUtc);
+assert.equal(new Set(crons).size, 6);
+assert(crons.every(expression => scheduledSlot(expression, '2026-11-23T23:59:59Z').allowed));
+// Never schedule non-actionable slots, but retain historical parser coverage for late legacy runs.
+assert(!crons.includes('0 20 * * *'));
+assert(!crons.includes('0 2 * * *'));
 assert.deepEqual(scheduledSlot('45 0 * * *', '2026-11-23T00:46:00Z'),
   { allowed: true, instant: '2026-11-23T00:45:00.000Z' });
 assert.deepEqual(scheduledSlot('0 20 * * *', '2026-11-22T01:12:00Z'),
