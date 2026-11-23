@@ -46,6 +46,10 @@ jobs:
         run: |
           npx tsc src/lib/gsc-oauth-failure.ts --outDir .visibility-test-build --module commonjs --target es2020 --lib es2020,dom --moduleResolution node --esModuleInterop --skipLibCheck --strict --types node
           node scripts/gsc-oauth-failure.test.cjs
+      - name: GSC service-account read-only JWT and explicit rollout tests
+        run: |
+          npx tsc src/lib/gsc-service-account.ts --outDir .visibility-test-build --module commonjs --target es2020 --lib es2020,dom --moduleResolution node --esModuleInterop --skipLibCheck --strict --types node
+          node scripts/gsc-service-account.test.cjs
       - name: OpenCode multilingual topic architect and source-diversity contract
         run: node scripts/geo-opencode-planner.test.cjs
       - name: Cross-site editorial routing, review and publication contract
