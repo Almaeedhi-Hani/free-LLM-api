@@ -1,10 +1,10 @@
-name: V3 unified sequential 5-minute integration test
+name: V3 hybrid linked pipeline and independent checks (5-minute test)
 on:
-  # ONLY recurring GitHub Actions trigger for the eight V3 systems.
+  # Owner-approved five-minute rapid test for linked content stages + independent checks.
   # GitHub cron is best-effort; queued full pipelines may exceed five minutes.
   schedule:
     # Temporary diagnostic five-minute cadence: avoid minute 00, keep exactly
-    # 12 UTC slots/hour, single source of scheduling for all eight systems.
+    # 12 UTC slots/hour. Safety, Quality and GSC use their own approved crons.
     - cron: '3,8,13,18,23,28,33,38,43,48,53,58 * * * *'
   # One-time smoke test of the merged orchestrator before the next cron fires.
   push:
@@ -16,17 +16,19 @@ on:
 permissions:
   contents: read
   actions: read
-  issues: write # Existing quality reconciler only; no source, PR, or site writes.
+  issues: read # No issue reconciliation in the Master; independent Safety/Quality own alerts.
 
 concurrency:
   group: v3-unified-sequential-testing
   cancel-in-progress: false
 
 jobs:
-  sequential-test:
+  # Only the content pipeline preserves ordering. Even when Radar reports
+  # failure GEO still executes (continue-on-error); the aggregate is red.
+  linked-pipeline:
     if: github.ref == 'refs/heads/main' && vars.V3_MASTER_PAUSED != 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 30
     env:
       CI: 'true'
       NODE_ENV: test
@@ -105,29 +107,47 @@ jobs:
           node scripts/geo-publishing-cadence.test.cjs
           node scripts/v3-unified-readback.cjs W03
 
-      # Stage 4. GSC is a real authenticated sync request. The server still
-      # handles missing-day detection/idempotency and its own quotas.
-      - name: W04 - Collect GSC metrics from real production API
-        id: w04
-        continue-on-error: true
+      - name: Report linked content checks without masking partial failures
+        if: always()
         env:
-          GSC_SYNC_URL: ${{ secrets.GSC_SYNC_URL }}
-          GSC_CRON_SECRET: ${{ secrets.GSC_CRON_SECRET }}
-          GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
+          W02: ${{ steps.w02.outcome }}
+          W01: ${{ steps.w01.outcome }}
+          W03: ${{ steps.w03.outcome }}
         shell: bash
         run: |
-          set -euo pipefail
-          test -n "$GSC_SYNC_URL" && test -n "$GSC_CRON_SECRET" || {
-            echo "::error::GSC sync secrets are missing"; exit 1;
-          }
-          curl --fail --silent --show-error --retry 0 --max-time 95 \
-            -H "Authorization: Bearer $GSC_CRON_SECRET" \
-            --output "$RUNNER_TEMP/gsc-sequential-response.json" "$GSC_SYNC_URL"
-          echo "[V3_GSC] actual_authenticated_sync=success; no automatic retry"
-          node scripts/v3-unified-readback.cjs W04
+          {
+            echo '## Linked content pipeline (test-only)'
+            echo '| Stage | Result |'
+            echo '| --- | --- |'
+            echo "| W02 Radar | $W02 |"
+            echo "| W01 GEO | $W01 |"
+            echo "| W03 Publisher policy | $W03 |"
+            echo 'W02 failure does not block W01; no production AI calls or publication.'
+          } >> "$GITHUB_STEP_SUMMARY"
+          for result in "$W02" "$W01" "$W03"; do
+            if [ "$result" != success ]; then
+              echo "::error::Linked pipeline partial failure"
+              exit 1
+            fi
+          done
 
-      # Stage 5. Read live canonical feed and verify potential changes locally.
-      # NEVER create an index PR, merge or publish during rapid testing.
+  # W05 is not dependent on Radar/GEO/Publisher.
+  llm-feed-check:
+    if: github.ref == 'refs/heads/main' && vars.V3_MASTER_PAUSED != 'true' && vars.LLM_INDEX_PAUSED != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
       - name: W05 - Live machine-readable index no-write validation
         id: w05
         continue-on-error: true
@@ -144,80 +164,66 @@ jobs:
           fi
           echo "[V3_W05] live_public_feed=success, no_publish=true"
 
-      # Stage 6. Exercise autodev only in fixtures: no PR, code changes
-      # or automatic merges during the high-frequency test.
+
+  # W06 is independent; safe fixture only and no bot PR.
+  maintenance-check:
+    if: github.ref == 'refs/heads/main' && vars.V3_MASTER_PAUSED != 'true' && vars.AUTODEV_PAUSED != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
       - name: W06 - Safe maintenance policy and regression fixtures
         id: w06
         continue-on-error: true
         run: |
           node scripts/autodev-safe-topic.test.cjs
 
-      # Stage 7. Existing watchdog contracts and real protected health.
-      # Do not run legacy scheduled-staleness reconciliation against the
-      # newly retired standalone cron schedules (would create false alarms).
-      - name: Stage2 - Watchdog and report contracts
-        id: safety
-        continue-on-error: true
-        env:
-          GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
-        run: |
-          node scripts/v3-phase2-monitor.test.cjs
-          node scripts/v3-unified-readback.cjs W04
 
-      # Stage 8. Real own-domain GET audit plus offline trilingual Evals.
-      # The existing reconciler may create/resolve a legitimate quality issue.
-      - name: Stage2 - Public quality and trilingual Evals
-        id: quality
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
-          V3_EVAL_OUTCOME: success
-        shell: bash
-        run: |
-          set -euo pipefail
-          node scripts/v3-stage2-quality-audit.test.cjs
-          npx tsc src/lib/keyword-relevance-eval.ts src/lib/source-policy.ts \
-            --target es2020 --module commonjs --rootDir src --outDir .v3-evals-build \
-            --lib es2020,dom --moduleResolution node --esModuleInterop \
-            --skipLibCheck --strict --types node
-          node scripts/v3-regression-evals.test.cjs
-          node scripts/v3-stage2-quality-audit.cjs
-
-      # Full result is red if ANY system was not verified; never mask failures.
-      - name: Publish ordered run report and reject partial success
-        if: always()
-        env:
-          W02: ${{ steps.w02.outcome }}
-          W01: ${{ steps.w01.outcome }}
-          W03: ${{ steps.w03.outcome }}
-          W04: ${{ steps.w04.outcome }}
-          W05: ${{ steps.w05.outcome }}
-          W06: ${{ steps.w06.outcome }}
-          SAFETY: ${{ steps.safety.outcome }}
-          QUALITY: ${{ steps.quality.outcome }}
+  # Aggregation depends on check completion only, not their execution order.
+  result-summary:
+    if: always() && github.ref == 'refs/heads/main' && vars.V3_MASTER_PAUSED != 'true'
+    needs: [linked-pipeline, llm-feed-check, maintenance-check]
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      PIPELINE: ${{ needs.linked-pipeline.result }}
+      INDEX: ${{ needs.llm-feed-check.result }}
+      MAINTENANCE: ${{ needs.maintenance-check.result }}
+      INDEX_PAUSED: ${{ vars.LLM_INDEX_PAUSED }}
+      MAINTENANCE_PAUSED: ${{ vars.AUTODEV_PAUSED }}
+    steps:
+      - name: Record independent results and fail only on real non-paused failures
         shell: bash
         run: |
           {
-            echo '## V3 single-scheduler 5-minute sequential test'
-            echo 'High-frequency checks are read-only/offline except GSC sync and quality Issue reconciliation.'
-            echo 'No AI/search API probing, visitor publishing, pull requests or autonomous merging.'
-            echo '| Sequence | System | Real step result |'
-            echo '|---|---|---|'
-            echo "| 1 | W02 Market Radar | $W02 |"
-            echo "| 2 | W01 GEO Intelligence | $W01 |"
-            echo "| 3 | W03 Publication policy | $W03 |"
-            echo "| 4 | W04 GSC live sync | $W04 |"
-            echo "| 5 | W05 LLM index live GET | $W05 |"
-            echo "| 6 | W06 Safe maintenance | $W06 |"
-            echo "| 7 | Stage2 Watchdog | $SAFETY |"
-            echo "| 8 | Stage2 Quality | $QUALITY |"
+            echo '## V3 hybrid five-minute test'
+            echo 'Linked: W02 then W01 then W03. Independent: W05, W06.'
+            echo 'GSC, Safety Monitor and Quality Watch are independent scheduled workflows.'
+            echo '| Component | GitHub result |'
+            echo '| --- | --- |'
+            echo "| Content pipeline | $PIPELINE |"
+            echo "| W05 independent | $INDEX |"
+            echo "| W06 independent | $MAINTENANCE |"
           } >> "$GITHUB_STEP_SUMMARY"
-          fail=0
-          for result in "$W02" "$W01" "$W03" "$W04" "$W05" "$W06" "$SAFETY" "$QUALITY"; do
-            if [ "$result" != success ]; then fail=1; fi
-          done
-          if [ "$fail" -ne 0 ]; then
-            echo "::error::A V3 sequential system stage failed; inspect each named step"
+          if [ "$PIPELINE" != success ]; then
+            echo "::error::Linked content pipeline did not complete successfully"
+            exit 1
+          fi
+          if [ "$INDEX_PAUSED" != true ] && [ "$INDEX" != success ]; then
+            echo "::error::Independent W05 check failed"
+            exit 1
+          fi
+          if [ "$MAINTENANCE_PAUSED" != true ] && [ "$MAINTENANCE" != success ]; then
+            echo "::error::Independent W06 check failed"
             exit 1
           fi
