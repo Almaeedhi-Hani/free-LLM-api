@@ -7,13 +7,10 @@ export const maxDuration = 300;
 // One centrally controlled five-minute Supabase clock; all UTC slots are fixed.
 const REPO = 'Almaeedhi-Hani/free-LLM-api';
 const GITHUB_ROOT = 'https://api.github.com/repos/' + REPO;
-type Task = 'W02'|'W01'|'W03'|'W04'|'W05'|'W06'|'safety'|'quality';
+type Task = 'W02'|'master'|'W04'|'safety'|'quality';
 const stages: Readonly<Record<Exclude<Task,'W02'>,{workflow:string;inputs?:Record<string,string>}>> = {
-  W01:{workflow:'geo-analysis.yml'},
-  W03:{workflow:'geo-auto-publication-daily.yml'},
+  master:{workflow:'v3-production-orchestrator.yml',inputs:{source:'supabase'}},
   W04:{workflow:'gsc-daily-sync.yml'},
-  W05:{workflow:'llm-feed-optimization.yml'},
-  W06:{workflow:'autonomous-site-maintenance.yml'},
   safety:{workflow:'v3-phase2-safety-monitor.yml',inputs:{mode:'watchdog'}},
   quality:{workflow:'v3-stage2-quality-watch.yml',inputs:{mode:'live'}}
 };
@@ -25,11 +22,8 @@ function dueTasks(instant:Date):Task[]{
   const h=instant.getUTCHours(),m=instant.getUTCMinutes();
   const out:Task[]=[];
   if(m===55&&marketHours.includes(h))out.push('W02');
-  if(m===0&&geoHours.includes(h))out.push('W01');
-  if(m===50&&geoHours.includes(h))out.push('W03');
+  if(m===0&&geoHours.includes(h))out.push('master');
   if(m===45&&gscHours.includes(h))out.push('W04');
-  if(m===10&&marketHours.includes(h))out.push('W05');
-  if(m===35&&marketHours.includes(h))out.push('W06');
   if(m===20&&h%6===0)out.push('safety');
   if(m===25&&h===4)out.push('quality');
   return out;
@@ -95,13 +89,13 @@ export async function POST(req:NextRequest){
   if(mode==='capabilities')return NextResponse.json({status:'ok',
     githubDispatchConfigured:Boolean(token&&token.length>=24),
     radarConfigured:Boolean(process.env.CRON_SECRET&&process.env.SUPABASE_SERVICE_ROLE_KEY),
-    geoScheduling:'github_workflow_dispatch',
+    geoScheduling:'ordered_github_master_workflow_dispatch',
     now:new Date().toISOString()
   });
   if(mode!=='tick'&&mode!=='one_test')return NextResponse.json({error:'invalid_mode'},{status:400});
   // The caller must never create a central schedule before all required dispatch credentials exist.
   if(!token||token.length<24)return NextResponse.json({status:'blocked',reason:'github_dispatch_token_missing'},{status:503});
-  const tasks:Task[]=mode==='one_test'?['W02','W01','W03','W04','W05','W06','safety','quality']:
+  const tasks:Task[]=mode==='one_test'?['W02','master','W04','safety','quality']:
     dueTasks(new Date());
   if(!tasks.length)return NextResponse.json({status:'idle',due:[],now:new Date().toISOString()});
   // No retries: uncertain 204 responses cannot be dispatched twice safely.
