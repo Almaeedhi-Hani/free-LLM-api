@@ -47,6 +47,7 @@ jobs:
           node scripts/v3-unified-schedule.test.cjs
           node scripts/v3-unified-readback.test.cjs
           node scripts/v3-master-health.test.cjs
+          node scripts/v3-github-dispatch-fallback.test.cjs
       - name: Evidence-gated organic ranking, indexing, AI visibility and conversion tests
         run: npm run test:visibility
       - name: GSC OAuth failure is explicit owner action without revealing secrets
