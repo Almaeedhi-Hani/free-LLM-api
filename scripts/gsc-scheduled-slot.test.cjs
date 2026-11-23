@@ -6,9 +6,9 @@ const { scheduledSlot, chooseGscSync } = require('./gsc-scheduled-slot.cjs');
 
 const workflow = readFileSync('.github/workflows/gsc-daily-sync.yml', 'utf8');
 const crons = Array.from(workflow.matchAll(/- cron: '([^']+)'/g), match => match[1]);
-// Temporary five-minute schedule for real GitHub event=schedule acceptance.
-assert.deepEqual(crons, ['*/5 * * * *']);
-assert.match(workflow, /^  schedule:/m);
+// GSC has no automatic schedule after temporary acceptance testing.
+assert.deepEqual(crons, []);
+assert.doesNotMatch(workflow, /^  schedule:/m);
 assert.deepEqual(scheduledSlot('*/5 * * * *', '2026-11-23T01:13:22Z'),
   { allowed: true, instant: '2026-11-23T01:10:00.000Z' });
 assert.match(workflow, /^  workflow_dispatch:/m);
