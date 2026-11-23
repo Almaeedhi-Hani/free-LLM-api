@@ -2,6 +2,8 @@ name: LLM Agent Feed Quality & Index
 
 on:
   schedule:
+    # TEMP: Stage-2 true event=schedule acceptance; remove once W05 index step is proven.
+    - cron: '*/5 * * * *'
     - cron: '10 0 * * *' # Saudi odd hours :10; four-hour effective after Nov 22
     - cron: '10 2 * * *'
     - cron: '10 4 * * *'
@@ -82,7 +84,7 @@ jobs:
           fi
 
       - name: Reject any unrelated file edit
-        if: steps.index.outputs.changed == 'true'
+        if: steps.index.outputs.changed == 'true' && github.event.schedule != '*/5 * * * *'
         shell: bash
         run: |
           set -euo pipefail
@@ -92,7 +94,7 @@ jobs:
           test "$(wc -c < public/llms.txt)" -le 80000
 
       - name: Run all required quality checks and production build before PR
-        if: steps.index.outputs.changed == 'true'
+        if: steps.index.outputs.changed == 'true' && github.event.schedule != '*/5 * * * *'
         shell: bash
         run: |
           set -euo pipefail
@@ -106,7 +108,7 @@ jobs:
           npm run build
 
       - name: Create and merge a verified narrow index PR without duplicates
-        if: steps.index.outputs.changed == 'true'
+        if: steps.index.outputs.changed == 'true' && github.event.schedule != '*/5 * * * *'
         env:
           GH_TOKEN: ${{ secrets.AUTODEV_GITHUB_TOKEN || github.token }}
         shell: bash

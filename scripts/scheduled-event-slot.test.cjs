@@ -4,6 +4,10 @@ const fs=require('node:fs');
 const {eventSlot,chooseEventSlot}=require('./scheduled-event-slot.cjs');
 
 const market='55 22 * * *',geo='0 21 * * *';
+assert.deepEqual(eventSlot('llm','*/5 * * * *','2026-11-23T01:31:12.000Z'),
+  {instant:'2026-11-23T01:30:00.000Z',allowed:true,kind:'llm'});
+assert.throws(()=>eventSlot('geo','*/5 * * * *','2026-11-23T01:31:12.000Z'),/Invalid/);
+
 assert.deepEqual(eventSlot('market',market,'2026-11-21T23:50:00.000Z'),
  {instant:'2026-11-21T22:55:00.000Z',allowed:true,kind:'market'});
 assert.equal(eventSlot('market','55 0 * * *','2026-11-22T01:20:00.000Z').allowed,false,

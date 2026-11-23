@@ -25,6 +25,13 @@ function parseUtcDate(value){
 function eventSlot(kind,cron,createdAt){
  const lane=lanes[kind];
  if(!lane)throw Error('Unknown scheduled lane');
+ if(kind==='llm' && cron==='*/5 * * * *') {
+   // Temporary Stage-2 acceptance: actual event=schedule exercises the public feed read.
+   // Anchor to immutable GitHub run creation time, not delayed runner wall clock.
+   const created=parseUtcDate(createdAt);
+   created.setUTCMinutes(Math.floor(created.getUTCMinutes()/5)*5,0,0);
+   return {instant:created.toISOString(),allowed:true,kind};
+ }
  const found=/^(\d{1,2}) (\d{1,2}) \* \* \*$/.exec(cron||'');
  if(!found)throw Error('Invalid scheduled cron lane');
  const minute=Number(found[1]),hour=Number(found[2]);
