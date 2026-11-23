@@ -41,7 +41,7 @@ function githubToken():string|undefined {
   return process.env.V3_GITHUB_DISPATCH_TOKEN ||
     process.env.AUTODEV_GITHUB_TOKEN || process.env.GITHUB_DISPATCH_TOKEN;
 }
-async function dispatchGitHub(task:Exclude<Task,'W02'>,token:string){
+async function dispatchGitHub(task:Exclude<Task,'W02'|'weekly'>,token:string){
   const item=stages[task];
   const r=await fetch(GITHUB_ROOT+'/actions/workflows/'+item.workflow+'/dispatches',{
     method:'POST',
