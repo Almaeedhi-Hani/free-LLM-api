@@ -450,9 +450,10 @@ async function collect(client,options) {
     if(pause.status==='paused')run={status:'paused',reason:pause.reason};
     else if(pause.status==='unknown')run={status:'unknown',reason:pause.reason};
     else if(options.hybridTopology && target.id!=='W04') {
-      // These workflows have *no standalone cron*. The Master tests their
-      // contracts but does not claim production provider/publish execution.
-      run={status:'delegated',reason:'hybrid_master_test_only'};
+      // The production Master has the sole 10m cron, but the five reusable
+      // children run REAL work only at their previously approved due slots.
+      // Their own retired standalone cron must not be used for freshness.
+      run={status:'delegated',reason:'production_master_due_gated'};
     }
     else {
       try{run=classifyRuns(await client.workflowRuns(target.filename),options.now);}
@@ -475,7 +476,7 @@ async function handleWatchdog(client,rows,now) {
       '\n\nThis monitor never dispatches a production workflow. The issue is updated, not duplicated.';
     if(row.run.status==='stale')result.push({workflow:row.target.id,...await client.upsertIssue({title,body,label:'watchdog'})});
     if(row.run.status==='healthy'||row.run.status==='paused')result.push({workflow:row.target.id,...await client.resolveIssue(title,body+'\nIncident resolved: '+(row.run.status==='paused'?'owner-requested pause':'genuine scheduled success')+'.')});
-    if(row.run.status==='delegated')result.push({workflow:row.target.id,...await client.resolveIssue(title,body+'\nThe retired standalone cron is no longer expected; Master owns test-only checks. This does not prove that a production provider ran.')});
+    if(row.run.status==='delegated')result.push({workflow:row.target.id,...await client.resolveIssue(title,body+'\nThe retired standalone cron is no longer expected; Master invokes actual bounded production child workflows at approved due slots. Check per-stage logs and persistence before claiming a provider ran.')});
 
     // The second, source-backed alarm is independent of a green workflow.
     // Never alert solely because credentials are missing or a no_change
