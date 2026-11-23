@@ -1,5 +1,8 @@
 name: GSC daily metrics sync
 on:
+  # Temporary owner-approved every-five-minute natural schedule to verify W04 event=schedule.
+  schedule:
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 permissions:
   contents: read
