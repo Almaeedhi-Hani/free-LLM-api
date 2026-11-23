@@ -335,6 +335,37 @@ function weeklyEvidenceLines(data) {
   return [f,p];
 }
 
+async function readProviderUsage({key,fetchImpl=fetch}={}){
+ if(!key)return {status:'unknown',reason:'monitoring_key_missing'};
+ try{
+  const res=await fetchImpl('https://free-llm-api-1-didl.onrender.com/api/geo/provider-usage',{
+   method:'GET',redirect:'error',signal:AbortSignal.timeout(12000),
+   headers:{'x-geo-api-key':key,Accept:'application/json'}});
+  if(!res.ok)return {status:'unknown',reason:'readback_http_'+res.status};
+  const data=await res.json();
+  const names=['exa','tavily','parallel','firecrawl','groq','gemini','nvidia','openrouter'];
+  if(!Array.isArray(data)||data.length!==names.length||
+    !data.every((row,i)=>row?.provider===names[i]&&typeof row.blocked==='boolean'&&
+      Number.isInteger(row.sampled_requests_today)&&row.sampled_requests_today>=0&&
+      Number.isInteger(row.sampled_429_today)&&row.sampled_429_today>=0&&
+      row.sampled_429_today<=row.sampled_requests_today&&
+      (row.confirmed_daily_limit===null||(Number.isInteger(row.confirmed_daily_limit)&&row.confirmed_daily_limit>0))&&
+      (row.confirmed_daily_remaining===null||(Number.isInteger(row.confirmed_daily_remaining)&&row.confirmed_daily_remaining>=0))))
+   return {status:'unknown',reason:'invalid_provider_evidence'};
+  return {status:'observed',providers:data.map(x=>({
+    provider:x.provider,blocked:x.blocked,requests:x.sampled_requests_today,
+    rateLimited:x.sampled_429_today,limit:x.confirmed_daily_limit,
+    remaining:x.confirmed_daily_remaining,truncated:x.history_may_be_truncated}))};
+ }catch{return {status:'unknown',reason:'provider_readback_unavailable'}}
+}
+function providerUsageLines(data){
+ if(data.status!=='observed')return ['- Provider usage observations: unknown ('+data.reason+').'];
+ return ['- Provider usage below is a partial sample of observed calls, not total account spend or guaranteed free-plan cap.',
+  ...data.providers.map(p=>'- '+p.provider+': '+p.requests+' observed attempts, '+p.rateLimited+
+    ' rate-limit responses; '+(p.limit===null?'daily limit unknown':
+      'provider-declared daily limit '+p.limit+', remaining '+p.remaining)+
+    (p.blocked?'; protective hold':'')+(p.truncated?'; truncated sample':'')+'.')];
+}
 function summaryLine(target,run,storage,nowMillis) {
   const age=run.ageHours===null||run.ageHours===undefined?'unknown':run.ageHours+'h';
   const record=storage.latestTimestamp||storage.note||'unknown';
@@ -531,6 +562,7 @@ async function run(options) {
     const gsc=monitorSnapshot?.gsc || await readGscMeasured({url:options.supabaseUrl,key:options.supabaseKey,fetchImpl:options.fetchImpl||fetch});
     const weeklyEvidence=monitorSnapshot?.weeklyEvidence || await readWeeklyEvidence({url:options.supabaseUrl,key:options.supabaseKey,
       now:options.now,fetchImpl:options.fetchImpl||fetch});
+    const providerUsage=await readProviderUsage({key:options.geoApiKey,fetchImpl:options.fetchImpl||fetch});
     const title=issueKey('weekly',weeklyKey(options.now));
     const lines=rows.map(x=>summaryLine(x.target,x.run,x.storage,options.now));
     const body=['## V3 weekly operational report', 'Generated (UTC): '+formatUtc(options.now),
@@ -542,7 +574,7 @@ async function run(options) {
       '- V3 Evals: unknown until linked successful run is independently checked.',
       gscSummaryLine(gsc),
       '- AI visibility: search_grounded/manual samples unknown; model_only never counts as verified citations.',
-      '- Free provider quota usage: unknown unless explicit per-provider usage is available.',
+      ...providerUsageLines(providerUsage),
       '- Decisions: production security hardening, legal review policy, weekly sample activation.',
       '- No paid AI/search provider calls and no live publication were made by this report.'
     ].join('\n');
@@ -565,4 +597,4 @@ if(require.main===module){
     console.log('[V3_SAFETY] '+JSON.stringify(result));
   })().catch(err=>{console.error('[V3_SAFETY] '+String(err.message).slice(0,200));process.exitCode=1;});
 }
-module.exports={WORKFLOWS,expectedIntervalHours,classifyRuns,weeklyKey,issueKey,safeOutcome,createClient,readStorage,persistedFreshness,readGscMeasured,gscSummaryLine,readWeeklyEvidence,weeklyEvidenceLines,readGeoSnapshot,collect,handleFailure,handleWatchdog,handleReadbackCredentialStatus,run};
+module.exports={WORKFLOWS,expectedIntervalHours,classifyRuns,weeklyKey,issueKey,safeOutcome,createClient,readStorage,persistedFreshness,readGscMeasured,gscSummaryLine,readWeeklyEvidence,weeklyEvidenceLines,readGeoSnapshot,readProviderUsage,providerUsageLines,collect,handleFailure,handleWatchdog,handleReadbackCredentialStatus,run};

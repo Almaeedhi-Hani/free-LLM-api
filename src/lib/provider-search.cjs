@@ -1,4 +1,5 @@
 'use strict';
+const quota=require('./provider-usage-observer.cjs');
 // Shared server-side, credential-gated market search adapter for Next.js radar + OpenCode.
 // A provider is attempted only on insufficient results or error; never query all providers
 // on every run. No implicit spending, DB writes, scheduling, or publishing.
@@ -48,6 +49,7 @@ async function search({queries,env=process.env,fetchFn=fetch,maxCalls=LIMITS.max
  const configuredProviders=providers.filter(p=>ORDER.includes(p)&&String(env[KEYS[p]]||'').trim());
  const callLimit=Math.min(LIMITS.maxCalls,Math.max(0,Number(maxCalls)||0)), target=Math.min(LIMITS.maxResults,Math.max(1,Number(maxResults)||1));
  const found=[],seen=new Set(),diagnostics=[],attempts={},tried=new Set();
+ let requestsSent=0;
  // One query per language, with failover. Rotate starting provider per language
  // to distribute the bounded free-tier load among configured sources.
  for(let i=0;i<terms.length&&diagnostics.length<callLimit&&found.length<target;i++){
@@ -58,22 +60,33 @@ async function search({queries,env=process.env,fetchFn=fetch,maxCalls=LIMITS.max
    if(diagnostics.length>=callLimit||found.length>=target||languageHasResults)break;
    if((attempts[provider]||0)>=LIMITS.maxPerProvider)continue;
    attempts[provider]=(attempts[provider]||0)+1;
+   const quotaCheck=await quota.preflight(provider,{env});
+   if(quotaCheck.blocked){
+    diagnostics.push({provider,language:q.language,http_status:0,results:0,added:0,
+      duration_ms:0,status:'provider_quota_cooldown'});
+    continue;
+   }
    const key=String(env[KEYS[provider]]||'').trim();
    const req=providerRequest(provider,key,q.query,Math.min(target,5));const start=Date.now();
    try{
+    requestsSent++;
     const response=await fetchFn(req.url,{method:'POST',headers:req.headers,body:JSON.stringify(req.body),signal:AbortSignal.timeout(Math.min(12000,Math.max(1000,timeoutMs)))});
     let payload;try{payload=await response.json()}catch{payload=null}
+    // Metadata-only audit; a failed internal report never retries the paid/free provider.
+    await quota.saveObservation(quota.makeObservation(provider,response,payload),{env});
     const candidates=response.ok?safeResults(decode(provider,payload),provider,q.query,q.language):[];
     let added=0;
     for(const candidate of candidates){const evidenceKey=q.language+'|'+candidate.domain; if(seen.has(evidenceKey))continue;seen.add(evidenceKey);found.push(candidate);added++;if(found.length>=target)break}
     diagnostics.push({provider,language:q.language,http_status:response.status,results:candidates.length,added,
       duration_ms:Date.now()-start,status:response.ok?(added?'ok':'empty'):(response.status===429?'rate_limited':response.status===401||response.status===403?'auth_error':'http_error')});
     languageHasResults=added>0;
-   }catch(e){diagnostics.push({provider,language:q.language,http_status:0,results:0,added:0,
+   }catch(e){
+    await quota.saveObservation(quota.makeObservation(provider,{status:0}),{env});
+    diagnostics.push({provider,language:q.language,http_status:0,results:0,added:0,
      duration_ms:Date.now()-start,status:e?.name==='TimeoutError'?'timeout':'network_error'});}
   }
  }
  return {results:found,diagnostics,status:found.length?'success':'no_results',
-   configured_providers:configuredProviders,request_count:diagnostics.length,request_limit:callLimit};
+   configured_providers:configuredProviders,request_count:requestsSent,request_limit:callLimit};
 }
 module.exports={search,configured,safeResults,providerRequest,ORDER,KEYS};

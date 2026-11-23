@@ -1,4 +1,5 @@
 'use strict';
+const quota=require('../src/lib/provider-usage-observer.cjs');
 // Direct provider HTTP inference for the research-only GEO pipeline.
 // Credential-gated bounded calls; no provider auto-discovery or paid-model fallback.
 // An API key alone does not prove the associated account is on a free plan.
@@ -88,14 +89,20 @@ async function generate(prompt,selected,{env=process.env,fetchFn=fetch,timeoutMs
  if(typeof prompt!=='string'||!prompt.trim()||prompt.length>MAX_PROMPT_CHARS)
   return {error:'invalid_prompt_size',model:selected};
  const request=requestSpec(provider,prompt,key.trim());
+ const quotaCheck=await quota.preflight(provider.id,{env});
+ if(quotaCheck.blocked)return {error:'provider_quota_cooldown',model:selected};
  // No retry or dynamic URL; fixed HTTPS allowlist only. No secrets in logs.
  try{
   const response=await fetchFn(request.url,{
    method:'POST',headers:request.headers,body:JSON.stringify(request.body),
    signal:AbortSignal.timeout(Math.min(90000,Math.max(1000,timeoutMs)))
   });
-  if(!response.ok)return {error:errorName(response.status),model:selected};
+  if(!response.ok){
+   await quota.saveObservation(quota.makeObservation(provider.id,response),{env});
+   return {error:errorName(response.status),model:selected};
+  }
   const payload=await response.json();
+  await quota.saveObservation(quota.makeObservation(provider.id,response,payload),{env});
   const answer=provider.id==='gemini'
    ?(payload?.candidates?.[0]?.content?.parts||[]).filter(p=>typeof p.text==='string').map(p=>p.text).join('')
    :safeContent(payload?.choices?.[0]?.message?.content);
@@ -103,6 +110,7 @@ async function generate(prompt,selected,{env=process.env,fetchFn=fetch,timeoutMs
   if(!data)return {error:'invalid_model_response',model:selected};
   return {data,model:selected,provider:provider.id};
  }catch(e){
+  await quota.saveObservation(quota.makeObservation(provider.id,{status:0}),{env});
   const error=e?.name==='TimeoutError'?'timeout':
    e?.name==='AbortError'?'timeout':'network_or_response_error';
   return {error,model:selected};
