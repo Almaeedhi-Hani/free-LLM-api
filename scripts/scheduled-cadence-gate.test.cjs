@@ -32,7 +32,7 @@ for(const [path,kind,minute,hours] of [
  assert(src.includes('steps.cadence.outputs.run'),'Missing guarded job steps in '+path);
  const matches=Array.from(src.matchAll(/- cron: '(\d+) (\d+) \* \* \*'/g))
    .map(x=>[Number(x[1]),Number(x[2])]);
- assert.deepEqual(matches,hours.map(h=>[minute,h]),'Effective schedule changed for '+path);
+ assert.deepEqual(matches,[],'Standalone scheduler must be removed for '+path);
 }
 const llm=fs.readFileSync('.github/workflows/llm-feed-optimization.yml','utf8');
 assert(llm.includes('node scripts/llm-agent-index.cjs --update'));

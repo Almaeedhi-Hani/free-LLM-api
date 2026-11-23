@@ -71,18 +71,18 @@ export default function GeoEngineMonitor({secret,runs,competitors,keywords,oppor
       <p className="text-sm">{workflow.configured?'GitHub Actions متصل':'غير مهيأ: '+(workflow.message||'يلزم إعداد GEO_GITHUB_TOKEN')}</p>
       <p className="text-sm font-semibold" role="status">{!workflow.schedule?
         'جدولة السلاح السري: الحالة غير متاحة':
-        workflow.schedule.active===true?'التشغيل الذاتي مفعّل: تحليل GEO '+(workflow.schedule.cadence==='every_2_hours'?'كل ساعتين حتى نهاية السبت 21 نوفمبر':'كل 4 ساعات من الأحد 22 نوفمبر')+' بتوقيت السعودية':
-        workflow.schedule.active===false?'محرك GEO معطّل في GitHub Actions — راجع إعدادات سير العمل':
-        'جدولة GEO مضبوطة لكن تعذر تأكيد تفعيلها من GitHub'}</p>
-      <p className="text-xs text-slate-500">يحلل GEO الفرص باللغات الثلاث في كل دورة مجدولة. النشر المجدول مستقل ويخضع لسياسة مركز المحتوى وحدّه اليومي؛ فحص النشر المتكرر لا يتجاوز حصة 24 ساعة. قد تتأخر مواعيد GitHub، والنتيجة الجزئية تظل جزئية.</p>
+        workflow.schedule.active===true?'جدولة الاختبار الموحدة مفعّلة: كل 10 دقائق — فحص متسلسل للأنظمة الثمانية (دون نشر أو طلبات AI إضافية)':
+        workflow.schedule.active===false?'ملف الاختبار الموحد معطّل في GitHub Actions':
+        'تعذّر تأكيد تفعيل جدولة الاختبار الموحدة من GitHub'}</p>
+      <p className="text-xs text-slate-500">جدولة GitHub الوحيدة تعمل كل 10 دقائق للاختبارات المتسلسلة. W01/W02 والنشر والصيانة تُفحص دون استدعاءات مزودين أو نشر تلقائي؛ W04 ينفّذ مزامنة فعلية وW05 يقرأ الفهرس. قد تتأخر تشغيلات GitHub، ولا تعني نتيجة GitHub الخضراء وحدها حفظ بيانات جديدة.</p>
       <div className="rounded-lg border border-slate-200 p-3 text-xs space-y-1">
-        <p className="font-semibold">الأنظمة المجدولة المرتبطة بالسلاح السري</p>
-        <p>GEO: كل {workflow.schedule?.cadence==='every_4_hours'?'4 ساعات':'ساعتين'} (بدءًا من منتصف الليل)</p>
-        <p>النشر: بعد كل دورة GEO بخمسين دقيقة؛ الحد المطبق في Supabase لم يتغير.</p>
-        <p>Google Search Console: في الساعات الفردية بدءًا من 1:00 ص.</p>
-        <p>فهرس وكلاء AI: /llms.txt — فحص تلقائي وPR فقط عند تغيّر الروابط المنشورة بعد التحقق.</p>
-        <p>صيانة الكود المحدودة: في الساعات الفردية عند الدقيقة 35.</p>
-        <p>ابتداءً من الأحد 22 نوفمبر تصبح الفترة أربع ساعات آليًا؛ لا تعمل المهام الإضافية بين الفترات.</p>
+        <p className="font-semibold">الأنظمة ضمن اختبار الجدولة الموحدة</p>
+        <p>كل 10 دقائق (بتوقيت السعودية): Radar ← GEO ← النشر ← GSC ← LLM Feed ← الصيانة ← Watchdog ← الجودة.</p>
+        <p>يُختبر Radar وGEO والنشر والصيانة دون عمليات بحث أو نشر أو دمج جديدة أثناء الاختبار السريع.</p>
+        <p>GSC: استدعاء المزامنة المحمي فعليًا، مع احترام منع تكرار البيانات في الخادم.</p>
+        <p>LLM Feed: فحص حيّ لملف /llms.txt دون إنشاء PR.</p>
+        <p>تُعرض نتيجة كل مرحلة في تقرير تشغيل GitHub الموحد؛ فشل أي مرحلة يمنع اعتبار الدورة مكتملة.</p>
+        <p><a href="https://github.com/Almaeedhi-Hani/free-LLM-api/actions/workflows/v3-unified-sequential-test.yml" target="_blank" rel="noopener noreferrer" className="underline">عرض التشغيلات الموحدة في GitHub</a></p>
         <p><a href="/llms.txt" target="_blank" rel="noopener noreferrer" className="underline">فتح فهرس LLM المنشور</a></p>
         {workflow.llmIndex?.runs?.slice(0,2).map(run=><p key={run.id}>
           {run.html_url?<a href={run.html_url} target="_blank" rel="noopener noreferrer" className="underline">مراجعة LLM #{run.id}</a>:'LLM #'+run.id}

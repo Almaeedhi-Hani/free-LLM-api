@@ -52,7 +52,7 @@ assert.throws(()=>eventSlot('geo','0 1 * * *','2026-02-30T01:00:00Z'),/Invalid/)
  ]){
   const workflow=fs.readFileSync('.github/workflows/'+file,'utf8');
   const matches=Array.from(workflow.matchAll(/- cron: '(\d+) (\d+) \* \* \*'/g)).map(x=>[Number(x[1]),Number(x[2])]);
-  assert.deepEqual(matches,hours.map(hour=>[minute,hour]),file+' must retain exact UTC frequency');
+  assert.deepEqual(matches,[],file+' must use only the unified master schedule');
   assert(workflow.includes('node scripts/scheduled-event-slot.cjs --kind='+kind));
   assert(workflow.includes('CADENCE_EVENT_CRON: ${{ github.event.schedule }}'));
   assert(workflow.includes('GH_TOKEN: ${{ github.token }}'));
@@ -69,8 +69,7 @@ assert.throws(()=>eventSlot('geo','0 1 * * *','2026-02-30T01:00:00Z'),/Invalid/)
   const workflow=fs.readFileSync('.github/workflows/'+file,'utf8');
   const schedules=Array.from(workflow.matchAll(/- cron: '(\d+) (\d+) \* \* \*'/g))
     .map(x=>[Number(x[1]),Number(x[2])]);
-  assert.deepEqual(schedules,hours.map(hour=>[minute,hour]),
-    file+' must preserve its original 12 UTC triggering instants');
+  assert.deepEqual(schedules,[],file+' must not retain standalone cron');
   assert(workflow.includes('node scripts/scheduled-event-slot.cjs --kind='+kind));
   assert(workflow.includes('CADENCE_EVENT_CRON: ${{ github.event.schedule }}'));
   assert(workflow.includes('GH_TOKEN: ${{ github.token }}'));

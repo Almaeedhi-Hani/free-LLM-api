@@ -1,0 +1,197 @@
+name: V3 unified sequential 10-minute integration test
+on:
+  # ONLY recurring GitHub Actions trigger for the eight V3 systems.
+  # GitHub cron is best-effort, and queued full pipelines may exceed ten minutes.
+  schedule:
+    - cron: '*/10 * * * *'
+  # One-time smoke test of the merged orchestrator before the next cron fires.
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/v3-unified-sequential-test.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write # Existing quality reconciler only; no source, PR, or site writes.
+
+concurrency:
+  group: v3-unified-sequential-testing
+  cancel-in-progress: false
+
+jobs:
+  sequential-test:
+    if: github.ref == 'refs/heads/main' && vars.V3_MASTER_PAUSED != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      CI: 'true'
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install pinned test dependencies
+        run: npm ci
+      - name: Verify the one-cron scheduling and readback contracts
+        run: |
+          node scripts/v3-unified-schedule.test.cjs
+          node scripts/v3-unified-readback.test.cjs
+
+      # Stage 1. Radar informs research, and is inspected before GEO.
+      # Do not call rate-limited search APIs every ten minutes.
+      - name: W02 - Market Radar persisted data and bounded source tests
+        id: w02
+        continue-on-error: true
+        env:
+          GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
+        run: |
+          node scripts/radar-discovery-budget.test.cjs
+          node scripts/market-radar-schedule.test.cjs
+          node scripts/v3-unified-readback.cjs W02
+
+      # Stage 2. GEO's direct provider contracts are tested with mocked
+      # responses; actual W01 provider calls remain manual/owner-controlled.
+      - name: W01 - GEO research pipeline contracts and persisted readback
+        id: w01
+        continue-on-error: true
+        env:
+          GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
+        run: |
+          node scripts/geo-direct-model-providers.test.cjs
+          node scripts/geo-editorial-no-data-contract.test.cjs
+          node scripts/provider-usage-observer.test.cjs
+          node scripts/v3-unified-readback.cjs W01
+
+      # Stage 3. Validate publisher quotas and last DB evidence.
+      # Never POST a public editorial publication every ten minutes.
+      - name: W03 - Publisher policy and stored publication evidence
+        id: w03
+        continue-on-error: true
+        env:
+          GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
+        run: |
+          node scripts/geo-publishing-cadence.test.cjs
+          node scripts/v3-unified-readback.cjs W03
+
+      # Stage 4. GSC is a real authenticated sync request. The server still
+      # handles missing-day detection/idempotency and its own quotas.
+      - name: W04 - Collect GSC metrics from real production API
+        id: w04
+        continue-on-error: true
+        env:
+          GSC_SYNC_URL: ${{ secrets.GSC_SYNC_URL }}
+          GSC_CRON_SECRET: ${{ secrets.GSC_CRON_SECRET }}
+          GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$GSC_SYNC_URL" && test -n "$GSC_CRON_SECRET" || {
+            echo "::error::GSC sync secrets are missing"; exit 1;
+          }
+          curl --fail --silent --show-error --retry 0 --max-time 95 \
+            -H "Authorization: Bearer $GSC_CRON_SECRET" \
+            --output "$RUNNER_TEMP/gsc-sequential-response.json" "$GSC_SYNC_URL"
+          echo "[V3_GSC] actual_authenticated_sync=success; no automatic retry"
+          node scripts/v3-unified-readback.cjs W04
+
+      # Stage 5. Read live canonical feed and verify potential changes locally.
+      # NEVER create an index PR, merge or publish during rapid testing.
+      - name: W05 - Live machine-readable index no-write validation
+        id: w05
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/llm-agent-index.test.cjs
+          node scripts/llm-feed-contract.test.cjs
+          node scripts/llm-agent-index.cjs --update
+          git diff --check
+          changes="$(git diff --name-only)"
+          if [ -n "$changes" ] && [ "$changes" != "public/llms.txt" ]; then
+            echo "::error::Unexpected index test file change"; exit 1;
+          fi
+          echo "[V3_W05] live_public_feed=success, no_publish=true"
+
+      # Stage 6. Exercise autodev only in fixtures: no PR, code changes
+      # or automatic merges during the high-frequency test.
+      - name: W06 - Safe maintenance policy and regression fixtures
+        id: w06
+        continue-on-error: true
+        run: |
+          node scripts/autodev-safe-topic.test.cjs
+
+      # Stage 7. Existing watchdog contracts and real protected health.
+      # Do not run legacy scheduled-staleness reconciliation against the
+      # newly retired standalone cron schedules (would create false alarms).
+      - name: Stage2 - Watchdog and report contracts
+        id: safety
+        continue-on-error: true
+        env:
+          GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
+        run: |
+          node scripts/v3-phase2-monitor.test.cjs
+          node scripts/v3-unified-readback.cjs W04
+
+      # Stage 8. Real own-domain GET audit plus offline trilingual Evals.
+      # The existing reconciler may create/resolve a legitimate quality issue.
+      - name: Stage2 - Public quality and trilingual Evals
+        id: quality
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
+          V3_EVAL_OUTCOME: success
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/v3-stage2-quality-audit.test.cjs
+          npx tsc src/lib/keyword-relevance-eval.ts src/lib/source-policy.ts \
+            --target es2020 --module commonjs --rootDir src --outDir .v3-evals-build \
+            --lib es2020,dom --moduleResolution node --esModuleInterop \
+            --skipLibCheck --strict --types node
+          node scripts/v3-regression-evals.test.cjs
+          node scripts/v3-stage2-quality-audit.cjs
+
+      # Full result is red if ANY system was not verified; never mask failures.
+      - name: Publish ordered run report and reject partial success
+        if: always()
+        env:
+          W02: ${{ steps.w02.outcome }}
+          W01: ${{ steps.w01.outcome }}
+          W03: ${{ steps.w03.outcome }}
+          W04: ${{ steps.w04.outcome }}
+          W05: ${{ steps.w05.outcome }}
+          W06: ${{ steps.w06.outcome }}
+          SAFETY: ${{ steps.safety.outcome }}
+          QUALITY: ${{ steps.quality.outcome }}
+        shell: bash
+        run: |
+          {
+            echo '## V3 single-scheduler 10-minute sequential test'
+            echo 'High-frequency checks are read-only/offline except GSC sync and quality Issue reconciliation.'
+            echo 'No AI/search API probing, visitor publishing, pull requests or autonomous merging.'
+            echo '| Sequence | System | Real step result |'
+            echo '|---|---|---|'
+            echo "| 1 | W02 Market Radar | $W02 |"
+            echo "| 2 | W01 GEO Intelligence | $W01 |"
+            echo "| 3 | W03 Publication policy | $W03 |"
+            echo "| 4 | W04 GSC live sync | $W04 |"
+            echo "| 5 | W05 LLM index live GET | $W05 |"
+            echo "| 6 | W06 Safe maintenance | $W06 |"
+            echo "| 7 | Stage2 Watchdog | $SAFETY |"
+            echo "| 8 | Stage2 Quality | $QUALITY |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          fail=0
+          for result in "$W02" "$W01" "$W03" "$W04" "$W05" "$W06" "$SAFETY" "$QUALITY"; do
+            if [ "$result" != success ]; then fail=1; fi
+          done
+          if [ "$fail" -ne 0 ]; then
+            echo "::error::A V3 sequential system stage failed; inspect each named step"
+            exit 1
+          fi

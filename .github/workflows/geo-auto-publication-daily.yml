@@ -1,19 +1,6 @@
 name: GEO Daily Auto Publication
 
 on:
-  schedule:
-    - cron: '50 1 * * *' # Saudi 00:50,02:50,...; every 4h from Nov 22, rolling 24h cap preserved
-    - cron: '50 3 * * *'
-    - cron: '50 5 * * *'
-    - cron: '50 7 * * *'
-    - cron: '50 9 * * *'
-    - cron: '50 11 * * *'
-    - cron: '50 13 * * *'
-    - cron: '50 15 * * *'
-    - cron: '50 17 * * *'
-    - cron: '50 19 * * *'
-    - cron: '50 21 * * *'
-    - cron: '50 23 * * *'
   workflow_dispatch:
 
 permissions:

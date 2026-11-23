@@ -150,8 +150,8 @@ const {parsePublicationOrigin,publicationAuditPayload,appendPublicationAudit}=re
  const daily=fs.readFileSync('.github/workflows/geo-auto-publication-daily.yml','utf8');
  const publicationCrons=Array.from(daily.matchAll(/- cron: '(\d+) (\d+) \* \* \*'/g))
    .map(m=>[Number(m[1]),Number(m[2])]);
- assert.deepEqual(publicationCrons,[1,3,5,7,9,11,13,15,17,19,21,23].map(hour=>[50,hour]),
-   'publisher must preserve the same original 2-hour UTC instants via individual cron events');
+ assert.deepEqual(publicationCrons,[],
+    'publisher standalone cron removed; unified master owns scheduled tests');
  assert(daily.includes('node scripts/scheduled-event-slot.cjs --kind=publication'),
    'publisher must select post-Nov22 slots from immutable GitHub event metadata, not runner clock');
  assert(worker.includes('daily_limit'),'increased checks must continue to use the existing DB rolling 24-hour quota');

@@ -7,9 +7,7 @@ const workflow=fs.readFileSync('.github/workflows/market-radar.yml','utf8');
 const endpoint=fs.readFileSync('src/app/api/cron-market/route.ts','utf8');
 const budget=fs.readFileSync('scripts/radar-discovery-budget.test.cjs','utf8');
 
-for(const hour of [0,2,4,6,8,10,12,14,16,18,20,22])
- assert(workflow.includes("cron: '55 "+hour+" * * *'"),
- 'preserve every original radar UTC trigger '+hour);
+assert.doesNotMatch(workflow,/^  schedule:/m,'independent radar cron removed in favor of unified scheduler');
 assert(workflow.includes("scheduled-event-slot.cjs --kind=market"),
  'standalone radar must preserve nominal event slot, not runner wall clock');
 assert(workflow.includes("steps.cadence.outputs.run == 'true'"),
