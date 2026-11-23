@@ -6,11 +6,14 @@ const { scheduledSlot, chooseGscSync } = require('./gsc-scheduled-slot.cjs');
 
 const workflow = readFileSync('.github/workflows/gsc-daily-sync.yml', 'utf8');
 const crons = Array.from(workflow.matchAll(/- cron: '([^']+)'/g), match => match[1]);
-const twoHourUtc = Array.from({ length: 12 }, (_, index) => `0 ${index * 2} * * *`);
-assert.deepEqual(crons, twoHourUtc);
+const updatedUtc = Array.from({ length: 12 }, (_, index) =>
+  index === 1 ? '45 0 * * *' : `0 ${index * 2} * * *`);
+assert.deepEqual(crons, updatedUtc);
 assert(crons.every(expression => scheduledSlot(expression, '2026-11-20T23:59:59Z').allowed));
 assert.deepEqual(crons.filter(expression => scheduledSlot(expression, '2026-11-22T23:59:59Z').allowed),
-  ['0 2 * * *', '0 6 * * *', '0 10 * * *', '0 14 * * *', '0 18 * * *', '0 22 * * *']);
+  ['45 0 * * *', '0 6 * * *', '0 10 * * *', '0 14 * * *', '0 18 * * *', '0 22 * * *']);
+assert.deepEqual(scheduledSlot('45 0 * * *', '2026-11-23T00:46:00Z'),
+  { allowed: true, instant: '2026-11-23T00:45:00.000Z' });
 assert.deepEqual(scheduledSlot('0 20 * * *', '2026-11-22T01:12:00Z'),
   { allowed: true, instant: '2026-11-21T20:00:00.000Z' }); // Nov 21 KSA 23:00.
 assert.deepEqual(scheduledSlot('0 22 * * *', '2026-11-22T01:12:00Z'),
