@@ -5,7 +5,7 @@ on:
   schedule:
     # Temporary diagnostic five-minute cadence: avoid minute 00, keep exactly
     # 12 UTC slots/hour. Safety, Quality and GSC use their own approved crons.
-    - cron: '3,8,13,18,23,28,33,38,43,48,53,58 * * * *'
+    - cron: '3-58/5 * * * *'
   # One-time smoke test of the merged orchestrator before the next cron fires.
   push:
     branches: [main]
@@ -40,7 +40,7 @@ jobs:
         shell: bash
         run: |
           echo "[V3_SCHEDULE_DIAG] event=$GITHUB_EVENT_NAME ref=$GITHUB_REF cron=${TRIGGER_CRON:-none} run_id=$GITHUB_RUN_ID"
-          if [ "$GITHUB_EVENT_NAME" = schedule ] && [ "$TRIGGER_CRON" != '3,8,13,18,23,28,33,38,43,48,53,58 * * * *' ]; then
+          if [ "$GITHUB_EVENT_NAME" = schedule ] && [ "$TRIGGER_CRON" != '3-58/5 * * * *' ]; then
             echo "::error::Unexpected cron source for the only V3 scheduler"
             exit 1
           fi
