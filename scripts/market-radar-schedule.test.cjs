@@ -2,14 +2,19 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const {shouldRun,SWITCH_UTC}=require('./scheduled-cadence-gate.cjs');
-const {INDEPENDENT_RADAR_CRON}=require('./scheduled-event-slot.cjs');
+const {eventSlot}=require('./scheduled-event-slot.cjs');
 
 const workflow=fs.readFileSync('.github/workflows/market-radar.yml','utf8');
 const endpoint=fs.readFileSync('src/app/api/cron-market/route.ts','utf8');
 const budget=fs.readFileSync('scripts/radar-discovery-budget.test.cjs','utf8');
 
-assert.deepEqual([...workflow.matchAll(/- cron: '([^']+)'/g)].map(m=>m[1]),[INDEPENDENT_RADAR_CRON],
- 'Only W02 is scheduled on owner-approved non-round minutes');
+const historicalRadarCrons=Array.from({length:12},(_,i)=>'55 '+(i*2)+' * * *');
+assert.deepEqual([...workflow.matchAll(/- cron: '([^']+)'/g)].map(m=>m[1]),historicalRadarCrons,
+ 'W02 alone restores the separately identifiable 19 Nov UTC cron slots');
+assert.equal(eventSlot('market','55 22 * * *','2026-11-20T01:21:00.000Z').allowed,true,
+ 'A several-hour delayed GitHub schedule remains eligible');
+assert.equal(eventSlot('market','55 20 * * *','2026-11-23T00:21:00.000Z').allowed,false,
+ 'Four-hour production cadence still skips the unused half slot');
 assert(workflow.includes("scheduled-event-slot.cjs --kind=market"),
  'standalone radar must preserve nominal event slot, not runner wall clock');
 assert(workflow.includes("steps.cadence.outputs.run == 'true'"),
