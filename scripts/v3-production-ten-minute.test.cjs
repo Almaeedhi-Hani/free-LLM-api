@@ -60,8 +60,8 @@ for(const [kind,time,due] of cases){
   assert(read(file).includes('  workflow_call:'),'Production job not reusable: '+file);
   assert(read(file).includes('scheduled-event-slot.cjs --kind='),'Real due gate missing: '+file);
   if(file==='market-radar.yml'){
-   assert.match(read(file),/^  schedule:/m,'W02 must have its isolated test cron');
-   assert(read(file).includes("- cron: '2,9,16,23,30,37,44,51,58 * * * *'"));
+   assert.doesNotMatch(read(file),/^  schedule:/m,'W02 now scheduled exclusively by Supabase pg_cron');
+   assert.deepEqual([...read(file).matchAll(/- cron: '([^']+)'/g)],[], 'No GitHub W02 crons after cutover');
   } else assert(!/^  schedule:/m.test(read(file)),'Other standalone schedule still paused: '+file);
  }
  const radar=master.split('  market-radar:')[1].split('  geo-intelligence:')[0];
