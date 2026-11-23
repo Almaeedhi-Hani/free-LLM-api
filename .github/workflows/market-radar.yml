@@ -1,20 +1,6 @@
 name: Market Intelligence Radar (Independent)
 
 on:
-  schedule:
-    # Identical UTC timing; each event carries its exact hour to survive delayed runners.
-    - cron: '55 0 * * *'
-    - cron: '55 2 * * *'
-    - cron: '55 4 * * *'
-    - cron: '55 6 * * *'
-    - cron: '55 8 * * *'
-    - cron: '55 10 * * *'
-    - cron: '55 12 * * *'
-    - cron: '55 14 * * *'
-    - cron: '55 16 * * *'
-    - cron: '55 18 * * *'
-    - cron: '55 20 * * *'
-    - cron: '55 22 * * *'
   push:
     branches: [main]
     paths:
