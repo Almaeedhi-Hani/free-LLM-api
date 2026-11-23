@@ -1,5 +1,21 @@
 name: GSC daily metrics sync
 on:
+  schedule:
+    # Restore the exact owner-approved 12-entry schedule from PR #251/#253 history.
+    # UTC 00:45 is 03:45 Saudi time. The cadence gate skips the non-due slots;
+    # keeping the historical expressions avoids unapproved schedule reduction.
+    - cron: '0 0 * * *'
+    - cron: '45 0 * * *' # owner-approved 03:45 KSA
+    - cron: '0 4 * * *'
+    - cron: '0 6 * * *'
+    - cron: '0 8 * * *'
+    - cron: '0 10 * * *'
+    - cron: '0 12 * * *'
+    - cron: '0 14 * * *'
+    - cron: '0 16 * * *'
+    - cron: '0 18 * * *'
+    - cron: '0 20 * * *'
+    - cron: '0 22 * * *'
   workflow_dispatch:
 permissions:
   contents: read
