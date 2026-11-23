@@ -34,6 +34,8 @@ jobs:
         run: node scripts/mobile-header-contract.test.cjs
       - name: Market intelligence CRUD and failure-mode tests
         run: npm run test:market
+      - name: Provider usage observer, free quota scope and privacy contracts
+        run: node scripts/provider-usage-observer.test.cjs
       - name: Verify original multilingual packages and pricing
         run: npm run test:packages
       - name: Verify W05 automatic index PR fails closed until its independent checks pass
