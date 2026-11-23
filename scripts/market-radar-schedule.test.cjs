@@ -10,7 +10,7 @@ const budget=fs.readFileSync('scripts/radar-discovery-budget.test.cjs','utf8');
 
 assert.deepEqual([...workflow.matchAll(/- cron: '([^']+)'/g)].map(m=>m[1]),[],
  'W02 GitHub native schedule must be disabled during Supabase Cron cutover');
-assert.doesNotMatch(workflow,/^  schedule:\\s*$/m,'Github schedule reactivation forbidden during Supabase validation');
+assert.doesNotMatch(workflow,/^  schedule:\s*$/m,'Github schedule reactivation forbidden during Supabase validation');
 assert.match(workflow,/^  workflow_dispatch:/m,'Manual rollback path remains');
 assert.match(workflow,/^  workflow_call:/m,'Trusted reusable job preserved');
 assert.equal(eventSlot('market','55 22 * * *','2026-11-20T01:21:00.000Z').allowed,true,
