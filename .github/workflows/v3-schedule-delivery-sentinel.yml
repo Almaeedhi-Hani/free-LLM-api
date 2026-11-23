@@ -1,0 +1,51 @@
+name: V3 schedule delivery sentinel (temporary)
+# Temporary isolated diagnostic: proves whether GitHub sends ANY 5m schedule
+# to a minimal workflow on the active main branch. Remove after diagnosis.
+on:
+  schedule:
+    - cron: '1,6,11,16,21,26,31,36,41,46,51,56 * * * *'
+  # Smoke test creates an explicit push run, NOT schedule evidence.
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/v3-schedule-delivery-sentinel.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: v3-schedule-delivery-sentinel
+  cancel-in-progress: false
+jobs:
+  prove-github-scheduler:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Identify actual trigger and scheduled clock
+        env:
+          TRIGGER_CRON: ${{ github.event.schedule }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "SENTINEL event=$GITHUB_EVENT_NAME ref=$GITHUB_REF cron=${TRIGGER_CRON:-none} run=$GITHUB_RUN_ID"
+          echo "SENTINEL utc=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          if [ "$GITHUB_EVENT_NAME" = schedule ]; then
+            if [ "$TRIGGER_CRON" != '1,6,11,16,21,26,31,36,41,46,51,56 * * * *' ]; then
+              echo "::error::Unexpected scheduled trigger"; exit 1
+            fi
+            echo "SENTINEL REAL_GITHUB_SCHEDULE_DELIVERED"
+          else
+            echo "SENTINEL NOT_SCHEDULE; a successful push is not scheduling evidence"
+          fi
+      - name: Publish diagnostic summary
+        env:
+          TRIGGER_CRON: ${{ github.event.schedule }}
+        run: |
+          {
+            echo '## GitHub cron delivery diagnostic (isolated)'
+            echo "- Event: $GITHUB_EVENT_NAME"
+            echo "- Cron: ${TRIGGER_CRON:-none}"
+            echo "- Runner UTC: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            echo "- SHA: $GITHUB_SHA"
+            echo 'No provider calls, writes, publishing, or service credentials.'
+          } >> "$GITHUB_STEP_SUMMARY"
