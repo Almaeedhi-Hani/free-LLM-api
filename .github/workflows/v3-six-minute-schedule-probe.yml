@@ -1,8 +1,6 @@
 name: V3 six-minute schedule delivery probe
 on:
   # Diagnostic only. Deliberately offset from the top of the hour.
-  schedule:
-    - cron: '3,19,35,51 * * * *'
   push:
     branches: [main]
     paths:
