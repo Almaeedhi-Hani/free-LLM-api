@@ -522,7 +522,7 @@ export default function AdminDashboard() {
               const active=hub.tabs.includes(tab);
               const expanded=openHub===hub.key;
               return <div key={hub.key} className="space-y-1">
-                <button type="button" aria-expanded={expanded} aria-controls={'admin-hub-'+hub.key}
+                <button type="button" aria-expanded={hub.tabs.length>1?expanded:undefined} aria-controls={hub.tabs.length>1?'admin-hub-'+hub.key:undefined} aria-current={hub.tabs.length===1&&active?'page':undefined}
                   onClick={()=>{
                     setOpenHub(hub.key);
                     if(!active)setTab(hub.landing);
