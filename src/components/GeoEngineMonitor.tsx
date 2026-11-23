@@ -71,17 +71,17 @@ export default function GeoEngineMonitor({secret,runs,competitors,keywords,oppor
       <p className="text-sm">{workflow.configured?'GitHub Actions متصل':'غير مهيأ: '+(workflow.message||'يلزم إعداد GEO_GITHUB_TOKEN')}</p>
       <p className="text-sm font-semibold" role="status">{!workflow.schedule?
         'جدولة السلاح السري: الحالة غير متاحة':
-        workflow.schedule.active===true?'جدولة الاختبار الموحدة مفعّلة: كل 5 دقائق — فحص متسلسل للأنظمة الثمانية (دون نشر أو طلبات AI إضافية)':
+        workflow.schedule.active===true?'جدولة الاختبار الهجينة مفعّلة: كل 5 دقائق للمراحل المرتبطة، مع مراقبة وجودة وGSC مستقلة':
         workflow.schedule.active===false?'ملف الاختبار الموحد معطّل في GitHub Actions':
         'تعذّر تأكيد تفعيل جدولة الاختبار الموحدة من GitHub'}</p>
-      <p className="text-xs text-slate-500">جدولة GitHub الوحيدة تعمل كل 5 دقائق للاختبارات المتسلسلة. W01/W02 والنشر والصيانة تُفحص دون استدعاءات مزودين أو نشر تلقائي؛ W04 ينفّذ مزامنة فعلية وW05 يقرأ الفهرس. قد تتأخر تشغيلات GitHub، ولا تعني نتيجة GitHub الخضراء وحدها حفظ بيانات جديدة.</p>
+      <p className="text-xs text-slate-500">Master يعمل كل 5 دقائق لاختبار Radar وGEO وسياسات النشر بالتوالي؛ W05 والصيانة يفحصان باستقلال داخل Master. تعمل Safety Monitor كل 6 ساعات والتقرير أسبوعيًا، وجودة الموقع يوميًا، وGSC تلقائيًا وفق بوابة توقيته الخاصة. لا تُستدعى مزودات AI ولا يُنشر محتوى من دورة الاختبار السريعة. تشغيل GitHub الناجح لا يثبت حفظ بيانات جديدة.</p>
       <div className="rounded-lg border border-slate-200 p-3 text-xs space-y-1">
-        <p className="font-semibold">الأنظمة ضمن اختبار الجدولة الموحدة</p>
-        <p>كل 5 دقائق (بتوقيت السعودية): Radar ← GEO ← النشر ← GSC ← LLM Feed ← الصيانة ← Watchdog ← الجودة.</p>
+        <p className="font-semibold">توزيع الأنظمة في الهيكلة الهجينة</p>
+        <p>Master كل 5 دقائق: Radar ← GEO ← فحص سياسة النشر. W05 والصيانة اختبارات مستقلة لا تنتظر Radar.</p>
         <p>يُختبر Radar وGEO والنشر والصيانة دون عمليات بحث أو نشر أو دمج جديدة أثناء الاختبار السريع.</p>
-        <p>GSC: استدعاء المزامنة المحمي فعليًا، مع احترام منع تكرار البيانات في الخادم.</p>
+        <p>GSC: مزامنة تلقائية مستقلة (03:45 و09:00 و13:00 و17:00 و21:00 و01:00 بتوقيت السعودية) مع منع تكرار الأيام في الخادم.</p>
         <p>LLM Feed: فحص حيّ لملف /llms.txt دون إنشاء PR.</p>
-        <p>تُعرض نتيجة كل مرحلة في تقرير تشغيل GitHub الموحد؛ فشل أي مرحلة يمنع اعتبار الدورة مكتملة.</p>
+        <p>Safety Monitor يعمل كل 6 ساعات ويكشف غياب Master حتى لو توقف تمامًا؛ Quality Watch يوميًا، وكلاهما مستقل عن نجاح Radar.</p>
         <p><a href="https://github.com/Almaeedhi-Hani/free-LLM-api/actions/workflows/v3-unified-sequential-test.yml" target="_blank" rel="noopener noreferrer" className="underline">عرض التشغيلات الموحدة في GitHub</a></p>
         <p><a href="/llms.txt" target="_blank" rel="noopener noreferrer" className="underline">فتح فهرس LLM المنشور</a></p>
         {workflow.llmIndex?.runs?.slice(0,2).map(run=><p key={run.id}>
