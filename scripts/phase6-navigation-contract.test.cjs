@@ -1,0 +1,16 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const source=fs.readFileSync('src/app/admin/dashboard/page.tsx','utf8');
+const tabs=[...source.matchAll(/^  \| '([^']+)'/gm)].map(x=>x[1]);
+const groups=source.slice(source.indexOf('const NAV_HUBS:'),source.indexOf('export default function AdminDashboard'));
+const hubs=[...groups.matchAll(/\{key:'([^']+)',label:'([^']+)',icon:'[^']+',landing:'([^']+)',tabs:\[([^\]]+)\]\}/g)];
+assert.equal(hubs.length,7,'Seven primary destinations');
+const assigned=hubs.flatMap(h=>[...h[4].matchAll(/'([^']+)'/g)].map(x=>x[1]));
+assert.deepEqual([...assigned].sort(),[...tabs].sort(),'Every declared screen is reachable exactly once');
+assert.equal(new Set(assigned).size,assigned.length,'No screen appears in two navigation groups');
+for(const h of hubs)assert(h[4].includes("'"+h[3]+"'"),'Landing screen belongs to its hub: '+h[1]);
+assert(source.includes("hub.tabs.filter(key=>ADMIN_PUBLISHED_LINKS_ENABLED||key!=='published_links')"),'Published links respects its feature flag');
+assert(source.includes("onClick={()=>{setTab(key);setSidebarOpen(false)}"),'Mobile navigation closes after selection');
+assert(source.includes("aria-current={tab===key?'page':undefined}"),'Current page announced accessibly');
+console.log('PASS phase 6 navigation contract');

@@ -522,7 +522,7 @@ export default function AdminDashboard() {
               const active=hub.tabs.includes(tab);
               const expanded=openHub===hub.key;
               return <div key={hub.key} className="space-y-1">
-                <button type="button" aria-expanded={expanded} aria-controls={'admin-hub-'+hub.key}
+                <button type="button" aria-expanded={hub.tabs.length>1?expanded:undefined} aria-controls={hub.tabs.length>1?'admin-hub-'+hub.key:undefined} aria-current={hub.tabs.length===1&&active?'page':undefined}
                   onClick={()=>{
                     setOpenHub(hub.key);
                     if(!active)setTab(hub.landing);
@@ -551,7 +551,7 @@ export default function AdminDashboard() {
           </div>
         </aside>
 
-        {sidebarOpen && <div className="fixed inset-0 bg-black/40 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />}
+        {sidebarOpen && <button type="button" aria-label="إغلاق قائمة التنقل" className="fixed inset-0 bg-black/40 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
         <div className="flex-1 min-w-0">
           <header className="sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-slate-200">
