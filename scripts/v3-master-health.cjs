@@ -55,7 +55,7 @@ async function reconcile(client,{mode='watchdog',event=null,now=Date.now()}={}){
   'UTC created_at: '+(state.createdAt||'unknown'),
   'Elapsed minutes: '+(state.ageMinutes??'unknown'),
   'Only GitHub event=schedule on main is considered. Push and workflow_dispatch are not substitutes.',
-  'The Master checks W02/W01/W03 policies plus independent W05/W06 fixtures; it does not publish or call AI providers.',
+  'Master automatically schedules real bounded W02/W01/W03/W05/W06 work, due-gated to the existing four-hour provider cadence.',
   'GSC, Safety and Quality run on their own schedules and do not depend on this Master.',
   'No forced production run, paid model, credential readout or database write was made by the watchdog.'
  ].join('\n');
