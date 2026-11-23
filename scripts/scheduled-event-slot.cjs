@@ -43,21 +43,21 @@ function eventSlot(kind,cron,createdAt){
  const allowed=!afterSwitch||ksaHour%4===lane.postSwitchSaudiRemainder;
  return {instant:nominal.toISOString(),allowed,kind};
 }
-// Production Master ticks every 10 minutes. Only due four-hour lanes may
+// Production Master ticks every 15 minutes. Only due four-hour lanes may
 // call real providers or publish. This preserves original free quotas/caps;
 // the 10-minute scheduler is real production orchestration, not mocked tests.
-const PRODUCTION_MASTER_CRON='7-57/10 * * * *';
+const PRODUCTION_MASTER_CRON='*/15 * * * *';
 function tenMinuteDue(kind,createdAt){
  const lane=lanes[kind];
  if(!lane)throw Error('Unknown scheduled lane');
  const created=parseUtcDate(createdAt);
- // Only the single Master tick 0-9 minutes after the OLD approved nominal
- // execution can run. Avoid 10m polling becoming 6 paid calls/hour.
+ // Only the single Master tick 0-14 minutes after the OLD approved nominal
+ // execution can run. Avoid 15m polling becoming repeated paid calls.
  const slot=new Date(created);
  slot.setUTCMinutes(lane.minute,0,0);
  if(slot.getTime()>created.getTime())slot.setUTCHours(slot.getUTCHours()-1);
  const age=created.getTime()-slot.getTime();
- const eligible=age>=0&&age<10*60*1000 &&
+ const eligible=age>=0&&age<15*60*1000 &&
    lane.hours.includes(slot.getUTCHours()) &&
    (slot.getTime()<Date.parse(SWITCH_UTC) ||
      (slot.getUTCHours()+3)%4===lane.postSwitchSaudiRemainder);

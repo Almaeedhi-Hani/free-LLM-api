@@ -6,14 +6,14 @@ const source=n=>fs.readFileSync(dir+'/'+n,'utf8');
 const master='v3-production-orchestrator.yml';
 const main=source(master);
 const crons=c=>Array.from(c.matchAll(/- cron: '([^']+)'/g),m=>m[1]);
-assert.deepEqual(crons(main),['7-57/10 * * * *'],'Master is production every ten minutes');
-assert.match(main,/name: V3 production orchestrator \(10-minute cadence\)/);
+assert.deepEqual(crons(main),['*/15 * * * *'],'Master is production every fifteen minutes');
+assert.match(main,/name: V3 production orchestrator \(15-minute cadence\)/);
 assert.match(main,/group: v3-production-orchestrator-main/);
 assert.match(main,/cancel-in-progress: false/);
 assert.match(main,/V3_MASTER_PAUSED != 'true'/);
 assert.match(main,/^  workflow_dispatch:/m);
 assert.match(main,/^  production-preflight:/m);
-assert.match(main,/TRIGGER_CRON\" != '7-57\/10 \* \* \* \*'/);
+assert.match(main,/TRIGGER_CRON\" != '\*\/15 \* \* \* \*'/);
 assert.match(main,/github\.event_name != 'push'/);
 assert.doesNotMatch(main,/node scripts\/v3-unified-readback.cjs|no_publish=true|test-only/i,'No mock Master');
 const stages={
@@ -53,7 +53,7 @@ for(const [file,expected] of Object.entries(independent)){
  assert.deepEqual(crons(source(file)),expected,'Independent schedule changed for '+file);
  assert.match(source(file),/^  workflow_dispatch:/m);
 }
-assert(source('v3-phase2-safety-monitor.yml').includes('V3 production orchestrator (10-minute cadence)'));
+assert(source('v3-phase2-safety-monitor.yml').includes('V3 production orchestrator (15-minute cadence)'));
 assert(source('v3-phase2-safety-monitor.yml').includes('node scripts/v3-master-health.cjs --mode=watchdog'));
 assert(source('v3-stage2-quality-watch.yml').includes("if: github.event_name == 'schedule'"));
 assert(source('gsc-daily-sync.yml').includes('gsc-scheduled-slot.cjs'));
@@ -61,4 +61,4 @@ assert(source('gsc-daily-sync.yml').includes('if-no-files-found: error'));
 const actual=fs.readdirSync(dir).filter(x=>/\.ya?ml$/.test(x)).filter(x=>/^  schedule:\s*$/m.test(source(x))).sort();
 assert.deepEqual(actual,[master,...Object.keys(independent)].sort(),'Only owner-approved four schedule owners remain');
 assert(!fs.existsSync(dir+'/v3-schedule-delivery-sentinel.yml'),'Temporary five-minute test must be retired');
-console.log('PASS production Master 10-minute events, real W01-W03/W05-W06, quota gates, independent GSC Safety Quality, no fixture Master, no 5m sentinel');
+console.log('PASS production Master 15-minute events, real W01-W03/W05-W06, quota gates, independent GSC Safety Quality, no fixture Master, no 5m sentinel');
