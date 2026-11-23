@@ -17,7 +17,7 @@ assert.match(route,/v3-stage2-quality-watch.yml/,'Keep daily quality Evals');
 assert.match(route,/threeHourSlots=\[0,3,6,9,12,15,18,21\]/,'Eight three-hour UTC slots required');
 assert.match(route,/if\(m!==0\|\|!threeHourSlots.includes\(h\)\)return \[\]/,'One three-hour tick only');
 assert.match(route,/\['W02','master','W04','safety','quality'\]/,'All production tasks dispatched on tick');
-assert.match(route,/getUTCDay\(\)===0&&h===6/,'Sunday 09:15 Saudi weekly report');
+assert.match(route,/getUTCDay\(\)===0&&h===6/,'Sunday 09:00 Saudi weekly report');
 assert.match(route,/weekly_report_readback_unverified/,'Weekly report must verify saved row');
 assert.match(route,/recentRadarCompleted/,'Avoid Radar repeated provider usage');
 assert.match(master,/inputs.source != 'supabase'/,'Supabase master must not duplicate Radar');
