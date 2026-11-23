@@ -47,6 +47,7 @@ jobs:
         run: |
           node --check scripts/v3-phase2-monitor.cjs
           node scripts/v3-phase2-monitor.test.cjs
+          node scripts/v3-master-health.test.cjs
       - name: Run scheduled watchdog or weekly report (manual defaults to no writes)
         env:
           GH_TOKEN: ${{ github.token }}
