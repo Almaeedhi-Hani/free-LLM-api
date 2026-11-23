@@ -25,7 +25,17 @@ async function generate(){
    query('impact_ai_observations','result,observed_at,verification_status','&order=observed_at.desc&limit=100'),
    query('opportunities','title,priority,status,score','&order=score.desc&limit=10')
   ]);
-  const report=core.buildReport({content});
+  const categories:Record<string,string[]>={'Market Radar':['market_radar','market-radar','market'],'GEO':['geo'],'GSC':['gsc']};
+  const systems:Record<string,unknown>={};
+  for(const [name,aliases] of Object.entries(categories)){
+   const matching=Array.isArray(runs)?runs.filter((x:any)=>aliases.some(alias=>String(x.run_type||'').toLowerCase().includes(alias))):[];
+   if(matching.length){
+    const last=matching[0];
+    const success=matching.find((x:any)=>x.status==='success'||x.status==='completed');
+    systems[name]={status:last.status,lastAttempt:last.started_at,lastSuccess:success?.finished_at??null,reason:last.error??null,source:'analysis_runs'};
+   }
+  }
+  const report=core.buildReport({content,systems});
   report.sources={runs:'analysis_runs',gsc:'gsc_daily_metrics',published:'geo_publication_events',ai:'impact_ai_observations',opportunities:'opportunities'};
   report.runSummary=Array.isArray(runs)?runs.slice(0,30):null;
   report.metrics.gsc=Array.isArray(gsc)?{sampleRows:gsc.length,clicks:gsc.reduce((n:number,r:any)=>n+Number(r.clicks||0),0),impressions:gsc.reduce((n:number,r:any)=>n+Number(r.impressions||0),0),note:'Latest 500 records; dimension-specific rows may overlap. Not a unique site-wide total.'}:null;
