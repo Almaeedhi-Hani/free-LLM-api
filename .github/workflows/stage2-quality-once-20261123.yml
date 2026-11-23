@@ -1,0 +1,33 @@
+name: One-time Stage 2 public quality GET acceptance (isolated)
+on:
+  push:
+    branches: [verification/stage2-server-readback-20261123]
+    paths:
+      - '.github/workflows/stage2-quality-once-20261123.yml'
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Audit real public pages read-only and require complete registry; no issue writes
+        env:
+          GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
+        run: |
+          node <<'NODE'
+          const {run}=require('./scripts/v3-stage2-quality-audit.cjs');
+          run({evalOutcome:'success',dryRun:true}).then(({audit})=>{
+            console.log('STAGE2_QUALITY_ACCEPT '+JSON.stringify({pages:audit.verified_pages,
+              expected:audit.total_pages,registry:audit.competitor_registry,
+              registry_reason:audit.registry_reason,violations:audit.violations.length,
+              unavailable:audit.unavailable.length,complete:audit.complete}));
+            if(!audit.complete||audit.violations.length>0||audit.verified_pages!==audit.total_pages)process.exitCode=2;
+          }).catch(error=>{console.error('STAGE2_QUALITY_UNAVAILABLE '+String(error.message).slice(0,50));process.exitCode=1;});
+          NODE
