@@ -5,6 +5,7 @@ on:
   # searches or models. Code validation runs in GEO PR + admin regression CI.
   # Keep only cadence-verified natural schedules and explicit manual dispatch.
   workflow_dispatch:  # Manual trigger
+  workflow_call: # callable from the production 10-minute Master; manual remains
 
 permissions:
   contents: read
