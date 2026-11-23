@@ -15,6 +15,8 @@ on:
       - 'scripts/admin-legacy-archive.test.cjs'
       - 'scripts/admin-published-links.test.cjs'
       - 'scripts/admin-consolidation-browser-e2e.cjs'
+      - 'scripts/phase6-navigation-contract.test.cjs'
+      - 'scripts/phase7-admin-security-contract.test.cjs'
       - 'docs/plans/phase5-published-links-evidence-20261120.md'
       - '.github/workflows/v3-admin-consolidation-checks.yml'
   workflow_dispatch:
@@ -46,6 +48,8 @@ jobs:
           else
             echo "Phase 5 is a separate PR; no Stage-5 files on this branch."
           fi
+      - name: Phase 7 contract regression
+        run: node scripts/phase7-admin-security-contract.test.cjs
       - name: Production TypeScript build (no deployment)
         run: npm run build
       - name: Isolated RTL/mobile/browser acceptance
