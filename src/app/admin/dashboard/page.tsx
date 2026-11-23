@@ -551,7 +551,7 @@ export default function AdminDashboard() {
           </div>
         </aside>
 
-        {sidebarOpen && <div className="fixed inset-0 bg-black/40 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />}
+        {sidebarOpen && <button type="button" aria-label="إغلاق قائمة التنقل" className="fixed inset-0 bg-black/40 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
         <div className="flex-1 min-w-0">
           <header className="sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-slate-200">
