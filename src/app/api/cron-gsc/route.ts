@@ -5,6 +5,7 @@ import {executeGscCatchup,GscQuotaReached} from '@/lib/gsc-backfill-plan';
 import {createGscAtomicStore} from '@/lib/gsc-atomic-storage';
 import type {GscDimension,GscRow} from '@/lib/gsc-sync-collector';
 import {classifyGscSyncFailure} from '@/lib/gsc-oauth-failure';
+import {getGscServiceAccountToken} from '@/lib/gsc-service-account';
 
 export const dynamic = 'force-dynamic';
 const property = process.env.GSC_PROPERTY_URL || 'https://free-llm-api-1-didl.onrender.com/';
@@ -18,17 +19,27 @@ function authorized(req: NextRequest) {
 export async function GET(req: NextRequest) {
  if (!authorized(req)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
  const { GSC_CLIENT_ID: id, GSC_CLIENT_SECRET: secret, GSC_REFRESH_TOKEN: refresh, SUPABASE_URL: url, SUPABASE_SERVICE_ROLE_KEY: key } = process.env;
- if (!id || !secret || !refresh || !url || !key) return NextResponse.json({ error: 'missing_server_credentials', required: ['GSC_CLIENT_ID', 'GSC_CLIENT_SECRET', 'GSC_REFRESH_TOKEN', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'] }, { status: 503 });
+ // Explicit opt-in; merely adding the secret file must not switch auth unexpectedly.
+ const useServiceAccount = process.env.GSC_AUTH_MODE === 'service_account';
+ if (!url || !key || (!useServiceAccount && (!id || !secret || !refresh)) ||
+     (useServiceAccount && !process.env.GOOGLE_APPLICATION_CREDENTIALS))
+  return NextResponse.json({error:'missing_server_credentials'}, {status:503});
  try {
-  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ client_id: id, client_secret: secret, refresh_token: refresh, grant_type: 'refresh_token' }), cache: 'no-store' });
-  if (!tokenResponse.ok) throw new Error('google_token_' + tokenResponse.status);
-  const token = await tokenResponse.json() as { access_token?: string };
-  if (!token.access_token) throw new Error('google_token_missing');
+  let accessToken: string;
+  if (useServiceAccount) {
+   accessToken = await getGscServiceAccountToken(process.env.GOOGLE_APPLICATION_CREDENTIALS!);
+  } else {
+   const tokenResponse = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ client_id: id!, client_secret: secret!, refresh_token: refresh!, grant_type: 'refresh_token' }), cache: 'no-store' });
+   if (!tokenResponse.ok) throw new Error('google_token_' + tokenResponse.status);
+   const token = await tokenResponse.json() as { access_token?: string };
+   if (!token.access_token) throw new Error('google_token_missing');
+   accessToken = token.access_token;
+  }
   const day = new Date(); day.setUTCDate(day.getUTCDate() - 3);
   const date = day.toISOString().slice(0, 10);
   const endpoint = 'https://www.googleapis.com/webmasters/v3/sites/' + encodeURIComponent(property) + '/searchAnalytics/query';
   const getRowsForDate = async (targetDate:string,dimension:GscDimension,startRow:number,rowLimit:number):Promise<GscRow[]> => {
-   const response = await fetch(endpoint, { method: 'POST', headers: { authorization: 'Bearer ' + token.access_token, 'content-type': 'application/json' },
+   const response = await fetch(endpoint, { method: 'POST', headers: { authorization: 'Bearer ' + accessToken, 'content-type': 'application/json' },
     body: JSON.stringify({ startDate: targetDate, endDate: targetDate, dimensions: dimension==='page_query'?['page','query']:(dimension?[dimension]:[]), rowLimit, startRow }), cache: 'no-store' });
    if (response.status===429) throw new GscQuotaReached('google_quota_reached');
    if (!response.ok) throw new Error('google_search_' + response.status);
