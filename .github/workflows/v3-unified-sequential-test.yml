@@ -1,12 +1,10 @@
-name: V3 hybrid linked pipeline and independent checks (5-minute test)
+name: V3 production orchestrator (10-minute cadence)
 on:
-  # Owner-approved five-minute rapid test for linked content stages + independent checks.
-  # GitHub cron is best-effort; queued full pipelines may exceed five minutes.
+  # Real production scheduler. Provider/publisher calls are due-gated by
+  # scripts/scheduled-event-slot.cjs; NEVER paid calls on every tick.
   schedule:
-    # Temporary diagnostic five-minute cadence: avoid minute 00, keep exactly
-    # 12 UTC slots/hour. Safety, Quality and GSC use their own approved crons.
-    - cron: '3-58/5 * * * *'
-  # One-time smoke test of the merged orchestrator before the next cron fires.
+    - cron: '7-57/10 * * * *'
+  # Non-production smoke on workflow definition changes; only preflight runs.
   push:
     branches: [main]
     paths:
@@ -14,216 +12,130 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  actions: read
-  issues: read # No issue reconciliation in the Master; independent Safety/Quality own alerts.
+  contents: write # Only the existing W05/W06 bounded PR paths may write.
+  pull-requests: write
+  actions: write
+  checks: read # Existing W05 CI-gated narrow index PR.
+  issues: read
 
 concurrency:
-  group: v3-unified-sequential-testing
+  group: v3-production-orchestrator-main
   cancel-in-progress: false
 
 jobs:
-  # Only the content pipeline preserves ordering. Even when Radar reports
-  # failure GEO still executes (continue-on-error); the aggregate is red.
-  linked-pipeline:
+  # Cheap preflight tests on push; on schedule, fail closed if cadence or
+  # reusable production workflow wiring is not what the owner approved.
+  production-preflight:
     if: github.ref == 'refs/heads/main' && vars.V3_MASTER_PAUSED != 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    env:
-      CI: 'true'
-      NODE_ENV: test
+    timeout-minutes: 4
     steps:
-      - name: Diagnose GitHub event delivery and workflow activation (no secrets)
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Validate the production scheduler and source event
         env:
           TRIGGER_CRON: ${{ github.event.schedule }}
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          echo "[V3_SCHEDULE_DIAG] event=$GITHUB_EVENT_NAME ref=$GITHUB_REF cron=${TRIGGER_CRON:-none} run_id=$GITHUB_RUN_ID"
-          if [ "$GITHUB_EVENT_NAME" = schedule ] && [ "$TRIGGER_CRON" != '3-58/5 * * * *' ]; then
-            echo "::error::Unexpected cron source for the only V3 scheduler"
-            exit 1
-          fi
-          # Read GitHub's actual workflow registration state (active/disabled).
-          # This helps distinguish a disabled workflow from delayed schedule delivery.
-          if workflow_state=$(curl --fail --silent --show-error --max-time 15 \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/v3-unified-sequential-test.yml" \
-            | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{const a=JSON.parse(s);if(typeof a.state!=="string")process.exit(1);console.log(a.state)})'); then
-            echo "[V3_SCHEDULE_DIAG] workflow_state=$workflow_state"
-          else
-            echo "[V3_SCHEDULE_DIAG] workflow_state=unavailable"
-          fi
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: npm
-      - name: Install pinned test dependencies
-        run: npm ci
-      - name: Verify the one-cron scheduling and readback contracts
-        run: |
-          node scripts/v3-unified-schedule.test.cjs
-          node scripts/v3-unified-readback.test.cjs
-
-      # Stage 1. Radar informs research, and is inspected before GEO.
-      # Do not call rate-limited search APIs every ten minutes.
-      - name: W02 - Market Radar persisted data and bounded source tests
-        id: w02
-        continue-on-error: true
-        env:
-          GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
-        run: |
-          # Compile the market test fixture before its radar-budget tests run.
-          # Keep provider credentials OUT of mocked test fetches; only the
-          # authenticated readback step below receives the existing key.
-          env -u GEO_API_KEY -u GEO_API_URL npm run test:market
-          node scripts/v3-unified-readback.cjs W02
-
-      # Stage 2. GEO's direct provider contracts are tested with mocked
-      # responses; actual W01 provider calls remain manual/owner-controlled.
-      - name: W01 - GEO research pipeline contracts and persisted readback
-        id: w01
-        continue-on-error: true
-        env:
-          GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
-        run: |
-          node scripts/geo-direct-model-providers.test.cjs
-          node scripts/geo-editorial-no-data-contract.test.cjs
-          node scripts/provider-usage-observer.test.cjs
-          node scripts/v3-unified-readback.cjs W01
-
-      # Stage 3. Validate publisher quotas and last DB evidence.
-      # Never POST a public editorial publication every ten minutes.
-      - name: W03 - Publisher policy and stored publication evidence
-        id: w03
-        continue-on-error: true
-        env:
-          GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
-        run: |
-          node scripts/geo-publishing-cadence.test.cjs
-          node scripts/v3-unified-readback.cjs W03
-
-      - name: Report linked content checks without masking partial failures
-        if: always()
-        env:
-          W02: ${{ steps.w02.outcome }}
-          W01: ${{ steps.w01.outcome }}
-          W03: ${{ steps.w03.outcome }}
-        shell: bash
-        run: |
-          {
-            echo '## Linked content pipeline (test-only)'
-            echo '| Stage | Result |'
-            echo '| --- | --- |'
-            echo "| W02 Radar | $W02 |"
-            echo "| W01 GEO | $W01 |"
-            echo "| W03 Publisher policy | $W03 |"
-            echo 'W02 failure does not block W01; no production AI calls or publication.'
-          } >> "$GITHUB_STEP_SUMMARY"
-          for result in "$W02" "$W01" "$W03"; do
-            if [ "$result" != success ]; then
-              echo "::error::Linked pipeline partial failure"
-              exit 1
-            fi
-          done
-
-  # W05 is not dependent on Radar/GEO/Publisher.
-  llm-feed-check:
-    if: github.ref == 'refs/heads/main' && vars.V3_MASTER_PAUSED != 'true' && vars.LLM_INDEX_PAUSED != 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    env:
-      CI: 'true'
-      NODE_ENV: test
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: npm
-      - run: npm ci
-      - name: W05 - Live machine-readable index no-write validation
-        id: w05
-        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
-          node scripts/llm-agent-index.test.cjs
-          node scripts/llm-feed-contract.test.cjs
-          node scripts/llm-agent-index.cjs --update
-          git diff --check
-          changes="$(git diff --name-only)"
-          if [ -n "$changes" ] && [ "$changes" != "public/llms.txt" ]; then
-            echo "::error::Unexpected index test file change"; exit 1;
+          echo "[V3_PRODUCTION] event=$GITHUB_EVENT_NAME ref=$GITHUB_REF cron=${TRIGGER_CRON:-none} run=$GITHUB_RUN_ID"
+          if [ "$GITHUB_EVENT_NAME" = schedule ] && [ "$TRIGGER_CRON" != '7-57/10 * * * *' ]; then
+            echo '::error::Unexpected cron source — refuse production'
+            exit 1
           fi
-          echo "[V3_W05] live_public_feed=success, no_publish=true"
+          node scripts/v3-production-ten-minute.test.cjs
+          node scripts/scheduled-event-slot.test.cjs
+          echo "[V3_PRODUCTION] preflight=success production_paths_armed=$([ "$GITHUB_EVENT_NAME" = push ] && echo false || echo true)"
 
+  # W02→W01→W03 preserve ordering, but each is allowed to fail independently.
+  # Shared 10-minute clock; live work only at its old approved four-hour slot.
+  market-radar:
+    needs: production-preflight
+    if: needs.production-preflight.result == 'success' && github.event_name != 'push' && github.ref == 'refs/heads/main' && vars.V3_MASTER_PAUSED != 'true' && vars.MARKET_RADAR_PAUSED != 'true'
+    uses: ./.github/workflows/market-radar.yml
+    secrets: inherit
 
-  # W06 is independent; safe fixture only and no bot PR.
-  maintenance-check:
-    if: github.ref == 'refs/heads/main' && vars.V3_MASTER_PAUSED != 'true' && vars.AUTODEV_PAUSED != 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    env:
-      CI: 'true'
-      NODE_ENV: test
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: npm
-      - run: npm ci
-      - name: W06 - Safe maintenance policy and regression fixtures
-        id: w06
-        continue-on-error: true
-        run: |
-          node scripts/autodev-safe-topic.test.cjs
+  geo-intelligence:
+    needs: [production-preflight, market-radar]
+    if: always() && !cancelled() && needs.production-preflight.result == 'success' && github.event_name != 'push' && github.ref == 'refs/heads/main' && vars.V3_MASTER_PAUSED != 'true'
+    uses: ./.github/workflows/geo-analysis.yml
+    secrets: inherit
 
+  geo-publisher:
+    needs: [production-preflight, geo-intelligence]
+    if: always() && !cancelled() && needs.production-preflight.result == 'success' && github.event_name != 'push' && github.ref == 'refs/heads/main' && vars.V3_MASTER_PAUSED != 'true'
+    uses: ./.github/workflows/geo-auto-publication-daily.yml
+    secrets: inherit
 
-  # Aggregation depends on check completion only, not their execution order.
-  result-summary:
+  # W05 and W06 are production executions but independent of Radar/GEO.
+  llm-feed:
+    needs: production-preflight
+    if: needs.production-preflight.result == 'success' && github.event_name != 'push' && github.ref == 'refs/heads/main' && vars.V3_MASTER_PAUSED != 'true' && vars.LLM_INDEX_PAUSED != 'true'
+    uses: ./.github/workflows/llm-feed-optimization.yml
+    secrets: inherit
+
+  maintenance:
+    needs: production-preflight
+    if: needs.production-preflight.result == 'success' && github.event_name != 'push' && github.ref == 'refs/heads/main' && vars.V3_MASTER_PAUSED != 'true' && vars.AUTODEV_PAUSED != 'true'
+    uses: ./.github/workflows/autonomous-site-maintenance.yml
+    secrets: inherit
+
+  # The Master is RED for any real unsuccessful, non-paused stage, but one
+  # stage's failure cannot prevent an unrelated stage from running.
+  outcome:
     if: always() && github.ref == 'refs/heads/main' && vars.V3_MASTER_PAUSED != 'true'
-    needs: [linked-pipeline, llm-feed-check, maintenance-check]
+    needs: [production-preflight, market-radar, geo-intelligence, geo-publisher, llm-feed, maintenance]
     runs-on: ubuntu-latest
     timeout-minutes: 3
     env:
-      PIPELINE: ${{ needs.linked-pipeline.result }}
-      INDEX: ${{ needs.llm-feed-check.result }}
-      MAINTENANCE: ${{ needs.maintenance-check.result }}
-      INDEX_PAUSED: ${{ vars.LLM_INDEX_PAUSED }}
-      MAINTENANCE_PAUSED: ${{ vars.AUTODEV_PAUSED }}
+      PRECHECK: ${{ needs.production-preflight.result }}
+      W02: ${{ needs.market-radar.result }}
+      W01: ${{ needs.geo-intelligence.result }}
+      W03: ${{ needs.geo-publisher.result }}
+      W05: ${{ needs.llm-feed.result }}
+      W06: ${{ needs.maintenance.result }}
+      RADAR_PAUSED: ${{ vars.MARKET_RADAR_PAUSED }}
+      LLM_PAUSED: ${{ vars.LLM_INDEX_PAUSED }}
+      MAINT_PAUSED: ${{ vars.AUTODEV_PAUSED }}
     steps:
-      - name: Record independent results and fail only on real non-paused failures
+      - name: Summarize real scheduler (not a fixture)
         shell: bash
         run: |
+          set -euo pipefail
           {
-            echo '## V3 hybrid five-minute test'
-            echo 'Linked: W02 then W01 then W03. Independent: W05, W06.'
-            echo 'GSC, Safety Monitor and Quality Watch are independent scheduled workflows.'
-            echo '| Component | GitHub result |'
+            echo '## V3 Production — automatic every 10 minutes'
+            echo "- Trigger: $GITHUB_EVENT_NAME"
+            echo "- This is real production orchestration, NOT eight mocked tests."
+            echo '- Due-gated W02/W01/W03/W05/W06 invoke their existing real workflows.'
+            echo '- Existing four-hour expensive provider/publisher cadence is preserved.'
+            echo '- GSC, Safety Watchdog and Quality are independently scheduled.'
+            echo '| Component | Job result |'
             echo '| --- | --- |'
-            echo "| Content pipeline | $PIPELINE |"
-            echo "| W05 independent | $INDEX |"
-            echo "| W06 independent | $MAINTENANCE |"
+            echo "| Preflight | $PRECHECK |"
+            echo "| W02 Market Radar | $W02 |"
+            echo "| W01 GEO | $W01 |"
+            echo "| W03 Publisher | $W03 |"
+            echo "| W05 Index | $W05 |"
+            echo "| W06 Maintenance | $W06 |"
           } >> "$GITHUB_STEP_SUMMARY"
-          if [ "$PIPELINE" != success ]; then
-            echo "::error::Linked content pipeline did not complete successfully"
-            exit 1
+          [ "$PRECHECK" = success ] || { echo '::error::Production cadence preflight failed'; exit 1; }
+          if [ "$GITHUB_EVENT_NAME" = push ]; then
+            echo '[V3_PRODUCTION] definition smoke only; production calls were intentionally disabled'
+            exit 0
           fi
-          if [ "$INDEX_PAUSED" != true ] && [ "$INDEX" != success ]; then
-            echo "::error::Independent W05 check failed"
-            exit 1
+          for result in "$W01" "$W03"; do
+            [ "$result" = success ] || { echo "::error::Required production child workflow failed: $result"; exit 1; }
+          done
+          if [ "$RADAR_PAUSED" != true ] && [ "$W02" != success ]; then
+            echo '::error::Radar failed while not paused'; exit 1
           fi
-          if [ "$MAINTENANCE_PAUSED" != true ] && [ "$MAINTENANCE" != success ]; then
-            echo "::error::Independent W06 check failed"
-            exit 1
+          if [ "$LLM_PAUSED" != true ] && [ "$W05" != success ]; then
+            echo '::error::Index failed while not paused'; exit 1
+          fi
+          if [ "$MAINT_PAUSED" != true ] && [ "$W06" != success ]; then
+            echo '::error::Maintenance failed while not paused'; exit 1
           fi
