@@ -10,7 +10,11 @@ const systems=[
  'v3-stage2-quality-watch.yml'
 ];
 const source=fs.readFileSync(dir+'/'+master,'utf8');
-assert.match(source,/^  schedule:\n    - cron: '\*\/10 \* \* \* \*'/m);
+assert.match(source,/- cron: '3,13,23,33,43,53 \* \* \* \*'/,
+ 'one offset 10-minute cron, not an on-the-hour high-load slot');
+const minutes=source.match(/- cron: '([^']+)'/)[1].split(' ')[0].split(',').map(Number);
+assert.deepEqual(minutes,[3,13,23,33,43,53]);
+assert(minutes.every((m,i)=>minutes[(i+1)%minutes.length]!==m));
 assert.match(source,/^  workflow_dispatch:/m);
 assert.match(source,/group: v3-unified-sequential-testing/);
 assert.match(source,/cancel-in-progress: false/);
