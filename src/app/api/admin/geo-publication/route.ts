@@ -23,7 +23,7 @@ export async function POST(req:NextRequest){
  try{
   if(body.action==='configure'){
    if(typeof body.enabled!=='boolean'||!Number.isInteger(body.daily_limit)||
-      body.daily_limit<1||body.daily_limit>3 ||
+      body.daily_limit<1||body.daily_limit>10 ||
       (body.enabled && body.confirm!=='ENABLE_GUARDED_AUTOMATIC_PUBLICATION'))
      return NextResponse.json({error:'explicit_confirmation_required'},{status:422});
    const status=await saveAutoPublicationSettings(body.enabled,body.daily_limit);
