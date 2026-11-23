@@ -6,13 +6,17 @@ const source=name=>fs.readFileSync(dir+'/'+name,'utf8');
 const master='v3-unified-sequential-test.yml';
 const main=source(master);
 const cron=c=>Array.from(c.matchAll(/- cron: '([^']+)'/g),m=>m[1]);
-const five='3,8,13,18,23,28,33,38,43,48,53,58 * * * *';
+const fiveVariants=['3,8,13,18,23,28,33,38,43,48,53,58 * * * *','3-58/5 * * * *'];
+const fiveCron=cron(main);
+assert.equal(fiveCron.length,1,'Exactly one 5-minute Master schedule');
+assert(fiveVariants.includes(fiveCron[0]),'Master must have the SAME twelve scheduled minutes per hour');
+assert(main.includes("[ \"$TRIGGER_CRON\" != '"+fiveCron[0]+"' ]"),'Runtime scheduled event verifier must use current cron');
 const gsc=[
  '0 0 * * *','45 0 * * *','0 4 * * *','0 6 * * *',
  '0 8 * * *','0 10 * * *','0 12 * * *','0 14 * * *',
  '0 16 * * *','0 18 * * *','0 20 * * *','0 22 * * *'
 ];
-assert.deepEqual(cron(main),[five],'Master retains owner-approved five-minute test cadence');
+// Verify that a direct actor re-registration can switch between equivalent five-minute syntaxes.
 assert.match(main,/group: v3-unified-sequential-testing/);
 assert.match(main,/cancel-in-progress: false/);
 assert.match(main,/V3_MASTER_PAUSED != 'true'/);
