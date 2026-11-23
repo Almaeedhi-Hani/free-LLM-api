@@ -1,7 +1,14 @@
 name: V3 Stage 2 read-only public quality and Evals alerts
 on:
   # Independent daily quality check; unaffected by Radar/Master failures.
-  workflow_dispatch: # safe local fixture and public GET simulation only; no issue writes
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Read-only CI, or central scheduled live read-only audits and issue alerts'
+        type: choice
+        options: [dry-run, live]
+        required: true
+        default: dry-run
   pull_request:
     branches: [main]
     paths:
@@ -52,14 +59,14 @@ jobs:
             echo "::error::Existing V3 regression Evals failed; quality incident must be reported on schedule."
           fi
       - name: Inspect published own-domain pages and reconcile a single quality issue
-        if: github.event_name == 'schedule'
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'live')
         env:
           GH_TOKEN: ${{ github.token }}
           GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
           V3_EVAL_OUTCOME: ${{ steps.evals.outputs.outcome }}
         run: node scripts/v3-stage2-quality-audit.cjs
       - name: Explicitly record safe dry-run without contacting production
-        if: github.event_name != 'schedule'
+        if: github.event_name != 'schedule' && inputs.mode != 'live'
         run: echo 'Offline fixtures and existing V3 Evals evaluated; no Issue, database, public GET or provider mutation.'
       - name: Reject green CI when existing V3 Evals failed
         if: steps.evals.outputs.outcome == 'failure'
