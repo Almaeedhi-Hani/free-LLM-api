@@ -6,14 +6,14 @@ const source=n=>fs.readFileSync(dir+'/'+n,'utf8');
 const master='v3-production-orchestrator.yml';
 const main=source(master);
 const crons=c=>Array.from(c.matchAll(/- cron: '([^']+)'/g),m=>m[1]);
-assert.deepEqual(crons(main),['*/15 * * * *'],'Master is production every fifteen minutes');
+assert.deepEqual(crons(main),[],'Master native schedule must remain paused in serial validation');
 assert.match(main,/name: V3 production orchestrator \(15-minute cadence\)/);
 assert.match(main,/group: v3-production-orchestrator-main/);
 assert.match(main,/cancel-in-progress: false/);
 assert.match(main,/V3_MASTER_PAUSED != 'true'/);
 assert.match(main,/^  workflow_dispatch:/m);
 assert.match(main,/^  production-preflight:/m);
-assert.match(main,/TRIGGER_CRON\" != '\*\/15 \* \* \* \*'/);
+assert.match(main,/TRIGGER_CRON/,'Retain schedule validation logic for a later approved reactivation');
 assert.match(main,/github\.event_name != 'push'/);
 assert.doesNotMatch(main,/node scripts\/v3-unified-readback.cjs|no_publish=true|test-only/i,'No mock Master');
 const stages={
@@ -45,9 +45,9 @@ assert(publisher.includes('needs: [production-preflight, geo-intelligence]')&&pu
 assert(!/market-radar|geo-intelligence/.test(llm),'LLM Feed improperly depends on Radar');
 assert(!/market-radar|geo-intelligence/.test(maint),'Maintenance improperly depends on Radar');
 const independent={
- 'v3-phase2-safety-monitor.yml':['17 */6 * * *','0 6 * * 0'],
- 'v3-stage2-quality-watch.yml':['23 2 * * *'],
- 'gsc-daily-sync.yml':['0 0 * * *','45 0 * * *','0 4 * * *','0 6 * * *','0 8 * * *','0 10 * * *','0 12 * * *','0 14 * * *','0 16 * * *','0 18 * * *','0 20 * * *','0 22 * * *']
+ 'v3-phase2-safety-monitor.yml':[],
+ 'v3-stage2-quality-watch.yml':[],
+ 'gsc-daily-sync.yml':[]
 };
 for(const [file,expected] of Object.entries(independent)){
  assert.deepEqual(crons(source(file)),expected,'Independent schedule changed for '+file);
@@ -61,12 +61,12 @@ assert(source('gsc-daily-sync.yml').includes('if-no-files-found: error'));
 // Separate short-lived diagnostic is intentionally NOT a production scheduler.
 const diagnostic='v3-six-minute-schedule-probe.yml';
 const probe=source(diagnostic);
-assert.deepEqual(crons(probe),['4-58/6 * * * *']);
+assert.deepEqual(crons(probe),[],'Probe must not continue background diagnostic scheduling');
 assert.match(probe,/^  workflow_dispatch:/m);
 assert.match(probe,/^  event-delivery-only:/m);
 assert.match(probe,/permissions:\s*\n  contents: read/);
 assert.doesNotMatch(probe,/uses: \.\/\.github\/workflows\/|secrets:|GEO_API_KEY|workflow_call:|curl |wget |dispatches|supabase|npm install/);
 const actual=fs.readdirSync(dir).filter(x=>/\.ya?ml$/.test(x)).filter(x=>/^  schedule:\s*$/m.test(source(x))).sort();
-assert.deepEqual(actual,[master,diagnostic,...Object.keys(independent)].sort(),'Only approved production schedules and isolated diagnostic exist');
+assert.deepEqual(actual,[],'No native production or diagnostic schedule until Radar completes two verified runs');
 assert(!fs.existsSync(dir+'/v3-schedule-delivery-sentinel.yml'),'Temporary five-minute test must be retired');
 console.log('PASS production Master 15-minute events, real W01-W03/W05-W06, quota gates, independent GSC Safety Quality, no fixture Master, no 5m sentinel, isolated 6m probe');
