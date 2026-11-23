@@ -232,6 +232,42 @@ w05FailureClient.w05RunVerified=async()=>true;
 assert.equal((await handleFailure(w05FailureClient,unsafeW05Event)).result,'resolved');
 assert.equal(w05Resolutions,1,'real successful index read can resolve alert');
 
+// Regression: actual scheduled GSC #45090001640 completed green, but
+// Collect GSC metrics was SKIPPED; must never clear an active failure.
+const gscSkipped={...unsafeW05Event,workflow_run:{
+  ...unsafeW05Event.workflow_run,path:'.github/workflows/gsc-daily-sync.yml',id:45090001640}};
+const gscClient={
+ pauseStatus:async()=>({status:'active'}),
+ w04RunVerified:async()=>false,
+ resolveIssue:async()=>{throw Error('GSC skipped collection cannot close an incident');},
+ upsertIssue:async()=>({result:'created'})
+};
+assert.equal((await handleFailure(gscClient,gscSkipped)).result,'ignored_cadence_skip');
+gscClient.w04RunVerified=async()=>null;
+assert.equal((await handleFailure(gscClient,gscSkipped)).result,'ignored_unverified_w04_success');
+gscClient.w04RunVerified=async()=>true;
+gscClient.resolveIssue=async()=>({result:'resolved'});
+assert.equal((await handleFailure(gscClient,gscSkipped)).result,'resolved');
+
+const gscRuns=[{...scheduled(0.5),id:45090001640},{...scheduled(1),id:123}];
+const gscSeen=[];
+const gscRunClient=createClient({repository:'org/repo',token:'test-token',fetchImpl:async(url)=>{
+ const p=new URL(url).pathname;
+ if(p.endsWith('/actions/workflows/gsc-daily-sync.yml/runs'))
+   return makeJson({workflow_runs:gscRuns});
+ const id=Number(p.match(/\/actions\/runs\/(\d+)\/jobs$/)?.[1]);
+ if(Number.isInteger(id)){
+   gscSeen.push(id);
+   return makeJson({total_count:1,jobs:[{name:'sync',status:'completed',
+    steps:[{name:'Collect GSC metrics',conclusion:id===45090001640?'skipped':'success'}]}]});
+ }
+ throw Error('Unexpected GSC fixture '+p);
+}});
+const verifiedGsc=await gscRunClient.workflowRuns('gsc-daily-sync.yml');
+assert.deepEqual(verifiedGsc.map(x=>x.conclusion),['skipped','success']);
+assert.equal(classifyRuns(verifiedGsc,now).runId,123);
+assert.deepEqual(gscSeen,[45090001640,123]);
+
 const fakeEvent={repository:{full_name:'org/repo'},workflow_run:{
  path:'.github/workflows/geo-analysis.yml',id:999,event:'schedule',head_branch:'main',
  head_repository:{full_name:'org/repo'},conclusion:'failure'
@@ -309,6 +345,8 @@ const mockRunFetch=async (url,options)=>{
   const u=new URL(url);
   if(u.pathname.includes('/actions/variables/'))return makeJson({},404);
   if(u.pathname.includes('/actions/workflows/'))return makeJson({workflow_runs:[scheduled(1)]});
+  if(u.pathname.endsWith('/actions/runs/101/jobs'))return makeJson({total_count:1,jobs:[
+    {name:'sync',status:'completed',steps:[{name:'Collect GSC metrics',conclusion:'success'}]}]});
   if(u.pathname.endsWith('/issues')&&(!options.method||options.method==='GET'))return makeJson([]);
   if(u.pathname.endsWith('/labels'))return makeJson({},201);
   if(u.pathname.endsWith('/issues')&&options.method==='POST'){
