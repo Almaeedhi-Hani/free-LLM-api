@@ -12,7 +12,8 @@ type Props={
  adminSecret:string;saving:boolean;
  onSaveItems:(items:EditorialItem[])=>Promise<boolean>;
  onSaveDrafts:(items:ContentDraft[])=>Promise<boolean>;
- onNavigate:(tab:'editorial'|'reviews'|'content'|'visibility')=>void;
+ onNavigate:(tab:'editorial'|'reviews'|'content'|'visibility'|'published_links')=>void;
+  publishedLinksEnabled?:boolean;
 };
 const kinds:Record<string,string>={
  home:'الرئيسية',service:'خدمة',packages:'الباقات',guide:'دليل',comparison:'مقارنة',
@@ -25,7 +26,7 @@ const number=(v:number)=>v.toLocaleString('ar-SA');
 const date=(v:string|null)=>v&&!Number.isNaN(Date.parse(v))?new Date(v).toLocaleString('ar-SA'):'غير متوفر';
 const metric=(value:number|null|undefined)=>value===null||value===undefined?'—':number(value);
 export default function ContentImpactCenter({
- editorialItems,faqs,drafts,adminSecret,saving,onSaveItems,onSaveDrafts,onNavigate
+ editorialItems,faqs,drafts,adminSecret,saving,onSaveItems,onSaveDrafts,onNavigate,publishedLinksEnabled=false
 }:Props){
  const [search,setSearch]=useState('');
  const [category,setCategory]=useState('all');
@@ -263,7 +264,9 @@ export default function ContentImpactCenter({
        <td className="p-3">
         <div className="flex flex-wrap gap-2">
          <button className="btn-secondary text-xs" onClick={()=>setSelectedId(item.id)}>معاينة وتفاصيل</button>
-         {item.status==='published'&&item.targetPath&&<a className="btn-secondary text-xs" href={item.targetPath} target="_blank" rel="noopener noreferrer">فتح الصفحة</a>}
+         {item.status==='published'&&item.targetPath&&(publishedLinksEnabled?
+           <button type="button" className="btn-secondary text-xs" onClick={()=>onNavigate('published_links')}>عرض في شاشة الروابط</button>:
+           <a className="btn-secondary text-xs" href={item.targetPath} target="_blank" rel="noopener noreferrer">فتح الصفحة</a>)}
         </div>
        </td>
       </tr>;
@@ -296,7 +299,9 @@ export default function ContentImpactCenter({
     {selected.verifiedSources.length>0&&<ul className="mt-2 space-y-1 text-xs">{selected.verifiedSources.map((url,i)=><li key={i}><a href={url} target="_blank" rel="noopener noreferrer" className="break-all text-blue-700 underline">{url}</a></li>)}</ul>}
     {mutationError&&<p role="alert" className="mt-3 text-sm text-red-700">{mutationError}</p>}
     <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-200 pt-4">
-      {selected.status==='published'&&selected.category==='page'&&localPath&&<a className="btn-primary text-xs" href={localPath} target="_blank" rel="noopener noreferrer">معاينة الصفحة المنشورة</a>}
+      {selected.status==='published'&&selected.category==='page'&&localPath&&(publishedLinksEnabled?
+        <button type="button" className="btn-primary text-xs" onClick={()=>{setSelectedId(null);onNavigate('published_links')}}>عرض في شاشة الروابط</button>:
+        <a className="btn-primary text-xs" href={localPath} target="_blank" rel="noopener noreferrer">معاينة الصفحة المنشورة</a>)}
       <button className="btn-secondary text-xs" onClick={()=>onNavigate(selected.itemId!==null?'editorial':selected.faqIndex!==null?'content':'reviews')}>تعديل / مراجعة</button>
       {selected.status==='published'&&selected.itemId!==null&&<button className="btn-secondary text-xs" disabled={saving} onClick={()=>void archiveEditorial(selected)}>إلغاء النشر / أرشفة</button>}
       {selected.status!=='published'&&selected.status!=='approved_unlinked'&&<button className="btn-secondary text-xs text-red-700" disabled={saving} onClick={()=>void deleteUnpublished(selected)}>حذف نهائي</button>}

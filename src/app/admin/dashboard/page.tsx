@@ -16,7 +16,8 @@ import UnifiedRunHistory from '@/components/UnifiedRunHistory';
 import TechnicalTaskBoard from '@/components/TechnicalTaskBoard';
 import GeoFeedbackMemory from '@/components/GeoFeedbackMemory';
 import LegacyToolsArchive from '@/components/LegacyToolsArchive';
-import {ADMIN_LEGACY_ARCHIVE_ENABLED} from '@/lib/admin-consolidation-flags';
+import PublishedLinksList from '@/components/PublishedLinksList';
+import {ADMIN_LEGACY_ARCHIVE_ENABLED,ADMIN_PUBLISHED_LINKS_ENABLED} from '@/lib/admin-consolidation-flags';
 import {validWhatsAppAdvisorField} from '@/lib/whatsapp-contacts';
 
 type Tab =
@@ -28,6 +29,7 @@ type Tab =
   | 'reviews'
   | 'editorial'
   | 'impact'
+  | 'published_links'
   | 'settings'
   | 'competitors'
   | 'keywords'
@@ -114,6 +116,7 @@ const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'reviews', label: 'اعتماد المسودات', icon: '🔍' },
   { key: 'editorial', label: 'تطوير جميع صفحات الموقع', icon: '📚' },
   { key: 'impact', label: 'مركز المحتوى والأثر', icon: '📊' },
+  { key: 'published_links', label: 'المحتوى المنشور: الروابط', icon: '🔗' },
   { key: 'contact', label: 'التواصل', icon: '📞' },
   { key: 'package_requests', label: 'طلبات الباقات', icon: '📥' },
   { key: 'visibility', label: 'SEO وظهور الذكاء الاصطناعي', icon: '📈' },
@@ -129,7 +132,7 @@ const NAV_HUBS:{key:AdminHub;label:string;icon:string;landing:Tab;tabs:Tab[]}[]=
   {key:'overview',label:'الرئيسية',icon:'📊',landing:'home',tabs:['home']},
   {key:'market',label:'السوق والمنافسون',icon:'🏢',landing:'competitors',tabs:['competitors','keywords','evidence']},
   {key:'strategy',label:'الفرص وخطة العمل',icon:'🎯',landing:'opportunities',tabs:['opportunities','goals']},
-  {key:'contentHub',label:'المحتوى والنشر',icon:'📝',landing:'impact',tabs:['impact','editorial','reviews','content']},
+  {key:'contentHub',label:'المحتوى والنشر',icon:'📝',landing:'impact',tabs:['impact','editorial','reviews','content','published_links']},
   {key:'measurement',label:'القياس والظهور',icon:'📈',landing:'visibility',tabs:['visibility']},
   {key:'customers',label:'طلبات العملاء',icon:'👥',landing:'package_requests',tabs:['package_requests']},
   {key:'operations',label:'التشغيل والإعدادات',icon:'⚙️',landing:'agent',tabs:['agent','runs','settings','contact','cookies','integrations']}
@@ -530,7 +533,7 @@ export default function AdminDashboard() {
                   {hub.tabs.length>1&&<span aria-hidden="true" className="text-xs">{expanded?'▾':'◂'}</span>}
                 </button>
                 {expanded&&hub.tabs.length>1&&<div id={'admin-hub-'+hub.key} className="mr-4 space-y-1 border-r border-slate-600/50 pr-2">
-                  {hub.tabs.map(key=>{
+                  {hub.tabs.filter(key=>ADMIN_PUBLISHED_LINKS_ENABLED||key!=='published_links').map(key=>{
                     const item=TABS.find(t=>t.key===key)!;
                     return <button type="button" key={key}
                       onClick={()=>{setTab(key);setSidebarOpen(false)}}
@@ -816,6 +819,8 @@ export default function AdminDashboard() {
               </section>
             )}
 
+            {tab === 'published_links' && ADMIN_PUBLISHED_LINKS_ENABLED && <PublishedLinksList editorialItems={content.editorialItems||[]} faqs={content.faqs||[]} drafts={content.drafts||[]} adminSecret={secret} />}
+
             {tab === 'impact' && <GeoFeedbackMemory adminSecret={secret} initial={feedbackTarget} />}
             {tab === 'impact' && (
               <ContentImpactCenter
@@ -827,6 +832,7 @@ export default function AdminDashboard() {
                 onSaveItems={async items=>await save({editorialItems:items})}
                 onSaveDrafts={async drafts=>await save({drafts})}
                 onNavigate={section=>setTab(section)}
+                publishedLinksEnabled={ADMIN_PUBLISHED_LINKS_ENABLED}
               />
             )}
 
@@ -836,6 +842,7 @@ export default function AdminDashboard() {
                 items={content.editorialItems||[]}
                 saving={saving}
                 onSaveItems={async items=>await save({editorialItems:items})}
+                onOpenPublishedLinks={ADMIN_PUBLISHED_LINKS_ENABLED?()=>setTab('published_links'):undefined}
               />
             )}
 
