@@ -71,14 +71,14 @@ export default function GeoEngineMonitor({secret,runs,competitors,keywords,oppor
       <p className="text-sm">{workflow.configured?'GitHub Actions متصل':'غير مهيأ: '+(workflow.message||'يلزم إعداد GEO_GITHUB_TOKEN')}</p>
       <p className="text-sm font-semibold" role="status">{!workflow.schedule?
         'جدولة السلاح السري: الحالة غير متاحة':
-        workflow.schedule.active===true?'جدولة الاختبار الهجينة مفعّلة: كل 5 دقائق للمراحل المرتبطة، مع مراقبة وجودة وGSC مستقلة':
-        workflow.schedule.active===false?'ملف الاختبار الموحد معطّل في GitHub Actions':
-        'تعذّر تأكيد تفعيل جدولة الاختبار الموحدة من GitHub'}</p>
-      <p className="text-xs text-slate-500">Master يعمل كل 5 دقائق لاختبار Radar وGEO وسياسات النشر بالتوالي؛ W05 والصيانة يفحصان باستقلال داخل Master. تعمل Safety Monitor كل 6 ساعات والتقرير أسبوعيًا، وجودة الموقع يوميًا، وGSC تلقائيًا وفق بوابة توقيته الخاصة. لا تُستدعى مزودات AI ولا يُنشر محتوى من دورة الاختبار السريعة. تشغيل GitHub الناجح لا يثبت حفظ بيانات جديدة.</p>
+        workflow.schedule.active===true?'جدولة الإنتاج الموحدة مفعّلة: كل 10 دقائق، مع مراقبة وجودة وGSC مستقلة':
+        workflow.schedule.active===false?'ملف التشغيل الإنتاجي الموحد معطّل في GitHub Actions':
+        'تعذّر تأكيد تفعيل جدولة الإنتاج الموحدة من GitHub'}</p>
+      <p className="text-xs text-slate-500">Master الإنتاجي يعمل كل 10 دقائق ويستدعي أنظمة Radar وGEO والنشر الحقيقي بالتوالي، مع استقلال LLM Feed والصيانة. تتحقق بوابة الاستحقاق قبل أي استدعاء مكلف وفق جدولة الأربع ساعات وحدود المزودين السابقة؛ فلا تُستدعى API أو تُنشر مواد جديدة في كل نبضة. GSC وSafety Monitor وQuality Watch تعمل بجداول مستقلة. نجاح GitHub وحده لا يثبت حفظ بيانات جديدة.</p>
       <div className="rounded-lg border border-slate-200 p-3 text-xs space-y-1">
         <p className="font-semibold">توزيع الأنظمة في الهيكلة الهجينة</p>
-        <p>Master كل 5 دقائق: Radar ← GEO ← فحص سياسة النشر. W05 والصيانة اختبارات مستقلة لا تنتظر Radar.</p>
-        <p>يُختبر Radar وGEO والنشر والصيانة دون عمليات بحث أو نشر أو دمج جديدة أثناء الاختبار السريع.</p>
+        <p>Master الإنتاجي كل 10 دقائق: Radar ← GEO ← النشر الحقيقي عند الاستحقاق، مع استمرار GEO إذا فشل Radar. W05 والصيانة تعملان باستقلال.</p>
+        <p>عند موعد الاستحقاق المحدد مسبقًا، يُنفّذ Radar وGEO والنشر وLLM Feed والصيانة العمليات الإنتاجية الحقيقية؛ أما بقية نبضات الـ10 دقائق فتتحقق من بوابة التوقيت ولا تستهلك حصص AI.</p>
         <p>GSC: مزامنة تلقائية مستقلة (03:45 و09:00 و13:00 و17:00 و21:00 و01:00 بتوقيت السعودية) مع منع تكرار الأيام في الخادم.</p>
         <p>LLM Feed: فحص حيّ لملف /llms.txt دون إنشاء PR.</p>
         <p>Safety Monitor يعمل كل 6 ساعات ويكشف غياب Master حتى لو توقف تمامًا؛ Quality Watch يوميًا، وكلاهما مستقل عن نجاح Radar.</p>
