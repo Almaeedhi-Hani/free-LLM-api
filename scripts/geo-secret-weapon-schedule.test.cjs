@@ -37,9 +37,9 @@ assert(api.includes("github('/actions/workflows/' + unifiedWorkflow)"),'Unified 
 assert(api.includes("state === 'unknown' ? null : state === 'active'"),'Unknown not displayed as active');
 const master=read('.github/workflows/v3-unified-sequential-test.yml');
 const cron=master.match(/- cron: '([^']+)'/)?.[1];
-assert(['3,8,13,18,23,28,33,38,43,48,53,58 * * * *','3-58/5 * * * *'].includes(cron),
- 'Master remains exactly every five minutes');
+assert.equal(cron,'7-57/10 * * * *',
+ 'Master launches real production orchestration exactly every ten minutes');
 assert(api.includes("cron_utc: '"+cron+"'"),'Dashboard must reflect the actual Master cron in main');
-assert(ui.includes('جدولة الاختبار الهجينة مفعّلة')&&ui.includes('تعذّر تأكيد تفعيل جدولة الاختبار الموحدة'),'Visible accurate unified schedule state');
-assert(ui.includes('دون عمليات بحث أو نشر أو دمج جديدة'),'High-frequency test is explicitly nonpublishing');
+assert(ui.includes('جدولة الإنتاج الموحدة مفعّلة')&&ui.includes('تعذّر تأكيد تفعيل جدولة الإنتاج الموحدة'),'Visible accurate unified schedule state');
+assert(ui.includes('العمليات الإنتاجية الحقيقية'),'High-frequency orchestrator must disclose due-gated real production');
 console.log('PASS GEO Saudi burst cadence and workflow state, LLM indexing separate, publication policy intact');
