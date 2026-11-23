@@ -35,7 +35,7 @@ assert(gsc.includes('gsc-scheduled-slot.cjs')&&gsc.includes('github.event.schedu
 assert(geo.includes('scheduled-event-slot.cjs --kind=geo'),'GEO uses original event time');
 assert(api.includes("github('/actions/workflows/' + unifiedWorkflow)"),'Unified GitHub workflow status must be read');
 assert(api.includes("state === 'unknown' ? null : state === 'active'"),'Unknown not displayed as active');
-assert(api.includes("cron_utc: '*/10 * * * *'"),'Dashboard reports the unified 10-minute test schedule');
+assert(api.includes("cron_utc: '3,13,23,33,43,53 * * * *'"),'Dashboard reports the unified 10-minute test schedule');
 assert(ui.includes('جدولة الاختبار الموحدة مفعّلة')&&ui.includes('تعذّر تأكيد تفعيل جدولة الاختبار الموحدة'),'Visible accurate unified schedule state');
 assert(ui.includes('دون عمليات بحث أو نشر أو دمج جديدة'),'High-frequency test is explicitly nonpublishing');
 console.log('PASS GEO Saudi burst cadence and workflow state, LLM indexing separate, publication policy intact');
