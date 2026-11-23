@@ -2,6 +2,7 @@ name: GEO Daily Auto Publication
 
 on:
   workflow_dispatch:
+  workflow_call: # callable from the production 10-minute Master; manual remains
 
 permissions:
   contents: read
