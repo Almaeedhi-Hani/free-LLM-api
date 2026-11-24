@@ -21,14 +21,19 @@ export function feedbackKey(type:FeedbackSubject,raw:string):string{
  if(type==='publication')return (value.startsWith('/')?value:'/'+value).replace(/\/+$/,'')||'/';
  return value;
 }
-const identity=(type:FeedbackSubject,key:string,lang?:string|null)=>[type,feedbackKey(type,key),lang||'*'].join('|');
+export const identity=(type:FeedbackSubject,key:string,lang?:string|null)=>[type,feedbackKey(type,key),lang||'*'].join('|');
+const undoPrefix='[operator-undo] ';
+export function isUndo(row:GeoFeedback):boolean{return row.decision==='valid'&&row.source==='admin'&&row.reason.startsWith(undoPrefix)}
 export function effectiveFeedback(rows:GeoFeedback[]):FeedbackIndex{
  const index:FeedbackIndex=new Map();
+ const seen=new Set<string>();
  // SQL returns newest first; latest correction of one identity is authoritative.
  for(const row of [...rows].sort((a,b)=>
   b.created_at.localeCompare(a.created_at)||b.id.localeCompare(a.id))){
   const k=identity(row.subject_type,row.subject_key,row.language);
-  if(!index.has(k))index.set(k,row);
+  if(seen.has(k))continue;
+  seen.add(k);
+  if(!isUndo(row))index.set(k,row);
  }
  return index;
 }
@@ -82,7 +87,7 @@ export function validateFeedback(raw:unknown):{
  const language=v.language===null||v.language===''||v.language===undefined?null:v.language;
  if(typeof key!=='string'||key.length<2||key.length>500||
     (language!==null&&!['ar','en','zh'].includes(String(language)))||
-    typeof v.reason!=='string'||v.reason.trim().length<5||v.reason.trim().length>1000)
+    typeof v.reason!=='string'||v.reason.trim().startsWith(undoPrefix)||v.reason.trim().length<5||v.reason.trim().length>1000)
   throw Error('Subject, language or explanation invalid');
  return {subject_type:type,subject_key:key,
   language:language as 'ar'|'en'|'zh'|null,decision:v.decision as FeedbackDecision,
@@ -106,17 +111,35 @@ async function feedbackFetch(suffix:string,method:'GET'|'POST'='GET',body?:unkno
  return rows as GeoFeedback[];
 }
 /** Fetch all recent corrections from protected, service-role-only Supabase storage. */
-export async function listGeoFeedback(limit=1000):Promise<GeoFeedback[]>{
- const bounded=Math.max(1,Math.min(1000,Math.trunc(limit)));
- return feedbackFetch('?select=id,subject_type,subject_key,language,decision,reason,source,created_at&order=created_at.desc,id.desc&limit='+bounded);
+export async function listGeoFeedback(limit=Number.MAX_SAFE_INTEGER):Promise<GeoFeedback[]>{
+ const result:GeoFeedback[]=[];
+ const bounded=Math.max(1,Math.trunc(limit));
+ while(result.length<bounded){
+  const page=await feedbackFetch('?select=id,subject_type,subject_key,language,decision,reason,source,created_at&order=created_at.desc,id.desc&offset='+result.length+'&limit='+Math.min(500,bounded-result.length));
+  if(!page.length)break;
+  result.push(...page);
+ }
+ return result;
 }
 export async function getGeoFeedbackIndex():Promise<FeedbackIndex>{
  return effectiveFeedback(await listGeoFeedback());
 }
 export async function appendGeoFeedback(payload:unknown):Promise<GeoFeedback>{
  const item=validateFeedback(payload);
+ const previous=effectiveFeedback(await listGeoFeedback()).get(identity(item.subject_type,item.subject_key,item.language));
+ if(previous) throw Error('Feedback already active');
  const saved=await feedbackFetch('', 'POST', item);
  if(saved.length!==1||saved[0].subject_key!==item.subject_key||
     saved[0].decision!==item.decision)throw Error('Feedback persistence unconfirmed');
+ return saved[0];
+}
+
+/** Append a reversible audit event using the existing valid decision constraint. */
+export async function undoGeoFeedback(id:string):Promise<GeoFeedback>{
+ const current=Array.from(effectiveFeedback(await listGeoFeedback()).values()).find(x=>x.id===id);
+ if(!current)throw Error('Feedback is not active');
+ const {subject_type,subject_key,language}=current;
+ const saved=await feedbackFetch('','POST',{subject_type,subject_key,language,decision:'valid',reason:undoPrefix+id,source:'admin'});
+ if(saved.length!==1||!isUndo(saved[0]))throw Error('Feedback undo unconfirmed');
  return saved[0];
 }
