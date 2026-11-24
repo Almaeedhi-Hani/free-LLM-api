@@ -33,6 +33,8 @@ function alerts(d){
 }
 function healthText(d){
  const labels={recent:'نتيجة ناجحة حديثة',failed:'فشل في آخر نتيجة',stale:'النتيجة قديمة',unknown:'غير مؤكد'};
- return health(d).map(x=>x.name+': '+labels[x.state]).join('\n')+'\nبلاغات Watchdog المفتوحة: '+(Array.isArray(d.watchdogIssues)?d.watchdogIssues.length+(d.watchdogIssues.length===100?' أو أكثر':''):'غير متاح')+'\nنجاح تشغيل Watchdog لا يعني غياب الأعطال.';
+ const names={'Market Radar':'استخبارات السوق','GEO':'المحتوى والظهور التوليدي (GEO)','GSC':'محركات البحث (GSC)','Watchdog':'مراقب الأنظمة'};
+ const date=v=>v?new Intl.DateTimeFormat('ar-SA',{calendar:'gregory',timeZone:'Asia/Riyadh',dateStyle:'short',timeStyle:'short'}).format(new Date(v)):'غير مؤكد';
+ return health(d).map(x=>names[x.name]+': '+labels[x.state]+' — '+date(x.when)).join('\n')+'\nبلاغات Watchdog المفتوحة: '+(Array.isArray(d.watchdogIssues)?d.watchdogIssues.length+(d.watchdogIssues.length===100?' أو أكثر':''):'غير متاح')+'\nنجاح تشغيل Watchdog لا يعني غياب الأعطال.';
 }
 module.exports={dailyKey,classify,health,alerts,healthText};
