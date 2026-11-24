@@ -14,7 +14,9 @@ import SearchIntegrationsAdmin from '@/components/SearchIntegrationsAdmin';
 import GeoEngineMonitor from '@/components/GeoEngineMonitor';
 import UnifiedRunHistory from '@/components/UnifiedRunHistory';
 import TechnicalTaskBoard from '@/components/TechnicalTaskBoard';
-import GeoFeedbackMemory from '@/components/GeoFeedbackMemory';
+import GeoFeedbackMemory, {type CorrectionCandidate} from '@/components/GeoFeedbackMemory';
+import DashboardReportExport from '@/components/DashboardReportExport';
+import {buildPublishedLinks} from '@/lib/published-links';
 import LegacyToolsArchive from '@/components/LegacyToolsArchive';
 import PublishedLinksList from '@/components/PublishedLinksList';
 import {ADMIN_LEGACY_ARCHIVE_ENABLED,ADMIN_PUBLISHED_LINKS_ENABLED} from '@/lib/admin-consolidation-flags';
@@ -502,6 +504,15 @@ export default function AdminDashboard() {
     return <div className="min-h-screen flex flex-col gap-3 items-center justify-center text-slate-600" dir="rtl"><p>{error||'جاري التحميل...'}</p><button className="btn-secondary" onClick={fetchContent}>إعادة المحاولة</button><button className="text-sm underline" onClick={logout}>تسجيل الخروج</button></div>;
   }
 
+  const correctionCandidates:CorrectionCandidate[]=[
+    ...competitors.filter(c=>c.domain).map(c=>({kind:'competitor' as const,key:String(c.domain),label:c.name+' — '+c.domain})),
+    ...keywords.filter(k=>k.term).map(k=>({kind:'keyword' as const,key:String(k.term),language:k.language})),
+    ...opportunities.filter(o=>o.title).map(o=>({kind:'opportunity' as const,key:String(o.title)})),
+    ...(content.editorialItems||[]).filter((e:any)=>e.id).map((e:any)=>({kind:'editorial' as const,key:String(e.id),language:e.lang,label:e.title})),
+    ...(content.faqs||[]).filter((f:any)=>f.q).map((f:any)=>({kind:'faq' as const,key:String(f.q)})),
+    ...buildPublishedLinks(content.editorialItems||[],content.faqs||[]).map(p=>({kind:'publication' as const,key:p.path,language:p.language,label:p.title+' — '+p.path}))
+  ];
+  const uniqueCorrectionCandidates=correctionCandidates.filter((v,i,a)=>a.findIndex(x=>x.kind===v.kind&&x.key===v.key&&x.language===v.language)===i);
   const pendingDrafts = (content.drafts || []).filter((d: any) => d.status === 'pending').length;
   const competitorBackedOpps = opportunities.filter((o: any) => o.type === 'content_gap').length;
   const keywordDerivedOpps = opportunities.filter((o: any) => o.type === 'keyword_gap').length;
@@ -555,15 +566,16 @@ export default function AdminDashboard() {
 
         <div className="flex-1 min-w-0">
           <header className="sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-slate-200">
-            <div className="flex items-center justify-between px-4 sm:px-6 h-16 gap-3">
+            <div className="flex flex-wrap items-center justify-between px-4 sm:px-6 min-h-16 py-2 gap-2">
               <div className="flex items-center gap-3">
                 <button className="lg:hidden text-navy-900" onClick={() => setSidebarOpen(true)} aria-label="فتح القائمة">☰</button>
                 <h1 className="text-lg sm:text-xl font-bold text-navy-900">{TABS.find((t) => t.key === tab)?.label}</h1>
               </div>
-              <div className="flex items-center gap-3 text-xs text-slate-500">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
                 {saving && <span className="text-gold-600">جاري الحفظ...</span>}
                 <span>آخر مزامنة: {lastUpdated || 'غير متوفر'}</span>
-                <button onClick={refreshAll} className="btn-secondary text-xs" disabled={marketLoading||refreshingAll||saving}>{refreshingAll||marketLoading?'جارٍ التحديث...':'تحديث البيانات'}</button>
+                <button onClick={refreshAll} className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm font-medium text-navy-900 whitespace-nowrap disabled:opacity-50" disabled={marketLoading||refreshingAll||saving}>{refreshingAll||marketLoading?'جارٍ التحديث...':'تحديث البيانات'}</button>
+                {tab==='home'&&<DashboardReportExport secret={secret} disabled={saving||refreshingAll}/>}
               </div>
             </div>
           </header>
@@ -718,7 +730,7 @@ export default function AdminDashboard() {
             )}
 
             {tab === 'agent' && <GeoEngineMonitor secret={secret} runs={runs} competitors={competitors} keywords={keywords} opportunities={opportunities} goals={goals} sources={marketSources} loading={marketLoading} refresh={() => { void refreshMarket(); void fetchMarketSources(); }} />}
-            {tab === 'agent' && <GeoFeedbackMemory adminSecret={secret} initial={feedbackTarget} />}
+            {tab === 'agent' && <GeoFeedbackMemory adminSecret={secret} initial={feedbackTarget} candidates={uniqueCorrectionCandidates} />}
 
             {tab === 'agent' && (
               <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
@@ -821,7 +833,7 @@ export default function AdminDashboard() {
 
             {tab === 'published_links' && ADMIN_PUBLISHED_LINKS_ENABLED && <PublishedLinksList editorialItems={content.editorialItems||[]} faqs={content.faqs||[]} drafts={content.drafts||[]} adminSecret={secret} />}
 
-            {tab === 'impact' && <GeoFeedbackMemory adminSecret={secret} initial={feedbackTarget} />}
+            {tab === 'impact' && <GeoFeedbackMemory adminSecret={secret} initial={feedbackTarget} candidates={uniqueCorrectionCandidates} />}
             {tab === 'impact' && (
               <ContentImpactCenter
                 editorialItems={content.editorialItems||[]}
@@ -938,7 +950,7 @@ export default function AdminDashboard() {
 
             {tab === 'keywords' && (
               <div className="space-y-6">
-                <GeoFeedbackMemory adminSecret={secret} initial={feedbackTarget} />
+                <GeoFeedbackMemory adminSecret={secret} initial={feedbackTarget} candidates={uniqueCorrectionCandidates} />
                 <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
                   <h2 className="text-xl font-bold mb-2">كلمات البحث السوقية</h2><p className="text-sm text-slate-500 mb-4">تُستخدم لمراقبة السوق ولا تُنشر تلقائيًا في الموقع.</p>
                   <input className="border border-slate-300 rounded-lg px-3 py-2 w-full mb-3" value={keywordSearch} onChange={e=>setKeywordSearch(e.target.value)} placeholder="تصفية الكلمات أو اللغات" aria-label="تصفية الكلمات المفتاحية"/>
