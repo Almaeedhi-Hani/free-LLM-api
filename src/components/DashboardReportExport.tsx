@@ -32,7 +32,7 @@ function zip(files:Record<string,string>){
  const parts:Uint8Array[]=[],central:Uint8Array[]=[];let offset=0,size=0;
  for(const [name,value] of Object.entries(files)){
   const n=enc.encode(name),b=enc.encode(value);let crc=0xffffffff;
-  for(const x of b){crc^=x;for(let i=0;i<8;i++)crc=(crc>>>1)^((crc&1)?0xedb88320:0)}crc=(crc^0xffffffff)>>>0;
+  for(let k=0;k<b.length;k++){crc^=b[k];for(let i=0;i<8;i++)crc=(crc>>>1)^((crc&1)?0xedb88320:0)}crc=(crc^0xffffffff)>>>0;
   const h=new Uint8Array(30+n.length),v=new DataView(h.buffer);v.setUint32(0,0x04034b50,true);v.setUint16(4,20,true);v.setUint32(14,crc,true);v.setUint32(18,b.length,true);v.setUint32(22,b.length,true);v.setUint16(26,n.length,true);h.set(n,30);
   const m=new Uint8Array(46+n.length),w=new DataView(m.buffer);w.setUint32(0,0x02014b50,true);w.setUint16(4,20,true);w.setUint16(6,20,true);w.setUint32(16,crc,true);w.setUint32(20,b.length,true);w.setUint32(24,b.length,true);w.setUint16(28,n.length,true);w.setUint32(42,offset,true);m.set(n,46);
   parts.push(h,b);central.push(m);offset+=h.length+b.length;size+=m.length;
@@ -63,7 +63,7 @@ async function pdf(s:Section[]){
  await document.fonts.ready;
  const w=595,h=842,m=40,scale=2;
  const canvas=document.createElement('canvas');canvas.width=w*scale;canvas.height=h*scale;
- const ctx=canvas.getContext('2d');if(!ctx)throw Error('تعذر إنشاء PDF');ctx.scale(scale,scale);
+ const context=canvas.getContext('2d');if(!context)throw Error('تعذر إنشاء PDF');const ctx:CanvasRenderingContext2D=context;ctx.scale(scale,scale);
  const pages:{image:Uint8Array;links:{url:string;y:number}[]}[]=[];let y=0,links:{url:string;y:number}[]=[];
  const start=()=>{ctx.fillStyle='white';ctx.fillRect(0,0,w,h);ctx.fillStyle='#173c3a';ctx.fillRect(0,0,w,64);ctx.fillStyle='white';ctx.font='bold 17px Arial';ctx.direction='rtl';ctx.textAlign='right';ctx.fillText('Invest in Saudi | تقرير لوحة التحكم',w-m,40);y=90;links=[]};
  const finish=()=>{ctx.fillStyle='#64748b';ctx.font='11px Arial';ctx.textAlign='center';ctx.fillText(String(pages.length+1),w/2,h-20);const data=atob(canvas.toDataURL('image/jpeg',0.88).split(',')[1]);pages.push({image:Uint8Array.from(data,c=>c.charCodeAt(0)),links})};
