@@ -407,6 +407,7 @@ async function stageGeoAnalysis() {
   let failed=0,calls=0;
   const unavailableModels=new Set();
   const quotaLimitedModels=new Set();
+  const modelCalls=new Map();
   const repairable=[];
   const outputFields=['drafts','editorial_actions'];
   const checkOutputs=(data,lang,limits)=>{
@@ -447,6 +448,7 @@ async function stageGeoAnalysis() {
     const fallbackOrder=(freshModels.length?freshModels:recovery?[recovery]:[]).slice(0,3);
     for(const [index,model] of fallbackOrder.entries()){
       calls++;
+      modelCalls.set(model,(modelCalls.get(model)||0)+1);
       const recovered=freshModels.length===0;
       const evidence=selectLocaleEvidence(all,lang,recovered?2:index===0?8:index===1?4:2);
       const timeoutMs=recovered?45000:index===0?90000:index===1?60000:45000;
@@ -459,7 +461,7 @@ async function stageGeoAnalysis() {
       if(valid){response=trial;responseEvidence=evidence;break}
       const reason=String(trial.error||(data?'invalid_model_response':'unparseable JSON')).slice(0,70);
       attempts.push({model,reason});
-      if(reason==='rate_limited'||reason==='quota_exhausted')quotaLimitedModels.add(model);
+      if(reason==='rate_limited'||reason==='quota_exhausted'||reason==='provider_quota_cooldown')quotaLimitedModels.add(model);
       if(direct||reason==='timeout'||reason==='rate_limited'||reason.startsWith('Command failed'))
         unavailableModels.add(model);
       logStage('GEO_ANALYSIS',lang+' free model unavailable: '+model+' '+reason);
@@ -475,17 +477,24 @@ async function stageGeoAnalysis() {
   }
   // Give every locale its normal analysis before spending one unused direct-model
   // attempt for format repair. A repair never gets its own fallback chain.
-  const repair=direct&&repairable.find(item=>item.hasBudget&&!unavailableModels.has(item.model)&&
-    candidateModels.includes(item.model)&&outputFields.some(field=>item.checks[field].rejected.length));
+  const eligibleRepairModels=candidateModels.filter(m=>!unavailableModels.has(m)&&!quotaLimitedModels.has(m));
+  const repair=direct&&eligibleRepairModels.length&&repairable.find(item=>item.hasBudget&&
+    outputFields.some(field=>item.checks[field].rejected.length));
   if(repair){
     const errors=Object.fromEntries(outputFields.map(field=>[field,repair.checks[field].rejected]));
-    const report=result.languages[repair.lang].validation_repair={attempted:true,outcome:'no_valid_replacements'};
+    // Reserve the single existing repair attempt for the least-used eligible
+    // provider when the original provider has handled the other locales too.
+    // Prefer its original model for ties and the explicitly free router for
+    // unused alternatives; do not retry even if the repair fails.
+    const repairModel=eligibleRepairModels.includes(repair.model)&&(modelCalls.get(repair.model)||0)<=1?repair.model:[...eligibleRepairModels].sort((a,b)=>(modelCalls.get(a)||0)-(modelCalls.get(b)||0)||
+      Number(b===repair.model)-Number(a===repair.model)||Number(b==='openrouter:openrouter/free')-Number(a==='openrouter:openrouter/free'))[0];
+    const report=result.languages[repair.lang].validation_repair={attempted:true,outcome:'no_valid_replacements',model:repairModel};
     try{
       const prompt=promptForDirectLocale(repair.lang,repair.evidence,errors);
       calls++;
-      const trial=await direct.generate(prompt,repair.model,{timeoutMs:45000});
+      const trial=await direct.generate(prompt,repairModel,{timeoutMs:45000});
       if(!trial.data){
-        report.outcome=['rate_limited','quota_exhausted'].includes(trial.error)?'quota_reached':'model_unavailable';
+        report.outcome=['rate_limited','quota_exhausted','provider_quota_cooldown'].includes(trial.error)?'quota_reached':'model_unavailable';
       }else{
         const limits=Object.fromEntries(outputFields.map(field=>[field,errors[field].length]));
         const replacements=checkOutputs(trial.data,repair.lang,limits);
