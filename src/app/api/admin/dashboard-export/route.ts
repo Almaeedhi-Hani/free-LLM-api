@@ -4,8 +4,8 @@ import {getContent} from '@/lib/content-store';
 import {getSupabaseCredentials} from '@/lib/storage-mode';
 import {listCompetitors,listKeywords,listOpportunities,listGoals,listRuns} from '@/lib/market-intelligence';
 import {buildPublishedLinks} from '@/lib/published-links';
-import type {PublicationEventSummary} from '@/lib/published-links';
-import {getAutoPublicationStatus} from '@/lib/geo-auto-publication';
+
+
 
 export const dynamic='force-dynamic';
 const headers={'Cache-Control':'private, no-store, max-age=0'};
@@ -38,12 +38,27 @@ export async function GET(req:NextRequest){
    allRows('opportunities',()=>listOpportunities()),allRows('agent_goals',()=>listGoals()),
    allRows('analysis_runs',()=>listRuns(Number.MAX_SAFE_INTEGER))
   ]);
-  const publication=await getAutoPublicationStatus().catch(()=>null);
-  const events=publication?.available&&Array.isArray(publication.events)?publication.events as PublicationEventSummary[]:[];
-  const links=buildPublishedLinks(content.editorialItems,content.faqs,events);
-  return NextResponse.json({generatedAt:new Date().toISOString(),updatedAt:content.updatedAt,competitors,keywords,
-   opportunities,goals,runs:runs.map(({summary,error,...r})=>({...r,summary:summary?Object.fromEntries(Object.entries(summary).filter(([k,v])=>/count|total|created|saved|processed|status/i.test(k)&&typeof v==='number')):null,error:error?'راجع سجل التشغيل الأصلي':null})),
-   drafts:content.drafts.filter(d=>d.status==='pending'),editorialDrafts:content.editorialItems.filter(d=>d.status==='pending'),
-   faqs:content.faqs,siteKeywords:content.keywords,links,publicationEvidenceAvailable:!!publication?.available},{headers});
+  const links=buildPublishedLinks(content.editorialItems,content.faqs);
+  const outcomeKeys=['competitors_analyzed','keywords_analyzed','opportunities_created','goals_created','suggestions_collected','keywords_upserted','competitors_discovered','observations_recorded','unique_domains'];
+  const summarize=(summary:Record<string,unknown>|null|undefined)=>{
+   const result:Record<string,number>={};
+   if(!summary)return result;
+   for(const source of [summary,summary.discovery,summary.analysis]){
+    if(!source||typeof source!=='object')continue;
+    for(const key of outcomeKeys){const v=(source as Record<string,unknown>)[key];if(typeof v==='number'&&Number.isFinite(v))result[key]=v;}
+   }
+   return result;
+  };
+  return NextResponse.json({generatedAt:new Date().toISOString(),
+   competitors:competitors.map(({name,domain})=>({name,domain})),
+   keywords:keywords.map(({term,language,search_volume})=>({term,language,search_volume})),
+   opportunities:opportunities.map(({title,type,priority,related_keywords,related_competitors})=>({title,type,priority,related_keywords,related_competitors})),
+   goals:goals.map(({title,description,status})=>({title,description,status})),
+   runs:runs.map(({run_type,started_at,status,summary})=>({run_type,started_at,status,summary:summarize(summary)})),
+   drafts:content.drafts.filter(d=>d.status==='pending').map(d=>({q:d.q,status:d.status})),
+   editorialDrafts:content.editorialItems.filter(d=>d.status==='pending').map(d=>({title:d.title,status:d.status})),
+   faqs:content.faqs.map(({q,a})=>({q,a})),
+   siteKeywords:content.keywords,
+   links:links.map(({title,language,path})=>({title,language,path}))},{headers});
  }catch{return NextResponse.json({error:'تعذر قراءة بيانات التقرير كاملة؛ لم يتم إنشاء تقرير ناقص.'},{status:503,headers});}
 }
