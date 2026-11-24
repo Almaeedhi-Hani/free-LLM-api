@@ -95,7 +95,13 @@ export async function handleAdvanced(a:Action,cfg:Cfg,updateId:number):Promise<s
    if(!r.ok)throw Error('mutation_unconfirmed');
    const result=await r.json();if(result.status!=='updated')throw Error('mutation_unconfirmed');
    const saved=await readContent();
-   const verified=x.kind==='faq'?saved.drafts.some(d=>d.q===x.item.q&&d.a===x.item.a&&d.status===(approve?'approved':'rejected'))&&(!approve||saved.faqs.some(f=>f.q===x.item.q&&f.a===x.item.a.trim())):saved.editorialItems.some(d=>d.id===x.item.id&&d.status==='rejected');
+   let verified=false;
+   if(x.kind==='faq'){
+    const draft=x.item;
+    verified=saved.drafts.some(d=>d.q===draft.q&&d.a===draft.a&&d.status===(approve?'approved':'rejected'))&&(!approve||saved.faqs.some(f=>f.q===draft.q&&f.a===draft.a.trim()));
+   }else{
+    const item=x.item;verified=saved.editorialItems.some(d=>d.id===item.id&&d.status==='rejected');
+   }
    if(!verified)throw Error('readback_unconfirmed');
    await closeIntent(cfg,code,'applied','saved_readback_verified');
    return approve?'تم اعتماد السؤال وحفظه عبر بوابة الإدارة، وتحققنا من السجل.':'تم رفض العنصر والتحقق من حفظ القرار.';
@@ -120,8 +126,8 @@ export async function handleVoice(update:unknown,cfg:Cfg){
   if(!meta.ok||j?.ok!==true||typeof path!=='string'||!/^voice\/[A-Za-z0-9_-]+\.(ogg|oga|opus)$/.test(path))throw Error('invalid_voice_file');
   const file=await fetch('https://api.telegram.org/file/bot'+cfg.token+'/'+path,{redirect:'error',signal:AbortSignal.timeout(8000),cache:'no-store'});
   if(!file.ok||!file.body)throw Error('voice_unavailable');
-  const reader=file.body.getReader(),parts:Uint8Array[]=[];let size=0;
-  try{for(;;){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>1048576){await reader.cancel();throw Error('voice_limit');}parts.push(value);}}finally{reader.releaseLock();}
+  const reader=file.body.getReader(),parts:Buffer[]=[];let size=0;
+  try{for(;;){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>1048576){await reader.cancel();throw Error('voice_limit');}parts.push(Buffer.from(value));}}finally{reader.releaseLock();}
   if(size<1)throw Error('empty_voice');
   const form=new FormData();form.append('file',new Blob([Buffer.concat(parts)],{type:'audio/ogg'}),'voice.ogg');form.append('model','whisper-large-v3-turbo');form.append('response_format','json');
   const r=await fetch('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{Authorization:'Bearer '+key},body:form,redirect:'error',signal:AbortSignal.timeout(15000),cache:'no-store'});
