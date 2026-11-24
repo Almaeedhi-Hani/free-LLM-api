@@ -189,7 +189,8 @@ const groups={
   assert.equal(updated.keyword.term,'isolated qa keyword updated');
   await navigate('كلمات البحث السوقية');
   await page.getByRole('textbox',{name:'تصفية الكلمات المفتاحية'}).fill('isolated qa keyword updated');
-  await page.getByText('isolated qa keyword updated',{exact:true}).waitFor();
+  await page.getByRole('cell',{name:'isolated qa keyword updated',exact:true}).waitFor();
+  assert.equal(await page.locator('select option').filter({hasText:/^isolated qa keyword updated$/}).count(),1,'keyword must also be available once in correction picker');
   const removed=await request('DELETE','/api/admin/market/keywords',{id:keyword.keyword.id});
   assert.equal(removed.deleted,true);
   assert(!(await request('GET','/api/admin/market/keywords')).keywords.some(x=>x.id===keyword.keyword.id));
