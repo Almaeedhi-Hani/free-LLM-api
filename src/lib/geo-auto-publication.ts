@@ -233,7 +233,7 @@ export async function runGuardedAutoPublishing(dryRun=false,origin:PublicationOr
   return {...report,status:'dry_run',message:JSON.stringify({
    pending_editorial:editorial.length,pending_faq:faqDrafts.length,
    visitor_page_candidates:publishable.length,
-   source_requirement:'optional',high_risk_permission:state.allow_high_risk,
+   source_requirement:'official_claim_proofs_for_sensitive_editorial',high_risk_permission:state.allow_high_risk,
    needs_finished_copy:unfinishedItems.length,
    sensitive_permission_not_enabled:pending.length,
    technical_tasks:editorial.length-publishable.length,
@@ -265,6 +265,16 @@ export async function runGuardedAutoPublishing(dryRun=false,origin:PublicationOr
    if(!(await recordSkip('editorial',candidate.id,'requires_finished_visitor_copy')))return storageAuditFailure();
    continue;
   }
+  const sensitive=candidate.risk_level!=='low'||!lowRiskEditorialCopy(candidate);
+  if(sensitive&&!state.allow_high_risk){
+   if(!(await recordSkip('editorial',candidate.id,'sensitive_publication_disabled')))return storageAuditFailure();
+   continue;
+  }
+  const verification=sensitive?await verifyHighRiskOfficialClaims(candidate):null;
+  if(sensitive&&!verification){
+   if(!(await recordSkip('editorial',candidate.id,'official_claim_verification_failed')))return storageAuditFailure();
+   continue;
+  }
   const cited=competitorDomains===null?[]:optionalResearchCitations(candidate,competitorDomains);
   if(competitorDomains!==null){
    const bodyLinks=auditBody(candidate.body||'',competitorDomains);
@@ -286,7 +296,7 @@ export async function runGuardedAutoPublishing(dryRun=false,origin:PublicationOr
   let value:{status?:string;target_path?:string;event_id?:string};
   try{
    value=await restCall('rpc/geo_commit_auto_publication',{
-    method:'POST',body:{p_item_id:candidate.id,p_verified_urls:cited,p_claim_proofs:[]}
+    method:'POST',body:{p_item_id:candidate.id,p_verified_urls:verification?.urls||cited,p_claim_proofs:verification?.proofs||[]}
    }) as typeof value;
   }catch{
    // The database may have committed even if the network reply was lost.
