@@ -28,7 +28,8 @@ function request(p,audio){
 }
 function extract(id,j){
  const t=id==='qwen'?j?.choices?.[0]?.message?.content:id==='groq'?j?.text:id==='cloudflare'&&j?.success===true?j?.result?.text:null;
- return typeof t==='string'&&t.trim()?t.trim().slice(0,1000):null;
+ if(typeof t!=='string'||!t.trim())return null;
+ const text=t.trim();return text.length>3000?text.slice(0,3000)+'… (تم اختصار النص لطوله)':text;
 }
 // Only explicit pre-processing refusals permit failover. Ambiguous network,
 // timeout, 5xx, or malformed-success results stop; never resend after uncertain processing.
