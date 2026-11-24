@@ -25,6 +25,13 @@ memory=effectiveFeedback([a,b]);
 assert(!isExcluded(memory,'keyword',a.subject_key,'en'),
  'latest correction must supersede exclusion without deleting old audit');
 assert(!containsRejectedKeyword(memory,['saudi arabia formation football']));
+const undo={...a,id:'undo',decision:'valid',source:'admin',reason:'[operator-undo] b',created_at:'2026-11-19T02:01:00Z'};
+assert.equal(effectiveFeedback([a,b,undo]).size,0,'undo must not resurrect an older correction');
+assert(!isExcluded(effectiveFeedback([a,b,undo]),'keyword',a.subject_key,'en'));
+const redone={...a,id:'redo',created_at:'2026-11-19T02:02:00Z'};
+assert(isExcluded(effectiveFeedback([a,b,undo,redone]),'keyword',a.subject_key,'en'));
+assert.throws(()=>validateFeedback({...a,decision:'valid',reason:'[operator-undo] forged'}));
+
 const source={id:'c',subject_type:'competitor',subject_key:'example.com',language:null,
  decision:'irrelevant',reason:'Not a relevant investor service competitor',
  source:'admin',created_at:'2026-11-19T03:00:00Z'};
