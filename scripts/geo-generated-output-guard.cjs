@@ -63,9 +63,26 @@ function eligibleEditorial(item){
     !safeText(item.body,EDITORIAL_TEXT_MINIMA.body[item.lang],10000))return 'insufficient_text';
  return null;
 }
+// Canonicalize only an explicitly supplied, unambiguous guide route. The
+// duplicate target/slug fields describe the same path; never invent a slug,
+// transliterate copy, rewrite a conflicting pair or accept an arbitrary URL.
+function canonicalGuideFields(item){
+ if(!item||typeof item!=='object'||!['guide','comparison'].includes(item.kind))return item;
+ const missing=v=>v===undefined||v===null||v==='';
+ const read=v=>{
+  if(typeof v!=='string')return null;
+  const slug=v.replace(/^\/insights\//,'');
+  return slug.length<=90&&/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)?slug:null;
+ };
+ const a=read(item.target),b=read(item.slug);
+ if((!a&&!missing(item.target))||(!b&&!missing(item.slug))||(a&&b&&a!==b)||(!a&&!b))return item;
+ const slug=a||b;
+ return {...item,target:slug,slug};
+}
 function screenEditorial(items,lang){
  const accepted=[],rejected=[];
- for(const [index,item] of (Array.isArray(items)?items:[]).entries()){
+ for(const [index,raw] of (Array.isArray(items)?items:[]).entries()){
+  const item=canonicalGuideFields(raw);
   const reason=eligibleEditorial(item)||(lang&&item.lang!==lang?'wrong_locale':null);
   if(reason){rejected.push({index,reason});continue}
   // Conservative risk metadata; no lower-risk default, no automatic approval.
