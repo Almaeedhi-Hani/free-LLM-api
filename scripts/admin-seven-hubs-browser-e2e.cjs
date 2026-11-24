@@ -104,7 +104,7 @@ const hubs=[
     assert.equal(data.subarray(0,5).toString(),'%PDF-');
     const content=data.toString('latin1');
     assert(content.includes('/S /URI')&&content.includes('competitor124.example'),'PDF includes final competitor link');
-    const count=Number(content.match(/\\/Type \\/Pages \\/Count (\\d+)/)?.[1]);
+    const count=Number(content.match(new RegExp('/Type /Pages /Count ([0-9]+)'))?.[1]);
     assert(count>0&&count<20,'Compact PDF page count: '+count);
    }else{
     assert.equal(data.readUInt32LE(0),0x04034b50);
