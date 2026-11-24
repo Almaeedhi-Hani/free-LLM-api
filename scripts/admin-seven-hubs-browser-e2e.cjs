@@ -81,12 +81,15 @@ const hubs=[
   const live=await actual.json();
   assert(Array.isArray(live.competitors)&&Array.isArray(live.runs)&&Array.isArray(live.links));
   assert(live.competitors.every(v=>!('id' in v)&&!('first_seen_at' in v)&&!('notes' in v)));
+  const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  assert(live.opportunities.every(v=>Array.isArray(v.related_keywords)&&v.related_keywords.every(k=>!uuid.test(k))),'Export resolves keyword IDs');
+  assert(live.goals.every(v=>!/^OpenCode candidate\s*;/i.test(v.description||'')),'Export removes technical placeholder');
   const sample={generatedAt:'2026-11-24T10:00:00Z',
    competitors:Array.from({length:125},(_,i)=>({name:'منافس '+i,domain:'competitor'+i+'.example'})),
    keywords:[{term:'تأسيس الشركات',language:'ar',search_volume:0}],
    opportunities:[{title:'فرصة اختبار',type:'keyword_gap',priority:'high',related_keywords:['استثمار']}],
    goals:[{title:'هدف اختبار',description:'وصف إداري',status:'open'}],
-   runs:[{started_at:'2026-11-24T09:00:00Z',run_type:'radar',status:'success',summary:{competitors_discovered:2}}],
+   runs:[{started_at:'2026-11-24T09:00:00Z',run_type:'radar',status:'success',summary:{competitors_discovered:2,competitor_domains_discovered:['named-run-competitor.example','second-run-competitor.example'],keyword_terms_analyzed:['كلمة من دورة التحليل'],opportunities_created:0,goals_created:0}},{started_at:'2026-11-23T09:00:00Z',run_type:'full',status:'success',summary:{keywords_analyzed:2}}],
    drafts:[{q:'مسودة سؤال',status:'pending'}],editorialDrafts:[],faqs:[{q:'سؤال اختبار',a:'إجابة اختبار'}],
    links:[{title:'صفحة منشورة',language:'ar',path:'/insights/test'}],siteKeywords:[]};
   await page.route('**/api/admin/dashboard-export',route=>route.fulfill({json:sample}));
@@ -111,6 +114,8 @@ const hubs=[
     assert(data.includes(Buffer.from('competitor124.example')),'Excel includes final competitor link');
     assert(data.includes(Buffer.from('المسودات المعلقة')),'Arabic sheet names');
     assert(!data.includes(Buffer.from('first_seen_at')),'No technical fields in workbook');
+    for(const expected of ['named-run-competitor.example','كلمة من دورة التحليل','لم تُنشأ فرص أو أهداف جديدة','لم تُحفظ أسماء النتائج في السجل','وصف إداري','استثمار'])assert(data.includes(Buffer.from(expected)),'Readable workbook value: '+expected);
+    assert(!data.includes(Buffer.from('منافسون مكتشفون: 2')),'Do not export count-only run results');
    }
    assert.equal(page.context().pages().length,1,'Download must not open another tab');
    console.log('PASS real downloadable report',ext,data.length);

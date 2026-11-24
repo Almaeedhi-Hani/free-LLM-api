@@ -39,21 +39,41 @@ export async function GET(req:NextRequest){
    allRows('analysis_runs',()=>listRuns(Number.MAX_SAFE_INTEGER))
   ]);
   const links=buildPublishedLinks(content.editorialItems,content.faqs);
+  const keywordById=new Map(keywords.map(k=>[k.id,k.term]));
+  const competitorById=new Map(competitors.map(k=>[k.id,k.name||k.domain]));
+  const opportunityById=new Map(opportunities.map(k=>[k.id,k.title]));
+  const isId=(v:string)=>/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+  const resolve=(values:string[]|null|undefined,index:Map<string,string>)=>{
+   const items=Array.isArray(values)?values.filter(v=>typeof v==='string'&&v.trim()):[];
+   const names=Array.from(new Set(items.map(v=>index.get(v)||(!isId(v)?v:'')).filter(Boolean)));
+   if(items.some(v=>isId(v)&&!index.has(v)))names.push('تعذر العثور على بعض السجلات المرتبطة');
+   return names;
+  };
+  const describe=(g:typeof goals[number])=>{
+   const desc=g.description?.trim();
+   if(desc&&!/^OpenCode candidate\s*;/i.test(desc))return desc;
+   const related=g.related_opportunity_id?opportunityById.get(g.related_opportunity_id):undefined;
+   return related&&related!==g.title?'المطلوب: '+g.title+' — الفرصة المرتبطة: '+related:'المطلوب: '+g.title+' (لا يتوفر وصف تفصيلي محفوظ)';
+  };
   const outcomeKeys=['competitors_analyzed','keywords_analyzed','opportunities_created','goals_created','suggestions_collected','keywords_upserted','competitors_discovered','observations_recorded','unique_domains'];
   const summarize=(summary:Record<string,unknown>|null|undefined)=>{
-   const result:Record<string,number>={};
+   const result:Record<string,number|string[]>={};
    if(!summary)return result;
    for(const source of [summary,summary.discovery,summary.analysis]){
     if(!source||typeof source!=='object')continue;
-    for(const key of outcomeKeys){const v=(source as Record<string,unknown>)[key];if(typeof v==='number'&&Number.isFinite(v))result[key]=v;}
+    const data=source as Record<string,unknown>;
+    for(const key of outcomeKeys){const v=data[key];if(typeof v==='number'&&Number.isFinite(v))result[key]=v;}
+    for(const key of ['competitor_names_analyzed','keyword_terms_analyzed','opportunity_titles_created','goal_titles_created','keyword_terms_saved','competitor_domains_discovered']){
+     const v=data[key];if(Array.isArray(v))result[key]=Array.from(new Set(v.filter((x):x is string=>typeof x==='string'&&!!x.trim()&&!isId(x))));
+    }
    }
    return result;
   };
   return NextResponse.json({generatedAt:new Date().toISOString(),
    competitors:competitors.map(({name,domain})=>({name,domain})),
    keywords:keywords.map(({term,language,search_volume})=>({term,language,search_volume})),
-   opportunities:opportunities.map(({title,type,priority,related_keywords,related_competitors})=>({title,type,priority,related_keywords,related_competitors})),
-   goals:goals.map(({title,description,status})=>({title,description,status})),
+   opportunities:opportunities.map(({title,type,priority,related_keywords,related_competitors})=>({title,type,priority,related_keywords:resolve(related_keywords,keywordById),related_competitors:resolve(related_competitors,competitorById)})),
+   goals:goals.map(g=>({title:g.title,description:describe(g),status:g.status})),
    runs:runs.map(({run_type,started_at,status,summary})=>({run_type,started_at,status,summary:summarize(summary)})),
    drafts:content.drafts.filter(d=>d.status==='pending').map(d=>({q:d.q,status:d.status})),
    editorialDrafts:content.editorialItems.filter(d=>d.status==='pending').map(d=>({title:d.title,status:d.status})),

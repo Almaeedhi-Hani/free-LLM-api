@@ -1210,6 +1210,8 @@ export async function runMarketAnalysis(triggeredBy: TriggeredBy = 'manual'): Pr
 
     let opportunitiesCreated = 0;
     let goalsCreated = 0;
+    const opportunityTitles:string[]=[];
+    const goalTitles:string[]=[];
 
     for (const c of competitors) {
       const obs = await listObservations(c.id, 20);
@@ -1239,7 +1241,8 @@ export async function runMarketAnalysis(triggeredBy: TriggeredBy = 'manual'): Pr
         estimated_impact: 'Improve coverage of topics where competitors show weaknesses',
       });
       opportunitiesCreated += 1;
-      await createGoal({
+      opportunityTitles.push(opp.title);
+      const goal = await createGoal({
         title: `Close content gap vs ${c.domain}`,
         description: `Produce original, evidence-backed content addressing: ${weaknesses.slice(0, 3).join(', ')}`,
         priority: opp.priority,
@@ -1252,6 +1255,7 @@ export async function runMarketAnalysis(triggeredBy: TriggeredBy = 'manual'): Pr
         related_opportunity_id: opp.id,
       });
       goalsCreated += 1;
+      goalTitles.push(goal.title);
     }
 
     const MAX_NEW_OPPORTUNITIES = 10;
@@ -1288,10 +1292,11 @@ export async function runMarketAnalysis(triggeredBy: TriggeredBy = 'manual'): Pr
         estimated_impact: `Cluster of ${cluster.members.length} related search terms`,
       });
       opportunitiesCreated += 1;
+      opportunityTitles.push(opp.title);
       newOppsThisRun += 1;
       // Only auto-create goals for sufficiently strong opportunities.
       if (score >= GOAL_SCORE_THRESHOLD) {
-        await createGoal({
+        const goal = await createGoal({
           title: `Build page for cluster: ${cluster.core}`,
           description: `Create an original, source-backed page targeting the cluster: ${cluster.members.map((m) => (m as Keyword).term).join(', ')}.`,
           priority: opp.priority,
@@ -1308,6 +1313,7 @@ export async function runMarketAnalysis(triggeredBy: TriggeredBy = 'manual'): Pr
           related_opportunity_id: opp.id,
         });
         goalsCreated += 1;
+        goalTitles.push(goal.title);
       }
     }
 
@@ -1316,6 +1322,10 @@ export async function runMarketAnalysis(triggeredBy: TriggeredBy = 'manual'): Pr
       keywords_analyzed: keywords.length,
       opportunities_created: opportunitiesCreated,
       goals_created: goalsCreated,
+      competitor_names_analyzed: competitors.map(c=>c.domain),
+      keyword_terms_analyzed: keywords.map(k=>k.term),
+      opportunity_titles_created: opportunityTitles,
+      goal_titles_created: goalTitles,
       limits: { max_competitors: MAX_COMPETITORS_PER_RUN, max_keywords: MAX_KEYWORDS_PER_RUN },
     };
     await finishRun(run.id, 'success', summary);
@@ -1344,6 +1354,8 @@ export interface DiscoverySummary {
   sources_unavailable: string[];
   suggestions_collected: number;
   keywords_upserted: number;
+  keyword_terms_saved?: string[];
+  competitor_domains_discovered?: string[];
   competitors_discovered: number;
   observations_recorded: number;
   unique_domains: number;
@@ -1377,6 +1389,8 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
     sources_unavailable: availableSources().filter((s) => !s.available).map((s) => s.id),
     suggestions_collected: 0,
     keywords_upserted: 0,
+    keyword_terms_saved: [],
+    competitor_domains_discovered: [],
     competitors_discovered: 0,
     observations_recorded: 0,
     unique_domains: 0,
@@ -1461,6 +1475,7 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
                 volume_confidence: 'unknown',
               });
               summary.keywords_upserted += 1;
+              summary.keyword_terms_saved!.push(term);
             } catch (e) {
               summary.errors.push(`keyword upsert failed: ${e instanceof Error ? e.message : String(e)}`);
             }
@@ -1560,6 +1575,7 @@ export async function runDiscovery(config?: Partial<DiscoveryConfig>): Promise<D
 
   summary.search_diagnostics = searchDiagnostics;
   summary.unique_domains = discoveredDomains.size;
+  summary.competitor_domains_discovered = Array.from(discoveredDomains);
   summary.search_requests_used = requestsUsed;
   summary.radar_metrics = calculateRadarMetrics(runObservations, searchDiagnostics);
   summary.success = summary.competitors_discovered > 0 || summary.observations_recorded > 0;
