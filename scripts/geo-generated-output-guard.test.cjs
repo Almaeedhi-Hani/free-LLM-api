@@ -40,7 +40,7 @@ assert.equal(eligibleEditorial({...editorial[3],kind:'home',target:'/'}),'wrong_
 assert(!checked.accepted.some(x=>x.kind==='page'||x.kind==='article'));
 // Guide aliases are deterministic, not a relaxation of the canonical validator.
 const guide={...editorial[2],target:'investor-guide',slug:'investor-guide',evidence_ids:['disc_0']};
-for(const input of [{...guide,slug:undefined},{...guide,target:undefined},{...guide,target:'/insights/investor-guide'},{...guide,slug:'/insights/investor-guide'}]){
+for(const input of [{...guide,target:'Investor Guide',slug:'investor_guide'},{...guide,target:' /insights/Investor--Guide ',slug:'INVESTOR-GUIDE'},{...guide,slug:undefined},{...guide,target:undefined},{...guide,target:'/insights/investor-guide'},{...guide,slug:'/insights/investor-guide'}]){
  const result=screenEditorial([input],'en');
  assert.equal(result.rejected.length,0);
  assert.equal(result.accepted[0].target,'investor-guide');
@@ -48,7 +48,7 @@ for(const input of [{...guide,slug:undefined},{...guide,target:undefined},{...gu
  assert.equal(eligibleEditorial(result.accepted[0]),null);
  assert.deepEqual(result.accepted[0].evidence_ids,guide.evidence_ids);
 }
-for(const input of [{...guide,slug:'other-guide'},{...guide,slug:'https://example.org/insights/investor-guide'},{...guide,target:'دليل'},{...guide,target:'../investor-guide'},{...guide,target:undefined,slug:undefined},{...guide,target:'a'.repeat(91),slug:undefined}]){
+for(const input of [{...guide,target:'investor-guide?x=1'},{...guide,target:'investor%2Dguide'},{...guide,target:'investor guide',slug:'other guide'},{...guide,target:'investor/guide'},{...guide,slug:'other-guide'},{...guide,slug:'https://example.org/insights/investor-guide'},{...guide,target:'دليل'},{...guide,target:'../investor-guide'},{...guide,target:undefined,slug:undefined},{...guide,target:'a'.repeat(91),slug:undefined}]){
  assert.equal(screenEditorial([input],'en').accepted.length,0,'Reject ambiguous, invalid or invented routes');
 }
 // Synthetic multilingual preflight cases: no model/search calls and no DB writes.
