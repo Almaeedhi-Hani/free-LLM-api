@@ -486,7 +486,7 @@ async function stageGeoAnalysis() {
     // provider when the original provider has handled the other locales too.
     // Prefer its original model for ties and the explicitly free router for
     // unused alternatives; do not retry even if the repair fails.
-    const repairModel=[...eligibleRepairModels].sort((a,b)=>(modelCalls.get(a)||0)-(modelCalls.get(b)||0)||
+    const repairModel=eligibleRepairModels.includes(repair.model)&&(modelCalls.get(repair.model)||0)<=1?repair.model:[...eligibleRepairModels].sort((a,b)=>(modelCalls.get(a)||0)-(modelCalls.get(b)||0)||
       Number(b===repair.model)-Number(a===repair.model)||Number(b==='openrouter:openrouter/free')-Number(a==='openrouter:openrouter/free'))[0];
     const report=result.languages[repair.lang].validation_repair={attempted:true,outcome:'no_valid_replacements',model:repairModel};
     try{
