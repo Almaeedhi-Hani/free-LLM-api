@@ -38,6 +38,10 @@ export async function memorySummary(cfg:Cfg){
  const a=await db('telegram_ops_memory',owner(cfg)+'&archived_at=is.null&select=id,decision,created_at&order=created_at.desc&limit=5');
  return a.length?'قرارات المالك المحفوظة (أحدث 5؛ لا تنفذ تلقائيًا):\n'+a.map(x=>'• '+String(x.decision)+'\n'+String(x.created_at).slice(0,10)+' — /forget '+x.id).join('\n'):'لا توجد قرارات محفوظة.';
 }
+export async function reviewMenu(){
+ const c=await readContent(),items=pending(c),first=items.slice(0,10);
+ return {text:'المراجعات المعلقة ('+items.length+') — أول 10 (النص الأصلي):\n'+(first.map((x,i)=>(i+1)+'. '+x.title.slice(0,180)+'\n/review '+x.key).join('\n')||'لا توجد مراجعات')+'\nللبقية: '+dashboard,inline_keyboard:first.map((x,i)=>[{text:'مراجعة '+(i+1),callback_data:'review:'+x.key}])};
+}
 export async function handleAdvanced(a:Action,cfg:Cfg,updateId:number):Promise<string>{
  if(a.kind==='memory')return memorySummary(cfg);
  if(a.kind==='remember'){
@@ -52,8 +56,7 @@ export async function handleAdvanced(a:Action,cfg:Cfg,updateId:number):Promise<s
   return rows.length===1?'تمت أرشفة القرار وإزالته من الذاكرة النشطة.':'لا يوجد قرار نشط بهذا الرقم.';
  }
  if(a.kind==='reviewlist'){
-  const c=await readContent(),items=pending(c);
-  return 'المراجعات المعلقة ('+items.length+') — أول 10:\n'+(items.slice(0,10).map(x=>'• '+x.title.slice(0,180)+'\n/review '+x.key).join('\n')||'لا توجد مراجعات')+'\nللبقية: '+dashboard;
+  return (await reviewMenu()).text;
  }
  if(a.kind==='review'||a.kind==='approve'||a.kind==='reject'){
   const c=await readContent(),items=pending(c).filter(x=>x.key===a.key);
@@ -112,10 +115,12 @@ export async function handleAdvanced(a:Action,cfg:Cfg,updateId:number):Promise<s
  }
  return 'الأمر غير مدعوم.';
 }
+type VoiceProvider={id:string;label:string};
+const voiceProviders=require('./telegram-voice-providers.cjs') as {providers:(env:NodeJS.ProcessEnv)=>VoiceProvider[];transcribe:(pool:VoiceProvider[],audio:Buffer,io:{claim:(id:string)=>Promise<boolean>;mark:(id:string,state:'sent'|'uncertain')=>Promise<void>})=>Promise<{text:string;provider:string}|null>};
 export async function handleVoice(update:unknown,cfg:Cfg){
- if(process.env.TELEGRAM_OPS_VOICE_ENABLED!=='true')return 'الصوت غير مفعل. بعد الموافقة، ترسل التسجيلات إلى Groq للتفريغ فقط.';
- const key=process.env.TELEGRAM_VOICE_GROQ_KEY;
- if(!key)return 'مفتاح خدمة التفريغ الصوتي غير مهيأ.';
+ if(process.env.TELEGRAM_OPS_VOICE_ENABLED!=='true')return 'الصوت غير مفعل. يُرسل التسجيل إلى مزود التفريغ المجاني المعتمد فقط.';
+ const pool=voiceProviders.providers(process.env);
+ if(!pool.length)return 'لا يوجد مزود صوتي معتمد بوضع مجاني فقط.';
  const v=(update as {message?:{voice?:{file_id?:string;duration?:number;file_size?:number}}})?.message?.voice;
  if(!v||typeof v.file_id!=='string'||v.file_id.length>256||!Number.isInteger(v.duration)||Number(v.duration)<1||Number(v.duration)>30||!Number.isInteger(v.file_size)||Number(v.file_size)>1048576||Number(v.file_size)<1)return 'أرسل تسجيلًا صوتيًا لا يتجاوز 30 ثانية و1 ميغابايت.';
  const slot='voice:'+new Date().toISOString().slice(0,13);
@@ -129,11 +134,10 @@ export async function handleVoice(update:unknown,cfg:Cfg){
   const reader=file.body.getReader(),parts:Buffer[]=[];let size=0;
   try{for(;;){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>1048576){await reader.cancel();throw Error('voice_limit');}parts.push(Buffer.from(value));}}finally{reader.releaseLock();}
   if(size<1)throw Error('empty_voice');
-  const form=new FormData();form.append('file',new Blob([Buffer.concat(parts)],{type:'audio/ogg'}),'voice.ogg');form.append('model','whisper-large-v3-turbo');form.append('response_format','json');
-  const r=await fetch('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{Authorization:'Bearer '+key},body:form,redirect:'error',signal:AbortSignal.timeout(15000),cache:'no-store'});
-  const t=await r.json();if(!r.ok||typeof t.text!=='string'||!t.text.trim())throw Error('transcription_failed');
-  const transcript=t.text.slice(0,1000),suggestion=core.voiceSuggestion(transcript);
+  const result=await voiceProviders.transcribe(pool,Buffer.concat(parts),{claim:id=>claimDelivery(slot+':'+id,'command'),mark:(id,state)=>markDelivery(slot+':'+id,state)});
+  if(!result)throw Error('transcription_unavailable');
+  const transcript=result.text,suggestion=core.voiceSuggestion(transcript);
   await markDelivery(slot,'sent');
-  return 'النص المفرغ (لم ينفذ أي إجراء):\n'+transcript+(suggestion?'\n\nأرسل الأمر التالي للتأكيد: '+suggestion:'\nلم يطابق أمر قراءة آمنًا؛ استخدم /help.');
- }catch{try{await markDelivery(slot,'uncertain');}catch{}return 'تعذر تفريغ التسجيل. لا توجد إعادة تلقائية أو تنفيذ للأوامر.';}
+  return 'المزود: '+result.provider+'\nالنص المفرغ (لم ينفذ أي إجراء):\n'+transcript+(suggestion?'\n\nأرسل الأمر التالي للتأكيد: '+suggestion:'\nلم يطابق أمر قراءة آمنًا؛ استخدم /help.');
+ }catch{try{await markDelivery(slot,'uncertain');}catch{}return 'تعذر تفريغ التسجيل ضمن المزودين المجانيين. لا إعادة بعد نتيجة غير مؤكدة ولا تنفيذ للأوامر.';}
 }

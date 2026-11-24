@@ -59,7 +59,7 @@ export async function runTelegramTick(now:string){
  const cfg=core.config(process.env);if(!cfg)return {status:'configuration_incomplete'};
  const d=await snapshot(now);
  const day=phase.dailyKey(now);
- const candidates=[...(day?[{key:day,kind:'daily' as const,text:'الإحاطة اليومية\n'+core.render('/brief',d).replace('Watchdog: غير متحقق من مصدر مستقل في هذه النسخة','')+'\n\n'+phase.healthText(d)}]:[]),...phase.alerts(d).map(x=>({...x,kind:'alert' as const}))];
+ const candidates=[...(day?[{key:day,kind:'daily' as const,text:'الإحاطة اليومية\n'+core.render('/brief',{...d,healthSummary:phase.healthText(d)})}]:[]),...phase.alerts(d).map(x=>({...x,kind:'alert' as const}))];
  if(!candidates.length)return {status:'no_alerts',sent:0};
  // One read of bounded candidate keys, then atomic claims to handle concurrent invocations.
  const keys=candidates.slice(0,105).map(x=>'"'+x.key+'"').join(',');

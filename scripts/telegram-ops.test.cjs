@@ -38,3 +38,21 @@ test('Arabic buttons map to existing private commands and advanced gates',()=>{
  for(const button of extra)assert.equal(command({...update,message:{...update.message,text:button.text}},cfg),'unknown');
  assert.equal(normalizeCommand('/approve 123'),'/approve 123');
 });
+
+test('advanced greeting is accurate; compact health retains publication and AI evidence',()=>{
+ const d={now:'2026-11-24T17:00:00Z',advanced:true,healthSummary:'مراقب الأنظمة: ناجح',publication:{status:'published',published_at:'2026-11-24T16:00:00Z'},ai:null};
+ assert(render('/start',d).includes('الموافقات المؤهلة'));
+ assert(!render('/start',d).includes('الأوامر الحالية للقراءة فقط'));
+ const status=render('/status',d);
+ assert(status.includes('مراقب الأنظمة: ناجح'));assert(status.includes('النشر التحريري: منشور'));assert(status.includes('ظهور الذكاء الاصطناعي: لا توجد نتيجة مؤكدة'));
+ assert(!status.includes('Market Radar:'));assert(!status.includes('Watchdog: غير متحقق'));
+});
+
+test('review callback is owner-only, read-only and exact-key bound',()=>{
+ const {reviewCallback}=require('../src/lib/telegram-ops-core.cjs');
+ const q={id:'123456',from:update.message.from,message:{chat:update.message.chat},data:'review:'+'a'.repeat(24)};
+ const valid=reviewCallback({update_id:2,callback_query:q},cfg);
+ assert.equal(valid.update.message.text,'/review '+'a'.repeat(24));
+ assert.equal(command(valid.update,cfg),'unknown');
+ for(const patch of [{from:{id:9,is_bot:false}},{message:{chat:{id:1234567,type:'group'}}},{data:'approve:'+'a'.repeat(24)},{data:'confirm:1234567890abcdef'},{data:'review:bad'}])assert.equal(reviewCallback({update_id:2,callback_query:{...q,...patch}},cfg),null);
+});
