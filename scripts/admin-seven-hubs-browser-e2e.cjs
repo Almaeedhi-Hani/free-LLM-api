@@ -73,6 +73,49 @@ const hubs=[
    await report.click();
    console.log('PASS mobile header and unclipped report menu',width);
   }
+  // Check the real protected data endpoint and then exercise downloads with a representative fixture.
+  const denied=await page.request.get(base+'/api/admin/dashboard-export');
+  assert.equal(denied.status(),401);
+  const actual=await page.request.get(base+'/api/admin/dashboard-export',{headers:{'x-admin-secret':secret}});
+  assert.equal(actual.status(),200);
+  const live=await actual.json();
+  assert(Array.isArray(live.competitors)&&Array.isArray(live.runs)&&Array.isArray(live.links));
+  assert(live.competitors.every(v=>!('id' in v)&&!('first_seen_at' in v)&&!('notes' in v)));
+  const sample={generatedAt:'2026-11-24T10:00:00Z',
+   competitors:Array.from({length:125},(_,i)=>({name:'منافس '+i,domain:'competitor'+i+'.example'})),
+   keywords:[{term:'تأسيس الشركات',language:'ar',search_volume:0}],
+   opportunities:[{title:'فرصة اختبار',type:'keyword_gap',priority:'high',related_keywords:['استثمار']}],
+   goals:[{title:'هدف اختبار',description:'وصف إداري',status:'open'}],
+   runs:[{started_at:'2026-11-24T09:00:00Z',run_type:'radar',status:'success',summary:{competitors_discovered:2}}],
+   drafts:[{q:'مسودة سؤال',status:'pending'}],editorialDrafts:[],faqs:[{q:'سؤال اختبار',a:'إجابة اختبار'}],
+   links:[{title:'صفحة منشورة',language:'ar',path:'/insights/test'}],siteKeywords:[]};
+  await page.route('**/api/admin/dashboard-export',route=>route.fulfill({json:sample}));
+  await page.setViewportSize({width:390,height:844});
+  const fs=require('node:fs/promises');
+  for(const [option,ext] of [['PDF','pdf'],['Excel','xlsx']]){
+   await page.getByRole('button',{name:/تحميل التقرير/}).click();
+   const event=page.waitForEvent('download',{timeout:30000});
+   await page.getByRole('button',{name:option,exact:true}).click();
+   const file=await event;
+   assert(file.suggestedFilename().endsWith('.'+ext),'Actual file extension');
+   const data=await fs.readFile(await file.path());
+   assert(data.length>1000,'File must contain exported data');
+   if(ext==='pdf'){
+    assert.equal(data.subarray(0,5).toString(),'%PDF-');
+    const content=data.toString('latin1');
+    assert(content.includes('/S /URI')&&content.includes('competitor124.example'),'PDF includes final competitor link');
+    const count=Number(content.match(/\\/Type \\/Pages \\/Count (\\d+)/)?.[1]);
+    assert(count>0&&count<20,'Compact PDF page count: '+count);
+   }else{
+    assert.equal(data.readUInt32LE(0),0x04034b50);
+    assert(data.includes(Buffer.from('competitor124.example')),'Excel includes final competitor link');
+    assert(data.includes(Buffer.from('المسودات المعلقة')),'Arabic sheet names');
+    assert(!data.includes(Buffer.from('first_seen_at')),'No technical fields in workbook');
+   }
+   assert.equal(page.context().pages().length,1,'Download must not open another tab');
+   console.log('PASS real downloadable report',ext,data.length);
+  }
+  await page.unroute('**/api/admin/dashboard-export');
   await page.setViewportSize({width:1360,height:850});
   await page.getByRole('button',{name:'تسجيل الخروج'}).click();
   await page.getByPlaceholder('المفتاح السري').waitFor();
