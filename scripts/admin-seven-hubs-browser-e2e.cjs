@@ -48,6 +48,31 @@ const hubs=[
   await page.locator('header h1').filter({hasText:'كلمات البحث السوقية'}).first().waitFor();
   assert((await page.locator('aside').getAttribute('class')).includes('translate-x-full'),
    'Mobile menu closes after subpage selection');
+  await page.getByRole('button',{name:'فتح القائمة'}).click();
+  await page.locator('aside nav > div > button').filter({hasText:'الرئيسية'}).first().click();
+  await page.locator('header h1').filter({hasText:'الرئيسية'}).waitFor();
+  for(const width of [320,375,390,430,1360]){
+   await page.setViewportSize({width,height:800});
+   const title=await page.locator('header h1').boundingBox();
+   const refresh=await page.getByRole('button',{name:'تحديث البيانات',exact:true}).boundingBox();
+   const report=page.getByRole('button',{name:/تحميل التقرير/});
+   const button=await report.boundingBox();
+   const sync=await page.getByTestId('dashboard-header-sync').boundingBox();
+   assert(title&&refresh&&button&&sync,'Header controls and sync must be visible');
+   assert(Math.abs(refresh.y-button.y)<2&&Math.abs(refresh.height-button.height)<2,'Actions must share row and height');
+   assert(button.x<refresh.x&&refresh.x<title.x,'Report and refresh must sit left of title in RTL');
+   assert(title.width>20&&title.y<refresh.y+refresh.height&&title.y+title.height>refresh.y,'Title stays visible in same row');
+   assert(sync.y>=refresh.y+refresh.height,'Sync text must appear below actions');
+   await report.click();
+   for(const name of ['PDF','Excel']){
+    const option=page.getByRole('button',{name,exact:true});
+    await option.waitFor();
+    const b=await option.boundingBox();
+    assert(b&&b.x>=0&&b.x+b.width<=width+1,'Report option clipped at viewport '+width);
+   }
+   await report.click();
+   console.log('PASS mobile header and unclipped report menu',width);
+  }
   await page.setViewportSize({width:1360,height:850});
   await page.getByRole('button',{name:'تسجيل الخروج'}).click();
   await page.getByPlaceholder('المفتاح السري').waitFor();
