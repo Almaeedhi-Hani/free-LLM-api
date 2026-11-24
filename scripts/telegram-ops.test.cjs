@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const {config,authentic,command,render,chunks}=require('../src/lib/telegram-ops-core.cjs');
+const {config,authentic,command,render,chunks,keyboard,normalizeCommand}=require('../src/lib/telegram-ops-core.cjs');
 const env={TELEGRAM_OPS_ENABLED:'true',TELEGRAM_BOT_TOKEN:'123456:abcdefghijklmnopqrstuvwxyz_123456',TELEGRAM_WEBHOOK_SECRET:'a'.repeat(32),TELEGRAM_OWNER_CHAT_ID:'1234567',TELEGRAM_OWNER_USER_ID:'1234567'};
 const cfg=config(env);
 const update={update_id:1,message:{chat:{type:'private',id:1234567},from:{id:1234567,is_bot:false},text:'/brief'}};
@@ -21,3 +21,20 @@ test('report distinguishes missing from zero and names actual outcomes',()=>{
  assert(render('voice',{}).includes('لم تُفعّل'));
 });
 test('message chunks respect Telegram size and preserve unicode',()=>{const original='س'.repeat(3899)+'😀'+'ص'.repeat(4000);const result=chunks(original);assert(result.every(x=>x.length<=3900));assert.equal(result.join(''),original);});
+
+test('Arabic buttons map to existing private commands and advanced gates',()=>{
+ const expected=['/status','/brief','/market','/opportunities','/published','/reviews','/advice','/help'];
+ const buttons=keyboard(false).keyboard.flat();
+ assert.deepEqual(buttons.map(x=>normalizeCommand(x.text)),expected);
+ for(let i=0;i<buttons.length;i++){
+  assert.match(buttons[i].text,/[\u0600-\u06ff]/u);
+  assert.equal(command({...update,message:{...update.message,text:buttons[i].text}},cfg),expected[i]);
+  assert.equal(command({...update,message:{...update.message,text:expected[i]}},cfg),expected[i]);
+  assert.equal(command({...update,message:{...update.message,text:buttons[i].text,from:{id:9,is_bot:false}}},cfg),null);
+ }
+ const extra=keyboard(true).keyboard.flat().slice(8);
+ const {parse}=require('../src/lib/telegram-ops-advanced-core.cjs');
+ assert.deepEqual(extra.map(x=>parse(normalizeCommand(x.text)).kind),['memory','reviewlist']);
+ for(const button of extra)assert.equal(command({...update,message:{...update.message,text:button.text}},cfg),'unknown');
+ assert.equal(normalizeCommand('/approve 123'),'/approve 123');
+});

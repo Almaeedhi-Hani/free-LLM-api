@@ -10,6 +10,8 @@ const core=require('../../../../lib/telegram-ops-core.cjs') as {
  command:(update:unknown,cfg:{chat:string;owner:string})=>string|null;
  render:(cmd:string,d:Record<string,unknown>)=>string;
  chunks:(text:string)=>string[];
+ normalizeCommand:(text:unknown)=>string;
+ keyboard:(advanced:boolean)=>{keyboard:{text:string}[][];resize_keyboard:boolean;is_persistent:boolean};
 };
 export const dynamic='force-dynamic';
 export const runtime='nodejs';
@@ -60,7 +62,7 @@ async function dataFor(cmd:string){
 async function send(cfg:NonNullable<ReturnType<typeof core.config>>,message:string){
  for(const part of core.chunks(message)){
   const response=await fetch('https://api.telegram.org/bot'+cfg.token+'/sendMessage',{
-   method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:cfg.chat,text:part,link_preview_options:{is_disabled:true},...(telegramPhase2Enabled()?{reply_markup:{keyboard:[[{text:'/status'},{text:'/brief'}],[{text:'/market'},{text:'/opportunities'}],[{text:'/published'},{text:'/reviews'}],[{text:'/advice'},{text:'/help'}],...(advancedEnabled()?[[{text:'/memory'},{text:'/reviewlist'}]]:[])],resize_keyboard:true,is_persistent:true}}:{})}),signal:AbortSignal.timeout(7000),redirect:'error',cache:'no-store'
+   method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:cfg.chat,text:part,link_preview_options:{is_disabled:true},...(telegramPhase2Enabled()?{reply_markup:core.keyboard(advancedEnabled())}:{})}),signal:AbortSignal.timeout(7000),redirect:'error',cache:'no-store'
   });
   if(!response.ok)throw Error('delivery_failed');
   const result=await response.json();if(result?.ok!==true||String(result.result?.chat?.id)!==cfg.chat||!Number.isSafeInteger(result.result?.message_id))throw Error('delivery_unconfirmed');
@@ -84,7 +86,7 @@ export async function POST(req:NextRequest){
  const key=(telegramPhase2Enabled()||advancedEnabled())?'command:'+String((update as {update_id:number}).update_id):null;
  try{if(key&&!await claimDelivery(key,'command'))return reply({ok:true,duplicate:true});}catch{return reply({error:'delivery_ledger_unavailable'},503);}
  try{
-  const action=command==='unknown'?parseAdvanced((update as {message?:{text?:unknown}}).message?.text):null;
+  const action=command==='unknown'?parseAdvanced(core.normalizeCommand((update as {message?:{text?:unknown}}).message?.text)):null;
   let message:string;
   if(action)message=await handleAdvanced(action,cfg,(update as {update_id:number}).update_id);
   else if(command==='voice'&&advancedEnabled())message=await handleVoice(update,cfg);

@@ -5,6 +5,16 @@ const commands={
  '/market':'المنافسون والكلمات','/opportunities':'الفرص والأهداف','/published':'المحتوى المنشور',
  '/reviews':'المسودات المعلقة','/advice':'توصيات المستشار'
 };
+const buttonRows=[
+ [['/status','حالة الأنظمة'],['/brief','التقرير الإداري']],
+ [['/market','استخبارات السوق'],['/opportunities','الفرص والأهداف']],
+ [['/published','المحتوى المنشور'],['/reviews','المسودات المعلقة']],
+ [['/advice','توصيات المستشار'],['/help','المساعدة']]
+];
+const advancedRows=[[['/memory','الذاكرة الاستراتيجية'],['/reviewlist','مراجعة المحتوى']]];
+const aliases=new Map([...buttonRows,...advancedRows].flat().map(([cmd,label])=>[label,cmd]));
+function normalizeCommand(text){const value=typeof text==='string'?text.trim():'';return aliases.get(value)||value;}
+function keyboard(advanced=false){return {keyboard:[...buttonRows,...(advanced?advancedRows:[])].map(row=>row.map(([,text])=>({text}))),resize_keyboard:true,is_persistent:true};}
 const menu=Object.entries(commands).filter(([k])=>!['/start','/help'].includes(k)).map(([k,v])=>k+' — '+v).join('\n');
 function config(env){
  const token=env.TELEGRAM_BOT_TOKEN||'',secret=env.TELEGRAM_WEBHOOK_SECRET||'',
@@ -21,7 +31,7 @@ function command(update,cfg){
  if(!Number.isSafeInteger(update?.update_id)||!m||m.chat?.type!=='private'||String(m.chat.id)!==cfg.chat||String(m.from?.id)!==cfg.owner||m.from?.is_bot!==false)return null;
  if(m.voice)return 'voice';
  if(typeof m.text!=='string')return null;
- const value=m.text.trim();
+ const value=normalizeCommand(m.text);
  return Object.hasOwn(commands,value)?value:'unknown';
 }
 const clean=(v)=>String(v??'غير متاح').replace(/[\x00-\x1f\x7f]/g,' ').trim().slice(0,240);
@@ -64,4 +74,4 @@ function chunks(text){
  while(rest.length>3900){let cut=rest.lastIndexOf('\n',3900);if(cut<1)cut=3900;if(/[\uD800-\uDBFF]/.test(rest[cut-1]))cut--;out.push(rest.slice(0,cut));rest=rest.slice(cut).replace(/^\n/,'');}
  if(rest)out.push(rest);return out;
 }
-module.exports={config,authentic,command,render,chunks};
+module.exports={config,authentic,command,render,chunks,normalizeCommand,keyboard};
