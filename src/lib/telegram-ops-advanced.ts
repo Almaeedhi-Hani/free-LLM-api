@@ -116,23 +116,23 @@ export async function handleAdvanced(a:Action,cfg:Cfg,updateId:number):Promise<s
  return 'الأمر غير مدعوم.';
 }
 type VoiceProvider={id:string;label:string};
-const voiceProviders=require('./telegram-voice-providers.cjs') as {providers:(env:NodeJS.ProcessEnv)=>VoiceProvider[];transcribe:(pool:VoiceProvider[],audio:Buffer,io:{claim:(id:string)=>Promise<boolean>;mark:(id:string,state:'sent'|'uncertain')=>Promise<void>})=>Promise<{text:string;provider:string}|null>};
+const voiceProviders=require('./telegram-voice-providers.cjs') as {voiceInput:(update:unknown)=>{fileId:string;duration:number;size:number;slot:string}|null;MAX_VOICE_BYTES:number;providers:(env:NodeJS.ProcessEnv)=>VoiceProvider[];transcribe:(pool:VoiceProvider[],audio:Buffer,io:{claim:(id:string)=>Promise<boolean>;mark:(id:string,state:'sent'|'uncertain')=>Promise<void>})=>Promise<{text:string;provider:string}|null>};
 export async function handleVoice(update:unknown,cfg:Cfg){
  if(process.env.TELEGRAM_OPS_VOICE_ENABLED!=='true')return 'الصوت غير مفعل. يُرسل التسجيل إلى مزود التفريغ المجاني المعتمد فقط.';
  const pool=voiceProviders.providers(process.env);
  if(!pool.length)return 'لا يوجد مزود صوتي معتمد بوضع مجاني فقط.';
- const v=(update as {message?:{voice?:{file_id?:string;duration?:number;file_size?:number}}})?.message?.voice;
- if(!v||typeof v.file_id!=='string'||v.file_id.length>256||!Number.isInteger(v.duration)||Number(v.duration)<1||Number(v.duration)>30||!Number.isInteger(v.file_size)||Number(v.file_size)>1048576||Number(v.file_size)<1)return 'أرسل تسجيلًا صوتيًا لا يتجاوز 30 ثانية و1 ميغابايت.';
- const slot='voice:'+new Date().toISOString().slice(0,13);
- if(!await claimDelivery(slot,'command'))return 'تم استخدام حد التسجيل الصوتي لهذه الساعة. استخدم الأوامر النصية.';
+ const v=voiceProviders.voiceInput(update);
+ if(!v)return 'أرسل تسجيلًا صوتيًا لا يتجاوز 120 ثانية و4 ميغابايت.';
+ const slot=v.slot;
+ if(!await claimDelivery(slot,'command'))return 'سبق استقبال هذا التسجيل؛ لا تتم إعادة معالجته تلقائيًا.';
  try{
-  const meta=await fetch('https://api.telegram.org/bot'+cfg.token+'/getFile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({file_id:v.file_id}),redirect:'error',signal:AbortSignal.timeout(5000),cache:'no-store'});
+  const meta=await fetch('https://api.telegram.org/bot'+cfg.token+'/getFile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({file_id:v.fileId}),redirect:'error',signal:AbortSignal.timeout(5000),cache:'no-store'});
   const j=await meta.json(),path=j?.result?.file_path;
   if(!meta.ok||j?.ok!==true||typeof path!=='string'||!/^voice\/[A-Za-z0-9_-]+\.(ogg|oga|opus)$/.test(path))throw Error('invalid_voice_file');
-  const file=await fetch('https://api.telegram.org/file/bot'+cfg.token+'/'+path,{redirect:'error',signal:AbortSignal.timeout(8000),cache:'no-store'});
+  const file=await fetch('https://api.telegram.org/file/bot'+cfg.token+'/'+path,{redirect:'error',signal:AbortSignal.timeout(12000),cache:'no-store'});
   if(!file.ok||!file.body)throw Error('voice_unavailable');
   const reader=file.body.getReader(),parts:Buffer[]=[];let size=0;
-  try{for(;;){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>1048576){await reader.cancel();throw Error('voice_limit');}parts.push(Buffer.from(value));}}finally{reader.releaseLock();}
+  try{for(;;){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>voiceProviders.MAX_VOICE_BYTES){await reader.cancel();throw Error('voice_limit');}parts.push(Buffer.from(value));}}finally{reader.releaseLock();}
   if(size<1)throw Error('empty_voice');
   const result=await voiceProviders.transcribe(pool,Buffer.concat(parts),{claim:id=>claimDelivery(slot+':'+id,'command'),mark:(id,state)=>markDelivery(slot+':'+id,state)});
   if(!result)throw Error('transcription_unavailable');
