@@ -98,7 +98,7 @@ export async function POST(req:NextRequest){
   else if(command==='voice'&&advancedEnabled())message=await handleVoice(update,cfg);
   else{
    const data=await dataFor(command);
-   if(telegramPhase2Enabled()&&['/status','/brief'].includes(command))data.healthSummary=healthText(data)+'\n\nآخر سجل نشر: '+(data.publication?'متاح (انظر المحتوى المنشور)':'غير مؤكد')+'\nالحالات مبنية على السجلات المحفوظة وليست تحققًا لحظيًا.';
+   if(telegramPhase2Enabled()&&['/status','/brief'].includes(command))data.healthSummary=healthText(data);
    message=core.render(command,data);
    if(coordinatorEnabled()&&['/help','/start','unknown'].includes(command))message+='\n\n/commandcenter — غرفة القيادة';
    if(advancedEnabled()){
