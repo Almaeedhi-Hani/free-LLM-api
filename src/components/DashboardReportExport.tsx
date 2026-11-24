@@ -7,7 +7,7 @@ const metrics:Record<string,string>={competitors_analyzed:'منافسون محل
 const text=(v:unknown):Cell=>v==null?'غير متاح':typeof v==='number'?v:Array.isArray(v)?v.map(String).join('، '):String(v);
 const label=(v:unknown)=>labels[String(v)]||'غير محدد';
 const date=(v:unknown)=>{const d=new Date(String(v));return Number.isFinite(d.getTime())?d.toLocaleDateString('ar-SA',{calendar:'gregory',timeZone:'Asia/Riyadh'}):'غير متاح'};
-const website=(v:unknown)=>{try{const raw=String(v||'').trim();if(!raw)return 'غير متاح';const u=new URL(/^https?:\\/\\//i.test(raw)?raw:'https://'+raw);return /^https?:$/.test(u.protocol)&&!u.username&&!u.password&&u.hostname.includes('.')?u.href:'غير متاح'}catch{return 'غير متاح'}};
+const website=(v:unknown)=>{try{const raw=String(v||'').trim();if(!raw)return 'غير متاح';const u=new URL(raw.startsWith('https://')||raw.startsWith('http://')?raw:'https://'+raw);return /^https?:$/.test(u.protocol)&&!u.username&&!u.password&&u.hostname.includes('.')?u.href:'غير متاح'}catch{return 'غير متاح'}};
 function build(d:Record<string,any>):Section[]{
  const make=(name:string,cols:string[],records:any[],row:(r:any)=>Cell[]):Section=>{
   if(!Array.isArray(records))throw Error('بيانات التقرير غير مكتملة');
