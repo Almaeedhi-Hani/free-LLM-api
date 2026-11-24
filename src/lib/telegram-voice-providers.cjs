@@ -20,7 +20,7 @@ function request(p,audio){
  const auth={Authorization:'Bearer '+p.key};
  if(p.id==='qwen')return {url:'https://'+p.workspace+'.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1/chat/completions',headers:{...auth,'Content-Type':'application/json'},body:JSON.stringify({model:'qwen3-asr-flash',messages:[{role:'user',content:[{type:'input_audio',input_audio:{data:'data:audio/ogg;base64,'+audio.toString('base64')}}]}],stream:false,asr_options:{language:'ar',enable_itn:false}})};
  if(p.id==='groq'){
-  const form=new FormData();form.append('file',new Blob([audio],{type:'audio/ogg'}),'voice.ogg');form.append('model','whisper-large-v3-turbo');form.append('response_format','json');
+  const form=new FormData();form.append('file',new Blob([audio],{type:'audio/ogg'}),'voice.ogg');form.append('model','whisper-large-v3-turbo');form.append('response_format','json');form.append('language','ar');
   return {url:'https://api.groq.com/openai/v1/audio/transcriptions',headers:auth,body:form};
  }
  if(p.id==='cloudflare')return {url:'https://api.cloudflare.com/client/v4/accounts/'+p.account+'/ai/run/@cf/openai/whisper-large-v3-turbo',headers:{...auth,'Content-Type':'application/json'},body:JSON.stringify({audio:audio.toString('base64'),task:'transcribe',language:'ar'})};
