@@ -1,4 +1,5 @@
 name: V3 production orchestrator (15-minute cadence)
+run-name: ${{ inputs.source == 'supabase' && inputs.central_slot != '' && format('Supabase central master {0}', inputs.central_slot) || 'V3 Master (manual or preflight)' }}
 on:
   # Real production scheduler. Provider/publisher calls are due-gated by
   # scripts/scheduled-event-slot.cjs; NEVER paid calls on every tick.
@@ -16,6 +17,11 @@ on:
         default: manual
         type: choice
         options: [manual, supabase]
+      central_slot:
+        description: 'UTC slot supplied by signed central bridge'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: write # Only the existing W05/W06 bounded PR paths may write.

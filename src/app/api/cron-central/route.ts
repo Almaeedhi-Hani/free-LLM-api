@@ -38,13 +38,14 @@ function githubToken():string|undefined {
   return process.env.V3_GITHUB_DISPATCH_TOKEN ||
     process.env.AUTODEV_GITHUB_TOKEN || process.env.GITHUB_DISPATCH_TOKEN;
 }
-async function dispatchGitHub(task:Exclude<Task,'W02'|'weekly'>,token:string){
+async function dispatchGitHub(task:Exclude<Task,'W02'|'weekly'>,token:string,slot?:string){
   const item=stages[task];
+  const inputs=slot&&(task==='master'||task==='W04')?{...item.inputs,source:'supabase',central_slot:slot}:item.inputs;
   const r=await fetch(GITHUB_ROOT+'/actions/workflows/'+item.workflow+'/dispatches',{
     method:'POST',
     headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json',
       'X-GitHub-Api-Version':'2022-11-28','Content-Type':'application/json'},
-    body:JSON.stringify({ref:'main',...(item.inputs?{inputs:item.inputs}:{})}),
+    body:JSON.stringify({ref:'main',...(inputs?{inputs}:{})}),
     signal:AbortSignal.timeout(14000),redirect:'error',cache:'no-store'
   });
   if(r.status!==204)throw new Error(task+': github_dispatch_http_'+r.status);
@@ -107,15 +108,17 @@ export async function POST(req:NextRequest){
   if(mode!=='tick'&&mode!=='one_test')return NextResponse.json({error:'invalid_mode'},{status:400});
   // The caller must never create a central schedule before all required dispatch credentials exist.
   if(!token||token.length<24)return NextResponse.json({status:'blocked',reason:'github_dispatch_token_missing'},{status:503});
+  const tick=new Date();
   const tasks:Task[]=mode==='one_test'?['W02','master','W04','safety','quality','weekly']:
-    dueTasks(new Date());
+    dueTasks(tick);
   if(!tasks.length)return NextResponse.json({status:'idle',due:[],now:new Date().toISOString()});
   // No retries: uncertain 204 responses cannot be dispatched twice safely.
   // Optional notification sidecar; no new cron or production dispatch dependency.
   const telegram=mode==='tick'?runTelegramTick(new Date().toISOString()).catch(()=>({status:'monitor_unavailable'})):Promise.resolve({status:'not_requested'});
   const results:unknown[]=[];
+  const slot=mode==='tick'?tick.toISOString().slice(0,13)+':00:00Z':undefined;
   for(const task of tasks){
-    try{results.push(task==='W02'?await callRadar():task==='weekly'?await saveWeeklyReport():await dispatchGitHub(task,token));}
+    try{results.push(task==='W02'?await callRadar():task==='weekly'?await saveWeeklyReport():await dispatchGitHub(task,token,slot));}
     catch(e){results.push({task,status:'error',reason:e instanceof Error?e.message:'failed'});}
   }
   const failed=results.some(x=>(x as {status?:string}).status==='error');
