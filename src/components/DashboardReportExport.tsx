@@ -2,28 +2,32 @@
 import {useState} from 'react';
 type Cell=string|number;
 type Section={name:string;cols:string[];rows:Cell[][]};
-const text=(v:unknown):Cell=>v==null?'':typeof v==='number'?v:typeof v==='object'?JSON.stringify(v):String(v);
+const labels:Record<string,string>={ar:'العربية',en:'الإنجليزية',zh:'الصينية',critical:'حرجة',high:'عالية',medium:'متوسطة',low:'منخفضة',open:'مفتوح',in_progress:'قيد التنفيذ',done:'مكتمل',cancelled:'ملغى',pending:'بانتظار الاعتماد',running:'قيد التنفيذ',success:'ناجح',failed:'لم يكتمل',partial:'جزئي',radar:'رصد السوق',discovery:'الاكتشاف',keyword_collection:'الكلمات المفتاحية',gap_analysis:'تحليل الفرص',goal_generation:'توليد الأهداف',full:'تحليل شامل'};
+const metrics:Record<string,string>={competitors_analyzed:'منافسون محللون',keywords_analyzed:'كلمات محللة',opportunities_created:'فرص جديدة',goals_created:'أهداف جديدة',suggestions_collected:'اقتراحات',keywords_upserted:'كلمات محفوظة أو محدثة',competitors_discovered:'منافسون مكتشفون',observations_recorded:'نتائج رصد',unique_domains:'نطاقات فريدة'};
+const text=(v:unknown):Cell=>v==null?'غير متاح':typeof v==='number'?v:Array.isArray(v)?v.map(String).join('، '):String(v);
+const label=(v:unknown)=>labels[String(v)]||'غير محدد';
+const date=(v:unknown)=>{const d=new Date(String(v));return Number.isFinite(d.getTime())?d.toLocaleDateString('ar-SA',{calendar:'gregory',timeZone:'Asia/Riyadh'}):'غير متاح'};
+const website=(v:unknown)=>{try{const raw=String(v||'').trim();if(!raw)return 'غير متاح';const u=new URL(/^https?:\\/\\//i.test(raw)?raw:'https://'+raw);return /^https?:$/.test(u.protocol)&&!u.username&&!u.password&&u.hostname.includes('.')?u.href:'غير متاح'}catch{return 'غير متاح'}};
 function build(d:Record<string,any>):Section[]{
- const make=(name:string,records:any[],fields:string[]):Section=>{
+ const make=(name:string,cols:string[],records:any[],row:(r:any)=>Cell[]):Section=>{
   if(!Array.isArray(records))throw Error('بيانات التقرير غير مكتملة');
-  return {name,cols:fields,rows:records.map(r=>fields.map(k=>text(r[k])))};
+  return {name,cols,rows:records.map(row)};
  };
- const opp=['title','type','priority','status','score','confidence','languages','related_keywords','related_competitors','evidence','estimated_impact','created_at'];
+ const opportunities=d.opportunities as any[];
  const s=[
- make('المنافسون',d.competitors,['name','domain','languages','market','status','source','notes','first_seen_at','last_seen_at']),
- make('الكلمات المفتاحية',d.keywords,['term','language','intent','cluster','source','search_volume','volume_source','volume_confidence','first_seen_at','last_seen_at']),
- make('الفرص - كلمات',d.opportunities.filter((r:any)=>r.type==='keyword_gap'),opp),
- make('الفرص - منافسون',d.opportunities.filter((r:any)=>r.type==='content_gap'),opp),
- make('فرص أخرى',d.opportunities.filter((r:any)=>!['keyword_gap','content_gap'].includes(r.type)),opp),
- make('الأهداف',d.goals,['title','description','priority','status','confidence','success_metrics','evidence','created_at']),
- make('مسودات الأسئلة المعلقة',d.drafts,['q','a','risk_level','evidence_refs','createdAt']),
- make('مسودات تحريرية معلقة',d.editorialDrafts,['title','lang','summary','body','sections','evidence_refs','risk_level','createdAt']),
- make('سجلات التحليل',d.runs,['id','run_type','status','started_at','finished_at','triggered_by','summary','error']),
- make('الأسئلة الشائعة',d.faqs,['q','a','approval_method']),
- make('روابط المحتوى المنشور',d.links.map((r:any)=>({...r,url:new URL(r.path,window.location.origin).href})),['title','language','kind','publishedAt','publicationSource','url']),
- {name:'كلمات الموقع',cols:['term'],rows:d.siteKeywords.map((v:unknown)=>[text(v)])}
+ make('المنافسون',['اسم المنافس','رابط الموقع'],d.competitors,r=>[text(r.name),website(r.domain)]),
+ make('الكلمات المفتاحية',['الكلمة المفتاحية','اللغة','حجم البحث'],d.keywords,r=>[text(r.term),label(r.language),text(r.search_volume)]),
+ make('فرص الكلمات',['الفرصة','الكلمات المرتبطة','الأولوية'],opportunities.filter(r=>r.type==='keyword_gap'),r=>[text(r.title),text(r.related_keywords),label(r.priority)]),
+ make('فرص المنافسين',['الفرصة','الأولوية'],opportunities.filter(r=>r.type==='content_gap'),r=>[text(r.title),label(r.priority)]),
+ make('فرص أخرى',['الفرصة','الأولوية'],opportunities.filter(r=>!['keyword_gap','content_gap'].includes(r.type)),r=>[text(r.title),label(r.priority)]),
+ make('الأهداف',['الهدف','الوصف','الحالة'],d.goals,r=>[text(r.title),text(r.description),label(r.status)]),
+ make('المسودات المعلقة',['عنوان المسودة','الحالة'],[...d.drafts,...d.editorialDrafts],r=>[text(r.title||r.q),label(r.status)]),
+ make('سجل التحليل القديم',['تاريخ التحليل','نوع التحليل','أبرز النتائج','الحالة'],[...d.runs].sort((a,b)=>String(b.started_at).localeCompare(String(a.started_at))),r=>[date(r.started_at),label(r.run_type),Object.entries(r.summary||{}).filter(([k,v])=>metrics[k]&&typeof v==='number').map(([k,v])=>metrics[k]+': '+v).join('، ')||'لا توجد نتائج رقمية محفوظة',label(r.status)]),
+ make('الأسئلة الشائعة',['السؤال','الإجابة'],d.faqs,r=>[text(r.q),text(r.a)]),
+ make('روابط المحتوى المنشور',['عنوان المحتوى','اللغة','رابط الصفحة'],d.links,r=>[text(r.title),label(r.language),new URL(r.path,window.location.origin).href]),
+ make('كلمات الموقع',['الكلمة'],d.siteKeywords,r=>[text(r)])
  ];
- return [{name:'ملخص التقرير',cols:['القسم','العدد أو القيمة'],rows:[['تاريخ الاستخراج',text(d.generatedAt)],['آخر تعديل',text(d.updatedAt)],['أحداث النشر',d.publicationEvidenceAvailable?'متاحة جزئيًا':'غير متاحة'],...s.map(x=>[x.name,x.rows.length] as Cell[])]},...s];
+ return [{name:'ملخص البيانات',cols:['القسم','العدد'],rows:[['تاريخ التقرير',date(d.generatedAt)],...s.map(x=>[x.name,x.rows.length] as Cell[])]},...s];
 }
 const enc=new TextEncoder();
 const url=(v:Cell)=>{try{const u=new URL(String(v));return /^https?:$/.test(u.protocol)&&!u.username&&!u.password?u.href:null}catch{return null}};
