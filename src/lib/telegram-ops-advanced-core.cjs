@@ -20,18 +20,19 @@ function fingerprint(kind,item){
 }
 function voiceSuggestion(text){
  if(typeof text!=='string'||text.length>1000)return null;
- const n=text.normalize('NFKC').replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/[.!؟،。?]+$/g,'').replace(/\s+/g,' ').trim().toLowerCase();
+ const n=text.trim().normalize('NFKC').replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/[.!؟،。?]+$/g,'').replace(/\s+/g,' ').trim().toLowerCase();
  if(readonly.includes(n))return n;
  // Match the entire utterance against a bounded read-only grammar.
  // Never infer a mutation, strip arbitrary words or execute a transcript.
+ // Explicit aliases cover observed ASR variants; no unrestricted fuzzy matching.
  const prefix=/^(?:(?:لو سمحت|من فضلك)\s+)?(?:(?:اعطني|اعطيني|عطني|عطيني|اعطنا|اعرض لي|اعرض|ورني|وريني|ارني|طلع لي|اطلع لي|جيب لي|ابغي|ابغى|ابي|ابغا|اريد|احتاج|ممكن|ودي اعرف|علمني|قل لي|وش|ايش|ما هي|ما هو|كيف)\s+)?/;
  const suffix=/\s+(?:لو سمحت|من فضلك|الان|الحين|اليوم|حاليا)$/;
  const target=n.replace(prefix,'').replace(suffix,'').trim();
  const groups={
  '/status':['حالة الانظمة','حالة النظام','وضع الانظمة','وضع النظام','صحة الانظمة','حالة التشغيل','الانظمة شغالة','الانظمة شغاله','الانظمة','كيف الانظمة'],
- '/brief':['التقرير اليومي','الاحاطة الادارية','التقرير الاداري','تقرير اليوم','ملخص اليوم','ملخص الانظمة'],
+ '/brief':['التقرير اليومي','الاحاطة الادارية','التقرير الاداري','التقرير الادارة','تقرير الادارة','التقرير الاداري اليوم','تقرير اليوم','ملخص اليوم','ملخص الانظمة'],
  '/market':['المنافسين','المنافسون','استخبارات السوق','رصد السوق','حالة السوق','الكلمات والمنافسين'],
- '/opportunities':['الفرص','الفرص والاهداف','فرص السوق','الفرص المتاحة','الاهداف'],
+ '/opportunities':['الفرص','الفرص والاهداف','الفرس والاهداف','فرص السوق','الفرص المتاحة','الاهداف'],
  '/published':['المحتوي المنشور','المحتوى المنشور','المنشورات','المحتوي المنشور اليوم','روابط النشر'],
  '/reviews':['المسودات المعلقة','المسودات'],
  '/reviewlist':['المراجعات','مراجعة المحتوي','مراجعة المحتوى','المحتوي قيد المراجعة'],
