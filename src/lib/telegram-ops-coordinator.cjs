@@ -2,6 +2,8 @@
 const {health}=require('./telegram-ops-phase2.cjs');
 const stamp=x=>{const t=Date.parse(x||'');return Number.isFinite(t)?new Intl.DateTimeFormat('ar-SA',{calendar:'gregory',timeZone:'Asia/Riyadh',dateStyle:'short',timeStyle:'short'}).format(new Date(t)):'غير مؤكد';};
 const clean=x=>String(x??'غير متاح').replace(/[\x00-\x1f\x7f]/g,' ').slice(0,180);
+const priorityLabels={critical:'حرجة',high:'عالية',medium:'متوسطة',low:'منخفضة'};
+const publicationLabels={published:'منشور',rolled_back:'تم التراجع',failed:'فشل',pending:'معلق'};
 const stateLabels={recent:'آخر نتيجة ناجحة وحديثة',failed:'آخر نتيجة فاشلة',stale:'آخر نتيجة قديمة',unknown:'الحالة غير مؤكدة'};
 function finding(worker,source,priority,text,action=null){return {worker,source,priority,text,action};}
 function operational(d,name,worker,source){
@@ -12,7 +14,7 @@ const specialists={
  market:d=>{
   const base=operational(d,'Market Radar','استخبارات السوق','analysis_runs');
   const best=Array.isArray(d.opportunities)?d.opportunities[0]:null;
-  return {...base,text:base.text+'\nأعلى فرصة مسجلة: '+(best?clean(best.title)+' | الدرجة: '+clean(best.score)+' | الأولوية: '+clean(best.priority):Array.isArray(d.opportunities)?'لا توجد فرصة مفتوحة':'غير متاح'),action:base.action||(best?'راجع أدلة الفرصة الأعلى قبل اعتمادها.':null),priority:base.priority===4&&best?3:base.priority};
+  return {...base,text:base.text+'\nأعلى فرصة مسجلة (بلغة المصدر): '+(best?clean(best.title)+' | الدرجة: '+clean(best.score)+' | الأولوية: '+(priorityLabels[best.priority]||'غير محددة'):Array.isArray(d.opportunities)?'لا توجد فرصة مفتوحة':'غير متاح'),action:base.action||(best?'راجع أدلة الفرصة الأعلى قبل اعتمادها.':null),priority:base.priority===4&&best?3:base.priority};
  },
  seo:d=>{
   const base=operational(d,'GSC','تحليل الظهور في البحث','gsc_sync_day_outcomes');
@@ -20,7 +22,7 @@ const specialists={
  },
  content:d=>{
   const base=operational(d,'GEO','المحتوى والظهور التوليدي','content_store / geo_publication_events');
-  return {...base,text:base.text+'\nالمراجعات المعلقة: '+clean(d.pending)+' | روابط المحتوى: '+clean(d.publishedCount)+'\nآخر سجل نشر: '+clean(d.publication?.status)+' — '+stamp(d.publication?.published_at),action:base.action||(Number.isInteger(d.pending)&&d.pending>0?'راجع المسودات المعلقة دون نشر تلقائي.':null),priority:base.priority===4&&d.pending>0?3:base.priority};
+  return {...base,text:base.text+'\nالمراجعات المعلقة: '+clean(d.pending)+' | روابط المحتوى: '+clean(d.publishedCount)+'\nآخر سجل نشر: '+(publicationLabels[d.publication?.status]||'غير مؤكد')+' — '+stamp(d.publication?.published_at),action:base.action||(Number.isInteger(d.pending)&&d.pending>0?'راجع المسودات المعلقة دون نشر تلقائي.':null),priority:base.priority===4&&d.pending>0?3:base.priority};
  },
  watchdog:d=>{
   const base=operational(d,'Watchdog','سلامة التشغيل','GitHub Actions / Issues');
