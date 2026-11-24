@@ -53,7 +53,7 @@ function render(cmd,d){
  'Watchdog: غير متحقق من مصدر مستقل في هذه النسخة',
  'الحالات أعلاه آخر سجلات متاحة وليست تأكيدًا على صحة النظام الآن.'
  ].join('\n');
- const statusText=()=>d.healthSummary||statuses();
+ const statusText=()=>d.healthSummary?d.healthSummary+'\n'+latest('النشر التحريري',d.publication,'published_at')+'\nظهور الذكاء الاصطناعي: '+(d.ai?clean(d.ai.verification_status)+' — '+stamp(d.ai.observed_at):'لا توجد نتيجة مؤكدة')+'\nالحالات مبنية على السجلات المحفوظة وليست تحققًا لحظيًا.':statuses();
  if(cmd==='/status')return head+statusText();
  if(cmd==='/brief')return head+statusText()+'\n\nالمسودات المعلقة: '+(d.pending??'غير متاح')+'\nالروابط المنشورة: '+(d.publishedCount??'غير متاح')+'\nالتقرير الأسبوعي المحفوظ: '+(d.weekly?.verified_at?clean(d.weekly.week_key)+' (متحقق)':'غير مؤكد')+'\n\nأبرز الفرص المسجلة (بلغة المصدر):\n'+list(d.opportunities,x=>clean(x.title));
  if(cmd==='/market')return head+'أحدث المنافسين المسجلين (عينة):\n'+list(d.competitors,x=>clean(x.name)+' — '+clean(x.domain))+'\n\nأحدث الكلمات (عينة):\n'+list(d.keywords,x=>clean(x.term));
