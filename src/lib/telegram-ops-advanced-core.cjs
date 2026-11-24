@@ -24,7 +24,7 @@ function voiceSuggestion(text){
  if(readonly.includes(n))return n;
  // Match the entire utterance against a bounded read-only grammar.
  // Never infer a mutation, strip arbitrary words or execute a transcript.
- const prefix=/^(?:(?:لو سمحت|من فضلك)\s+)?(?:(?:اعطني|اعطيني|عطني|عطيني|اعطنا|اعرض|اعرض لي|ورني|وريني|ارني|طلع لي|اطلع لي|جيب لي|ابغي|ابغى|ابي|ابغا|اريد|احتاج|ممكن|ودي اعرف|علمني|قل لي|وش|ايش|ما هي|ما هو|كيف)\s+)?/;
+ const prefix=/^(?:(?:لو سمحت|من فضلك)\s+)?(?:(?:اعطني|اعطيني|عطني|عطيني|اعطنا|اعرض لي|اعرض|ورني|وريني|ارني|طلع لي|اطلع لي|جيب لي|ابغي|ابغى|ابي|ابغا|اريد|احتاج|ممكن|ودي اعرف|علمني|قل لي|وش|ايش|ما هي|ما هو|كيف)\s+)?/;
  const suffix=/\s+(?:لو سمحت|من فضلك|الان|الحين|اليوم|حاليا)$/;
  const target=n.replace(prefix,'').replace(suffix,'').trim();
  const groups={
