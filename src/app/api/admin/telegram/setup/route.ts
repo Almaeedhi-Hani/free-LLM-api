@@ -4,14 +4,22 @@ const core=require('../../../../../lib/telegram-ops-core.cjs') as {config:(env:N
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
 const endpoint='https://free-llm-api-1-didl.onrender.com/api/telegram/operations';
-const headers={'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"};
+const headers={'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin','Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"};
 function json(body:object,status=200){return NextResponse.json(body,{status,headers});}
 export function GET(){
  return new Response('<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ربط غرفة العمليات</title><style>body{font:16px system-ui;max-width:480px;margin:40px auto;padding:20px;color:#143b34}input,button{box-sizing:border-box;width:100%;padding:14px;margin:12px 0;font:inherit}button{background:#075746;color:white;border:0;border-radius:8px}</style><h1>ربط غرفة العمليات</h1><p>افتح البوت الخاص بك واضغط Start أولاً. أدخل مفتاح لوحة الإدارة، وليس مفتاح البوت. سيتم إرسال رسالة اختبار لحساب المالك فقط ثم تسجيل الاتصال.</p><form method="post"><label>مفتاح لوحة الإدارة<input type="password" name="admin" required maxlength="512" autocomplete="off"></label><button>تحقق واربط البوت</button></form></html>',{headers:{...headers,'Content-Type':'text/html; charset=utf-8'}});
 }
 export async function POST(req:NextRequest){
  const origin=req.headers.get('origin');
- if(origin!=='https://free-llm-api-1-didl.onrender.com')return json({error:'invalid_origin'},403);
+ const site=req.headers.get('sec-fetch-site');
+ const trusted='https://free-llm-api-1-didl.onrender.com';
+ // Some mobile browsers send a null Origin for private form submissions.
+ // Allow that case only with same-origin browser metadata or an exact same-origin referrer.
+ // The explicit admin secret remains mandatory; cookies are never used for authorization.
+ let sameReferrer=false;
+ try{sameReferrer=new URL(req.headers.get('referer')||'').origin===trusted;}catch{}
+ const accepted=site!=='cross-site'&&(origin===trusted||((origin===null||origin==='null')&&(site==='same-origin'||sameReferrer)));
+ if(!accepted)return json({error:'invalid_origin'},403);
  if(!req.headers.get('content-type')?.startsWith('application/x-www-form-urlencoded'))return json({error:'invalid_content_type'},415);
  const reader=req.body?.getReader();if(!reader)return json({error:'invalid_body'},400);
  let length=0;const parts:Uint8Array[]=[];
