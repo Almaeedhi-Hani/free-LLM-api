@@ -10,11 +10,11 @@ const STORAGE = {
   W01: { table: "content_store", column: "updated_at", query: "select=updated_at&order=updated_at.desc&limit=1" },
   W02: { table: "analysis_runs", column: "finished_at", query: "select=finished_at&run_type=eq.radar&status=eq.success&order=finished_at.desc&limit=1" },
   W03: { table: "audit_logs", column: "created_at", query: "select=created_at&action=eq.geo_publication_rpc_result&metadata->>source_workflow=eq.W03&order=created_at.desc&limit=1" },
-  W04: { table: "gsc_sync_day_outcomes", column: "checked_at", query: "select=checked_at&order=checked_at.desc&limit=1" }
+  W04: { table: "gsc_sync_day_outcomes", column: "checked_at", query: "select=checked_at,metric_date,status&order=metric_date.desc,checked_at.desc&limit=1" }
 } as const;
 
 type JsonRow = Record<string, unknown>;
-type Readback = { status: "observed"; latestTimestamp: string; source: string } | { status: "unknown"; note: string };
+type Readback = { status: "observed"; latestTimestamp: string; source: string; metricDate?: string; dayStatus?: string } | { status: "unknown"; note: string };
 type GscMeasurement = { status: "observed"; grain: "total"; latestDate: string; impressions: number; clicks: number; observedDays: number } | { status: "unknown"; note: string };
 type Unknown = { status: "unknown"; reason: string };
 type Feedback = { status: "observed"; sampleSize: number; from: string; counts: Record<string, number> } | Unknown;
@@ -63,10 +63,11 @@ export async function GET(req: NextRequest) {
   await Promise.all((Object.keys(STORAGE) as Array<keyof typeof STORAGE>).map(async id => {
     const spec = STORAGE[id];
     try {
-      const list = await rows(spec.table, spec.query);
+      const property=process.env.GSC_PROPERTY_URL||ORIGIN+'/';
+      const list = await rows(spec.table, spec.query+(id==='W04'?'&property=eq.'+encodeURIComponent(property):''));
       const stamp = list[0]?.[spec.column];
       storage[id] = typeof stamp === "string" && Number.isFinite(Date.parse(stamp)) && Date.parse(stamp) <= now ?
-        { status: "observed", latestTimestamp: stamp, source: spec.table } :
+        { status: "observed", latestTimestamp: stamp, source: spec.table, ...(id==='W04'&&isDate(list[0]?.metric_date)&&typeof list[0]?.status==='string'?{metricDate:list[0].metric_date,dayStatus:list[0].status}:{}) } :
         { status: "unknown", note: "no_valid_persisted_timestamp" };
     } catch { storage[id] = { status: "unknown", note: "storage_readback_unavailable" }; }
   }));
