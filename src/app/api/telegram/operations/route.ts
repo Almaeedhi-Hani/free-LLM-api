@@ -64,7 +64,8 @@ async function dataFor(cmd:string){
 }
 async function send(cfg:NonNullable<ReturnType<typeof core.config>>,message:string,inline?:{text:string;callback_data:string}[][]){
  const parts=core.chunks(message);
- for(const [index,part] of parts.entries()){
+ for(let index=0;index<parts.length;index++){
+  const part=parts[index];
   const response=await fetch('https://api.telegram.org/bot'+cfg.token+'/sendMessage',{
    method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:cfg.chat,text:part,link_preview_options:{is_disabled:true},...(inline&&inline.length&&index===parts.length-1?{reply_markup:{inline_keyboard:inline}}:telegramPhase2Enabled()?{reply_markup:core.keyboard(advancedEnabled(),coordinatorEnabled())}:{})}),signal:AbortSignal.timeout(7000),redirect:'error',cache:'no-store'
   });
