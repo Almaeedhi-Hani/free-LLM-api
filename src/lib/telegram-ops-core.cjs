@@ -42,7 +42,7 @@ const latest=(name,record,time)=>name+': '+(record?state(record.status)+' — '+
 const list=(items,format)=>items===null?'المصدر غير متاح':items.length?items.slice(0,8).map((x,i)=>(i+1)+'. '+format(x)).join('\n'):'لا توجد سجلات';
 function render(cmd,d){
  if(cmd==='voice')return 'الأوامر الصوتية لم تُفعّل بعد. استخدم الأوامر النصية.\n'+menu;
- if(cmd==='/start'||cmd==='/help'||cmd==='unknown')return 'غرفة عمليات Invest in Saudi\n'+menu+'\nالأوامر الحالية للقراءة فقط؛ لا يتم اعتماد أو نشر المحتوى من البوت.';
+ if(cmd==='/start'||cmd==='/help'||cmd==='unknown')return 'غرفة عمليات Invest in Saudi\n'+menu+'\n'+(d.advanced?'القراءة متاحة، وحفظ القرارات صريح. الموافقات المؤهلة تتطلب مراجعة وتأكيدًا؛ المحتوى التحريري والعالي المخاطر من لوحة الإدارة.':'الأوامر الحالية للقراءة فقط؛ لا يتم اعتماد أو نشر المحتوى من البوت.');
  const head='Invest in Saudi | غرفة العمليات\n'+stamp(d.now)+'\n\n';
  const statuses=()=>[
  latest('Market Radar',d.radar,'finished_at'),
@@ -53,12 +53,13 @@ function render(cmd,d){
  'Watchdog: غير متحقق من مصدر مستقل في هذه النسخة',
  'الحالات أعلاه آخر سجلات متاحة وليست تأكيدًا على صحة النظام الآن.'
  ].join('\n');
- if(cmd==='/status')return head+statuses();
- if(cmd==='/brief')return head+statuses()+'\n\nالمسودات المعلقة: '+(d.pending??'غير متاح')+'\nالروابط المنشورة: '+(d.publishedCount??'غير متاح')+'\nالتقرير الأسبوعي المحفوظ: '+(d.weekly?.verified_at?clean(d.weekly.week_key)+' (متحقق)':'غير مؤكد')+'\n\n'+list(d.opportunities,x=>clean(x.title));
+ const statusText=()=>d.healthSummary||statuses();
+ if(cmd==='/status')return head+statusText();
+ if(cmd==='/brief')return head+statusText()+'\n\nالمسودات المعلقة: '+(d.pending??'غير متاح')+'\nالروابط المنشورة: '+(d.publishedCount??'غير متاح')+'\nالتقرير الأسبوعي المحفوظ: '+(d.weekly?.verified_at?clean(d.weekly.week_key)+' (متحقق)':'غير مؤكد')+'\n\nأبرز الفرص المسجلة (بلغة المصدر):\n'+list(d.opportunities,x=>clean(x.title));
  if(cmd==='/market')return head+'أحدث المنافسين المسجلين (عينة):\n'+list(d.competitors,x=>clean(x.name)+' — '+clean(x.domain))+'\n\nأحدث الكلمات (عينة):\n'+list(d.keywords,x=>clean(x.term));
  if(cmd==='/opportunities')return head+'أبرز الفرص بحسب الدرجة:\n'+list(d.opportunities,x=>clean(x.title))+'\n\nأحدث الأهداف المفتوحة:\n'+list(d.goals,x=>clean(x.title));
  if(cmd==='/published')return head+'أحدث روابط المحتوى:\n'+list(d.links,x=>clean(x.title)+'\n'+clean(x.url));
- if(cmd==='/reviews')return head+'المسودات المعلقة: '+(d.pending??'غير متاح')+'\n'+list(d.drafts,x=>clean(x.title))+'\nالمراجعة والاعتماد من لوحة التحكم فقط.';
+ if(cmd==='/reviews')return head+'المسودات المعلقة: '+(d.pending??'غير متاح')+'\n'+list(d.drafts,x=>clean(x.title))+'\n'+(d.advanced?'اختر مراجعة المحتوى لعرض العناصر المؤهلة؛ الاعتماد مشروط بالتأكيد.':'المراجعة والاعتماد من لوحة التحكم فقط.');
  if(cmd==='/advice'){
  const recommendations=[];
  if(d.pending>0)recommendations.push('راجع المسودات المعلقة قبل زيادة إنتاج المحتوى.');
