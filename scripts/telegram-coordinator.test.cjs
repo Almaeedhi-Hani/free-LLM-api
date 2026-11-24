@@ -24,3 +24,8 @@ test('coordinator Arabic button is separately gated and normalized',()=>{
  assert(keyboard(false,true).keyboard.flat().some(x=>x.text==='غرفة القيادة'));
  assert.equal(normalizeCommand('غرفة القيادة'),'/commandcenter');
 });
+
+test('known priority and publication status localized, source title retained',async()=>{
+ const t=await report({...d,opportunities:[{title:'Original source title',score:85,priority:'critical'}],publication:{status:'published',published_at:d.now}});
+ assert(t.includes('الأولوية: حرجة'));assert(t.includes('آخر سجل نشر: منشور'));assert(t.includes('Original source title'));assert(t.includes('بلغة المصدر'));
+});
