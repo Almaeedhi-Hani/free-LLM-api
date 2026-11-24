@@ -30,7 +30,7 @@ async function readRows(path:string):Promise<Row[]|null>{
  }catch{return null;}
 }
 async function dataFor(cmd:string){
- const d:Record<string,unknown>={now:new Date().toISOString()};
+ const d:Record<string,unknown>={now:new Date().toISOString(),advanced:advancedEnabled()};
  const tasks:Promise<void>[]=[];
  const query=(key:string,path:string,one=false)=>tasks.push(readRows(path).then(rows=>{d[key]=one?rows?.[0]??null:rows;}));
  const status=['/status','/brief','/advice','/commandcenter'].includes(cmd);
@@ -97,8 +97,9 @@ export async function POST(req:NextRequest){
   else if(action)message=await handleAdvanced(action,cfg,(update as {update_id:number}).update_id);
   else if(command==='voice'&&advancedEnabled())message=await handleVoice(update,cfg);
   else{
-   const data=await dataFor(command);message=core.render(command,data);
-   if(telegramPhase2Enabled()&&['/status','/brief'].includes(command))message=message.replace('Watchdog: غير متحقق من مصدر مستقل في هذه النسخة','')+'\n\n'+healthText(data);
+   const data=await dataFor(command);
+   if(telegramPhase2Enabled()&&['/status','/brief'].includes(command))data.healthSummary=healthText(data)+'\n\nآخر سجل نشر: '+(data.publication?'متاح (انظر المحتوى المنشور)':'غير مؤكد')+'\nالحالات مبنية على السجلات المحفوظة وليست تحققًا لحظيًا.';
+   message=core.render(command,data);
    if(coordinatorEnabled()&&['/help','/start','unknown'].includes(command))message+='\n\n/commandcenter — غرفة القيادة';
    if(advancedEnabled()){
     if(command==='/advice')message+='\n\n'+await memorySummary(cfg);
