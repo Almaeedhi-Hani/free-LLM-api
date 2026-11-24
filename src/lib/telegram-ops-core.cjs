@@ -27,6 +27,11 @@ function authentic(expected,supplied){
  const a=Buffer.from(expected||''),b=Buffer.from(supplied||'');
  return a.length>0&&a.length===b.length&&timingSafeEqual(a,b);
 }
+function reviewCallback(update,cfg){
+ const q=update?.callback_query;
+ if(!Number.isSafeInteger(update?.update_id)||!q||q.from?.is_bot!==false||String(q.from?.id)!==cfg.owner||q.message?.chat?.type!=='private'||String(q.message.chat.id)!==cfg.chat||typeof q.id!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(q.id)||typeof q.data!=='string'||!/^review:[a-f0-9]{24}$/.test(q.data))return null;
+ return {id:q.id,update:{update_id:update.update_id,message:{chat:q.message.chat,from:q.from,text:'/review '+q.data.slice(7)}}};
+}
 function command(update,cfg){
  const m=update?.message;
  if(!Number.isSafeInteger(update?.update_id)||!m||m.chat?.type!=='private'||String(m.chat.id)!==cfg.chat||String(m.from?.id)!==cfg.owner||m.from?.is_bot!==false)return null;
@@ -76,4 +81,4 @@ function chunks(text){
  while(rest.length>3900){let cut=rest.lastIndexOf('\n',3900);if(cut<1)cut=3900;if(/[\uD800-\uDBFF]/.test(rest[cut-1]))cut--;out.push(rest.slice(0,cut));rest=rest.slice(cut).replace(/^\n/,'');}
  if(rest)out.push(rest);return out;
 }
-module.exports={config,authentic,command,render,chunks,normalizeCommand,keyboard};
+module.exports={config,authentic,command,render,chunks,normalizeCommand,keyboard,reviewCallback};
