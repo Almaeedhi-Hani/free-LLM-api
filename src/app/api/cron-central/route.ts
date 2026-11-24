@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
+import {runTelegramTick} from '@/lib/telegram-ops-notifier';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -110,12 +111,14 @@ export async function POST(req:NextRequest){
     dueTasks(new Date());
   if(!tasks.length)return NextResponse.json({status:'idle',due:[],now:new Date().toISOString()});
   // No retries: uncertain 204 responses cannot be dispatched twice safely.
+  // Optional notification sidecar; no new cron or production dispatch dependency.
+  const telegram=mode==='tick'?runTelegramTick(new Date().toISOString()).catch(()=>({status:'monitor_unavailable'})):Promise.resolve({status:'not_requested'});
   const results:unknown[]=[];
   for(const task of tasks){
     try{results.push(task==='W02'?await callRadar():task==='weekly'?await saveWeeklyReport():await dispatchGitHub(task,token));}
     catch(e){results.push({task,status:'error',reason:e instanceof Error?e.message:'failed'});}
   }
   const failed=results.some(x=>(x as {status?:string}).status==='error');
-  return NextResponse.json({status:failed?'partial_failure':'accepted',results},
+  return NextResponse.json({status:failed?'partial_failure':'accepted',results,telegram:await telegram},
     {status:failed?502:200,headers:{'cache-control':'no-store'}});
 }
