@@ -38,7 +38,7 @@ async function dataFor(cmd:string){
  if(status){
   if(telegramPhase2Enabled()||cmd==='/commandcenter')tasks.push(watchdogSnapshot().then(x=>{Object.assign(d,x);}));
   query('radar','analysis_runs?select=status,finished_at&run_type=eq.radar&order=started_at.desc&limit=1',true);
-  query('gsc','gsc_sync_day_outcomes?select=status,checked_at,metric_date,rows_fetched&order=checked_at.desc&limit=1',true);
+  query('gsc','gsc_sync_day_outcomes?select=status,checked_at,metric_date,rows_fetched&order=metric_date.desc,checked_at.desc&limit=1&property=eq.'+encodeURIComponent(process.env.GSC_PROPERTY_URL||'https://free-llm-api-1-didl.onrender.com/')+'',true);
   query('publication','geo_publication_events?select=status,published_at&order=published_at.desc&limit=1',true);
   query('ai','impact_ai_observations?select=verification_status,observed_at&order=observed_at.desc&limit=1',true);
  }
