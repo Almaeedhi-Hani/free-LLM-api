@@ -12,9 +12,10 @@ const buttonRows=[
  [['/advice','توصيات المستشار'],['/help','المساعدة']]
 ];
 const advancedRows=[[['/memory','الذاكرة الاستراتيجية'],['/reviewlist','مراجعة المحتوى']]];
-const aliases=new Map([...buttonRows,...advancedRows].flat().map(([cmd,label])=>[label,cmd]));
+const coordinatorRows=[[['/commandcenter','غرفة القيادة']]];
+const aliases=new Map([...buttonRows,...advancedRows,...coordinatorRows].flat().map(([cmd,label])=>[label,cmd]));
 function normalizeCommand(text){const value=typeof text==='string'?text.trim():'';return aliases.get(value)||value;}
-function keyboard(advanced=false){return {keyboard:[...buttonRows,...(advanced?advancedRows:[])].map(row=>row.map(([,text])=>({text}))),resize_keyboard:true,is_persistent:true};}
+function keyboard(advanced=false,coordinator=false){return {keyboard:[...buttonRows,...(advanced?advancedRows:[]),...(coordinator?coordinatorRows:[])].map(row=>row.map(([,text])=>({text}))),resize_keyboard:true,is_persistent:true};}
 const menu=Object.entries(commands).filter(([k])=>!['/start','/help'].includes(k)).map(([k,v])=>k+' — '+v).join('\n');
 function config(env){
  const token=env.TELEGRAM_BOT_TOKEN||'',secret=env.TELEGRAM_WEBHOOK_SECRET||'',

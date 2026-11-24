@@ -4,6 +4,8 @@ import {getContent} from '@/lib/content-store';
 import {buildPublishedLinks} from '@/lib/published-links';
 import {telegramPhase2Enabled,watchdogSnapshot,healthText,claimDelivery,markDelivery} from '@/lib/telegram-ops-notifier';
 import {advancedEnabled,parseAdvanced,handleAdvanced,handleVoice,memorySummary} from '@/lib/telegram-ops-advanced';
+const coordinator=require('../../../../lib/telegram-ops-coordinator.cjs') as {report:(d:Record<string,unknown>)=>Promise<string>};
+const coordinatorEnabled=()=>process.env.TELEGRAM_OPS_COORDINATOR_ENABLED==='true';
 const core=require('../../../../lib/telegram-ops-core.cjs') as {
  config:(env:NodeJS.ProcessEnv)=>{token:string;secret:string;chat:string;owner:string}|null;
  authentic:(expected:string,supplied:string)=>boolean;
@@ -11,7 +13,7 @@ const core=require('../../../../lib/telegram-ops-core.cjs') as {
  render:(cmd:string,d:Record<string,unknown>)=>string;
  chunks:(text:string)=>string[];
  normalizeCommand:(text:unknown)=>string;
- keyboard:(advanced:boolean)=>{keyboard:{text:string}[][];resize_keyboard:boolean;is_persistent:boolean};
+ keyboard:(advanced:boolean,coordinator:boolean)=>{keyboard:{text:string}[][];resize_keyboard:boolean;is_persistent:boolean};
 };
 export const dynamic='force-dynamic';
 export const runtime='nodejs';
@@ -31,11 +33,11 @@ async function dataFor(cmd:string){
  const d:Record<string,unknown>={now:new Date().toISOString()};
  const tasks:Promise<void>[]=[];
  const query=(key:string,path:string,one=false)=>tasks.push(readRows(path).then(rows=>{d[key]=one?rows?.[0]??null:rows;}));
- const status=['/status','/brief','/advice'].includes(cmd);
+ const status=['/status','/brief','/advice','/commandcenter'].includes(cmd);
  if(status){
-  if(telegramPhase2Enabled())tasks.push(watchdogSnapshot().then(x=>{Object.assign(d,x);}));
+  if(telegramPhase2Enabled()||cmd==='/commandcenter')tasks.push(watchdogSnapshot().then(x=>{Object.assign(d,x);}));
   query('radar','analysis_runs?select=status,finished_at&run_type=eq.radar&order=started_at.desc&limit=1',true);
-  query('gsc','gsc_sync_day_outcomes?select=status,checked_at&order=checked_at.desc&limit=1',true);
+  query('gsc','gsc_sync_day_outcomes?select=status,checked_at,metric_date,rows_fetched&order=checked_at.desc&limit=1',true);
   query('publication','geo_publication_events?select=status,published_at&order=published_at.desc&limit=1',true);
   query('ai','impact_ai_observations?select=verification_status,observed_at&order=observed_at.desc&limit=1',true);
  }
@@ -43,7 +45,7 @@ async function dataFor(cmd:string){
   query('competitors','competitors?select=name,domain&status=eq.active&order=last_seen_at.desc&limit=8');
   query('keywords','keywords?select=term&order=last_seen_at.desc&limit=8');
  }
- if(['/brief','/opportunities','/advice'].includes(cmd))query('opportunities','opportunities?select=title&status=in.(new,triaged,planned)&order=score.desc&limit=8');
+ if(['/brief','/opportunities','/advice','/commandcenter'].includes(cmd))query('opportunities','opportunities?select=title,score,priority&status=in.(new,triaged,planned)&order=score.desc&limit=8');
  if(cmd==='/opportunities')query('goals','agent_goals?select=title&status=eq.open&order=created_at.desc&limit=8');
  if(cmd==='/brief')query('weekly','weekly_reports?select=week_key,verified_at&order=week_key.desc&limit=1',true);
  if(status||['/published','/reviews'].includes(cmd))tasks.push((async()=>{
@@ -62,7 +64,7 @@ async function dataFor(cmd:string){
 async function send(cfg:NonNullable<ReturnType<typeof core.config>>,message:string){
  for(const part of core.chunks(message)){
   const response=await fetch('https://api.telegram.org/bot'+cfg.token+'/sendMessage',{
-   method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:cfg.chat,text:part,link_preview_options:{is_disabled:true},...(telegramPhase2Enabled()?{reply_markup:core.keyboard(advancedEnabled())}:{})}),signal:AbortSignal.timeout(7000),redirect:'error',cache:'no-store'
+   method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:cfg.chat,text:part,link_preview_options:{is_disabled:true},...(telegramPhase2Enabled()?{reply_markup:core.keyboard(advancedEnabled(),coordinatorEnabled())}:{})}),signal:AbortSignal.timeout(7000),redirect:'error',cache:'no-store'
   });
   if(!response.ok)throw Error('delivery_failed');
   const result=await response.json();if(result?.ok!==true||String(result.result?.chat?.id)!==cfg.chat||!Number.isSafeInteger(result.result?.message_id))throw Error('delivery_unconfirmed');
@@ -83,16 +85,21 @@ export async function POST(req:NextRequest){
  let update:unknown;try{update=await boundedBody(req);}catch{return reply({error:'invalid_update'},400);}
  const command=core.command(update,cfg);
  if(!command)return reply({ok:true,ignored:true});
- const key=(telegramPhase2Enabled()||advancedEnabled())?'command:'+String((update as {update_id:number}).update_id):null;
+ const key=(telegramPhase2Enabled()||advancedEnabled()||coordinatorEnabled())?'command:'+String((update as {update_id:number}).update_id):null;
  try{if(key&&!await claimDelivery(key,'command'))return reply({ok:true,duplicate:true});}catch{return reply({error:'delivery_ledger_unavailable'},503);}
  try{
   const action=command==='unknown'?parseAdvanced(core.normalizeCommand((update as {message?:{text?:unknown}}).message?.text)):null;
   let message:string;
-  if(action)message=await handleAdvanced(action,cfg,(update as {update_id:number}).update_id);
+  if(command==='unknown'&&core.normalizeCommand((update as {message?:{text?:unknown}}).message?.text)==='/commandcenter'){
+   message=coordinatorEnabled()?await coordinator.report(await dataFor('/commandcenter')):'غرفة القيادة غير مفعلة بعد.';
+   if(coordinatorEnabled()&&advancedEnabled())try{message+='\n\n'+await memorySummary(cfg);}catch{message+='\n\nالذاكرة الاستراتيجية غير متاحة.';}
+  }
+  else if(action)message=await handleAdvanced(action,cfg,(update as {update_id:number}).update_id);
   else if(command==='voice'&&advancedEnabled())message=await handleVoice(update,cfg);
   else{
    const data=await dataFor(command);message=core.render(command,data);
    if(telegramPhase2Enabled()&&['/status','/brief'].includes(command))message=message.replace('Watchdog: غير متحقق من مصدر مستقل في هذه النسخة','')+'\n\n'+healthText(data);
+   if(coordinatorEnabled()&&['/help','/start','unknown'].includes(command))message+='\n\n/commandcenter — غرفة القيادة';
    if(advancedEnabled()){
     if(command==='/advice')message+='\n\n'+await memorySummary(cfg);
     if(['/help','/start','unknown'].includes(command))message+='\n\n/memory — قراراتك المحفوظة\n/remember نص القرار — حفظ صريح\n/reviewlist — مراجعة المحتوى\nالصوت: تفريغ واقتراح أمر قراءة بعد تفعيله؛ لا تنفيذ تلقائي.';
