@@ -3,7 +3,7 @@ import {getSupabaseCredentials} from '@/lib/storage-mode';
 import {getContent} from '@/lib/content-store';
 import {buildPublishedLinks} from '@/lib/published-links';
 import {telegramPhase2Enabled,watchdogSnapshot,healthText,claimDelivery,markDelivery} from '@/lib/telegram-ops-notifier';
-import {advancedEnabled,parseAdvanced,handleAdvanced,handleVoice,memorySummary} from '@/lib/telegram-ops-advanced';
+import {advancedEnabled,parseAdvanced,handleAdvanced,handleVoice,memorySummary,reviewMenu} from '@/lib/telegram-ops-advanced';
 const coordinator=require('../../../../lib/telegram-ops-coordinator.cjs') as {report:(d:Record<string,unknown>)=>Promise<string>};
 const coordinatorEnabled=()=>process.env.TELEGRAM_OPS_COORDINATOR_ENABLED==='true';
 const core=require('../../../../lib/telegram-ops-core.cjs') as {
@@ -13,6 +13,7 @@ const core=require('../../../../lib/telegram-ops-core.cjs') as {
  render:(cmd:string,d:Record<string,unknown>)=>string;
  chunks:(text:string)=>string[];
  normalizeCommand:(text:unknown)=>string;
+ reviewCallback:(update:unknown,cfg:{owner:string;chat:string})=>{id:string;update:unknown}|null;
  keyboard:(advanced:boolean,coordinator:boolean)=>{keyboard:{text:string}[][];resize_keyboard:boolean;is_persistent:boolean};
 };
 export const dynamic='force-dynamic';
@@ -61,10 +62,11 @@ async function dataFor(cmd:string){
  })());
  await Promise.all(tasks);return d;
 }
-async function send(cfg:NonNullable<ReturnType<typeof core.config>>,message:string){
- for(const part of core.chunks(message)){
+async function send(cfg:NonNullable<ReturnType<typeof core.config>>,message:string,inline?:{text:string;callback_data:string}[][]){
+ const parts=core.chunks(message);
+ for(const [index,part] of parts.entries()){
   const response=await fetch('https://api.telegram.org/bot'+cfg.token+'/sendMessage',{
-   method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:cfg.chat,text:part,link_preview_options:{is_disabled:true},...(telegramPhase2Enabled()?{reply_markup:core.keyboard(advancedEnabled(),coordinatorEnabled())}:{})}),signal:AbortSignal.timeout(7000),redirect:'error',cache:'no-store'
+   method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:cfg.chat,text:part,link_preview_options:{is_disabled:true},...(inline&&inline.length&&index===parts.length-1?{reply_markup:{inline_keyboard:inline}}:telegramPhase2Enabled()?{reply_markup:core.keyboard(advancedEnabled(),coordinatorEnabled())}:{})}),signal:AbortSignal.timeout(7000),redirect:'error',cache:'no-store'
   });
   if(!response.ok)throw Error('delivery_failed');
   const result=await response.json();if(result?.ok!==true||String(result.result?.chat?.id)!==cfg.chat||!Number.isSafeInteger(result.result?.message_id))throw Error('delivery_unconfirmed');
@@ -83,17 +85,23 @@ export async function POST(req:NextRequest){
  if(!cfg)return reply({error:'disabled'},503);
  if(!core.authentic(cfg.secret,req.headers.get('x-telegram-bot-api-secret-token')||''))return reply({error:'unauthorized'},401);
  let update:unknown;try{update=await boundedBody(req);}catch{return reply({error:'invalid_update'},400);}
+ const callback=advancedEnabled()?core.reviewCallback(update,cfg):null;
+ if(callback){
+  update=callback.update;
+  try{await fetch('https://api.telegram.org/bot'+cfg.token+'/answerCallbackQuery',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({callback_query_id:callback.id}),redirect:'error',signal:AbortSignal.timeout(3000),cache:'no-store'});}catch{}
+ }
  const command=core.command(update,cfg);
  if(!command)return reply({ok:true,ignored:true});
  const key=(telegramPhase2Enabled()||advancedEnabled()||coordinatorEnabled())?'command:'+String((update as {update_id:number}).update_id):null;
  try{if(key&&!await claimDelivery(key,'command'))return reply({ok:true,duplicate:true});}catch{return reply({error:'delivery_ledger_unavailable'},503);}
  try{
   const action=command==='unknown'?parseAdvanced(core.normalizeCommand((update as {message?:{text?:unknown}}).message?.text)):null;
-  let message:string;
+  let message:string;let inline:{text:string;callback_data:string}[][]|undefined;
   if(command==='unknown'&&core.normalizeCommand((update as {message?:{text?:unknown}}).message?.text)==='/commandcenter'){
    message=coordinatorEnabled()?await coordinator.report(await dataFor('/commandcenter')):'غرفة القيادة غير مفعلة بعد.';
    if(coordinatorEnabled()&&advancedEnabled())try{message+='\n\n'+await memorySummary(cfg);}catch{message+='\n\nالذاكرة الاستراتيجية غير متاحة.';}
   }
+  else if(action?.kind==='reviewlist'){const m=await reviewMenu();message=m.text;inline=m.inline_keyboard;}
   else if(action)message=await handleAdvanced(action,cfg,(update as {update_id:number}).update_id);
   else if(command==='voice'&&advancedEnabled())message=await handleVoice(update,cfg);
   else{
@@ -106,6 +114,6 @@ export async function POST(req:NextRequest){
     if(['/help','/start','unknown'].includes(command))message+='\n\n/memory — قراراتك المحفوظة\n/remember نص القرار — حفظ صريح\n/reviewlist — مراجعة المحتوى\nالصوت: تفريغ واقتراح أمر قراءة بعد تفعيله؛ لا تنفيذ تلقائي.';
    }
   }
-  await send(cfg,message);if(key)await markDelivery(key,'sent');return reply({ok:true});
+  await send(cfg,message,inline);if(key)await markDelivery(key,'sent');return reply({ok:true});
  }catch{if(key)try{await markDelivery(key,'uncertain');}catch{}return reply({error:'delivery_unconfirmed'},503);}
 }
