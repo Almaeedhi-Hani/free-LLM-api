@@ -5,6 +5,7 @@
  * Never dispatches production jobs, runs AI, publishes content, or changes policy.
  */
 const fs = require('node:fs');
+const {centralRun,centralState,gscCoverage}=require('../src/lib/v3-central-health.cjs');
 
 const WORKFLOWS = Object.freeze([
   { id: 'W01', filename: 'geo-analysis.yml', name: 'GEO' },
@@ -140,15 +141,15 @@ function createClient({repository,token,fetchImpl=fetch,pauseVarSnapshot=null}) 
       return step?.conclusion==='success'?true:step?.conclusion==='skipped'?false:null;
     }catch{return null;}
   }
-  async function workflowRuns(filename) {
+  async function workflowRuns(filename,central=false) {
     // Fetch actual *scheduled* runs, not push/dispatch results.
-    const value=await github('/actions/workflows/'+encodeURIComponent(filename)+'/runs?event=schedule&per_page=100');
+    const value=await github('/actions/workflows/'+encodeURIComponent(filename)+'/runs?event='+(central?'workflow_dispatch':'schedule')+'&per_page=100');
     if(!Array.isArray(value.workflow_runs))throw Error('invalid_schedule_runs');
     const verify=filename==='llm-feed-optimization.yml'?w05RunVerified:
       filename==='gsc-daily-sync.yml'?w04RunVerified:null;
     if(!verify)return value.workflow_runs;
     // Green schedule + skipped work is not a successful collection or a no-change.
-    const recent=value.workflow_runs.filter(r=>r?.event==='schedule'&&r.status==='completed'&&r.conclusion==='success')
+    const recent=value.workflow_runs.filter(r=>(central?centralRun(r,'W04'):r?.event==='schedule')&&r.status==='completed'&&r.conclusion==='success')
       .slice(0,12);
     const verified=new Map();
     for(const r of recent)verified.set(r.id,await verify(r.id));
@@ -456,7 +457,7 @@ async function collect(client,options) {
       run={status:'delegated',reason:'production_master_due_gated'};
     }
     else {
-      try{run=classifyRuns(await client.workflowRuns(target.filename),options.now);}
+      try{run=options.centralTopology&&target.id==='W04'?centralState(await client.workflowRuns(target.filename,true),options.now,'W04'):classifyRuns(await client.workflowRuns(target.filename),options.now);}
       catch{run={status:'unknown',reason:'github_read_error'};}
     }
     const storage=options.monitorSnapshot?.storage?.[target.id] || await readStorage(target.id,{url:options.supabaseUrl,key:options.supabaseKey,fetchImpl:options.fetchImpl||fetch});
@@ -474,8 +475,8 @@ async function handleWatchdog(client,rows,now) {
       '\nHours since schedule: '+(row.run.ageHours??'unknown')+
       '\nStorage: '+row.storage.status+' ('+(row.storage.latestTimestamp||row.storage.note||'unknown')+')'+
       '\n\nThis monitor never dispatches a production workflow. The issue is updated, not duplicated.';
-    if(row.run.status==='stale')result.push({workflow:row.target.id,...await client.upsertIssue({title,body,label:'watchdog'})});
-    if(row.run.status==='healthy'||row.run.status==='paused')result.push({workflow:row.target.id,...await client.resolveIssue(title,body+'\nIncident resolved: '+(row.run.status==='paused'?'owner-requested pause':'genuine scheduled success')+'.')});
+    if(row.run.status==='stale'||row.run.status==='failed')result.push({workflow:row.target.id,...await client.upsertIssue({title,body,label:'watchdog'})});
+    if(row.run.status==='healthy'||row.run.status==='paused')result.push({workflow:row.target.id,...await client.resolveIssue(title,body+'\nIncident resolved: '+(row.run.status==='paused'?'owner-requested pause':'verified relevant workflow success')+'.')});
     if(row.run.status==='delegated')result.push({workflow:row.target.id,...await client.resolveIssue(title,body+'\nThe retired standalone cron is no longer expected; Master invokes actual bounded production child workflows at approved due slots. Check per-stage logs and persistence before claiming a provider ran.')});
 
     // The second, source-backed alarm is independent of a green workflow.
@@ -528,17 +529,17 @@ async function handleReadbackCredentialStatus(client,rows,now) {
   return {kind:'storage_config',result:'unknown',reason:'partial_or_unreadable_readback'};
 }
 
-async function handleFailure(client,event) {
+async function handleFailure(client,event,central=false) {
   const run=event&&event.workflow_run;
   const target=WORKFLOWS.find(w=>run&&String(run.path).endsWith('/'+w.filename));
-  if(!target||run.event!=='schedule'||run.head_branch!=='main'||run.head_repository?.full_name!==event.repository?.full_name)
+  if(!target||(!(central&&target.id==='W04'&&centralRun(run,'W04'))&&run.event!=='schedule')||run.head_branch!=='main'||run.head_repository?.full_name!==event.repository?.full_name)
     return {result:'ignored_untrusted_or_non_schedule'};
   const pause=await client.pauseStatus(target.id);
   if(pause.status!=='active')return {result:'ignored_paused_or_unknown',pause:pause.status};
   const title=issueKey('failure',target.id+' '+target.name+' scheduled run');
   const result=safeOutcome(run.conclusion);
   const body='Workflow: '+target.filename+'\nRun ID: '+run.id+
-    '\nEvent: schedule\nConclusion: '+result+
+    '\nEvent: '+run.event+'\nConclusion: '+result+
     '\nURL: https://github.com/'+event.repository.full_name+'/actions/runs/'+run.id+
     '\nObserved at: '+new Date().toISOString()+
     '\nNo automatic retry or publication performed.';
@@ -555,7 +556,7 @@ async function handleFailure(client,event) {
 async function run(options) {
   const client=createClient({repository:options.repository,token:options.token,fetchImpl:options.fetchImpl||fetch,
     pauseVarSnapshot:options.pauseVarSnapshot??null});
-  if(options.mode==='failure')return handleFailure(client,options.event);
+  if(options.mode==='failure')return handleFailure(client,options.event,options.centralTopology===true);
   const monitorSnapshot=(!options.supabaseUrl||!options.supabaseKey)?
     await readGeoSnapshot({key:options.geoApiKey,mode:options.mode,now:options.now,fetchImpl:options.fetchImpl||fetch}):null;
   const rows=await collect(client,{...options,monitorSnapshot});
@@ -595,7 +596,7 @@ if(require.main===module){
     const event=process.env.GITHUB_EVENT_PATH?JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH,'utf8')):{};
     const result=await run({mode,repository:process.env.GITHUB_REPOSITORY,token:process.env.GH_TOKEN,
       now:Date.now(),supabaseUrl:process.env.SUPABASE_URL,supabaseKey:process.env.SUPABASE_SERVICE_ROLE_KEY,geoApiKey:process.env.GEO_API_KEY,event,
-      hybridTopology:true,
+      hybridTopology:true,centralTopology:true,
       pauseVarSnapshot:{
         V3_MASTER_PAUSED:process.env.V3_MASTER_PAUSED??'',
         MARKET_RADAR_PAUSED:process.env.MARKET_RADAR_PAUSED??'',
