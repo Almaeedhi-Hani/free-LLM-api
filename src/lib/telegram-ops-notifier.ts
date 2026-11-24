@@ -25,7 +25,7 @@ async function snapshot(now:string){
  const d:Record<string,unknown>={now};
  await Promise.all([
   rows('analysis_runs?select=status,finished_at&run_type=eq.radar&order=started_at.desc&limit=1').then(x=>{d.radar=x?.[0]??null;}),
-  rows('gsc_sync_day_outcomes?select=status,checked_at&order=checked_at.desc&limit=1').then(x=>{d.gsc=x?.[0]??null;}),
+  rows('gsc_sync_day_outcomes?select=status,checked_at,metric_date,rows_fetched&order=metric_date.desc,checked_at.desc&limit=1&property=eq.'+encodeURIComponent(process.env.GSC_PROPERTY_URL||'https://free-llm-api-1-didl.onrender.com/')+'').then(x=>{d.gsc=x?.[0]??null;}),
   rows('geo_publication_events?select=status,published_at&order=published_at.desc&limit=1').then(x=>{d.publication=x?.[0]??null;}),
   rows('impact_ai_observations?select=verification_status,observed_at&order=observed_at.desc&limit=1').then(x=>{d.ai=x?.[0]??null;}),
   rows('weekly_reports?select=week_key,verified_at&order=week_key.desc&limit=1').then(x=>{d.weekly=x?.[0]??null;}),
