@@ -25,3 +25,19 @@ test('uncertain failure does not disclose recording to a second provider',async(
 test('duplicate claim skipped and all unavailable fails closed',async()=>{
  const seen=[];assert.equal(await transcribe(providers(e,now),audio,{claim:async()=>false,mark:async()=>{},fetcher:async x=>{seen.push(x);throw Error('unexpected');}}),null);assert.deepEqual(seen,[]);
 });
+
+test('distinct recordings in the same hour have independent durable claims',()=>{
+ const {voiceInput}=require('../src/lib/telegram-voice-providers.cjs');
+ const update=id=>({update_id:id,message:{voice:{file_id:'voice-test',duration:120,file_size:4*1024*1024}}});
+ const a=voiceInput(update(100)),b=voiceInput(update(101));
+ assert.equal(a.slot,'voice:update:100');assert.equal(b.slot,'voice:update:101');assert.notEqual(a.slot,b.slot);
+ assert.equal(voiceInput(update(100)).slot,a.slot);
+ assert.equal(voiceInput({...update(100),update_id:-1}),null);
+ for(const patch of [{duration:121},{duration:0},{file_size:4*1024*1024+1},{file_id:''}])assert.equal(voiceInput({update_id:100,message:{voice:{...update(100).message.voice,...patch}}}),null);
+});
+test('long transcription is displayed without converting a truncated utterance into a command',()=>{
+ const {extract}=require('../src/lib/telegram-voice-providers.cjs');
+ const {voiceSuggestion}=require('../src/lib/telegram-ops-advanced-core.cjs');
+ const t=extract('groq',{text:'حالة الأنظمة '+ 'س'.repeat(4000)});
+ assert.match(t,/تم اختصار النص/);assert.equal(voiceSuggestion(t),null);
+});
