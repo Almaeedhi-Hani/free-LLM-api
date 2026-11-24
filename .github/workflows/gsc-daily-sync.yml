@@ -1,9 +1,21 @@
 name: GSC daily metrics sync
+run-name: ${{ inputs.source == 'supabase' && inputs.central_slot != '' && format('Supabase central W04 {0}', inputs.central_slot) || 'GSC sync (manual)' }}
 on:
   # Approved automatic GSC: restore the original 12 UTC slots while the
   # immutable Saudi cadence gate executes only due 4-hour windows.
   # 00:45 UTC = 03:45 KSA; preserves original slot and dedup behavior.
   workflow_dispatch:
+    inputs:
+      source:
+        required: false
+        type: choice
+        options: [manual, supabase]
+        default: manual
+      central_slot:
+        description: 'UTC slot supplied by signed central bridge'
+        required: false
+        type: string
+        default: ''
 permissions:
   contents: read
   actions: read
