@@ -2,6 +2,7 @@ import {NextRequest,NextResponse} from 'next/server';
 import {getSupabaseCredentials} from '@/lib/storage-mode';
 import {getContent} from '@/lib/content-store';
 import {buildPublishedLinks} from '@/lib/published-links';
+import {telegramPhase2Enabled,watchdogSnapshot,healthText,claimDelivery,markDelivery} from '@/lib/telegram-ops-notifier';
 const core=require('../../../../lib/telegram-ops-core.cjs') as {
  config:(env:NodeJS.ProcessEnv)=>{token:string;secret:string;chat:string;owner:string}|null;
  authentic:(expected:string,supplied:string)=>boolean;
@@ -29,6 +30,7 @@ async function dataFor(cmd:string){
  const query=(key:string,path:string,one=false)=>tasks.push(readRows(path).then(rows=>{d[key]=one?rows?.[0]??null:rows;}));
  const status=['/status','/brief','/advice'].includes(cmd);
  if(status){
+  if(telegramPhase2Enabled())tasks.push(watchdogSnapshot().then(x=>{Object.assign(d,x);}));
   query('radar','analysis_runs?select=status,finished_at&run_type=eq.radar&order=started_at.desc&limit=1',true);
   query('gsc','gsc_sync_day_outcomes?select=status,checked_at&order=checked_at.desc&limit=1',true);
   query('publication','geo_publication_events?select=status,published_at&order=published_at.desc&limit=1',true);
@@ -57,10 +59,10 @@ async function dataFor(cmd:string){
 async function send(cfg:NonNullable<ReturnType<typeof core.config>>,message:string){
  for(const part of core.chunks(message)){
   const response=await fetch('https://api.telegram.org/bot'+cfg.token+'/sendMessage',{
-   method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:cfg.chat,text:part,link_preview_options:{is_disabled:true}}),signal:AbortSignal.timeout(7000),redirect:'error',cache:'no-store'
+   method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:cfg.chat,text:part,link_preview_options:{is_disabled:true},...(telegramPhase2Enabled()?{reply_markup:{keyboard:[[{text:'/status'},{text:'/brief'}],[{text:'/market'},{text:'/opportunities'}],[{text:'/published'},{text:'/reviews'}],[{text:'/advice'},{text:'/help'}]],resize_keyboard:true,is_persistent:true}}:{})}),signal:AbortSignal.timeout(7000),redirect:'error',cache:'no-store'
   });
   if(!response.ok)throw Error('delivery_failed');
-  const result=await response.json();if(result?.ok!==true)throw Error('delivery_unconfirmed');
+  const result=await response.json();if(result?.ok!==true||String(result.result?.chat?.id)!==cfg.chat||!Number.isSafeInteger(result.result?.message_id))throw Error('delivery_unconfirmed');
  }
 }
 async function boundedBody(req:NextRequest):Promise<unknown>{
@@ -78,6 +80,12 @@ export async function POST(req:NextRequest){
  let update:unknown;try{update=await boundedBody(req);}catch{return reply({error:'invalid_update'},400);}
  const command=core.command(update,cfg);
  if(!command)return reply({ok:true,ignored:true});
- try{await send(cfg,core.render(command,await dataFor(command)));return reply({ok:true});}
- catch{return reply({error:'delivery_unconfirmed'},503);}
+ const key=telegramPhase2Enabled()?'command:'+String((update as {update_id:number}).update_id):null;
+ try{if(key&&!await claimDelivery(key,'command'))return reply({ok:true,duplicate:true});}catch{return reply({error:'delivery_ledger_unavailable'},503);}
+ try{
+  const data=await dataFor(command);
+  let message=core.render(command,data);
+  if(telegramPhase2Enabled()&&['/status','/brief'].includes(command))message=message.replace('Watchdog: غير متحقق من مصدر مستقل في هذه النسخة','')+'\n\n'+healthText(data);
+  await send(cfg,message);if(key)await markDelivery(key,'sent');return reply({ok:true});
+ }catch{if(key)try{await markDelivery(key,'uncertain');}catch{}return reply({error:'delivery_unconfirmed'},503);}
 }
