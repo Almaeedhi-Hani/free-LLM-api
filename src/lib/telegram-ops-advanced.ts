@@ -38,6 +38,10 @@ export async function memorySummary(cfg:Cfg){
  const a=await db('telegram_ops_memory',owner(cfg)+'&archived_at=is.null&select=id,decision,created_at&order=created_at.desc&limit=5');
  return a.length?'قرارات المالك المحفوظة (أحدث 5؛ لا تنفذ تلقائيًا):\n'+a.map(x=>'• '+String(x.decision)+'\n'+String(x.created_at).slice(0,10)+' — /forget '+x.id).join('\n'):'لا توجد قرارات محفوظة.';
 }
+export async function reviewMenu(){
+ const c=await readContent(),items=pending(c),first=items.slice(0,10);
+ return {text:'المراجعات المعلقة ('+items.length+') — أول 10 (النص الأصلي):\n'+(first.map((x,i)=>(i+1)+'. '+x.title.slice(0,180)+'\n/review '+x.key).join('\n')||'لا توجد مراجعات')+'\nللبقية: '+dashboard,inline_keyboard:first.map((x,i)=>[{text:'مراجعة '+(i+1),callback_data:'review:'+x.key}])};
+}
 export async function handleAdvanced(a:Action,cfg:Cfg,updateId:number):Promise<string>{
  if(a.kind==='memory')return memorySummary(cfg);
  if(a.kind==='remember'){
@@ -52,8 +56,7 @@ export async function handleAdvanced(a:Action,cfg:Cfg,updateId:number):Promise<s
   return rows.length===1?'تمت أرشفة القرار وإزالته من الذاكرة النشطة.':'لا يوجد قرار نشط بهذا الرقم.';
  }
  if(a.kind==='reviewlist'){
-  const c=await readContent(),items=pending(c);
-  return 'المراجعات المعلقة ('+items.length+') — أول 10:\n'+(items.slice(0,10).map(x=>'• '+x.title.slice(0,180)+'\n/review '+x.key).join('\n')||'لا توجد مراجعات')+'\nللبقية: '+dashboard;
+  return (await reviewMenu()).text;
  }
  if(a.kind==='review'||a.kind==='approve'||a.kind==='reject'){
   const c=await readContent(),items=pending(c).filter(x=>x.key===a.key);
