@@ -5,6 +5,8 @@ on:
       - 'src/lib/telegram-ops-core.cjs'
       - 'src/lib/telegram-ops-phase2.cjs'
       - 'src/lib/telegram-ops-notifier.ts'
+      - 'src/lib/telegram-ops-advanced*'
+      - 'scripts/telegram-advanced.test.cjs'
       - 'src/app/api/cron-central/**'
       - 'src/app/api/admin/telegram/**'
       - 'supabase/migrations/*telegram_ops*'
@@ -23,5 +25,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test scripts/telegram-ops.test.cjs scripts/telegram-phase2.test.cjs
+      - run: node --test scripts/telegram-ops.test.cjs scripts/telegram-phase2.test.cjs scripts/telegram-advanced.test.cjs
       - run: node scripts/v3-supabase-central.test.cjs
+      - run: npm ci
+      - run: npm run build
