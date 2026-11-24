@@ -38,6 +38,19 @@ assert.equal(eligibleEditorial({...editorial[3],target:'unknown'}),'unknown_serv
 assert.equal(eligibleEditorial({...editorial[3],topic_node_id:'obs_fake'}),'unknown_topic_node');
 assert.equal(eligibleEditorial({...editorial[3],kind:'home',target:'/'}),'wrong_home_target');
 assert(!checked.accepted.some(x=>x.kind==='page'||x.kind==='article'));
+// Guide aliases are deterministic, not a relaxation of the canonical validator.
+const guide={...editorial[2],target:'investor-guide',slug:'investor-guide',evidence_ids:['disc_0']};
+for(const input of [{...guide,slug:undefined},{...guide,target:undefined},{...guide,target:'/insights/investor-guide'},{...guide,slug:'/insights/investor-guide'}]){
+ const result=screenEditorial([input],'en');
+ assert.equal(result.rejected.length,0);
+ assert.equal(result.accepted[0].target,'investor-guide');
+ assert.equal(result.accepted[0].slug,'investor-guide');
+ assert.equal(eligibleEditorial(result.accepted[0]),null);
+ assert.deepEqual(result.accepted[0].evidence_ids,guide.evidence_ids);
+}
+for(const input of [{...guide,slug:'other-guide'},{...guide,slug:'https://example.org/insights/investor-guide'},{...guide,target:'دليل'},{...guide,target:'../investor-guide'},{...guide,target:undefined,slug:undefined},{...guide,target:'a'.repeat(91),slug:undefined}]){
+ assert.equal(screenEditorial([input],'en').accepted.length,0,'Reject ambiguous, invalid or invented routes');
+}
 // Synthetic multilingual preflight cases: no model/search calls and no DB writes.
 const enQ='Which source documents should an investor verify before company registration?';
 const enA='Before choosing an application route, review the proposed business activity, confirm document identity and validity, and obtain current requirements from the responsible Saudi authority. The team must distinguish official fees from professional advisory costs.';
