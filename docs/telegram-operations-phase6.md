@@ -1,0 +1,5 @@
+# Phase 6 — Read-only command center, first release
+- Feature flag TELEGRAM_OPS_COORDINATOR_ENABLED defaults off. Owner-only webhook, durable command deduplication, Arabic keyboard.
+- /commandcenter uses a shared bounded snapshot of existing sources. Five parallel rule-based specialist assessments (market, search, GEO/content, watchdog, AI impact) are independently settled before a deterministic coordinator ranks recommended actions. Memory is optional and is shown as owner context, not evidence. No new model calls, agent sessions, cron or mutation permissions.
+- This is coordination of existing systems, not autonomous LLM workers. No automatic remediation, external task execution, or modification of publication rules. Unknowns remain unknown. Existing GEO remediation deferred.
+- Acceptance: all checks including production build, live deployment, rotate exposed bot credential before activation, enable flag, owner sends command and validates evidence and ledger. Confirm non-owner rejection via regression tests; no unauthorized live test using another account.
