@@ -211,6 +211,10 @@ async function readStorage(id,{url,key,fetchImpl=fetch}) {
 function persistedFreshness(storage,nowMillis) {
   if(storage?.status==='not_applicable')return {status:'not_applicable',reason:'legitimate_no_change_possible'};
   if(storage?.status!=='observed')return {status:'unknown',reason:'storage_readback_unverified'};
+  if(storage.metricDate!==undefined){
+    const coverage=gscCoverage({metric_date:storage.metricDate,status:storage.dayStatus,checked_at:storage.latestTimestamp},nowMillis);
+    return {status:coverage.state==='recent'?'fresh':coverage.state==='failed'?'stale':coverage.state,reason:'gsc_eligible_day_'+coverage.state};
+  }
   const saved=Date.parse(storage.latestTimestamp);
   if(!Number.isFinite(saved)||!Number.isFinite(nowMillis)||saved>nowMillis)
     return {status:'unknown',reason:'invalid_persisted_timestamp'};
@@ -404,7 +408,7 @@ async function readGeoSnapshot({key,mode,now,fetchImpl=fetch}) {
         if(row.source!==table||typeof row.latestTimestamp!=='string'||
            !Number.isFinite(Date.parse(row.latestTimestamp))||
            Date.parse(row.latestTimestamp)>now)return null;
-        storage[id]={status:'observed',source:table,latestTimestamp:row.latestTimestamp};
+        storage[id]={status:'observed',source:table,latestTimestamp:row.latestTimestamp,...(id==='W04'&&typeof row.metricDate==='string'&&typeof row.dayStatus==='string'?{metricDate:row.metricDate,dayStatus:row.dayStatus}:{})};
       }else {
         storage[id]={status:'unknown',note:'server_readback_unverified'};
       }
