@@ -9,7 +9,7 @@ function parse(text){
  if(m&&m[1].trim())return {kind:'remember',decision:m[1].trim()};
  m=s.match(/^\/forget\s+([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$/i);
  if(m)return {kind:'forget',id:m[1].toLowerCase()};
- m=s.match(/^\/(review|approve|reject)\s+([a-f0-9]{24})$/);
+ m=s.match(/^\/(review|approve|reject|verify|revise|reasons)\s+([a-f0-9]{24})$/);
  if(m)return {kind:m[1],key:m[2]};
  m=s.match(/^\/confirm\s+([a-f0-9]{16})$/);
  if(m)return {kind:'confirm',code:m[1]};

@@ -1,6 +1,6 @@
 import type {EditorialItem} from '../../editorial-types';
 
-export function officialCandidateUrls(item:EditorialItem):string[]{
+export function officialCandidateUrls(item:Pick<EditorialItem,'evidence_refs'>):string[]{
  const result:string[]=[];
  for(const ref of item.evidence_refs||[]){
   if(!['official_candidate','official-manual'].includes(ref.kind)||typeof ref.url!=='string')continue;
@@ -33,7 +33,7 @@ export type VerifiedOfficialClaimProof={
  * government-source evidence, and two separate official authority domains
  * must each provide matching quotations. Any unavailable source fails closed.
  */
-export async function verifyHighRiskOfficialClaims(item:EditorialItem,request:typeof fetch=fetch):
+export async function verifyHighRiskOfficialClaims(item:Pick<EditorialItem,'body'|'evidence_refs'|'claim_evidence'>,request:typeof fetch=fetch):
  Promise<{urls:string[];proofs:VerifiedOfficialClaimProof[]}|null>{
  const claims=item.claim_evidence;
  if(!Array.isArray(claims)||claims.length<2||claims.length>10)return null;

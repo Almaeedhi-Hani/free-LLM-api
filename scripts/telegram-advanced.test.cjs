@@ -56,3 +56,17 @@ test('review cards hide identifiers, show full text, bound URLs and withhold ine
  assert(!c.text.includes(code));assert.equal(c.inline_keyboard[0][0].callback_data,'confirm:'+code);
  assert(!decisionCard('blocked').inline_keyboard.flat().some(b=>b.callback_data?.startsWith('confirm:')));
 });
+
+test('diagnostics use exact keys, no approval or voice shortcut for blocked content',()=>{
+ const {card}=require('../src/lib/telegram-ops-advanced-card.cjs');
+ const key='a'.repeat(24);
+ const c=card({key,title:'سؤال',kind:'faq',body:'نص',refs:[],eligible:false,index:7,total:163,full:true});
+ assert(c.text.includes('8 من 163'));
+ for(const k of ['verify','revise','reasons']){
+  assert.deepEqual(parse('/'+k+' '+key),{kind:k,key});
+  assert.equal(parse('/'+k+' all'),null);
+  assert.equal(voiceSuggestion('/'+k+' '+key),null);
+  assert(c.inline_keyboard.flat().some(b=>b.callback_data===k+':'+key));
+ }
+ assert(!c.inline_keyboard.flat().some(b=>b.callback_data?.startsWith('approve:')));
+});
