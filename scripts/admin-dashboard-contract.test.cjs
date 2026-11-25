@@ -56,7 +56,7 @@ assert(liveApi.includes('const entries=await sitemap()'),
 for(const x of ['saved','contacted','closed'])assert(requests.includes('value="'+x+'"'),
  'Customer lifecycle status not available: '+x);
 assert(requests.includes('action:"update_status"'),'Lead-status button must write to the backend');
-assert(review.includes('onSaveItems'),'Editorial edits require persistent save handler');
+assert(review.includes('onDeleteItem')&&review.includes('معاينة المنشور')&&!review.includes('اعتماد ونشر'),'Editorial management uses the persistent deletion handler and public preview, not manual approval');
 assert(technical.includes("payload.status!=='issue_open'"),
  'Technical suggestions must not be marked implemented after issuing an issue');
 assert(runs.includes("/api/admin/geo-engine")&&runs.includes("/api/admin/geo-publication"),
@@ -67,10 +67,10 @@ assert(contentApi.includes('expectedUpdatedAt')&&contentApi.includes('StorageCon
  'Concurrent edits should report version conflicts rather than silently overwrite');
 for(const x of ['Homepage golden paragraph editor saves',
  'FAQ full-detail preview opens',
- 'Editorial preview, edit and two-confirmation deletion',
+ 'Editorial published-only preview and deletion fail closed',
  'Contact save and persistent multilingual advisor readback',
- 'FAQ add/edit/delete buttons persist','Keyword create/update/delete',
- 'Goal create/status update','Draft review rejection',
+ 'FAQ add/edit persist; deletion fails closed','Keyword create/update/delete',
+ 'Goal create/status update','Pending FAQ stays in automated processing',
  'Cookie duration edit','Search integration setting persisted',
  'Content impact API reports','Logout returns'])
  assert(testBrowser.includes(x),'Functional browser suite missing checkpoint '+x);

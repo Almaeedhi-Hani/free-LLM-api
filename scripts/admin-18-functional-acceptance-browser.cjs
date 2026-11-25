@@ -132,35 +132,21 @@ const groups={
   await page.getByText('إجابة اختبار بعد التعديل.',{exact:true}).waitFor();
   content=await request('GET','/api/admin/content');
   assert.equal(content.faqs.find(f=>f.q==='سؤال تدقيق الإدارة المعزول').a,'إجابة اختبار بعد التعديل.');
-  // The content editor can have other asynchronous content-store writes.
-  // Capture precisely the FAQ deletion request, never an unrelated POST that
-  // arrives near the click. An absent deletion request must fail by timeout.
-  const beforeDeleteCount=content.faqs.length;
+  // The isolated file fixture has no persistent feedback storage. A deletion
+  // must reach the authenticated versioned endpoint but fail without removal.
   const targetQuestion='سؤال تدقيق الإدارة المعزول';
-  const [faqDeleteResponse] = await Promise.all([
-    page.waitForResponse(response => {
-      if(new URL(response.url()).pathname!=='/api/admin/content'||
-         response.request().method()!=='POST')return false;
-      const submitted=response.request().postDataJSON()?.faqs;
-      return Array.isArray(submitted) && submitted.length===beforeDeleteCount-1 &&
-        !submitted.some(f=>f.q===targetQuestion);
-    },{timeout:15000}),
-    faqRow.getByRole('button',{name:'حذف'}).click(),
+  await navigate('اعتماد المسودات');
+  const liveFaq=page.locator('li').filter({hasText:targetQuestion}).first();
+  const faqLink=await liveFaq.getByRole('link',{name:'معاينة المنشور'}).getAttribute('href');
+  assert(faqLink.startsWith('/#faq-'));
+  const [faqDeleteResponse]=await Promise.all([
+   page.waitForResponse(r=>new URL(r.url()).pathname==='/api/admin/content'&&r.request().method()==='POST'&&r.request().postDataJSON()?.deleteGeoContent?.question===targetQuestion,{timeout:15000}),
+   liveFaq.getByRole('button',{name:'حذف',exact:true}).click()
   ]);
-  const submittedFaqs=faqDeleteResponse.request().postDataJSON()?.faqs;
-  assert(Array.isArray(submittedFaqs), 'FAQ delete must submit an authoritative faqs array');
-  assert.equal(submittedFaqs.length,beforeDeleteCount-1,
-    'FAQ delete must remove exactly one item, preserving unrelated FAQ rows');
-  assert(!submittedFaqs.some(f=>f.q===targetQuestion),
-    'FAQ delete UI must submit a patch WITHOUT the deleted question');
-  assert.equal(faqDeleteResponse.status(), 200, 'FAQ delete save must succeed');
-  const faqDeleteResult = await faqDeleteResponse.json();
-  assert.equal(faqDeleteResult.status, 'updated', 'FAQ delete must persist');
-  assert(!faqDeleteResult.content?.faqs?.some(f=>f.q==='سؤال تدقيق الإدارة المعزول'),
-    'FAQ delete response must exclude the removed question');
+  assert.equal(faqDeleteResponse.status(),503,'Missing persistent memory must block deletion');
   content=await request('GET','/api/admin/content');
-  assert(!content.faqs.some(f=>f.q==='سؤال تدقيق الإدارة المعزول'));
-  checkpoint('FAQ add/edit/delete buttons persist immediately in isolated content store');
+  assert(content.faqs.some(f=>f.q===targetQuestion),'FAQ remains if learning cannot be saved');
+  checkpoint('FAQ add/edit persist; deletion fails closed without persistent learning storage');
 
   // Backend CRUD readbacks for competitors, keywords, opportunities and goals.
   const competitor=await request('POST','/api/admin/market/competitors',{
@@ -235,18 +221,12 @@ const groups={
   // Reload to exercise real session recovery and persisted draft readback.
   await page.reload({waitUntil:'domcontentloaded'});
   await navigate('اعتماد المسودات');
-  await page.getByText(pending.q,{exact:true}).waitFor({timeout:16000});
-  const draftRow=page.locator('li').filter({hasText:pending.q}).first();
-  await draftRow.getByRole('button',{name:'رفض'}).click();
-  await page.waitForFunction(async secret=>{
-    const response=await fetch('/api/admin/content',{headers:{'x-admin-secret':secret}});
-    if(!response.ok)return false;
-    const value=await response.json();
-    return value.drafts?.some(x=>x.q==='سؤال مسودة التدقيق المعزولة'&&x.status==='rejected');
-  },secret,{timeout:15000});
+  await page.getByRole('heading',{name:'الأسئلة المنشورة'}).waitFor();
+  assert.equal(await page.getByText(pending.q,{exact:true}).count(),0,'Unpublished FAQ never appears as published');
+  assert.equal(await page.getByRole('button',{name:'اعتماد ونشر'}).count(),0);
   content=await request('GET','/api/admin/content');
-  assert.equal(content.drafts.find(x=>x.q===pending.q).status,'rejected');
-  checkpoint('Draft review rejection follows persisted status transition');
+  assert.equal(content.drafts.find(x=>x.q===pending.q).status,'pending');
+  checkpoint('Pending FAQ stays in automated processing without manual approval');
 
   // Editorial items: validate real preview, revision and safe deletion while
   // leaving production publishing and GitHub task-creation untouched.
@@ -271,24 +251,32 @@ const groups={
   await page.locator('section[aria-label="معاينة المحتوى التفصيلية"]')
     .getByText(editorial.summary,{exact:true}).waitFor();
   await page.getByRole('button',{name:'إغلاق المعاينة'}).click();
+  // Seed an approved, route-backed fixture through existing local API.
+  content=await request('GET','/api/admin/content');
+  const guide={...editorial,id:'qa-functional-guide-20261125',kind:'guide',lang:'en',target:'qa-public-guide',slug:'qa-public-guide',
+   title:'Isolated published investor guide',summary:'This is an isolated test fixture for published investor guidance only.',
+   body:'An isolated public guide fixture describes the steps for organizing a fictional investor file. '.repeat(3),
+   evidence_ids:['qa-official'],evidence_refs:[{id:'qa-official',label:'Fixture authority',kind:'official_candidate',source:'fixture',url:'https://misa.gov.sa/en/'}]};
+  let seeded=await request('POST','/api/admin/content',{editorialItems:[...content.editorialItems,guide],expectedUpdatedAt:content.updatedAt});
+  const approved={...guide,status:'approved',reviewedAt:new Date().toISOString(),verified_sources:['https://misa.gov.sa/en/']};
+  await request('POST','/api/admin/content',{editorialItems:seeded.content.editorialItems.map(x=>x.id===guide.id?approved:x),expectedUpdatedAt:seeded.content.updatedAt});
+  await page.reload({waitUntil:'domcontentloaded'});
   await navigate('تطوير جميع صفحات الموقع');
-  await page.getByRole('textbox',{name:'البحث في المقترحات'}).fill(editorial.title);
-  const editorialListRow=page.locator('li').filter({hasText:editorial.title}).first();
-  await editorialListRow.getByRole('button',{name:'مراجعة التفاصيل'}).click();
-  await editorialListRow.getByRole('button',{name:'تحرير المقترح'}).click();
-  const editedSummary=editorial.summary+' بعد فحص معاينة التعديلات.';
-  await page.getByRole('textbox',{name:'ملخص المحتوى'}).fill(editedSummary);
-  await page.getByRole('button',{name:'حفظ للمراجعة'}).click();
-  await page.getByText('تم حفظ التغييرات بنجاح').waitFor({timeout:15000});
+  await page.getByRole('heading',{name:'المحتوى المنشور'}).waitFor();
+  assert.equal(await page.getByText(editorial.title,{exact:true}).count(),0,'Technical pending item must not be shown as published');
+  await page.getByRole('textbox',{name:'البحث في المنشورات'}).fill(guide.title);
+  const guideRow=page.locator('li').filter({hasText:guide.title}).first();
+  const guideHref=await guideRow.getByRole('link',{name:'معاينة المنشور'}).getAttribute('href');
+  assert.equal(guideHref,'/en/insights/qa-public-guide');
+  assert.equal(await page.getByRole('button',{name:'اعتماد ونشر'}).count(),0);
+  const [deleteResponse]=await Promise.all([
+   page.waitForResponse(r=>new URL(r.url()).pathname==='/api/admin/content'&&r.request().method()==='POST'&&r.request().postDataJSON()?.deleteGeoContent?.id===guide.id,{timeout:15000}),
+   guideRow.getByRole('button',{name:'حذف',exact:true}).click()
+  ]);
+  assert.equal(deleteResponse.status(),503,'No deletion without confirmed persistent learning');
   content=await request('GET','/api/admin/content');
-  assert.equal(content.editorialItems.find(x=>x.id===editorial.id)?.summary,editedSummary,
-    'Editorial revision must survive backend readback');
-  await page.locator('li').filter({hasText:editorial.title}).first().getByRole('button',{name:'حذف'}).click();
-  await page.getByText('تم حذف المقترح بعد حفظ التغييرات.').waitFor({timeout:15000});
-  content=await request('GET','/api/admin/content');
-  assert(!content.editorialItems.some(x=>x.id===editorial.id),
-    'Editorial deletion must persist; no ghost task after reload');
-  checkpoint('Editorial preview, edit and two-confirmation deletion persist without publishing');
+  assert(content.editorialItems.some(x=>x.id===guide.id&&x.status==='approved'));
+  checkpoint('Editorial published-only preview and deletion fail closed when learning storage is absent');
 
   // Remaining screens have read-only or explicitly gated functions; do not
   // pretend that missing external tokens constitute operational evidence.

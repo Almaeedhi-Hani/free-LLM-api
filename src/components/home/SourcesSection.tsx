@@ -18,9 +18,9 @@ export default function SourcesSection({lang, t, content}: Pick<HomeModel, "lang
             content.faqs
               .filter((f) => !/^STORAGE_TEST_/i.test(f.q))
               .map((f, i) => (
-                <details key={`${f.q}-${i}`}>
+                <details key={`${f.q}-${i}`} id={faqAnchor(f.q)}>
                   <summary>{f.q}</summary>
-                  <p id={faqAnchor(f.q)}>{f.a}</p>
+                  <p>{f.a}</p>
                 </details>
               ))}
         </div>
