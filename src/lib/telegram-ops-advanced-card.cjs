@@ -14,18 +14,18 @@ function sourceButtons(refs){
  }
  return result;
 }
-function card({key,title,kind,body,refs,eligible,index,total,previous,next,full,preflight}){
+function card({key,title,kind,body,refs,eligible,index,total,previous,next,full,preflight,autoReady}){
  const type=kind==='faq'?'سؤال شائع FAQ':'محتوى تحريري';
  const sources=sourceButtons(refs);
- const text='📋 طلب مراجعة محتوى — '+(index+1)+' من '+total+'\n\n'+title+'\n\nالنوع: '+type+'\nالحالة: بانتظار المراجعة\n\n'+(full?'المحتوى المقترح:\n'+body:'النص طويل؛ اقرأ المحتوى الكامل من لوحة الإدارة قبل اتخاذ أي قرار.')+'\n\nالأدلة المحفوظة: '+(refs||[]).length+ ' — وجود روابط لا يعني التحقق المستقل منها.\n'+(preflight?'آخر فحص: '+preflight.matched+' من '+preflight.total+' — '+(eligible?'مطابقة حرفية مكتملة؛ لا تثبت السياق القانوني وحدها.':'غير مؤهل بعد.')+'\n':'')+(eligible&&full?'يمكن طلب الاعتماد بعد قراءة النص والأدلة؛ يلزم تأكيد منفصل.':'الاعتماد غير متاح هنا؛ يلزم استكمال شروط المراجعة في لوحة الإدارة.');
+ const text='📋 طلب مراجعة محتوى — '+(index+1)+' من '+total+'\n\n'+title+'\n\nالنوع: '+type+'\nالحالة: '+(preflight?.archived?'مؤرشف للمراجعة البشرية':autoReady?'اجتاز الفحص الحرفي':'بانتظار المعالجة أو المراجعة البشرية')+'\n\n'+(full?'المحتوى المقترح:\n'+body:'النص طويل؛ اقرأ المحتوى الكامل من لوحة الإدارة قبل اتخاذ أي قرار.')+'\n\nالأدلة المحفوظة: '+(refs||[]).length+ ' — وجود روابط لا يعني التحقق المستقل منها.\n'+(preflight?'آخر فحص: '+preflight.matched+' من '+preflight.total+' — '+(autoReady?'مطابقة حرفية مكتملة؛ لا تثبت السياق القانوني وحدها.':'لم يجتز التحقق الآلي.')+'\n':'')+(eligible&&full?'يمكنك اعتماد النص كما هو بعد مراجعة الأدلة؛ يلزم تأكيد بشري منفصل.':'الاعتماد غير متاح هنا؛ يلزم استكمال شروط المراجعة في لوحة الإدارة.');
  const rows=full&&text.length<=3500?[...sources]:[];
  if(full&&text.length<=3500){
-  rows.push([...(eligible?[button('✅ طلب الاعتماد','approve:'+key)]:[]),button('❌ طلب الرفض','reject:'+key)]);
+  rows.push([...(eligible?[button('✅ اعتماد كما هو','approve:'+key)]:[]),button('❌ طلب الرفض','reject:'+key)]);
  }
  rows.push([button('🔍 التحقق من المصادر الرسمية','verify:'+key)]);
  rows.push([button('✏️ اقتراح تصحيح المحتوى','revise:'+key)]);
  rows.push([button('📋 أسباب منع الاعتماد','reasons:'+key)]);
- rows.push([urlButton('لوحة الإدارة — المصادر والتعديل',dashboard)]);
+ rows.push([urlButton('✏️ تعديل النص والمصادر',dashboard)]);
  const nav=[];
  if(previous)nav.push(button('⬅ السابق','review:'+previous));
  if(next)nav.push(button('التالي ➡','review:'+next));

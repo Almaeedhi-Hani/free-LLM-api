@@ -1,5 +1,7 @@
 import {randomBytes} from 'node:crypto';
-import {readyForHuman,liveReadyForHuman} from './telegram-ops-advanced-evidence';
+import {readyForHuman,reviewCopyQuality,reviewContentPolicy} from './telegram-ops-advanced-evidence';
+import {officialSourceCandidates} from './official-source-candidates';
+import {editorialPath} from './content-impact';
 import {getSupabaseCredentials} from '@/lib/storage-mode';
 import {getContent,type SiteContent,type ContentDraft} from '@/lib/content-store';
 import {assessGeoDraftCopy,splitGeoDraftReviewText,detectGeoDraftLocale} from '@/lib/geo-draft-quality';
@@ -33,7 +35,9 @@ function reviewText(x:Pending){
  return raw.length<=3000?raw:null;
 }
 function canApprove(x:Pending){
- return readyForHuman(x);
+ // Manual owner review is a distinct decision, never a claim of automated verification.
+ if(!reviewCopyQuality(x))return false;
+ return x.kind==='faq'||officialSourceCandidates(x.item.evidence_refs).length>0;
 }
 const dashboard='https://free-llm-api-1-didl.onrender.com/admin/dashboard';
 function instruction(x:Pending){return '\n\nللرفض: /reject '+x.key+(canApprove(x)?'\nللاعتماد بعد مراجعة النص والأدلة: /approve '+x.key:'\nالاعتماد يتطلب مراجعة لوحة الإدارة: '+dashboard);}
@@ -46,14 +50,14 @@ export async function memorySummary(cfg:Cfg){
  return a.length?'قرارات المالك المحفوظة (أحدث 5؛ لا تنفذ تلقائيًا):\n'+a.map(x=>'• '+String(x.decision)+'\n'+String(x.created_at).slice(0,10)+' — /forget '+x.id).join('\n'):'لا توجد قرارات محفوظة.';
 }
 export async function reviewMenu(){
- const c=await readContent(),items=pending(c),first=[...items].sort((a,b)=>Number(canApprove(b))-Number(canApprove(a))).slice(0,10);
- return {text:'📋 المراجعات المعلقة ('+items.length+')\nاختر المحتوى لعرض بطاقة المراجعة والأدلة والقرار.',inline_keyboard:[...first.map((x,i)=>[{text:(i+1)+'. '+x.title.slice(0,55),callback_data:'review:'+x.key}]),[{text:'لوحة الإدارة',url:dashboard}]]};
+ const c=await readContent(),items=pending(c),first=[...items].sort((a,b)=>Number(!!b.item.review_preflight?.archived)-Number(!!a.item.review_preflight?.archived)||Number(readyForHuman(a))-Number(readyForHuman(b))).slice(0,10);
+ return {text:'📋 المراجعات المعلقة ('+items.length+')\nالأولوية للاستثناءات المؤرشفة وغير المؤهلة آليًا. اختر المحتوى لاتخاذ قرار بشري.',inline_keyboard:[...first.map((x,i)=>[{text:(i+1)+'. '+x.title.slice(0,55),callback_data:'review:'+x.key}]),[{text:'لوحة الإدارة',url:dashboard}]]};
 }
 function buildReviewCard(items:Pending[],index:number):ReviewCard{
  const x=items[index];
  const full=Boolean(reviewText(x));
  const body=x.kind==='faq'?x.item.a:[x.item.summary,x.item.body,JSON.stringify(x.item.sections||[])].join('\n\n');
- return cards.card({key:x.key,title:x.title,kind:x.kind,body,refs:x.item.evidence_refs||[],eligible:canApprove(x),preflight:x.item.review_preflight,index,total:items.length,previous:items[index-1]?.key,next:items[index+1]?.key,full});
+ return cards.card({key:x.key,title:x.title,kind:x.kind,body,refs:x.item.evidence_refs||[],eligible:canApprove(x),autoReady:readyForHuman(x),preflight:x.item.review_preflight,index,total:items.length,previous:items[index-1]?.key,next:items[index+1]?.key,full});
 }
 export async function reviewCard(key:string):Promise<ReviewCard>{
  const items=pending(await readContent()),index=items.findIndex(x=>x.key===key);
@@ -62,7 +66,7 @@ export async function reviewCard(key:string):Promise<ReviewCard>{
 }
 export async function reviewNotificationCandidates(){
  const items=pending(await readContent());
- return items.map((x,index)=>({x,index})).filter(({x})=>canApprove(x)&&reviewText(x)).slice(0,30).map(({x,index})=>({key:'review-card:'+x.key,...buildReviewCard(items,index)}));
+ return items.map((x,index)=>({x,index})).filter(({x})=>x.item.review_preflight?.status==='blocked'&&!readyForHuman(x)).sort((a,b)=>Number(!!b.x.item.review_preflight?.archived)-Number(!!a.x.item.review_preflight?.archived)).slice(0,30).map(({x,index})=>({key:'review-card:exception:'+core.fingerprint(x.kind,{identity:x.kind==='faq'?x.item.q:x.item.id,digest:x.item.review_preflight?.digest,archived:!!x.item.review_preflight?.archived}),...buildReviewCard(items,index)}));
 }
 // Read-only, item-version-bound tools. No approval, content writes or workflow dispatch.
 export async function reviewDiagnostics(a:Action):Promise<ReviewCard>{
@@ -79,7 +83,7 @@ export async function reviewDiagnostics(a:Action):Promise<ReviewCard>{
   const reasons:string[]=[];
   if(!reviewText(x))reasons.push('النص يتجاوز طول المراجعة الآمنة داخل Telegram.');
   if(x.kind==='faq'){
-   if(x.item.risk_level!=='low'&&!canApprove(x))reasons.push('درجة المخاطر مرتفعة؛ يلزم تحقق حرفي كامل من الأدلة قبل الاعتماد.');
+   if(x.item.risk_level!=='low'&&!readyForHuman(x))reasons.push('درجة المخاطر مرتفعة؛ يلزم تحقق حرفي كامل من الأدلة قبل الاعتماد.');
    if(splitGeoDraftReviewText(x.item.a).note)reasons.push('يتضمن النص ملاحظة تطلب التحقق قبل النشر.');
    const quality=assessGeoDraftCopy(x.item.q,x.item.a);
    if(!quality.publishable)reasons.push('فحص جودة النص: '+quality.issues.join(' | '));
@@ -144,11 +148,11 @@ export async function handleAdvanced(a:Action,cfg:Cfg,updateId:number):Promise<s
   const x=items[0],preview=reviewText(x);
   if(!preview)return 'النص طويل للمراجعة الآمنة في Telegram. افتح '+dashboard;
   if(a.kind==='review')return preview+instruction(x);
-  if(a.kind==='approve'&&!canApprove(x))return 'لا يمكن اعتماد هذا العنصر عبر البوت؛ راجع المصادر وشروط النشر في '+dashboard;
+  if(a.kind==='approve'&&(!canApprove(x)||!await reviewContentPolicy(x).catch(()=>false)))return 'لا يمكن اعتماد هذا العنصر قبل اجتياز شروط الجودة والسياسة. يمكنك تعديله من '+dashboard;
   const code=randomBytes(8).toString('hex');
   const rows=await db('telegram_ops_review_intents','select=code,state','POST',{code,owner_id:cfg.owner,item_key:x.key,item_kind:x.kind,decision:a.kind,content_version:c.updatedAt,expires_at:new Date(Date.now()+10*60000).toISOString()});
   if(rows.length!==1||rows[0].code!==code)throw Error('intent_unverified');
-  return 'راجع النص المحدد قبل '+(a.kind==='approve'?'اعتماده ونشره':'رفضه')+':\n\n'+preview+'\n\nللتأكيد الصريح خلال 10 دقائق: /confirm '+code+'\nعدم التأكيد يعني عدم التنفيذ.';
+  return 'راجع النص المحدد قبل '+(a.kind==='approve'?'اعتماده ونشره':'رفضه')+':\n\n'+preview+(a.kind==='approve'?'\n\nهذا اعتماد بشري للنص كما هو، وليس إثباتًا آليًا لصحة المعلومات. '+(x.kind==='editorial'?'بالتأكيد تقر بأنك راجعت هذه الروابط الحكومية المحددة: '+officialSourceCandidates(x.item.evidence_refs).join(' ، '):'أنت تقر بمراجعة صحة الإجابة قبل نشرها.'):'')+'\n\nللتأكيد الصريح خلال 10 دقائق: /confirm '+code+'\nعدم التأكيد يعني عدم التنفيذ.';
  }
  if(a.kind==='confirm'){
   const code=a.code||'';
@@ -160,15 +164,16 @@ export async function handleAdvanced(a:Action,cfg:Cfg,updateId:number):Promise<s
    const c=await readContent(),matches=pending(c).filter(x=>x.key===intent.item_key&&x.kind===intent.item_kind);
    if(c.updatedAt!==intent.content_version||matches.length!==1){await closeIntent(cfg,code,'blocked','version_changed');return 'تغير المحتوى؛ لم ينفذ القرار. أعد المراجعة.';}
    const x=matches[0],approve=intent.decision==='approve';
-   if(!reviewText(x)||(approve&&!await liveReadyForHuman(x))){await closeIntent(cfg,code,'blocked','review_gate');return 'رفضت بوابة الأمان التنفيذ؛ راجع لوحة الإدارة.';}
+   if(!reviewText(x)||(approve&&(!canApprove(x)||!await reviewContentPolicy(x).catch(()=>false)))){await closeIntent(cfg,code,'blocked','review_gate');return 'رفضت بوابة الأمان التنفيذ؛ راجع لوحة الإدارة.';}
    const patch:Record<string,unknown>={expectedUpdatedAt:c.updatedAt};
    if(x.kind==='faq'){
     const draft=x.item as ContentDraft;
-    if(c.drafts.filter(d=>d.q===draft.q).length!==1||(approve&&c.faqs.some(f=>f.q===draft.q))){await closeIntent(cfg,code,'blocked','duplicate_question');return 'يوجد سؤال مكرر أو منشور مسبقًا؛ لم ينفذ القرار.';}
+    if(c.drafts.filter(d=>d.q===draft.q).length!==1||(approve&&c.faqs.some(f=>f.q.trim().toLocaleLowerCase()===draft.q.trim().toLocaleLowerCase()))){await closeIntent(cfg,code,'blocked','duplicate_question');return 'يوجد سؤال مكرر أو منشور مسبقًا؛ لم ينفذ القرار.';}
     patch.drafts=c.drafts.map(d=>d===draft?{...d,status:approve?'approved':'rejected'}:d);
     if(approve)patch.faqs=[...c.faqs,{q:draft.q,a:draft.a.trim(),approval_method:'human',source_verification:'not_independently_checked'}];
    }else{
-    patch.editorialItems=c.editorialItems.map(d=>d===x.item?{...d,status:approve?'approved':'rejected',reviewedAt:new Date().toISOString(),...(approve?{approval_method:'human',verified_sources:Array.from(new Set((d.claim_evidence||[]).map(p=>p.url))),source_verification:'not_independently_checked'}:{})}:d);
+    if(approve&&['guide','comparison'].includes(x.item.kind)&&c.editorialItems.some(d=>d.id!==x.item.id&&d.status==='approved'&&editorialPath(d)===editorialPath(x.item))){await closeIntent(cfg,code,'blocked','duplicate_route');return 'المسار منشور مسبقًا؛ استخدم تعديل النسخة من لوحة الإدارة.';}
+    patch.editorialItems=c.editorialItems.map(d=>d===x.item?{...d,status:approve?'approved':'rejected',reviewedAt:new Date().toISOString(),...(approve?{approval_method:'human',verified_sources:officialSourceCandidates(d.evidence_refs),source_verification:'not_independently_checked'}:{})}:d);
    }
    const secret=process.env.ADMIN_SECRET||process.env.REVALIDATION_SECRET;
    if(!secret){await closeIntent(cfg,code,'blocked','admin_config');return 'إعدادات الإدارة غير متاحة.';}

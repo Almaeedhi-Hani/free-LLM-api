@@ -29,14 +29,14 @@ function fields(x:Candidate):string[]{
 function identityFields(x:Candidate):string[]{
  return x.kind==='faq'?[x.item.q,x.item.risk_level||'',...fields(x)]:[x.item.id,x.item.kind,x.item.lang,x.item.target,x.item.risk_level,...fields(x)];
 }
-function quality(x:Candidate):boolean{
+export function reviewCopyQuality(x:Candidate):boolean{
  if(x.kind==='faq')return !splitGeoDraftReviewText(x.item.a).note&&assessGeoDraftCopy(x.item.q,x.item.a).publishable&&!editorialPublicationIssues({kind:'guide',title:x.item.q,body:x.item.a}).length;
  try{return !editorialPublicationIssues(x.item).length&&!!editorialPath(x.item)&&!!validateEditorialItem(x.item)}catch{return false}
 }
 export function readyForHuman(x:Candidate){
- return quality(x)&&evidence.eligible(x.item.review_preflight,x.kind,identityFields(x))&&Boolean(x.item.claim_evidence?.length);
+ return reviewCopyQuality(x)&&evidence.eligible(x.item.review_preflight,x.kind,identityFields(x))&&Boolean(x.item.claim_evidence?.length);
 }
-async function policy(x:Candidate){
+export async function reviewContentPolicy(x:Candidate){
  const [domains,feedback]=await Promise.all([getCompetitorDomains(),getGeoFeedbackIndex()]);
  return domains!==null&&!auditBody(fields(x).join('\n'),domains).length&&
   (x.kind==='faq'?!excludesFaq(feedback,x.item.q):!excludesEditorial(feedback,x.item,editorialPath(x.item)||undefined));
@@ -59,13 +59,17 @@ async function check(x:Candidate):Promise<Candidate>{
  // Only a trailing procedural note may be removed, and only if remaining
  // copy passes all checks and has live exact coverage. No legal paraphrase.
  const candidate:Candidate=x.kind==='faq'?{kind:'faq',item:{...x.item,a:splitGeoDraftReviewText(x.item.a).answer}}:x;
- const allowed=await policy(candidate).catch(()=>false);
+ const allowed=await reviewContentPolicy(candidate).catch(()=>false);
  const urls=allowed?await discover(candidate):[];
  const pages=await Promise.all(urls.map(async url=>({url,sentences:await evidence.page(url)})));
  const result=evidence.match(fields(candidate),pages);
- const ready=allowed&&result.complete&&quality(candidate);
+ const ready=allowed&&result.complete&&reviewCopyQuality(candidate);
  const original=ready?candidate:x;
- const meta:ReviewPreflight={status:ready?'ready':'blocked',digest:evidence.digest(x.kind,identityFields(original)),checked_at:new Date().toISOString(),matched:result.matched,total:result.total,reason:!allowed?'policy_unavailable_or_excluded':!urls.length?'no_official_candidates':!pages.some(p=>p.sentences.length)?'official_sources_unavailable':!result.complete?'exact_claim_coverage_incomplete':!quality(candidate)?'copy_quality_failed':'ready'};
+ const prior=x.item.review_preflight;
+ const same=prior?.digest===evidence.digest(x.kind,identityFields(x));
+ const attempts=(same?(prior?.attempts||0):0)+1;
+ const exhausted=allowed&&pages.some(p=>p.sentences.length)&&(!result.complete||!reviewCopyQuality(candidate))&&attempts>=3;
+ const meta:ReviewPreflight={status:ready?'ready':'blocked',attempts,archived:!ready&&exhausted,digest:evidence.digest(x.kind,identityFields(original)),checked_at:new Date().toISOString(),matched:result.matched,total:result.total,reason:!allowed?'policy_unavailable_or_excluded':!urls.length?'no_official_candidates':!pages.some(p=>p.sentences.length)?'official_sources_unavailable':!result.complete?'exact_claim_coverage_incomplete':!reviewCopyQuality(candidate)?'copy_quality_failed':'ready'};
  if(!ready)return {...original,item:{...original.item,review_preflight:meta}} as Candidate;
  const refs:EditorialRef[]=Array.from(new Set(result.proofs.map(p=>p.url))).map(url=>({id:'official_'+createHash('sha256').update(url).digest('hex').slice(0,24),label:new URL(url).hostname,source:'official_live_html',kind:'official_candidate',url,observed_at:meta.checked_at}));
  const existing=(original.item.evidence_refs||[]).filter(r=>!refs.some(n=>n.id===r.id||n.url===r.url));
@@ -75,7 +79,7 @@ async function check(x:Candidate):Promise<Candidate>{
 // A ready badge is not authorization. Re-read exactly the saved source pages
 // and policy at confirmation, before the existing versioned admin mutation.
 export async function liveReadyForHuman(x:Candidate):Promise<boolean>{
- if(!readyForHuman(x)||!await policy(x).catch(()=>false))return false;
+ if(!readyForHuman(x)||!await reviewContentPolicy(x).catch(()=>false))return false;
  const claims=x.item.claim_evidence||[];
  const urls=Array.from(new Set(claims.map(p=>p.url)));
  if(urls.length>3||urls.some(u=>!evidence.safeUrl(u)))return false;

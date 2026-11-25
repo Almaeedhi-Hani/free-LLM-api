@@ -89,3 +89,17 @@ test('evidence gate refuses partial or unrelated claims, unsafe hosts and stale 
  assert.equal(e.due({...meta,status:'blocked'},'faq',[a,b],now),false);
  assert.equal(e.due({...meta,status:'blocked'},'faq',[a,b],now+7*86400000),true);
 });
+
+test('archive is retained as a manual exception and does not loop on identical copy',()=>{
+ const e=require('../src/lib/telegram-ops-advanced-evidence.cjs');
+ const fields=['Example answer'],now=Date.now();
+ const meta={status:'blocked',digest:e.digest('faq',fields),checked_at:new Date(now).toISOString(),archived:true};
+ assert.equal(e.due(meta,'faq',fields,now+30*86400000),false);
+ assert.equal(e.due(meta,'faq',['Changed answer'],now),true);
+ const {card}=require('../src/lib/telegram-ops-advanced-card.cjs');
+ const key='a'.repeat(24);
+ const c=card({key,title:'سؤال',kind:'faq',body:'نص',refs:[],eligible:true,autoReady:false,index:0,total:1,full:true,preflight:{...meta,matched:0,total:1}});
+ assert(c.text.includes('مؤرشف للمراجعة البشرية'));
+ assert(c.text.includes('لم يجتز التحقق الآلي'));
+ assert(c.inline_keyboard.flat().some(b=>b.callback_data==='approve:'+key));
+});

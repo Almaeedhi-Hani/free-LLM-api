@@ -3,7 +3,7 @@ export type EditorialLocale = 'ar'|'en'|'zh';
 export type EditorialStatus = 'pending'|'approved'|'rejected';
 export type EditorialRef={id:string;label:string;source:string;kind:string;url?:string;observed_at?:string};
 /** Claim must appear in the candidate; quote must occur verbatim on live official page. */
-export type ReviewPreflight={status:'ready'|'blocked';digest:string;checked_at:string;matched:number;total:number;reason:string};
+export type ReviewPreflight={status:'ready'|'blocked';digest:string;checked_at:string;matched:number;total:number;reason:string;attempts?:number;archived?:boolean};
 export type EditorialClaimEvidence={claim:string;quote:string;url:string};
 export type EditorialItem={
  id:string;kind:EditorialKind;lang:EditorialLocale;target:string;slug?:string;related_service?:string;
