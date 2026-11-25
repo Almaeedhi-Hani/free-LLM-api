@@ -6,9 +6,9 @@ type Locale="ar"|"en"|"zh";
 type Consent={necessary:true;analytics:boolean;marketing:boolean;preferences?:boolean;version:typeof CONSENT_VERSION;updatedAt:string};
 const NAME=CONSENT_NAME;
 const labels={
- ar:{title:"خصوصيتك تهمنا",description:"نستخدم ملفات ضرورية لتشغيل الموقع، وملفات اختيارية للتحليلات والتسويق وحفظ تفضيلات اللغة. يمكنك قبولها أو رفضها.",accept:"قبول الكل",reject:"رفض الاختيارية",saved:"تم حفظ تفضيلاتك"},
- en:{title:"Your privacy matters",description:"We use essential cookies to operate the site and optional cookies for analytics, marketing and language preferences. You can accept or reject optional cookies.",accept:"Accept all",reject:"Reject optional",saved:"Preferences saved"},
- zh:{title:"您的隐私很重要",description:"我们使用必要 Cookie 运行网站，可选 Cookie 用于分析、营销及保存语言偏好。您可以接受或拒绝可选 Cookie。",accept:"全部接受",reject:"拒绝可选项",saved:"偏好已保存"}
+ ar:{title:"خصوصيتك تهمنا",description:"نسعى باستمرار إلى تحسين جودة خدماتنا وتقديم تجربة تصفح أفضل. نستخدم ملفات تعريف الارتباط لتشغيل الموقع، وبموافقتك لتحسين الأداء وقياس فعالية خدماتنا وحفظ تفضيلاتك ودعم التسويق.",accept:"قبول الكل",reject:"رفض الاختيارية",saved:"تم حفظ تفضيلاتك"},
+ en:{title:"Your privacy matters",description:"We continually improve the quality of our services to provide a better browsing experience. We use cookies to operate the website and, with your consent, improve performance, measure service effectiveness, remember your preferences and support marketing.",accept:"Accept all",reject:"Reject optional",saved:"Preferences saved"},
+ zh:{title:"您的隐私很重要",description:"我们不断提升服务质量，为您提供更好的浏览体验。我们使用 Cookie 保障网站运行，并在您同意后改善性能、衡量服务效果、保存偏好及支持营销。",accept:"全部接受",reject:"拒绝可选项",saved:"偏好已保存"}
 };
 function readConsent():Consent|null{
  try{
@@ -44,7 +44,7 @@ export function CookieConsent({locale="ar",policy={analyticsAvailable:true,marke
     <p className="mt-1.5 text-xs sm:text-sm leading-6 text-[#4b5563]">{t.description}</p>
     <div className="mt-3 grid grid-cols-2 gap-2">
      <button type="button" onClick={()=>save(true)} className="rounded-[20px] bg-[#202a36] px-3 py-3 text-xs sm:text-sm font-semibold text-white">{t.accept}</button>
-     <button type="button" onClick={()=>save(false)} className="rounded-[20px] border border-[#9ca3af] px-3 py-3 text-xs sm:text-sm font-semibold">{t.reject}</button>
+     <button type="button" onClick={()=>save(false)} className="rounded-[20px] border border-[#d1d5db] px-3 py-3 text-xs sm:text-sm font-semibold">{t.reject}</button>
     </div>
    </section>
   </div>}
