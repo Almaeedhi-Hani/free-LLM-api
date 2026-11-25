@@ -316,3 +316,6 @@ test('routed exact proof: catalog scope, one official authority, mixed sources, 
  assert.equal(await e.livePublicationReceipt([scope,law],mixed.proofs,refs,'mixed',{...catalog,sentences:[]},fetcher),null);
  assert.equal(await e.livePublicationReceipt([scope,law],mixed.proofs,refs,'mixed',catalog,async()=>new Response('<p>Changed source</p>',{headers:{'content-type':'text/html'}})),null);
 });
+
+test('backlog repair preserves default cap and adds bounded balanced batch',()=>{const e=require('../src/lib/telegram-ops-advanced-evidence.cjs');const rows=Array.from({length:24},(_,i)=>({kind:i<12?'faq':'editorial',item:{id:'i'+i}}));assert.equal(e.selectReviewBatch(rows,12).length,12);assert.equal(e.selectReviewBatch(rows,99).length,12);assert.equal(e.selectReviewBatch(rows,12).filter(x=>x.kind==='faq').length,6);});
+test('model repairs are proposals only, bounded and source anchored',()=>{const r=require('../src/lib/geo-backlog-repair.cjs');assert.equal(r.snippets('investment registration',[{url:'https://example.gov.sa',sentences:['Investment registration information','x'.repeat(451)]}]).length,1);assert.equal(r.proposals([{data:{goals:[{slot:0,q:'valid'},{slot:0,q:'duplicate'},{slot:8,q:'invalid'}]}}],1).length,1);assert(r.prompt([]).includes('exact sentence'));});

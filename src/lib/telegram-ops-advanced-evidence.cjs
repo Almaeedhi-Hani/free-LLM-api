@@ -134,7 +134,8 @@ function discoveryRepairDue(x){
  const targets=x.kind==='faq'?faqTopicTargets(i.q):[i.related_service||i.target,...faqTopicTargets([i.title,i.primary_keyword||''].join(' '))];
  return targets.some(t=>topicUrls(t).length>0);
 }
-function selectReviewBatch(dueItems){
+function selectReviewBatch(dueItems,limit=4){
+ const cap=Math.max(1,Math.min(12,Math.floor(limit)||4)),half=Math.floor(cap/2);
  // Exact duplicates only: retain every record and never merge similar
  // questions, translated content, different destinations or changed answers.
  const seen=new Set();
@@ -148,8 +149,8 @@ function selectReviewBatch(dueItems){
   if(seen.has(key))return false;
   seen.add(key);return true;
  });
- const chosen=[...sorted.filter(x=>x.kind==='faq').slice(0,2),...sorted.filter(x=>x.kind==='editorial').slice(0,2)];
- for(const x of sorted){if(chosen.length>=4)break;if(!chosen.includes(x))chosen.push(x)}
+ const chosen=[...sorted.filter(x=>x.kind==='faq').slice(0,half),...sorted.filter(x=>x.kind==='editorial').slice(0,half)];
+ for(const x of sorted){if(chosen.length>=cap)break;if(!chosen.includes(x))chosen.push(x)}
  return chosen;
 }
 // Verify each stored exact quotation against fresh official page text; never

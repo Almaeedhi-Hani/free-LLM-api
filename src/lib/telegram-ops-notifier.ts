@@ -1,6 +1,5 @@
 import {getSupabaseCredentials} from '@/lib/storage-mode';
 import {getContent} from '@/lib/content-store';
-import {runReviewEvidenceBatch} from './telegram-ops-advanced-evidence';
 import {reviewNotificationCandidates,type ReviewButton} from '@/lib/telegram-ops-advanced';
 import {buildPublishedLinks} from '@/lib/published-links';
 const core=require('./telegram-ops-core.cjs') as {config:(env:NodeJS.ProcessEnv)=>{token:string;secret:string;chat:string;owner:string}|null;render:(cmd:string,d:Record<string,unknown>)=>string;chunks:(text:string)=>string[];reconcileReviewWebhook:(cfg:{token:string;secret:string;chat:string;owner:string},username:string,api:(method:string,body:object)=>Promise<unknown>)=>Promise<string>};
@@ -74,7 +73,7 @@ export async function runTelegramTick(now:string){
  const cfg=core.config(process.env);if(!cfg)return {status:'configuration_incomplete'};
  const subscription=reconcileReviewSubscription(cfg,now);
  const d=await snapshot(now);
- const reviewEvidence=process.env.TELEGRAM_OPS_ADVANCED_ENABLED==='true'?await runReviewEvidenceBatch().catch(()=>({status:'unverified',processed:0,ready:0})):{status:'disabled',processed:0,ready:0};
+ const reviewEvidence={status:'owned_by_central_tick'};
  const day=phase.dailyKey(now);
  const candidates:{key:string;kind:'daily'|'alert';text:string;inline_keyboard?:ReviewButton[][]}[]=[...(day?[{key:day,kind:'daily' as const,text:'الإحاطة اليومية\n'+core.render('/brief',{...d,healthSummary:phase.healthText(d)})}]:[]),...phase.alerts(d).map(x=>({...x,kind:'alert' as const}))];
  // Reuse the existing signed tick and delivery ledger, no new schedule.
