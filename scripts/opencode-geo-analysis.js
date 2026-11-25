@@ -430,7 +430,7 @@ async function stageGeoAnalysis() {
       const items=Array.isArray(data[field])?data[field].slice(0,limits[field]):[];
       if(items.length){
         const {screenDrafts,screenEditorial}=require('./geo-generated-output-guard.cjs');
-        checks[field]=field==='drafts'?screenDrafts(items):screenEditorial(items,lang);
+        checks[field]=field==='drafts'?screenDrafts(items,lang):screenEditorial(items,lang);
       }else checks[field]={accepted:[],rejected:[]};
     }
     return checks;

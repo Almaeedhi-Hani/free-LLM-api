@@ -21,3 +21,7 @@ const stats=m.knowledgeMetrics();assert.equal(stats.requests,2);assert.equal(sta
 assert(!JSON.stringify(stats).includes('Mozilla'));
 assert.equal(renderKnowledge({...c,updatedAt:'2026-12-01T00:00:00Z'},{kind:'full'},site,[]),full,'internal store revision must not invalidate public ETag');
 console.log('PASS scoped knowledge, approved-only deletion, full sections, privacy-minimized metrics');
+
+const localized={...c,faqs:[{q:'English question?',a:'English answer',lang:'en'},{q:'هل توجد خدمة؟',a:'نعم توجد خدمة.',lang:'ar'},{q:'Wrong language question?',a:'Wrong language answer',lang:'ar'}]};
+const arHome=renderKnowledge(localized,{kind:'page',locale:'ar',page:'/'},site,[]),enHome=renderKnowledge(localized,{kind:'page',locale:'en',page:'/'},site,[]);
+assert(arHome.includes('هل توجد خدمة؟')&&!arHome.includes('English question?'));assert(enHome.includes('English question?')&&!enHome.includes('هل توجد خدمة؟')&&!enHome.includes('Wrong language question?'));

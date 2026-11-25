@@ -2,6 +2,7 @@ import type {EditorialItem} from './editorial-types';
 import type {ContentDraft,ContentFAQ} from './content-store';
 import {approvedEditorial} from './editorial-workflow';
 import {editorialPath} from './content-impact';
+import {faqLocale,detectGeoDraftLocale} from './geo-draft-quality';
 
 export type PublicationEventSummary={
  id:string;item_id:string;kind:'editorial'|'faq';status:string;
@@ -40,14 +41,14 @@ export function buildPublishedLinks(
    path,publicationSource:source(item.approval_method,event),
    publishedAt:validDate(event?.published_at)||validDate(item.auto_published_at)||validDate(item.reviewedAt)};
  });
- // The public home page renders persisted FAQs on the Arabic locale only.
+ // Match the exact public language routing; never label English text Arabic.
  // A publication event without the current FAQ content is historical, NOT live.
  const questions:PublishedLink[]=faqs
-  .filter(f=>typeof f.q==='string'&&typeof f.a==='string'&&f.q.trim()&&f.a.trim()&&!/^STORAGE_TEST_/i.test(f.q))
+  .filter(f=>faqLocale(f)!==null)
   .map((faq,i)=>{
    const event=latestActiveEvent(events,'faq',faq.q);
-   return {id:'faq:'+i+':'+faq.q,title:faq.q,language:'ar' as const,kind:'faq',
-    path:'/',publicationSource:source(faq.approval_method,event),
+   return {id:'faq:'+i+':'+faq.q,title:faq.q,language:faqLocale(faq)!,kind:'faq',
+    path:faqLocale(faq)==='ar'?'/':'/'+faqLocale(faq),publicationSource:source(faq.approval_method,event),
     publishedAt:validDate(event?.published_at)};
   });
  return [...pages,...questions].sort((a,b)=>(Date.parse(b.publishedAt||'')||0)-(Date.parse(a.publishedAt||'')||0));
@@ -59,7 +60,7 @@ export function buildUnpublishedPreviews(editorial:readonly EditorialItem[],draf
   .map(item=>({id:'editorial:'+item.id,title:item.title,language:item.lang,
    kind:item.kind,status:item.status,preview:item.summary||item.body||''}));
  const questions=drafts.filter(draft=>draft.status==='pending')
-  .map((draft,i)=>({id:'draft:'+i+':'+draft.q,title:draft.q,language:'غير محددة',
+  .map((draft,i)=>({id:'draft:'+i+':'+draft.q,title:draft.q,language:draft.lang||detectGeoDraftLocale(draft.q),
    kind:'faq_draft',status:draft.status,preview:draft.a}));
  return [...pages,...questions];
 }

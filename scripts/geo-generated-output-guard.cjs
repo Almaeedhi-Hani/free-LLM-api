@@ -157,7 +157,7 @@ function draftQualityReason(q,a){
   return 'unverified_guarantee';
  return null;
 }
-function screenDrafts(items){
+function screenDrafts(items,lang){
  const accepted=[],rejected=[],seenAnswers=new Set();
  const validText=(value,max)=>typeof value==='string'&&value.trim().length>0&&value.length<=max&&!value.includes('\uFFFD');
  for(const [index,item] of (Array.isArray(items)?items:[]).entries()){
@@ -167,11 +167,15 @@ function screenDrafts(items){
   else if(!validText(item.a||item.answer,5000))reason='invalid_answer';
   const q=item?.q||item?.question,a=item?.a||item?.answer;
   if(!reason)reason=draftQualityReason(q,a);
+  const counts=reason?null:draftLetterCounts(q);
+  const actual=counts?(counts.zh>=2?'zh':counts.ar>=2?'ar':'en'):null;
+  if(!reason&&lang&&actual!==lang)reason='wrong_locale';
+  if(!reason&&item.lang&&item.lang!==actual)reason='wrong_locale';
   const answerKey=reason?null:a.trim().toLocaleLowerCase().replace(/\s+/g,' ');
   if(!reason&&seenAnswers.has(answerKey))reason='duplicate_answer';
   if(reason){rejected.push({index,reason});continue}
   seenAnswers.add(answerKey);
-  accepted.push({...item,q,a});
+  accepted.push({...item,q,a,...(lang?{lang}:item.lang?{lang:item.lang}:{})});
  }
  return {accepted,rejected};
 }

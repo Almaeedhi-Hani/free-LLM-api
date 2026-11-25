@@ -11,6 +11,7 @@ import {
 } from './storage-mode';
 
 export interface ContentFAQ {
+  lang?: 'ar'|'en'|'zh';
   q: string;
   a: string;
   approval_method?: 'human' | 'automated';
@@ -18,6 +19,7 @@ export interface ContentFAQ {
 }
 
 export interface ContentDraft {
+  lang?: 'ar'|'en'|'zh';
   q: string;
   a: string;
   createdAt: string;
