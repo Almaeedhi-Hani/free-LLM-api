@@ -4,11 +4,11 @@ const stamp=x=>{const t=Date.parse(x||'');return Number.isFinite(t)?new Intl.Dat
 const clean=x=>String(x??'غير متاح').replace(/[\x00-\x1f\x7f]/g,' ').slice(0,180);
 const priorityLabels={critical:'حرجة',high:'عالية',medium:'متوسطة',low:'منخفضة'};
 const publicationLabels={published:'منشور',rolled_back:'تم التراجع',failed:'فشل',pending:'معلق'};
-const stateLabels={recent:'آخر نتيجة ناجحة وحديثة',failed:'آخر نتيجة فاشلة',stale:'آخر نتيجة قديمة',unknown:'الحالة غير مؤكدة',pending:'بانتظار دورة مزامنة اليوم'};
+const stateLabels={partial:'نجاح جزئي — النشر محجوب',blocked:'محجوب بضوابط الحماية',recent:'آخر نتيجة ناجحة وحديثة',failed:'آخر نتيجة فاشلة',stale:'آخر نتيجة قديمة',unknown:'الحالة غير مؤكدة',pending:'بانتظار دورة مزامنة اليوم'};
 function finding(worker,source,priority,text,action=null){return {worker,source,priority,text,action};}
 function operational(d,name,worker,source){
  const h=health(d).find(x=>x.name===name);
- return finding(worker,source,h.state==='failed'?1:h.state==='stale'||h.state==='unknown'?2:4,stateLabels[h.state]+' — '+stamp(h.when),h.state==='failed'||h.state==='stale'?'راجع سبب تعطل أو تأخر '+name+' قبل الاعتماد على مخرجاته.':h.state==='unknown'?'تحقق من مصدر '+name+' أولاً.':null);
+ return finding(worker,source,['failed','blocked'].includes(h.state)?1:['stale','unknown','partial'].includes(h.state)?2:4,stateLabels[h.state]+' — '+stamp(h.when),['failed','stale','partial','blocked'].includes(h.state)?'راجع سبب تعطل أو تأخر '+name+' قبل الاعتماد على مخرجاته.':h.state==='unknown'?'تحقق من مصدر '+name+' أولاً.':null);
 }
 const specialists={
  market:d=>{

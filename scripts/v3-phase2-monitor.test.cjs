@@ -574,3 +574,10 @@ assert(weeklyPayload.includes('GSC highest-impression page-day sample (not weekl
 
 console.log('PASS V3 Stage 2 isolated watchdog/issue-dedup/weekly/failure/storage and Saudi cutover tests');
 })().catch(err=>{console.error(err);process.exitCode=1;});
+
+const runHealth=require('../src/lib/geo-run-health.cjs');
+const reportTime='2026-11-25T03:00:00Z';
+assert.equal(runHealth.geoReadback({status:'success',lastRun:reportTime,lastResult:'execution_outcome=success'}).latestTimestamp,reportTime);
+assert.equal(runHealth.geoReadback({status:'success',lastRun:reportTime,lastResult:'unverified'}).status,'unknown');
+assert.equal(runHealth.geoReadback({status:'error',lastRun:reportTime,lastResult:'execution_outcome=partial_success'}).runOutcome,'partial_success');
+assert.equal(runHealth.radarReadback({status:'failed',finished_at:reportTime}).runOutcome,'failed');

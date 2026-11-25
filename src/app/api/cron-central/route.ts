@@ -5,7 +5,7 @@ import {runTelegramTick} from '@/lib/telegram-ops-notifier';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
-// One centrally controlled five-minute Supabase clock; all UTC slots are fixed.
+// One centrally controlled three-hour Supabase clock; all UTC slots are fixed.
 const REPO = 'Almaeedhi-Hani/free-LLM-api';
 const GITHUB_ROOT = 'https://api.github.com/repos/' + REPO;
 type Task = 'W02'|'master'|'W04'|'safety'|'quality'|'weekly';
@@ -89,6 +89,12 @@ async function callRadar():Promise<{task:'W02';status:string;run_id?:string}>{
   if(!r.ok)throw new Error('radar_http_'+r.status);
   const json=await r.json() as {status?:string;run_id?:string};
   if(json.status!=='completed'||!json.run_id)throw new Error('radar_result_not_persisted');
+  const baseDb=process.env.SUPABASE_URL,key=process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if(!baseDb||!key)throw Error('radar_readback_credentials_missing');
+  const readback=await fetch(baseDb.replace(/\/$/,'')+'/rest/v1/analysis_runs?select=id,status,finished_at&run_type=eq.radar&id=eq.'+encodeURIComponent(json.run_id)+'&limit=1',{headers:{apikey:key,Authorization:'Bearer '+key},signal:AbortSignal.timeout(10000),cache:'no-store',redirect:'error'});
+  if(!readback.ok)throw Error('radar_result_readback_unavailable');
+  const saved=await readback.json() as Array<{id:string;status:string;finished_at:string}>;
+  if(!Array.isArray(saved)||saved.length!==1||saved[0].id!==json.run_id||saved[0].status!=='success'||!Number.isFinite(Date.parse(saved[0].finished_at)))throw Error('radar_result_readback_unverified');
   return {task:'W02',status:'completed',run_id:json.run_id};
 }
 export async function POST(req:NextRequest){
@@ -101,14 +107,16 @@ export async function POST(req:NextRequest){
     githubDispatchConfigured:Boolean(token&&token.length>=24),
     radarConfigured:Boolean(process.env.CRON_SECRET&&process.env.SUPABASE_SERVICE_ROLE_KEY),
     geoScheduling:'ordered_github_master_workflow_dispatch',
-    cadence:'three_hours',weeklyScheduling:'Sunday 09:15 Asia/Riyadh',
+    cadence:'three_hours',weeklyScheduling:'Sunday 09:00 Asia/Riyadh',
     weeklyConfigured:Boolean(process.env.ADMIN_SECRET||process.env.REVALIDATION_SECRET),
     now:new Date().toISOString()
   });
   if(mode!=='tick'&&mode!=='one_test')return NextResponse.json({error:'invalid_mode'},{status:400});
   // The caller must never create a central schedule before all required dispatch credentials exist.
   if(!token||token.length<24)return NextResponse.json({status:'blocked',reason:'github_dispatch_token_missing'},{status:503});
-  const tick=new Date();
+  // Use the authenticated sender timestamp rather than request arrival time.
+  // A delayed signed tick remains assigned to its original immutable slot.
+  const tick=mode==='tick'?new Date(Number(req.headers.get('x-w02-cron-ts'))*1000):new Date();
   const tasks:Task[]=mode==='one_test'?['W02','master','W04','safety','quality','weekly']:
     dueTasks(tick);
   if(!tasks.length)return NextResponse.json({status:'idle',due:[],now:new Date().toISOString()});
