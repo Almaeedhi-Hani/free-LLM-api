@@ -44,9 +44,9 @@ const viewports=[{width:320,height:640},{width:390,height:844},{width:768,height
         assert.match(consultation,/^https:\/\/wa\.me\/[1-9]\d{7,14}$/,name+' valid locale WhatsApp URL');
         assert.equal(consultation,await page.locator('#contact .action-primary').getAttribute('href'),name+' same locale advisor');
         assert.equal(await page.locator('.cinematic-primary').getAttribute('target'),'_blank');
-        assert.equal(await page.locator('.cinematic-primary').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(216, 182, 111)',name+' gold CTA');
-        assert.equal(await page.locator('.cinematic-primary').evaluate(e=>getComputedStyle(e).color),'rgb(32, 42, 54)');
-        assert.notEqual(await page.locator('.cinematic-secondary').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(216, 182, 111)',name+' neutral secondary');
+        assert.equal(await page.locator('.cinematic-primary').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(184, 134, 11)',name+' gold CTA');
+        assert.equal(await page.locator('.cinematic-primary').evaluate(e=>getComputedStyle(e).color),'rgb(17, 24, 39)');
+        assert.notEqual(await page.locator('.cinematic-secondary').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(184, 134, 11)',name+' neutral secondary');
         assert.equal(await page.locator('#contact').count(),1,name);
         assert.equal(await page.locator('#services').count(),1,name);
         const geometry=await page.evaluate(()=>{
@@ -89,6 +89,7 @@ const viewports=[{width:320,height:640},{width:390,height:844},{width:768,height
           await toggle.click();
           assert.equal(await toggle.getAttribute('aria-expanded'),'true',name);
           assert(await page.locator('.mobile-floating-menu').isVisible(),name);
+          assert.equal(await page.locator('.mobile-floating-menu-link.is-active').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(184, 134, 11)');
           await page.keyboard.press('Escape');
           assert.equal(await toggle.getAttribute('aria-expanded'),'false',name);
         }
@@ -100,9 +101,15 @@ const viewports=[{width:320,height:640},{width:390,height:844},{width:768,height
         await popup.close();
         if(viewport.width===390||viewport.width===1440){
           await page.goto(base+lang.packages,{waitUntil:'networkidle'});
+          if(viewport.width===1440){
+            const active=page.locator('.desktop-nav a[aria-current="page"]');
+            await active.waitFor();
+            assert.equal(await active.getAttribute('href'),lang.packages);
+            assert((await active.evaluate(e=>getComputedStyle(e).boxShadow)).includes('184, 134, 11'));
+          }
           const category=page.locator('.license-category-card').first();
           await category.waitFor();
-          assert.equal(await category.locator('.license-category-action').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(216, 182, 111)');
+          assert.equal(await category.locator('.license-category-action').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(184, 134, 11)');
           const selected=page.locator('.license-offer[aria-pressed="true"]');
           // Development SSR can display the button before React attaches handlers.
           // Wait for network idle above, then retry a lost pre-hydration click only
@@ -113,27 +120,30 @@ const viewports=[{width:320,height:640},{width:390,height:844},{width:768,height
             try{await selected.waitFor({state:'visible',timeout:2000});break;}catch(error){if(attempt===2)throw error;}
           }
           await page.mouse.move(0,0);
-          assert.equal(await selected.evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(216, 182, 111)');
+          assert.equal(await selected.evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(184, 134, 11)');
           if(await page.locator('.license-offer[aria-pressed="false"]').count()){
-            const next=page.locator('.license-offer[aria-pressed="false"]').first();
+            // Use a stable index: the previous aria-pressed=false locator
+            // changed identity as soon as the selected state updated.
+            const next=page.locator('.license-offer').nth(1);
             await next.click();
+            await page.locator('.license-offer').nth(1).and(page.locator('[aria-pressed="true"]')).waitFor();
             assert.equal(await next.getAttribute('aria-pressed'),'true');
           }
           await page.locator('.license-detail>button').click();
-          assert(await page.locator('.package-form button[type="submit"]').isVisible());
+          await page.locator('.package-form button[type="submit"]').waitFor();
           await page.screenshot({path:path.join(output,name+'-package.png'),fullPage:true,animations:'disabled'});
           await page.goto(base+(lang.id==='ar'?'':'/'+lang.id)+'/services/premium-residency',{waitUntil:'networkidle'});
           const assessment=page.locator('#assessment');
           await assessment.waitFor();
           assert.equal(await assessment.locator('select').count(),3);
-          for(const select of await assessment.locator('select').all())assert.equal(await select.evaluate(e=>getComputedStyle(e).borderTopColor),'rgb(216, 182, 111)');
-          assert.equal(await assessment.locator('button[type="submit"]').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(216, 182, 111)');
+          for(const select of await assessment.locator('select').all())assert.equal(await select.evaluate(e=>getComputedStyle(e).borderTopColor),'rgb(184, 134, 11)');
+          assert.equal(await assessment.locator('button[type="submit"]').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(184, 134, 11)');
           await assessment.locator('select').nth(0).selectOption('investor');
           await assessment.locator('select').nth(1).selectOption('inside');
           await assessment.locator('select').nth(2).selectOption('soon');
           await assessment.locator('button[type="submit"]').click();
-          assert(await assessment.locator('a.action-primary').isVisible());
-          assert.equal(await assessment.locator('a.action-primary').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(216, 182, 111)');
+          await assessment.locator('a.action-primary').waitFor();
+          assert.equal(await assessment.locator('a.action-primary').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(184, 134, 11)');
           await assessment.scrollIntoViewIfNeeded();
           await page.screenshot({path:path.join(output,name+'-residency.png'),fullPage:true,animations:'disabled'});
         }
