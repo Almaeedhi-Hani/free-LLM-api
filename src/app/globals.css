@@ -1533,6 +1533,16 @@ html[lang="ar"] .cinematic-eyebrow,html[lang="zh-Hans"] .cinematic-eyebrow {lett
 .cinematic-discover span {color:var(--cinema-gold);font-size:20px;}
 .cinematic-discover:hover {color:var(--cinema-gold);}
 .cinematic-tagline {font-size:12px;line-height:1.6;}
+/* Reserve the physical left edge for the existing fixed WhatsApp entry point,
+   regardless of document direction. Keep the footer link and tagline unobscured. */
+.cinematic-footer {padding-left:clamp(150px,14vw,220px);}
+@media(max-width:760px) {
+  .cinematic-footer {padding-left:62px;}
+}
+@media(max-width:360px) {
+  .cinematic-footer {padding-left:68px;}
+}
+
 @media(min-width:761px) {
   body:has(> #main .cinematic-hero) .site-header {
     background:#101e30f2; color:#f7f5f0; border-bottom-color:#ffffff24;

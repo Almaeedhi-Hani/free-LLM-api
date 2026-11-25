@@ -59,6 +59,16 @@ const viewports=[{width:320,height:640},{width:390,height:844},{width:768,height
         assert(geometry.cta.height>=44&&geometry.secondary.height>=44,name+' CTA target size');
         assert(geometry.title.top>=geometry.header.bottom-1,name+' heading obscured by navigation');
         assert.equal(geometry.transition,'0s',name+' reduced motion');
+        const overlap=await page.evaluate(()=>{
+          const floating=[...document.querySelectorAll('button[aria-controls]')].find(el=>el.classList.contains('bg-[#16794f]'));
+          if(!floating)return [];
+          const a=floating.getBoundingClientRect();
+          return [...document.querySelectorAll('.cinematic-discover,.cinematic-tagline,.cinematic-actions a')].filter(el=>{
+            const b=el.getBoundingClientRect();
+            return a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top;
+          }).map(el=>el.className);
+        });
+        assert.deepEqual(overlap,[],name+' floating WhatsApp must not obscure hero links or tagline');
         if(viewport.width===390||viewport.width===1440){
           await page.addScriptTag({path:require.resolve('axe-core/axe.min.js')});
           const axe=await page.evaluate(async()=>await window.axe.run('.cinematic-hero',{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']}}));
