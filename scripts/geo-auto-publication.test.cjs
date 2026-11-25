@@ -36,6 +36,16 @@ const {parsePublicationOrigin,publicationAuditPayload,appendPublicationAudit}=re
  assert.equal(called,1,'untrusted external hostname must never be fetched');
  assert.equal(await checkOfficialUrlReachable('https://misa.gov.sa/en/',async()=>({ok:false,headers:{get:()=> 'text/html'}})),false);
  assert.equal(await checkOfficialUrlReachable('https://misa.gov.sa/en/',async()=>({ok:true,headers:{get:()=> 'application/pdf'}})),false);
+ const {assessEditorialCandidate,assessFaqCandidate}=require('../.impact-test-build/lib/geo/publication/preflight.js');
+ const normal={...base,title:'General research orientation',summary:'Practical preparation for evaluating information sources.',body:'Investors can organize questions and compare the information they have collected before choosing their next step.'.repeat(2)};
+ assert.equal((await assessEditorialCandidate({...normal,title:'مقترح تحريري'},[])).reason,'requires_finished_visitor_copy');
+ assert.equal((await assessEditorialCandidate({...normal,summary:'See https://arablawfirm.org/ for details'},[])).reason,'competitor_link_in_public_copy');
+ assert.equal((await assessEditorialCandidate(normal,null)).reason,'source_policy_unavailable');
+ assert.equal((await assessEditorialCandidate(normal,[])).reason,'official_source_evidence_missing');
+ const sourced={...normal,evidence_refs:[links[0]]};
+ assert.equal((await assessEditorialCandidate(sourced,[],true,mock)).sourceCheck,'reachable_only');
+ assert.equal((await assessEditorialCandidate(sourced,[],true,async()=>{throw Error('offline')})).reason,'official_source_unavailable');
+ assert.equal(assessFaqCandidate({q:'How should an investor organize research questions?',a:normal.body}),'faq_claim_evidence_missing');
  const report=await runGuardedAutoPublishing(true);
  assert(['storage_unavailable','disabled','dry_run'].includes(report.status),'local environment must fail closed');
 
