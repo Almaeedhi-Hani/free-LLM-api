@@ -9,7 +9,7 @@ import {appendPublicationAudit,UNATTRIBUTED_PUBLICATION_ORIGIN} from '../../geo-
 import type {PublicationOrigin,AuditPhase} from '../../geo-publication-audit';
 import {getAutoPublicationStatus,restCall} from './policy-store';
 import {assessEditorialCandidate,assessFaqCandidate} from './preflight';
-import {optionalResearchCitations} from './citations';
+import type {PublicationReceipt} from '../../telegram-ops-advanced-evidence';
 import type {AutoPublishReport} from './types';
 
 const publishableKinds=new Set(['guide','comparison','home','trust','service','packages']);
@@ -59,6 +59,12 @@ export async function runGuardedAutoPublishing(dryRun=false,origin:PublicationOr
    eligible_to_publish:0,dry_run_only:true
   })};
  }
+ // A legacy RPC cannot receive an unversioned fallback. This read-only
+ // handshake keeps deployment safe while the prepared DB migration is pending.
+ try{
+  const contract=await restCall('rpc/geo_publication_contract_version');
+  if(contract!=='exact-proof-v1')throw Error('unexpected_publication_contract');
+ }catch{return {...report,status:'storage_unavailable',message:'Version-bound publication contract not installed; nothing published'}}
  // One append-only audit trail for both schedulers. RPCs fail closed if
  // their pre-attempt audit cannot be durably saved.
  const audit=async(kind:'editorial'|'faq',itemId:string,phase:AuditPhase,
@@ -74,7 +80,10 @@ export async function runGuardedAutoPublishing(dryRun=false,origin:PublicationOr
  };
  // Existing DB quota governs the combined publication count, with strict
  // transactional locks. Never retry ambiguous writes.
- let sourceProbeUsed=false;
+ // At most two fresh probes per queue (four total) per invocation. The
+ // shared rolling DB quota still caps successful publications at ten.
+ let editorialProbes=0,faqProbes=0;
+ const verifier=await import('../../telegram-ops-advanced-evidence');
  for(const candidate of publishable){
   const path=editorialPath(candidate);
   if(path&&excludesEditorial(feedback,candidate,path)){
@@ -85,25 +94,22 @@ export async function runGuardedAutoPublishing(dryRun=false,origin:PublicationOr
    if(!(await recordSkip('editorial',candidate.id,'requires_finished_visitor_copy')))return storageAuditFailure();
    continue;
   }
-  let verification=await assessEditorialCandidate(candidate,competitorDomains,false);
-  if(!sourceProbeUsed&&verification.reason==='source_check_required'){
-   sourceProbeUsed=true;verification=await assessEditorialCandidate(candidate,competitorDomains,true);
-  }
-  if(verification.reason){
-   if(!(await recordSkip('editorial',candidate.id,verification.reason)))return storageAuditFailure();
+  if(competitorDomains===null||!verifier.canProbeAutoPublication({kind:'editorial',item:candidate})){
+   if(!(await recordSkip('editorial',candidate.id,'version_or_evidence_not_ready')))return storageAuditFailure();
    continue;
   }
-  const cited=competitorDomains===null?[]:optionalResearchCitations(candidate,competitorDomains);
-  if(competitorDomains!==null){
-   const bodyLinks=auditBody(candidate.body||'',competitorDomains);
-   if(bodyLinks.length)console.warn('geo_publication_competitor_body_audit',{
-    item_id:candidate.id,count:bodyLinks.length
-   });
+  if(editorialProbes>=2){if(!(await recordSkip('editorial',candidate.id,'live_probe_budget_reached')))return storageAuditFailure();continue;}
+  editorialProbes++;
+  const receipt:PublicationReceipt|null=await verifier.liveAutoPublicationReceipt({kind:'editorial',item:candidate}).catch(()=>null);
+  if(!receipt){if(!(await recordSkip('editorial',candidate.id,'live_exact_proof_not_verified')))return storageAuditFailure();continue;}
+  const cited=receipt.urls;
+  if(auditBody([candidate.title,candidate.summary,candidate.body,candidate.h1_suggestion||''].join('\n'),competitorDomains).length){
+   if(!(await recordSkip('editorial',candidate.id,'competitor_link_in_public_copy')))return storageAuditFailure();continue;
   }
   try{
    validateEditorialItem({...candidate,status:'approved',
     reviewedAt:new Date().toISOString(),approval_method:'automated',
-    verified_sources:[],cited_sources:cited});
+    verified_sources:cited,cited_sources:cited,source_verification:'independently_checked'});
   }catch{
    if(!(await recordSkip('editorial',candidate.id,'invalid_publication_structure')))return storageAuditFailure();
    continue;
@@ -114,7 +120,7 @@ export async function runGuardedAutoPublishing(dryRun=false,origin:PublicationOr
   let value:{status?:string;target_path?:string;event_id?:string};
   try{
    value=await restCall('rpc/geo_commit_auto_publication',{
-    method:'POST',body:{p_item_id:candidate.id,p_verified_urls:cited,p_claim_proofs:[]}
+    method:'POST',body:{p_item_id:candidate.id,p_verified_urls:cited,p_claim_proofs:receipt.proofs,p_expected_item:candidate}
    }) as typeof value;
   }catch{
    // The database may have committed even if the network reply was lost.
@@ -150,15 +156,20 @@ export async function runGuardedAutoPublishing(dryRun=false,origin:PublicationOr
    if(!(await recordSkip('faq',String(draft.q||'unknown'),'invalid_faq_structure')))return storageAuditFailure();
    continue;
   }
-  const faqBlock=assessFaqCandidate(draft);
-  if(faqBlock){if(!(await recordSkip('faq',draft.q,faqBlock)))return storageAuditFailure();continue;}
+  if(competitorDomains===null||!verifier.canProbeAutoPublication({kind:'faq',item:draft})){
+   if(!(await recordSkip('faq',draft.q,'version_or_evidence_not_ready')))return storageAuditFailure();continue;
+  }
+  if(faqProbes>=2){if(!(await recordSkip('faq',draft.q,'live_probe_budget_reached')))return storageAuditFailure();continue;}
+  faqProbes++;
+  const receipt=await verifier.liveAutoPublicationReceipt({kind:'faq',item:draft}).catch(()=>null);
+  if(!receipt){if(!(await recordSkip('faq',draft.q,'live_exact_proof_not_verified')))return storageAuditFailure();continue;}
   let startedAuditId:string;
   try{startedAuditId=await audit('faq',draft.q,'rpc_started')}
   catch{return storageAuditFailure()}
   let value:{status?:string;target_path?:string;event_id?:string};
   try{
    value=await restCall('rpc/geo_commit_auto_faq',{
-    method:'POST',body:{p_question:draft.q}
+    method:'POST',body:{p_question:draft.q,p_expected_draft:draft,p_claim_proofs:receipt.proofs}
    }) as typeof value;
   }catch{
    try{await audit('faq',draft.q,'rpc_result','ambiguous',startedAuditId)}catch{}
@@ -173,6 +184,7 @@ export async function runGuardedAutoPublishing(dryRun=false,origin:PublicationOr
   if(status==='published')report.published++;
   else report.skipped++;
   if(status==='quota_reached')break;
+  if(status==='disabled')return {...report,status:'disabled',message:'Publishing was disabled during execution'};
  }
  return {...report,status:'completed',message:report.published?
   'Published visitor-facing items with source status clearly labeled':

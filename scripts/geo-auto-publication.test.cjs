@@ -138,7 +138,10 @@ const {parsePublicationOrigin,publicationAuditPayload,appendPublicationAudit}=re
   "to service_role"
  ])assert(sql.includes(required),'Missing atomic publication security invariant: '+required);
  const worker=['runner','policy-store','citations','official-evidence','types'].map(name=>fs.readFileSync('src/lib/geo/publication/'+name+'.ts','utf8')).join('\n');
- assert(worker.includes("optionalResearchCitations(candidate,competitorDomains)")&&worker.includes("validateEditorialItem("));
+ assert(worker.includes("liveAutoPublicationReceipt")&&worker.includes("validateEditorialItem("));
+ assert(worker.includes("p_expected_item:candidate")&&worker.includes("p_expected_draft:draft")&&worker.includes("p_claim_proofs:receipt.proofs"));
+ assert(!worker.includes("p_claim_proofs:[]"),"legacy empty-proof RPC must never return");
+ assert(worker.indexOf("rpc/geo_publication_contract_version")<worker.indexOf("rpc/geo_commit_auto_publication"),"version handshake must precede writes");
  assert(worker.includes("editorialPublicationIssues(x).length")||worker.includes("editorialPublicationIssues(candidate)"),"unfinished visitor-copy instructions must not be misrepresented as a finished public article");
  assert(!worker.includes("method:'DELETE'"),'autopublisher never destroys user content');
  const upgrade=fs.readFileSync('supabase/migrations/20261118_geo_source_optional_unattended_publish.sql','utf8');
