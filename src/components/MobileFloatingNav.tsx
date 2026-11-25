@@ -4,24 +4,24 @@ import {useEffect, useId, useMemo, useState} from "react";
 import {usePathname} from "next/navigation";
 
 type Locale="ar"|"en"|"zh";
-type NavKey="home"|"services"|"packages"|"guides"|"journey"|"sources"|"contact";
+type NavKey="home"|"services"|"packages"|"residency"|"guides"|"journey"|"sources"|"contact";
 
 const labels={
   ar:{
     menu:"قائمة الموقع",open:"فتح القائمة",close:"إغلاق القائمة",
-    home:"الرئيسية",services:"الخدمات",packages:"الباقات",guides:"الأدلة",
+    home:"الرئيسية",services:"الخدمات",residency:"الإقامة المميزة",packages:"الباقات",guides:"الأدلة",
     journey:"رحلة المستثمر",sources:"المصادر الرسمية",contact:"تواصل معنا",
     consultation:"ناقش مشروعك",languages:"اللغة",caption:"SAUDI ARABIA",
   },
   en:{
     menu:"Site navigation",open:"Open menu",close:"Close menu",
-    home:"Home",services:"Services",packages:"Packages",guides:"Guides",
+    home:"Home",services:"Services",residency:"Premium Residency",packages:"Packages",guides:"Guides",
     journey:"Your journey",sources:"Official sources",contact:"Contact",
     consultation:"DISCUSS YOUR PLAN",languages:"Language",caption:"SAUDI ARABIA",
   },
   zh:{
     menu:"网站导航",open:"打开菜单",close:"关闭菜单",
-    home:"首页",services:"服务",packages:"套餐",guides:"指南",
+    home:"首页",services:"服务",residency:"高级居留",packages:"套餐",guides:"指南",
     journey:"投资流程",sources:"官方资料",contact:"联系我们",
     consultation:"咨询投资计划",languages:"语言",caption:"SAUDI ARABIA",
   }
@@ -34,6 +34,7 @@ function selectedPage(pathname:string,hash:string):NavKey{
   const localPath=pathname.replace(/^\/(?:ar|en|zh)(?=\/|$)/,"")||"/";
   if(localPath.startsWith("/packages"))return "packages";
   if(localPath.startsWith("/insights")||localPath.startsWith("/guides"))return "guides";
+  if(localPath.replace(/\/$/,"")==="/services/premium-residency")return "residency";
   if(localPath.startsWith("/services"))return "services";
   if(hash==="#services")return "services";
   if(hash==="#journey")return "journey";
@@ -69,6 +70,7 @@ export default function MobileFloatingNav({
   const items=useMemo(()=>[
     {key:"home" as const,label:t.home,href:home},
     {key:"services" as const,label:t.services,href:home+"#services"},
+    {key:"residency" as const,label:t.residency,href:pathFor(locale,"/services/premium-residency")},
     {key:"packages" as const,label:t.packages,href:pathFor(locale,"/packages")},
     ...(hasGuides?[{key:"guides" as const,label:t.guides,href:pathFor(locale,"/insights")}]:[]),
     {key:"journey" as const,label:t.journey,href:home+"#journey"},

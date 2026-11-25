@@ -64,6 +64,7 @@ export default async function RootLayout({
             </a>
             <nav className="desktop-nav" aria-label={t.nav}>
               <a href={localizedPath(lang) + "#services"}>{t.nav}</a>
+              <a href={localizedPath(lang,"/services/premium-residency")}>{lang==="ar"?"الإقامة المميزة":lang==="zh"?"高级居留":"Premium Residency"}</a>
               <a href={localizedPath(lang,"/packages")}>{lang==="ar"?"الباقات":lang==="zh"?"服务套餐":"Packages"}</a>
               {hasGuides&&<a href={localizedPath(lang,"/insights")}>{lang==="ar"?"الأدلة":lang==="zh"?"指南":"Guides"}</a>}
               <a href={localizedPath(lang) + "#journey"}>{t.journey}</a>
@@ -73,6 +74,7 @@ export default async function RootLayout({
           </div>
           <nav className="mobile-nav">
             <a href={localizedPath(lang) + "#services"}>{t.nav}</a>
+              <a href={localizedPath(lang,"/services/premium-residency")}>{lang==="ar"?"الإقامة المميزة":lang==="zh"?"高级居留":"Premium Residency"}</a>
             <a href={localizedPath(lang,"/packages")}>{lang==="ar"?"الباقات":lang==="zh"?"服务套餐":"Packages"}</a>
             {hasGuides&&<a href={localizedPath(lang,"/insights")}>{lang==="ar"?"الأدلة":lang==="zh"?"指南":"Guides"}</a>}
             <a href={localizedPath(lang) + "#contact"}>{t.contact}</a>
