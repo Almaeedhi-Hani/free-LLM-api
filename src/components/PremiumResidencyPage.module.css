@@ -1,0 +1,34 @@
+.page {color:var(--ink);min-width:0}
+.actions {display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-top:24px}
+.secondary {display:inline-flex;align-items:center;gap:10px;border:1px solid var(--line);padding:12px 18px;min-height:44px}
+.section {margin-block:52px;scroll-margin-top:150px}
+.section h2 {font-size:clamp(23px,2.7vw,34px);font-weight:500;margin-block:0 22px;line-height:1.45}
+.products {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.product {border:1px solid var(--line);padding:clamp(18px,2.6vw,30px);background:var(--surface-soft,#eef1e9);display:flex;flex-direction:column;align-items:flex-start;gap:10px;min-width:0}
+.product h3 {font-size:clamp(18px,2vw,24px);font-weight:600;line-height:1.5;margin:0}
+.fee {font-size:clamp(17px,1.8vw,23px);font-weight:600;line-height:1.6}
+.duration {color:var(--muted);font-size:14px}
+.product p,.section li,.section p {line-height:1.85;overflow-wrap:anywhere}
+.product>a {margin-top:auto;padding-block:10px;text-decoration:underline;text-underline-offset:3px}
+.tableWrap {overflow-x:auto;border:1px solid var(--line)}
+.table {width:100%;border-collapse:collapse;table-layout:fixed;font-size:clamp(13px,1.4vw,16px)}
+.table th,.table td {text-align:start;vertical-align:top;border-bottom:1px solid var(--line);padding:14px;line-height:1.65;overflow-wrap:anywhere}
+.table thead {background:var(--ink);color:white}
+.table tbody th {font-weight:600}
+.table tbody tr:last-child>* {border-bottom:0}
+.note {margin-top:16px;color:var(--muted);font-size:14px}
+.twoColumns {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:36px}
+.twoColumns>.section {margin-block:12px 36px}
+.list {list-style:disc;padding-inline-start:22px;display:grid;gap:12px;margin-bottom:14px}
+.steps {list-style:none;padding:0}
+.steps li {display:flex;gap:16px;align-items:baseline;padding:18px 0;border-bottom:1px solid var(--line)}
+.steps li span {font-weight:600;font-variant-numeric:tabular-nums;flex-shrink:0}
+.support {scroll-margin-top:150px}
+.support h2 {margin-bottom:10px}
+.faq details {border-bottom:1px solid var(--line);padding:14px 0}
+.faq summary {cursor:pointer;font-weight:600;line-height:1.6;padding:8px 0}
+.faq details p {padding:8px 0 10px;color:var(--muted)}
+.references {list-style:none;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.references a {display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--line);padding:13px;min-height:44px}
+.srOnly {position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
+@media(max-width:700px){.products,.twoColumns,.references {grid-template-columns:1fr;gap:12px}.section {margin-block:36px}.actions>*{width:100%;justify-content:center}.table th,.table td{padding:9px 7px}.table th:first-child{width:32%}.table th:nth-child(2){width:28%}}
