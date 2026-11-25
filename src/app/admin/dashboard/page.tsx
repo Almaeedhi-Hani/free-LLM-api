@@ -15,130 +15,19 @@ import GeoEngineMonitor from '@/components/GeoEngineMonitor';
 import UnifiedRunHistory from '@/components/UnifiedRunHistory';
 import TechnicalTaskBoard from '@/components/TechnicalTaskBoard';
 import GeoFeedbackMemory, {type CorrectionCandidate} from '@/components/GeoFeedbackMemory';
-import DashboardReportExport from '@/components/DashboardReportExport';
 import {buildPublishedLinks} from '@/lib/published-links';
 import LegacyToolsArchive from '@/components/LegacyToolsArchive';
 import PublishedLinksList from '@/components/PublishedLinksList';
 import {ADMIN_LEGACY_ARCHIVE_ENABLED,ADMIN_PUBLISHED_LINKS_ENABLED} from '@/lib/admin-consolidation-flags';
 import {validWhatsAppAdvisorField} from '@/lib/whatsapp-contacts';
 
-type Tab =
-  | 'home'
-  | 'contact'
-  | 'package_requests'
-  | 'content'
-  | 'agent'
-  | 'reviews'
-  | 'editorial'
-  | 'impact'
-  | 'published_links'
-  | 'settings'
-  | 'competitors'
-  | 'keywords'
-  | 'opportunities'
-  | 'goals'
-  | 'runs'
-  | 'evidence'
-  | 'visibility'
-  | 'cookies'
-  | 'integrations';
-
-type ContactForm={phone:string;phoneDisplay:string;whatsapp:string;email:string;whatsappAr:string;whatsappEn:string;whatsappZh:string;
- advisorNameAr:string;advisorTitleAr:string;advisorNameEn:string;advisorTitleEn:string;advisorNameZh:string;advisorTitleZh:string};
-const contactToForm=(raw?:{
- phone?:string;phoneDisplay?:string;whatsapp?:string;email?:string;
- whatsappNumbers?:{ar?:string;en?:string;zh?:string};
- whatsappAdvisors?:Partial<Record<'ar'|'en'|'zh',{name:string;title:string}>>
-}):ContactForm=>({
- phone:raw?.phone||'',phoneDisplay:raw?.phoneDisplay||'',
- whatsapp:raw?.whatsapp||'',email:raw?.email||'',
- whatsappAr:raw?.whatsappNumbers?.ar||'',
- whatsappEn:raw?.whatsappNumbers?.en||'',
- whatsappZh:raw?.whatsappNumbers?.zh||'',
- advisorNameAr:raw?.whatsappAdvisors?.ar?.name||'',advisorTitleAr:raw?.whatsappAdvisors?.ar?.title||'',
- advisorNameEn:raw?.whatsappAdvisors?.en?.name||'',advisorTitleEn:raw?.whatsappAdvisors?.en?.title||'',
- advisorNameZh:raw?.whatsappAdvisors?.zh?.name||'',advisorTitleZh:raw?.whatsappAdvisors?.zh?.title||''
-});
-const numberValid=(raw:string)=>!raw.trim()||/^\+?[0-9()\s-]+$/.test(raw.trim())&&
- /^[1-9][0-9]{7,14}$/.test(raw.trim().replace(/[\s()+-]/g,''));
-const digitsOnly=(raw:string)=>raw.trim().replace(/[\s()+-]/g,'');
-
-const LABELS: Record<string, string> = {
-  idle:'بانتظار التشغيل',running:'قيد التشغيل',success:'نجح',completed:'مكتمل',failed:'فشل',
-  pending:'بانتظار المراجعة',approved:'معتمد',rejected:'مرفوض',active:'نشط',
-  inactive:'غير نشط',disqualified:'مستبعد',new:'جديدة',triaged:'تم فرزها',
-  planned:'مخطط لها',done:'منجزة',open:'مفتوح',in_progress:'قيد التنفيذ',
-  cancelled:'ملغى',high:'عالية',medium:'متوسطة',low:'منخفضة',
-  ar:'العربية',en:'الإنجليزية',zh:'الصينية',manual:'إدخال يدوي',unknown:'غير معروف',
-  admin:'مدير النظام',cron:'تشغيل مجدول'
-};
-const readable = (value: unknown) => {
-  if (value === null || value === undefined || value === '') return 'غير متوفر';
-  const key = String(value);
-  return LABELS[key] || key.replace(/_/g,' ');
-};
-const formatDate = (value: unknown) => {
-  if (!value) return 'غير متوفر';
-  const date = new Date(String(value));
-  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('ar-SA');
-};
-// Each operator's edit belongs to one draft, not to the latest list position.
-const draftReviewKey=(d:{q?:string;createdAt?:string})=>JSON.stringify([d.q||'',d.createdAt||'']);
-// These are explanatory UI labels for suggestions, never claims of verified market facts.
-const opportunityKind=(kind:string)=>({
-  content_gap:'محتوى يحتاج تطويرًا',keyword_gap:'موضوعات بحث غير مغطاة',
-  faq_gap:'أسئلة متكررة تحتاج إجابات',service_gap:'تغطية الخدمات',
-  authority_gap:'تعزيز الثقة والمصداقية'
-} as Record<string,string>)[kind]||'فرصة مقترحة';
-const opportunityMeaning=(item:{title?:string;type?:string})=>{
- const title=String(item.title||'');
- if(title.includes('دلائل مخططة بدون صفحات منشورة'))
-   return 'يقترح النظام مراجعة أدلة موجودة في خطة المحتوى ولم تتحول إلى صفحات منشورة؛ لا تعني هذه الملاحظة أن هناك دليلًا على صفحة منافسة.';
- if(item.type==='keyword_gap')return 'اقترح النظام موضوع بحث يستحق الدراسة لتحديد ما إذا كانت صفحات الموقع تغطيه.';
- if(item.type==='faq_gap')return 'يقترح النظام إضافة أو تحسين إجابة عن سؤال قد يهم المستثمر.';
- if(item.type==='service_gap')return 'يقترح النظام مراجعة شرح الخدمة وما إذا كان يغطي أسئلة الزائر.';
- if(item.type==='authority_gap')return 'يقترح النظام تحسين عناصر الثقة والإسناد بالمصادر الأصلية.';
- return 'يقترح النظام تطوير محتوى متعلق بهذا الموضوع. قوة المقترح تعتمد على الأدلة المسجلة أدناه.';
-};
-const opportunityConfidence=(v:string)=>({high:'عالية',medium:'متوسطة',low:'منخفضة'} as Record<string,string>)[v]||'غير محددة';
-const opportunityPriority=(v:string)=>({critical:'حرجة',high:'عالية',medium:'متوسطة',low:'منخفضة'} as Record<string,string>)[v]||'غير محددة';
-const observationType=(v:string)=>({competitor:'رصد صفحة منافسة',keyword:'اقتراح من بحث الكلمات',manual:'أضيف يدويًا'} as Record<string,string>)[v]||'لم يحدد نوع المصدر';
-
-const TABS: { key: Tab; label: string; icon: string }[] = [
-  { key: 'home', label: 'الرئيسية', icon: '📊' },
-  { key: 'competitors', label: 'المنافسون', icon: '🏢' },
-  { key: 'keywords', label: 'كلمات البحث السوقية', icon: '🔑' },
-  { key: 'opportunities', label: 'الفرص', icon: '🎯' },
-  { key: 'goals', label: 'الأهداف', icon: '✅' },
-  { key: 'agent', label: 'وكيل GEO', icon: '🤖' },
-
-  { key: 'runs', label: 'سجل التشغيل', icon: '📜' },
-  { key: 'evidence', label: 'الأدلة ومصادر النتائج', icon: '🔍' },
-  { key: 'content', label: 'محتوى الموقع', icon: '📝' },
-  { key: 'reviews', label: 'اعتماد المسودات', icon: '🔍' },
-  { key: 'editorial', label: 'تطوير جميع صفحات الموقع', icon: '📚' },
-  { key: 'impact', label: 'مركز المحتوى والأثر', icon: '📊' },
-  { key: 'published_links', label: 'المحتوى المنشور: الروابط', icon: '🔗' },
-  { key: 'contact', label: 'التواصل', icon: '📞' },
-  { key: 'package_requests', label: 'طلبات الباقات', icon: '📥' },
-  { key: 'visibility', label: 'SEO وظهور الذكاء الاصطناعي', icon: '📈' },
-  { key: 'cookies', label: 'إدارة الكوكيز', icon: '🍪' },
-  { key: 'integrations', label: 'SEO والتكاملات', icon: '🔗' },
-  { key: 'settings', label: 'الإعدادات', icon: '⚙️' },
-];
-
-type AdminHub='overview'|'market'|'strategy'|'contentHub'|'measurement'|'customers'|'operations';
-/** Seven visible top-level destinations, preserving every existing editable
- * screen as a subordinate tab. No records or API endpoints are deleted. */
-const NAV_HUBS:{key:AdminHub;label:string;icon:string;landing:Tab;tabs:Tab[]}[]=[
-  {key:'overview',label:'الرئيسية',icon:'📊',landing:'home',tabs:['home']},
-  {key:'market',label:'السوق والمنافسون',icon:'🏢',landing:'competitors',tabs:['competitors','keywords','evidence']},
-  {key:'strategy',label:'الفرص وخطة العمل',icon:'🎯',landing:'opportunities',tabs:['opportunities','goals']},
-  {key:'contentHub',label:'المحتوى والنشر',icon:'📝',landing:'impact',tabs:['impact','editorial','reviews','content','published_links']},
-  {key:'measurement',label:'القياس والظهور',icon:'📈',landing:'visibility',tabs:['visibility']},
-  {key:'customers',label:'طلبات العملاء',icon:'👥',landing:'package_requests',tabs:['package_requests']},
-  {key:'operations',label:'التشغيل والإعدادات',icon:'⚙️',landing:'agent',tabs:['agent','runs','settings','contact','cookies','integrations']}
-];
+import { NAV_HUBS, TABS, type Tab, type AdminHub } from "@/lib/admin/dashboard/navigation";
+import { contactToForm, numberValid, digitsOnly, type ContactForm } from "@/lib/admin/dashboard/contact-form";
+import { readable, formatDate, draftReviewKey, opportunityKind, opportunityMeaning, opportunityConfidence, opportunityPriority, observationType } from "@/lib/admin/dashboard/presentation";
+import DashboardSidebar from "@/components/admin/dashboard/DashboardSidebar";
+import DashboardHeader from "@/components/admin/dashboard/DashboardHeader";
+import DashboardOverview from "@/components/admin/dashboard/DashboardOverview";
+import DashboardContact from "@/components/admin/dashboard/DashboardContact";
 
 export default function AdminDashboard() {
   const [secret, setSecret] = useState('');
@@ -520,69 +409,10 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-slate-50" dir="rtl">
       <div className="flex">
-        <aside className={`fixed inset-y-0 right-0 z-40 w-64 h-screen flex flex-col bg-navy-950 text-white transform transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'} lg:translate-x-0 lg:static`}>
-          <div className="p-5 border-b border-navy-800">
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-gold-500 shadow-gold-glow" />
-              <span className="font-bold text-lg">لوحة التحكم</span>
-            </div>
-            <p className="text-xs text-slate-400 mt-1">GEO Intelligence</p>
-          </div>
-          <nav className="flex-1 overflow-y-auto p-3 space-y-1" aria-label="أقسام لوحة التحكم">
-            {NAV_HUBS.map(hub=>{
-              const active=hub.tabs.includes(tab);
-              const expanded=openHub===hub.key;
-              return <div key={hub.key} className="space-y-1">
-                <button type="button" aria-expanded={hub.tabs.length>1?expanded:undefined} aria-controls={hub.tabs.length>1?'admin-hub-'+hub.key:undefined} aria-current={hub.tabs.length===1&&active?'page':undefined}
-                  onClick={()=>{
-                    setOpenHub(hub.key);
-                    if(!active)setTab(hub.landing);
-                    if(hub.tabs.length===1)setSidebarOpen(false);
-                  }}
-                  className={`w-full flex items-center justify-between gap-2 rounded-xl px-3 py-3 text-sm font-semibold transition ${active?'bg-gold-600 text-white':'text-slate-200 hover:bg-navy-800'}`}>
-                  <span className="flex items-center gap-2"><span aria-hidden="true">{hub.icon}</span>{hub.label}</span>
-                  {hub.tabs.length>1&&<span aria-hidden="true" className="text-xs">{expanded?'▾':'◂'}</span>}
-                </button>
-                {expanded&&hub.tabs.length>1&&<div id={'admin-hub-'+hub.key} className="mr-4 space-y-1 border-r border-slate-600/50 pr-2">
-                  {hub.tabs.filter(key=>ADMIN_PUBLISHED_LINKS_ENABLED||key!=='published_links').map(key=>{
-                    const item=TABS.find(t=>t.key===key)!;
-                    return <button type="button" key={key}
-                      onClick={()=>{setTab(key);setSidebarOpen(false)}}
-                      aria-current={tab===key?'page':undefined}
-                      className={`w-full rounded-lg px-3 py-2 text-right text-xs transition ${tab===key?'bg-navy-700 text-gold-300 font-bold':'text-slate-300 hover:bg-navy-800 hover:text-white'}`}>
-                      {item.icon} {item.label}
-                    </button>;
-                  })}
-                </div>}
-              </div>;
-            })}
-          </nav>
-          <div className="shrink-0 p-4 border-t border-navy-800">
-            <button onClick={logout} className="w-full text-sm text-slate-300 hover:text-white">تسجيل الخروج</button>
-          </div>
-        </aside>
-
-        {sidebarOpen && <button type="button" aria-label="إغلاق قائمة التنقل" className="fixed inset-0 bg-black/40 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />}
+            <DashboardSidebar tab={tab} openHub={openHub} sidebarOpen={sidebarOpen} setOpenHub={setOpenHub} setTab={setTab} setSidebarOpen={setSidebarOpen} logout={logout} />
 
         <div className="flex-1 min-w-0">
-          <header className="sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-slate-200">
-            <div className="px-2.5 sm:px-6 py-2.5">
-              <div className="flex items-center justify-between gap-1.5 sm:gap-3" data-testid="dashboard-header-row">
-                <div className="flex min-w-0 items-center gap-1.5 sm:gap-3">
-                  <button className="lg:hidden shrink-0 text-navy-900 p-1" onClick={() => setSidebarOpen(true)} aria-label="فتح القائمة">☰</button>
-                  <h1 className="truncate text-base sm:text-xl font-bold text-navy-900">{TABS.find((t) => t.key === tab)?.label}</h1>
-                </div>
-                <div className="flex shrink-0 flex-nowrap items-center gap-1.5 sm:gap-2">
-                  <button onClick={refreshAll} className="inline-flex h-9 items-center justify-center rounded-md border border-slate-300 bg-white px-2 sm:px-3 text-xs sm:text-sm font-medium text-navy-900 whitespace-nowrap disabled:opacity-50" disabled={marketLoading||refreshingAll||saving}>{refreshingAll||marketLoading?'جارٍ التحديث...':'تحديث البيانات'}</button>
-                  {tab==='home'&&<DashboardReportExport secret={secret} disabled={saving||refreshingAll}/>}
-                </div>
-              </div>
-              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-right text-xs text-slate-500" data-testid="dashboard-header-sync">
-                <span>آخر مزامنة: {lastUpdated || 'غير متوفر'}</span>
-                {saving && <span className="text-gold-600">جاري الحفظ...</span>}
-              </div>
-            </div>
-          </header>
+            <DashboardHeader tab={tab} setSidebarOpen={setSidebarOpen} refreshAll={refreshAll} marketLoading={marketLoading} refreshingAll={refreshingAll} saving={saving} secret={secret} lastUpdated={lastUpdated} />
 
           <main className="min-w-0 p-4 sm:p-6 max-w-7xl mx-auto">
             <div className="mb-4"><DataRoleLegend /></div>
@@ -590,99 +420,12 @@ export default function AdminDashboard() {
             {notice && <div role="status" className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-emerald-800 mb-4 text-sm flex justify-between gap-3"><span>{notice}</span><button onClick={()=>setNotice('')} aria-label="إغلاق التنبيه">✕</button></div>}
 
             {tab === 'home' && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {[
-                    { label: 'المنافسون', value: competitors.length, color: 'text-navy-900' },
-                    { label: 'الكلمات المفتاحية', value: keywords.length, color: 'text-navy-900' },
-                    { label: 'الفرص (كلمات)', value: keywordDerivedOpps, color: 'text-emerald-700' },
-                    { label: 'الفرص (منافسون)', value: competitorBackedOpps, color: 'text-emerald-700' },
-                    { label: 'الأهداف', value: goals.length, color: 'text-gold-600' },
-                    { label: 'المسودات المعلقة', value: pendingDrafts, color: 'text-amber-600' },
-                    { label: 'سجلات التحليل القديم', value: runs.length, color: 'text-slate-700' },
-                    { label: 'أسئلة شائعة', value: content.faqs?.length || 0, color: 'text-slate-700' },
-                  ].map((c, i) => (
-                    <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
-                      <p className="text-xs text-slate-500">{c.label}</p>
-                      <p className={`text-2xl font-extrabold ${c.color}`}>{c.value}</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                  <div className="flex flex-wrap justify-between gap-2 items-center mb-2"><h2 className="text-lg font-bold">الفقرة التعريفية الرئيسية</h2><button className="text-sm text-blue-700 underline" onClick={()=>setTab('content')}>تعديل المحتوى</button></div>
-                  <p className="text-slate-700 text-sm line-clamp-4">{content.goldenParagraph}</p>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                    <div className="flex justify-between gap-2 items-center mb-2"><h2 className="text-lg font-bold">حالة وكيل GEO</h2><button onClick={()=>setTab('agent')} className="text-sm text-blue-700 underline">عرض التفاصيل</button></div>
-                    <p className="text-sm">الحالة: <span className="font-bold text-emerald-700">{readable(content.agent?.status || 'idle')}</span></p>
-                    <p className="text-sm">آخر تشغيل: {content.agent?.lastRun || '—'}</p>
-                    <p className="text-sm">النتيجة: {content.agent?.lastResult || '—'}</p>
-                    <p className="text-xs text-slate-400 mt-2">تُدار الجدولة من GitHub Actions. حالة هذه البطاقة لا تؤكد التشغيل التلقائي.</p>
-                  </div>
-                  <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                    <h2 className="text-lg font-bold mb-2">ملخص بيانات السوق</h2>
-                    <p className="text-sm">المنافسون: {competitors.length} (لا توجد بيانات competitor-backed opportunities بدون منافسين).</p>
-                    <p className="text-sm">الكلمات: {keywords.length}. فرص مستنتجة من الكلمات: {keywordDerivedOpps}.</p>
-                    <p className="text-sm">آخر خطأ مسجل: {runs.find((r) => r.status === 'failed')?.error || 'لا توجد أخطاء مسجلة'}</p>
-                  </div>
-                </div>
-              </div>
+            <DashboardOverview competitors={competitors} keywords={keywords} keywordDerivedOpps={keywordDerivedOpps} competitorBackedOpps={competitorBackedOpps} goals={goals} pendingDrafts={pendingDrafts} runs={runs} content={content} setTab={setTab} />
             )}
 
             {tab === 'package_requests' && <PackageRequestsAdmin secret={secret} />}
             {tab === 'contact' && (
-              <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                <h2 className="text-xl font-bold mb-2">بيانات التواصل للزوار</h2><p className="text-sm text-slate-500 mb-4">تُطبّق التغييرات على معلومات التواصل المعروضة في الموقع بعد الحفظ.</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="الهاتف" value={contactForm.phone} onChange={(e) => setContactForm({ ...contactForm, phone: e.target.value })} />
-                  <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="رقم الهاتف المعروض للزوار" aria-label="الهاتف المعروض" value={contactForm.phoneDisplay} onChange={(e) => setContactForm({ ...contactForm, phoneDisplay: e.target.value })} />
-                  <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="https://wa.me/9665XXXXXXXX" aria-label="رابط واتساب" value={contactForm.whatsapp} onChange={(e) => setContactForm({ ...contactForm, whatsapp: e.target.value })} />
-                  <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="name@example.com" aria-label="البريد الإلكتروني" type="email" value={contactForm.email} onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })} />
-                </div>
-                <div className="mt-5 rounded-2xl border border-[#d7d5c4] bg-[#fafaf5] p-4 sm:p-5">
-                  <h3 className="text-lg font-bold text-[#193e37]">المستشارون والمتحدثون باللغات</h3>
-                  <p className="mt-1 text-sm leading-7 text-slate-600">أدخل اسم المسؤول، منصبه، ورقم واتساب الخاص به لكل لغة. ستظهر البيانات في بطاقة مستقلة بالقائمة العائمة. يمكن ترك الاسم أو المنصب فارغًا حتى إدخال البيانات الحقيقية. رقم اللغة الفارغ يستخدم الرقم العام.</p>
-                  <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-3">
-                    {([
-                      {lang:'العربية',nameKey:'advisorNameAr',titleKey:'advisorTitleAr',numberKey:'whatsappAr',accent:'AR'},
-                      {lang:'English',nameKey:'advisorNameEn',titleKey:'advisorTitleEn',numberKey:'whatsappEn',accent:'EN'},
-                      {lang:'中文',nameKey:'advisorNameZh',titleKey:'advisorTitleZh',numberKey:'whatsappZh',accent:'ZH'}
-                    ] as const).map(({lang,nameKey,titleKey,numberKey,accent})=>
-                      <div key={accent} className="rounded-xl border border-[#d7dfd6] bg-white p-4 shadow-sm">
-                        <div className="mb-3 flex items-center gap-2">
-                          <span className="rounded-lg bg-[#173f38] px-2 py-1 text-xs font-bold text-white">{accent}</span>
-                          <strong className="text-sm text-[#173f38]">متحدث باللغة {lang}</strong>
-                        </div>
-                        <label className="block text-xs font-semibold text-[#426056]">
-                          اسم المسؤول
-                          <input type="text" maxLength={80} aria-label={'اسم المسؤول - '+lang}
-                            placeholder="اسم المستشار" value={contactForm[nameKey]}
-                            onChange={e=>setContactForm({...contactForm,[nameKey]:e.target.value})}
-                            className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900" />
-                        </label>
-                        <label className="mt-3 block text-xs font-semibold text-[#426056]">
-                          المنصب / المسمى الوظيفي
-                          <input type="text" maxLength={100} aria-label={'منصب المسؤول - '+lang}
-                            placeholder="مثال: مستشار خدمات المستثمرين" value={contactForm[titleKey]}
-                            onChange={e=>setContactForm({...contactForm,[titleKey]:e.target.value})}
-                            className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900" />
-                        </label>
-                        <label className="mt-3 block text-xs font-semibold text-[#426056]">
-                          رقم واتساب الدولي
-                          <input type="tel" dir="ltr" inputMode="tel" autoComplete="off"
-                            aria-label={'رقم واتساب '+lang} placeholder="+9665XXXXXXXX"
-                            value={contactForm[numberKey]}
-                            onChange={e=>setContactForm({...contactForm,[numberKey]:e.target.value})}
-                            className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-left text-sm text-slate-900" />
-                        </label>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <button onClick={saveContact} className="btn-primary mt-4" disabled={saving}>حفظ التواصل</button>
-                <p className="text-xs text-slate-500 mt-2">أدخل رابط WhatsApp كاملاً بصيغة https://wa.me/966... حتى يعمل زر التواصل في الموقع.</p>
-              </section>
+            <DashboardContact contactForm={contactForm} setContactForm={setContactForm} saveContact={saveContact} saving={saving} />
             )}
 
             {tab === 'content' && (

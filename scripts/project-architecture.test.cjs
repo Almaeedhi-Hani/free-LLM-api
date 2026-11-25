@@ -18,6 +18,10 @@ for(const name of ['SiteHeader','SiteFooter'])assert(rootLayout.includes('<'+nam
 const residency=read('src/components/PremiumResidencyPage.tsx');
 assert(residency.split('\n').length<40,'Residency route must compose sections');
 for(const name of ["ResidencyHero","ResidencyProducts","ResidencyComparison","ResidencyGuidance","ResidencyReferences"])assert(residency.includes('<'+name+' '),name+' mounted');
+const admin=read('src/app/admin/dashboard/page.tsx');
+for(const name of ["DashboardSidebar","DashboardHeader","DashboardOverview","DashboardContact"])assert(admin.includes('<'+name+' '),name+' is mounted');
+assert(admin.includes('from "@/lib/admin/dashboard/navigation"'),'Dashboard registry is separate');
+assert(admin.split('\n').length<1100,'First admin migration reduces page size');
 const manifest=read('src/app/globals.css');
 assert(!/\{[^}]*:[^}]*\}/s.test(manifest),'Global entrypoint only imports styles');
 const css=readGlobalStyles();
@@ -32,6 +36,8 @@ if(baseline){
   for(const [name,start,end] of [['SiteHeader',56,83],['SiteFooter',85,120]])assert(read('src/components/layout/'+name+'.tsx').includes(layout.slice(start-1,end).join('\n')),name+' original markup');
   const residency=cp.execFileSync('git',['show',baseline+':src/components/PremiumResidencyPage.tsx'],{encoding:'utf8'}).split('\n');
   for(const [name,start,end] of [["ResidencyHero",39,47],["ResidencyProducts",50,61],["ResidencyComparison",62,66],["ResidencyGuidance",67,72],["ResidencyReferences",73,74]])assert(read('src/components/residency/'+name+'.tsx').includes(residency.slice(start-1,end).join('\n')),name+' original markup');
-  console.log('PASS baseline CSS, homepage, header/footer and residency markup unchanged');
+  const adminOriginal=cp.execFileSync('git',['show',baseline+':src/app/admin/dashboard/page.tsx'],{encoding:'utf8'}).split('\n');
+  for(const [name,start,end] of [["DashboardSidebar",523,565],["DashboardHeader",568,585],["DashboardOverview",593,630],["DashboardContact",635,685]])assert(read('src/components/admin/dashboard/'+name+'.tsx').includes(adminOriginal.slice(start-1,end).join('\n')),name+' original markup');
+  console.log('PASS exact baseline public CSS, homepage, shared shell, residency and admin views');
 }
 console.log('PASS ordered CSS manifest and composed homepage architecture');

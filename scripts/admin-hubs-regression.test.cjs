@@ -1,7 +1,7 @@
 'use strict';
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
-const admin=fs.readFileSync('src/app/admin/dashboard/page.tsx','utf8');
+const admin=require('./support/admin-dashboard-source.cjs').readAdminDashboardSource();
 const nav=admin.slice(admin.indexOf('const NAV_HUBS:'),admin.indexOf('export default function AdminDashboard'));
 assert(nav.length>400,'Grouped hub navigation missing');
 const hubs=[...nav.matchAll(/\{key:'([^']+)',label:'([^']+)',icon:'[^']+',landing:'([^']+)',tabs:\[([^\]]+)\]\}/g)];

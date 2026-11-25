@@ -34,3 +34,7 @@ Legacy global style order is intentionally preserved. Some responsive/shared leg
 ## Second migration slice
 - Shared layout delegates identical header/footer markup to src/components/layout/SiteHeader.tsx and SiteFooter.tsx; keeps HTML, metadata, content access, client widgets and main landmark in root layout.
 - Premium residency delegates five original section groups to src/components/residency/, with a server model in src/lib/residency/model.ts. Assessment component, original CSS Module, data, fee logic, official sources and schema preserved. Existing tests read the actual owning modules.
+
+## Third migration slice — admin foundation
+- src/lib/admin/dashboard/navigation.ts owns seven hubs and nineteen tabs; contact-form.ts owns existing contact transformations and validation; presentation.ts owns labels and formatting.
+- src/components/admin/dashboard/ owns Sidebar, Header, Overview and Contact presentation. The existing authenticated route retains session, state, mutations and the remaining tab composition. Do not move credentials into shared/global state or alter request semantics. No API or data changes. Additional tabs and hooks will be extracted in smaller reviewed changes.

@@ -80,6 +80,6 @@ const center=fs.readFileSync('src/components/ContentImpactCenter.tsx','utf8');
 assert(center.includes('معاينة وتفاصيل')&&center.includes('حذف نهائي')&&center.includes('إلغاء النشر / أرشفة'));
 assert(center.includes("counted?number(sumViews):'—'"),'missing GSC data must never render zero');
 assert(center.includes('النشر الآلي للمحتوى الحساس وعالي المخاطر')&&center.includes('ENABLE_AUTONOMOUS_SENSITIVE_CONTENT'),'separate sensitive auto-publication permission shown');
-const dashboard=fs.readFileSync('src/app/admin/dashboard/page.tsx','utf8');
+const dashboard=require('./support/admin-dashboard-source.cjs').readAdminDashboardSource();
 assert(dashboard.includes("key: 'impact'")&&dashboard.includes('<ContentImpactCenter'));
 console.log('PASS GEO Impact Center inventory, safe preview, no duplicated FAQ, unknown metrics, read-only GSC, fail-closed guarded auto publication and versioned admin controls');

@@ -4,7 +4,7 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const get=path=>fs.readFileSync(path,'utf8');
-const dashboard=get('src/app/admin/dashboard/page.tsx');
+const dashboard=require('./support/admin-dashboard-source.cjs').readAdminDashboardSource();
 const impact=get('src/components/ContentImpactCenter.tsx');
 const visibility=get('src/components/VisibilityDashboard.tsx');
 const requests=get('src/components/PackageRequestsAdmin.tsx');

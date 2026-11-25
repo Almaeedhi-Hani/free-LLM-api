@@ -51,7 +51,7 @@ for(const className of [
 ])assert(float.includes(className),'Missing compact 280x315 responsive feature: '+className);
 assert(!float.includes('w-[min(90vw,365px)]'),'Old fixed-width list must be removed');
 assert(!float.includes('min-h-[82px]'),'Old large advisor card spacing must be removed');
-const admin=fs.readFileSync('src/app/admin/dashboard/page.tsx','utf8');
+const admin=require('./support/admin-dashboard-source.cjs').readAdminDashboardSource();
 for(const value of ['whatsappAr','whatsappEn','whatsappZh','whatsappNumbers:',
  "numberKey:'whatsappAr'","numberKey:'whatsappEn'","numberKey:'whatsappZh'",
  "'رقم واتساب '+lang",'contactToForm'])

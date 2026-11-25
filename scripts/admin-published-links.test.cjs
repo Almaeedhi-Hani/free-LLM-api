@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const {buildPublishedLinks,buildUnpublishedPreviews}=require('../.published-links-test-build/lib/published-links.js');
-const admin=fs.readFileSync('src/app/admin/dashboard/page.tsx','utf8');
+const admin=require('./support/admin-dashboard-source.cjs').readAdminDashboardSource();
 const ui=fs.readFileSync('src/components/PublishedLinksList.tsx','utf8');
 const approved=(id,kind,lang,extra={})=>({
  id,kind,lang,target:'misa-license',title:'Page '+id,summary:'Summary',body:'body',
