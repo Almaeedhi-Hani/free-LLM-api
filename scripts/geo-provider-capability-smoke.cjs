@@ -20,24 +20,7 @@ const TEST_PROMPT=[
  '"opportunities": [], "drafts": [], "editorial_actions": [].',
  'No markdown, no invented statistics, fees, approvals, links, citations or sources.'
 ].join(' ');
-function freeOpenRouterModels(catalog,limit=3){
- if(!Array.isArray(catalog))return [];
- const models=catalog.filter(m=>
-  typeof m.id==='string'&&m.id.endsWith(':free')&&
-  m.pricing&&m.pricing.prompt!==undefined&&m.pricing.completion!==undefined&&
-  String(m.pricing.prompt).trim()!==''&&String(m.pricing.completion).trim()!==''&&
-  Number(m.pricing.prompt)===0&&Number(m.pricing.completion)===0&&
-  m.architecture?.input_modalities?.includes('text')&&
-  m.architecture?.output_modalities?.includes('text')&&
-  (!m.expiration_date||Number(m.expiration_date)*1000>Date.now())&&
-  Number(m.context_length)>=10000);
- const score=m=>(
-  (m.supported_parameters?.includes('response_format')?100:0)+
-  (m.supported_parameters?.includes('structured_outputs')?100:0)+
-  (/qwen|nemotron|deepseek|glm|mistral|gpt-oss/i.test(m.id)?20:0)+
-  Math.min(20,Math.floor(Number(m.context_length)/16000)));
- return models.sort((a,b)=>score(b)-score(a)).slice(0,limit).map(m=>m.id);
-}
+const {freeOpenRouterModels}=require('../src/lib/geo-free-review-provider.cjs');
 function responseText(payload){
  const c=payload?.choices?.[0]?.message?.content;
  if(typeof c==='string')return c;

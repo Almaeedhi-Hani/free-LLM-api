@@ -17,8 +17,7 @@ const PROVIDERS=Object.freeze([
  {id:'openrouter',key:'OPENROUTER_API_KEY',model:'openrouter/free',
   endpoint:'https://openrouter.ai/api/v1/chat/completions'}
 ]);
-const MAX_PROMPT_CHARS=75000, MAX_RESPONSE_CHARS=180000;
-const REQUIRED=['opportunities','goals','drafts','editorial_actions'];
+const MAX_PROMPT_CHARS=75000;
 function available(env=process.env){
  return PROVIDERS.filter(p=>typeof env[p.key]==='string'&&env[p.key].trim().length>0)
   .map(p=>p.id+':'+p.model);
@@ -28,21 +27,7 @@ function safeContent(value){
  if(Array.isArray(value))return value.filter(x=>x?.type==='text'&&typeof x.text==='string').map(x=>x.text).join('');
  return '';
 }
-function parseAnswer(text){
- if(typeof text!=='string'||text.length>MAX_RESPONSE_CHARS)return null;
- const cleaned=text.trim().replace(/^\x60{3}(?:json)?\s*/i,'').replace(/\s*\x60{3}$/,'');
- let parsed;
- try{parsed=JSON.parse(cleaned);}
- catch{
-  const start=cleaned.indexOf('{'),end=cleaned.lastIndexOf('}');
-  if(start<0||end<=start)return null;
-  try{parsed=JSON.parse(cleaned.slice(start,end+1))}catch{return null}
- }
- if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))return null;
- if(!REQUIRED.every(k=>Array.isArray(parsed[k])))return null;
- for(const k of REQUIRED)if(parsed[k].length>30)return null;
- return Object.fromEntries(REQUIRED.map(k=>[k,parsed[k]]));
-}
+const {parseAnswer}=require('../src/lib/geo-free-review-provider.cjs');
 function requestSpec(provider,prompt,key){
  const headers={'content-type':'application/json'};
  if(provider.id==='gemini'){
