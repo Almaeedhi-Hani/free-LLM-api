@@ -114,13 +114,11 @@ function editorialIdentityFields(item,copyFields){
 const regulated=/(licen[sc]|legal|regulat|government fee|tax|ownership|shareholder|bank|residen|immigrat|visa|permit|approval|guarantee|cost estimate|paid service|service fee|sanction|penalt|موافقة|ترخيص|رخصة|نظام|قانون|رسوم|ضريبة|ملكية|إقامة|تأشيرة|بنك|مصرف|许可|执照|法律|税|收费|银行|居留|签证|股东|监管|审批)/iu;
 function assessPublicationRisk(kind,item,copyFields,result){
  if(!item||item.status!=='pending'||!Array.isArray(copyFields)||copyFields.some(x=>typeof x!=='string'))return 'high';
- // A positive safe classification needs a reviewed, closed topic vocabulary.
- // This first version deliberately does not downgrade existing investment
- // articles or arbitrary user-facing answers based on a lexical heuristic.
+ // A low classification requires full independent evidence and no regulated
+ // indicators. The model's previous label is not authoritative.
  const text=[item.q,item.title,item.primary_keyword,item.target,item.related_service,...copyFields].filter(Boolean).join(' ').normalize('NFKC');
  if(regulated.test(text)||faqTopicTargets(text.replace(/-/g,' ')).length)return 'high';
- // Exact evidence checks are necessary but not sufficient for downgrading
- // unknown high-risk records. Preserve their current classification.
+ // Missing or incomplete proof never qualifies as low risk.
  if(!result?.complete||result.matched!==result.total||result.total<1)return 'high';
  return 'low';
 }

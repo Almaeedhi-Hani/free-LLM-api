@@ -45,8 +45,8 @@ export function usePublicationControls(adminSecret:string){
  };
 
  const changeSensitive=async(allow:boolean)=>{
-  if(allow){setAutoNotice('عقد التحقق الحالي يمنع النشر الآلي للمحتوى الحساس.');return;}
-  if(!window.confirm('إيقاف النشر التلقائي للمحتوى الحساس؟ يبقى النشر منخفض المخاطر وفق الإعداد الآخر.'))return;
+  if(allow&&!window.confirm('السماح بالنشر الآلي للمحتوى الحساس بعد التحقق من أدلته، دون اعتماد يدوي؟'))return;
+  if(!allow&&!window.confirm('إيقاف النشر التلقائي للمحتوى الحساس؟ يبقى النشر منخفض المخاطر وفق الإعداد الآخر.'))return;
   await autoAction({action:'configure_sensitive',allow_high_risk:allow,
    ...(allow?{confirm:'ENABLE_AUTONOMOUS_SENSITIVE_CONTENT',
     acknowledge:'UNDERSTAND_SOURCE_VERIFICATION_LIMITS'}:{})});

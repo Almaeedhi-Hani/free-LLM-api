@@ -55,7 +55,7 @@ BEGIN
     v_meta->>'total' IS DISTINCT FROM cardinality(v_claims)::text THEN RETURN false; END IF;
  FOR v_proof IN SELECT value FROM jsonb_array_elements(p_proofs) LOOP
   v_claim:=v_proof->>'claim';
-  v_catalog:=v_v2 AND v_proof->>'verified_by'='first_party_catalog_exact';
+  v_catalog:=v_v2 AND coalesce(v_proof->>'verified_by','')='first_party_catalog_exact';
   IF v_claim IS NULL OR length(v_claim) NOT BETWEEN (CASE WHEN v_catalog THEN 6 ELSE 28 END) AND 450 OR
      NOT (v_claim=ANY(v_claims)) OR v_claim=ANY(v_seen) OR
      v_proof->>'quote' IS DISTINCT FROM v_claim OR

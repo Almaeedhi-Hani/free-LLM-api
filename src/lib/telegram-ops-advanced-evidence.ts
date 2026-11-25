@@ -87,7 +87,7 @@ async function check(x:Candidate,collectPacket?:(packet:SemanticPacket)=>void):P
  // copy passes all checks and has live exact coverage. No legal paraphrase.
  const candidate:Candidate=x.kind==='faq'?{kind:'faq',item:{...x.item,a:splitGeoDraftReviewText(x.item.a).answer}}:x;
  const allowed=await reviewContentPolicy(candidate).catch(()=>false);
- const lane=evidenceLane(x);
+ const lane=evidenceLane(candidate);
  // Technical proposals never become visitor copy. Approved commercial
  // scope is checked against the deployed catalog, not a government website.
  if(lane==='implementation'){
@@ -142,6 +142,7 @@ export function autoPublicationBlockReason(x:Candidate,allowHighRisk=false):stri
   const meta=x.item.review_preflight;
   if(!meta||meta.evidence_lane_version!==lanes.VERSION)return 'review_not_checked';
   if(meta.status!=='ready')return 'review_blocked';
+  if(meta.evidence_lane!==lane)return 'review_lane_changed';
   if(!evidence.eligible(meta,x.kind,identityFields(x)))return 'review_version_or_freshness_invalid';
   if(!x.item.claim_evidence?.length)return 'claim_evidence_missing';
   if(riskFor(x,{complete:true,total:meta.total,matched:meta.matched,proofs:x.item.claim_evidence||[]})!==x.item.risk_level)return 'independent_risk_check_failed';
