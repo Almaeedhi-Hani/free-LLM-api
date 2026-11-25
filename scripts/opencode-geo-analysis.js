@@ -466,6 +466,7 @@ async function stageGeoAnalysis() {
       const evidence=selectLocaleEvidence(all,lang,recovered?2:index===0?8:index===1?4:2);
       const timeoutMs=recovered?45000:index===0?90000:index===1?60000:45000;
       const prompt=direct?promptForDirectLocale(lang,evidence):promptForLocale(lang,evidence);
+      if(direct){const skillNames=Object.keys(JSON.parse(prompt).skill_guidance||{});if(skillNames.length)logStage('GEO_ANALYSIS',lang+' local OpenCode skills: '+skillNames.join(','));}
       const trial=direct
         ?await direct.generate(prompt,model,{timeoutMs})
         :runOpenCode(prompt,model,timeoutMs);
