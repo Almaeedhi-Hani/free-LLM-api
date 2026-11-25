@@ -101,7 +101,19 @@ function assessPublicationRisk(kind,item,copyFields,result){
  return 'low';
 }
 function selectReviewBatch(dueItems){
- const sorted=[...dueItems].sort((a,b)=>(a.item.review_preflight?.checked_at||'').localeCompare(b.item.review_preflight?.checked_at||''));
+ // Exact duplicates only: retain every record and never merge similar
+ // questions, translated content, different destinations or changed answers.
+ const seen=new Set();
+ const sorted=[...dueItems].sort((a,b)=>(a.item.review_preflight?.checked_at||'').localeCompare(b.item.review_preflight?.checked_at||'')).filter(x=>{
+  if(x.kind==='editorial'&&['technical_seo','internal_link'].includes(x.item.kind))return false;
+  const i=x.item;
+  const key=x.kind==='faq'?JSON.stringify(['faq',norm(i.q),norm(i.a),i.risk_level]):
+   JSON.stringify(['editorial',i.kind,i.lang,i.target,i.slug,i.related_service,i.topic_node_id,i.risk_level,norm(i.title),norm(i.summary),norm(i.body),i.h1_suggestion,i.primary_keyword,i.secondary_keywords,i.sections,i.internal_links,i.schema_suggestions]);
+  // Incomplete malformed fixtures/records are distinct and must not hide other work.
+  if(x.kind==='faq'?!(i.q&&i.a):!(i.title&&i.body&&i.target))return true;
+  if(seen.has(key))return false;
+  seen.add(key);return true;
+ });
  const chosen=[...sorted.filter(x=>x.kind==='faq').slice(0,2),...sorted.filter(x=>x.kind==='editorial').slice(0,2)];
  for(const x of sorted){if(chosen.length>=4)break;if(!chosen.includes(x))chosen.push(x)}
  return chosen;
