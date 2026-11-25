@@ -2,17 +2,17 @@ import {decisionPrompts} from "@/lib/service-guides";
 import type {ServiceModel} from "@/lib/services/model";
 export default function ServicePreparation({lang,labels,guide,slug}:Pick<ServiceModel,"lang"|"labels"|"guide"|"slug">) {
   return <>
-        <section>
+        <section className="investor-guide-body">
           <h2 id="service-preparation">{labels.prepare}</h2>
           <p>{labels.checklist}</p>
-          {guide.prepare.map((step, i) => (
+          <div className="investor-preparation-list">{guide.prepare.map((step, i) => (
             <div className="detail-step" key={i}>
               <span>0{i + 1}</span>
               <div>
                 <p>{step[lang]}</p>
               </div>
             </div>
-          ))}
+          ))}</div>
           <h2 id="service-insight">{labels.insight}</h2>
           <p>{guide.insight[lang]}</p>
           <div className="guide-budget">

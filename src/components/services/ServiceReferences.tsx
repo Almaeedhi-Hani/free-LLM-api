@@ -1,6 +1,8 @@
 import ArrowUpRight from "@/components/ArrowUpRight";
+import {whatsAppUrlForLanguage} from "@/lib/whatsapp-contacts";
 import type {ServiceModel} from "@/lib/services/model";
 export default function ServiceReferences({lang,t,s,guide,contact}:Pick<ServiceModel,"lang"|"t"|"s"|"guide"|"contact">) {
+  const whatsapp=whatsAppUrlForLanguage(contact,lang);
   return <>
         <aside id="service-references" className="source-panel service-reference-panel">
           <h2>{t.sources}</h2>
@@ -19,14 +21,14 @@ export default function ServiceReferences({lang,t,s,guide,contact}:Pick<ServiceM
             </a>
           ))}
           <small>{t.verified}</small>
-          <a
+          {whatsapp&&<a
             className="action-primary"
-            href={contact.whatsapp}
+            href={whatsapp}
             target="_blank"
             rel="noopener noreferrer"
           >
             {t.contact} <ArrowUpRight />
-          </a>
+          </a>}
         </aside>
   </>;
 }

@@ -1,0 +1,70 @@
+/* Public investor experience, no changes to homepage header or CTA geometry. */
+body:not(:has(.admin-route)) #main .investor-service-hero {
+ display:grid;grid-template-columns:minmax(0,1fr) minmax(100px,.25fr);align-items:center;gap:24px;
+ background:radial-gradient(ellipse at 100% 100%,rgba(184,134,11,.075),transparent 65%),var(--reference-paper);
+ border:1px solid var(--reference-line);border-radius:var(--discovery-card-radius);padding:clamp(22px,4vw,48px);
+}
+body:not(:has(.admin-route)) #main .investor-service-hero h1 {font-size:clamp(30px,4vw,54px);line-height:1.45;margin-block:14px;overflow-wrap:anywhere}
+body:not(:has(.admin-route)) #main .investor-service-hero .detail-lead {font-size:clamp(15px,1.5vw,19px);margin:0;color:var(--reference-body)}
+body:not(:has(.admin-route)) #main .investor-hero-symbol {display:grid;place-items:center;aspect-ratio:1;max-width:140px;border-radius:var(--discovery-card-radius);border:1px solid var(--reference-line);background:var(--reference-white);color:var(--conversion-gold)}
+body:not(:has(.admin-route)) #main .investor-hero-symbol svg {width:52%;height:52%}
+body:not(:has(.admin-route)) #main .investor-hero-actions {display:flex;flex-wrap:wrap;gap:12px;margin-top:24px}
+body:not(:has(.admin-route)) #main .investor-secondary {display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:12px 20px;border:1px solid var(--reference-line);border-radius:var(--discovery-card-radius);background:var(--reference-white);color:var(--reference-ink);font-weight:600;font-size:14px}
+body:not(:has(.admin-route)) #main .service-editorial :is(.action-primary,.service-quick-nav a,.service-context-band,.service-decision-checklist,.source-panel,.service-next-step,.guide-budget) {border-radius:var(--discovery-card-radius)}
+body:not(:has(.admin-route)) #main .service-editorial .detail-columns {grid-template-columns:minmax(0,1.65fr) minmax(230px,.8fr);gap:clamp(24px,5vw,65px);align-items:start}
+body:not(:has(.admin-route)) #main .investor-guide-body {min-width:0}
+body:not(:has(.admin-route)) #main .investor-guide-body :is(p,li) {font-size:clamp(14px,1.35vw,17px);line-height:1.95;overflow-wrap:anywhere}
+body:not(:has(.admin-route)) #main .investor-guide-body h2 {font-size:clamp(22px,2.4vw,30px);line-height:1.5;margin-block:32px 14px}
+body:not(:has(.admin-route)) #main .investor-guide-body h3 {font-size:clamp(17px,1.8vw,22px);line-height:1.55;margin-block:20px 8px}
+body:not(:has(.admin-route)) #main .investor-preparation-list {display:grid;gap:10px;margin-block:18px 28px}
+body:not(:has(.admin-route)) #main .investor-preparation-list .detail-step {align-items:flex-start;gap:14px;padding:16px;border:1px solid var(--reference-line);border-radius:14px;background:var(--reference-paper)}
+body:not(:has(.admin-route)) #main .investor-preparation-list .detail-step p {margin:0}
+body:not(:has(.admin-route)) #main .investor-preparation-list .detail-step>span {background:var(--reference-white);color:var(--conversion-gold);font-size:24px;line-height:1.2;padding:0;flex-shrink:0}
+body:not(:has(.admin-route)) #main .investor-article .detail-lead {max-width:76ch}
+body:not(:has(.admin-route)) #main .investor-article .investor-guide-body > :is(p,section) {margin-block:16px}
+body:not(:has(.admin-route)) #main .investor-article .investor-guide-body nav {border-top:1px solid var(--reference-line);margin-top:36px;padding-top:18px}
+body:not(:has(.admin-route)) #main .service-next-step {display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,.65fr);align-items:center;gap:24px}
+body:not(:has(.admin-route)) #main .investor-next-actions {display:grid;gap:8px;min-width:0}
+body:not(:has(.admin-route)) #main .investor-next-actions .action-primary {justify-content:center;white-space:normal;text-align:center}
+body:not(:has(.admin-route)) #main .investor-next-actions .discovery-compact {margin:0}
+body:not(:has(.admin-route)) #main .package-page .license-detail,
+body:not(:has(.admin-route)) #main .package-page .package-form,
+body:not(:has(.admin-route)) #main .package-page :is(.license-detail>button,.package-buttons button,.license-back) {border-radius:var(--discovery-card-radius)}
+body:not(:has(.admin-route)) #main .package-form :is(input:not([tabindex="-1"]),select,textarea) {border-radius:14px;min-height:48px;background:var(--reference-white)}
+body:not(:has(.admin-route)) #main .package-form :is(input,select,textarea):focus-visible {outline:2px solid var(--conversion-gold);outline-offset:2px}
+body:not(:has(.admin-route)) #main .package-form :is([role="alert"]) {border-inline-start:3px solid var(--reference-ink);padding:12px;background:var(--reference-white);overflow-wrap:anywhere}
+body:not(:has(.admin-route)) #main .investor-wizard-steps {list-style:none;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 24px}
+body:not(:has(.admin-route)) #main .investor-wizard-steps li {display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:10px 4px;border-bottom:2px solid var(--reference-line);font-size:12px;overflow-wrap:anywhere}
+body:not(:has(.admin-route)) #main .investor-wizard-steps li span {display:grid;place-items:center;min-width:30px;height:30px;background:var(--reference-white);border-radius:50%;border:1px solid var(--reference-line);font-weight:600}
+body:not(:has(.admin-route)) #main .investor-wizard-steps li[aria-current="step"] {border-color:var(--conversion-gold);font-weight:700}
+body:not(:has(.admin-route)) #main .investor-wizard-steps li[aria-current="step"] span {background:var(--conversion-gold);color:var(--reference-heading)}
+body:not(:has(.admin-route)) #main .investor-wizard-steps li[data-complete="true"] span {background:var(--reference-ink);color:var(--reference-white)}
+body:not(:has(.admin-route)) #main .investor-package-compare {max-width:760px;border:1px solid var(--reference-line);border-radius:var(--discovery-card-radius);padding:16px;margin-block:18px;background:var(--reference-paper)}
+body:not(:has(.admin-route)) #main .investor-package-compare summary {cursor:pointer;font-weight:600;min-height:28px}
+body:not(:has(.admin-route)) #main .investor-package-compare p {font-size:12px;line-height:1.8;margin-block:14px}
+body:not(:has(.admin-route)) #main .investor-compare-scroll {overflow-x:auto;max-width:100%;border-radius:12px;background:var(--reference-white)}
+body:not(:has(.admin-route)) #main .investor-compare-scroll table {border-collapse:collapse;min-width:640px;width:100%;font-size:13px;text-align:start}
+body:not(:has(.admin-route)) #main .investor-compare-scroll :is(th,td) {padding:12px;text-align:start;vertical-align:top;border-bottom:1px solid var(--reference-line);line-height:1.7}
+body:not(:has(.admin-route)) #main .investor-compare-scroll button {padding:8px 10px;min-height:44px;border-radius:12px;background:var(--reference-white);border:1px solid var(--reference-line);color:var(--reference-ink);font:inherit;cursor:pointer}
+body:not(:has(.admin-route)) #main .investor-compare-scroll button[aria-pressed="true"] {border-color:var(--conversion-gold);font-weight:700}
+body:not(:has(.admin-route)) .investor-footer-intro {max-width:1300px;margin:0 auto 32px;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:clamp(20px,3vw,36px);border:1px solid var(--reference-line);border-radius:var(--discovery-card-radius);background:radial-gradient(ellipse at 100% 100%,rgba(184,134,11,.07),transparent 64%),var(--reference-paper)}
+body:not(:has(.admin-route)) .investor-footer-intro h2 {font-size:clamp(20px,2.5vw,32px);line-height:1.5;margin:8px 0 0}
+body:not(:has(.admin-route)) .investor-footer-cta {display:inline-flex;align-items:center;justify-content:center;gap:12px;min-height:44px;padding:12px 18px;white-space:nowrap;background:var(--conversion-gold);color:var(--reference-heading);border-radius:var(--discovery-card-radius);font-weight:600;font-size:14px}
+body:not(:has(.admin-route)) .footer-top > div:not(:first-child) > a {font-size:13px;line-height:1.6;margin-block:8px;padding-block:5px;min-height:30px}
+body:not(:has(.admin-route)) .footer-top h2 {font-size:15px}
+body:not(:has(.admin-route)) .footer-top p {font-size:13px;line-height:1.8}
+@media(max-width:800px){
+ body:not(:has(.admin-route)) #main .service-editorial .detail-columns,
+ body:not(:has(.admin-route)) #main .service-next-step {grid-template-columns:1fr}
+ body:not(:has(.admin-route)) #main .investor-service-hero {grid-template-columns:1fr}
+ body:not(:has(.admin-route)) #main .investor-hero-symbol {display:none}
+ body:not(:has(.admin-route)) .investor-footer-intro {flex-direction:column;align-items:stretch}
+}
+@media(max-width:520px){
+ body:not(:has(.admin-route)) #main .investor-hero-actions>* {width:100%;justify-content:center}
+ body:not(:has(.admin-route)) #main .investor-hero-actions {gap:8px}
+}
+@media(prefers-reduced-motion:no-preference){
+ body:not(:has(.admin-route)) #main :is(.investor-secondary,.investor-compare-scroll button) {transition:border-color .18s ease,box-shadow .18s ease}
+ body:not(:has(.admin-route)) #main :is(.investor-secondary,.investor-compare-scroll button):hover {border-color:var(--conversion-gold)}
+}
