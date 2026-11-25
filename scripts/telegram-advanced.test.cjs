@@ -103,3 +103,24 @@ test('archive is retained as a manual exception and does not loop on identical c
  assert(c.text.includes('لم يجتز التحقق الآلي'));
  assert(c.inline_keyboard.flat().some(b=>b.callback_data==='approve:'+key));
 });
+
+
+test('review version covers routing, H1, structure and internal link targets',()=>{
+ const e=require('../src/lib/telegram-ops-advanced-evidence.cjs');
+ const item={id:'editorial-1',kind:'guide',lang:'en',target:'example',slug:'example',risk_level:'low',h1_suggestion:'Original heading',internal_links:[{node_id:'packages',anchor:'Packages'}],sections:[{h2:'Section',body:'Original copy'}]};
+ const fields=['Original title','Original copy','Packages'];
+ const key=i=>e.digest('editorial',e.editorialIdentityFields(i,fields));
+ for(const change of [{slug:'new-slug'},{h1_suggestion:'Changed heading'},{lang:'zh'},{risk_level:'high'},{internal_links:[{node_id:'investor-hub',anchor:'Packages'}]},{sections:[{h2:'Section',body:'Changed copy'}]},{related_service:'misa-license'}])assert.notEqual(key(item),key({...item,...change}));
+ assert.equal(key(item),key({...item,review_preflight:{status:'ready'},updatedAt:'new timestamp',status:'approved'}));
+});
+test('bounded evidence batch gives both queues capacity and fills spare slots',()=>{
+ const faq=Array.from({length:6},(_,i)=>({kind:'faq',item:{id:'f'+i}}));
+ const ed=Array.from({length:6},(_,i)=>({kind:'editorial',item:{id:'e'+i}}));
+ const {selectReviewBatch}=require('../src/lib/telegram-ops-advanced-evidence.cjs');
+ assert.deepEqual(selectReviewBatch([...faq,...ed]).map(x=>x.item.id),['f0','f1','e0','e1']);
+ assert.deepEqual(selectReviewBatch([...faq,ed[0]]).map(x=>x.item.id),['f0','f1','e0','f2']);
+ assert.equal(selectReviewBatch(ed).length,4);
+ assert.equal(selectReviewBatch([]).length,0);
+ const later={kind:'faq',item:{id:'late',review_preflight:{checked_at:'2026-11-25T00:00:00Z'}}};
+ assert(!selectReviewBatch([later,...faq,...ed]).includes(later));
+});
