@@ -1,7 +1,9 @@
 
 import type { HomeModel } from "@/lib/home/model";
+import NextStepCard from "@/components/layout/NextStepCard";
+import {whatsAppUrlForLanguage} from "@/lib/whatsapp-contacts";
 
-export default function JourneySection({t}: Pick<HomeModel, "t">) {
+export default function JourneySection({t,lang,content}: Pick<HomeModel, "t" | "lang" | "content">) {
   return (
     <>
       <section id="journey" className="journey-section">
@@ -22,7 +24,7 @@ export default function JourneySection({t}: Pick<HomeModel, "t">) {
               </div>
             ))}
           </div>
-          <p className="cost-note">{t.note}</p>
+          <NextStepCard lang={lang} label={t.contact} whatsappHref={whatsAppUrlForLanguage(content.contact,lang)} />
         </div>
       </section>
     </>

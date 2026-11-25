@@ -47,6 +47,15 @@ const viewports=[{width:320,height:640},{width:390,height:844},{width:768,height
         assert.equal(await page.locator('.cinematic-primary').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(184, 134, 11)',name+' gold CTA');
         assert.equal(await page.locator('.cinematic-primary').evaluate(e=>getComputedStyle(e).color),'rgb(17, 24, 39)');
         assert.notEqual(await page.locator('.cinematic-secondary').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(184, 134, 11)',name+' neutral secondary');
+        assert.equal(await page.locator('.investor-footer-intro').count(),1,name+' single next-step card');
+        const nextStep=page.locator('#journey .investor-footer-intro');
+        assert.equal(await nextStep.count(),1,name+' next-step card in journey');
+        assert.equal(await page.locator('.site-footer .investor-footer-intro').count(),0,name+' no duplicate footer card');
+        assert.equal(await page.locator('#journey .cost-note').count(),0,name+' replaces marked note');
+        assert.equal(await nextStep.locator('a').getAttribute('href'),consultation,name+' preserves localized consultation destination');
+        assert.equal(await nextStep.locator('a').getAttribute('target'),'_blank');
+        const nextStepGeometry=await nextStep.evaluate(el=>({afterStages:el.previousElementSibling?.classList.contains('journey-grid'),left:el.getBoundingClientRect().left,right:el.getBoundingClientRect().right,scroll:el.scrollWidth,width:el.clientWidth,buttonHeight:el.querySelector('a').getBoundingClientRect().height}));
+        assert(nextStepGeometry.afterStages&&nextStepGeometry.left>=-1&&nextStepGeometry.right<=viewport.width+1&&nextStepGeometry.scroll<=nextStepGeometry.width+1&&nextStepGeometry.buttonHeight>=44,name+' card location and responsive geometry');
         assert.equal(await page.locator('#contact').count(),1,name);
         assert.equal(await page.locator('#services').count(),1,name);
         const banner=page.locator('#formation-packages-banner');
