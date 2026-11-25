@@ -1,5 +1,5 @@
 /* Owner-approved shared discovery system. All mesh colors are transparent
-   mixtures of existing #B8860B, white, and charcoal. Public navigation only. */
+   mixtures of the existing metallic gold, white, and charcoal. Public navigation only. */
 body:not(:has(.admin-route)) #main .discovery-grid {
   gap:16px;
   border:0;
