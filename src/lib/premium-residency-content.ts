@@ -297,14 +297,14 @@ export const labels = {
     "zh": "沙特高级居留"
   },
   "lead": {
-    "ar": "قارن منتجات الإقامة المميزة السبعة وشروطها ومددها ورسومها، واختر المسار المناسب قبل التقديم إلى مركز الإقامة المميزة.",
-    "en": "Compare seven Premium Residency products, eligibility, duration and fees before applying to the Premium Residency Center.",
-    "zh": "比较七种高级居留产品的资格条件、期限及费用，选择适合您的申请路径。"
+    "ar": "اكتشف مسار الإقامة المميزة المناسب لأهدافك الاستثمارية والمهنية. قارن الأنواع السبعة وشروطها ورسومها، وتواصل معنا لمناقشة جاهزية طلبك.",
+    "en": "Explore seven Saudi Premium Residency routes, compare eligibility and fees, and discuss your application readiness with our advisory team.",
+    "zh": "比较七种沙特高级居留路径、申请条件及费用，并联系我们讨论适合您的路径及申请准备。"
   },
   "seoTitle": {
-    "ar": "الإقامة المميزة في السعودية | الأنواع والشروط والرسوم",
-    "en": "Saudi Premium Residency | Types, Requirements and Fees",
-    "zh": "沙特高级居留｜类型、条件与费用"
+    "ar": "الإقامة المميزة في السعودية | الشروط وخدمات التقديم",
+    "en": "Saudi Premium Residency | Eligibility & Application Support",
+    "zh": "沙特高级居留申请服务｜申请条件与咨询"
   },
   "products": {
     "ar": "أنواع الإقامة المميزة",
