@@ -1,0 +1,239 @@
+.authority-strip {
+  max-width: 1300px;
+  margin: 42px auto 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 25px 3%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  color: #748273;
+  font-size: 15px;
+}
+.authority-strip span:first-child {
+  font-size: 10px;
+  color: #9a9f93;
+}
+.section-wrap {
+  max-width: 1300px;
+  margin: auto;
+  padding: 100px 4%;
+}
+.section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 40px;
+  margin-bottom: 40px;
+}
+.section-heading h2,
+.sources-section h2 {
+  font-size: 34px;
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: -1px;
+  margin-bottom: 0;
+}
+.section-heading > p {
+  max-width: 340px;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 2;
+  margin: 0;
+}
+.service-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-top: 1px solid var(--line);
+  border-inline-start: 1px solid var(--line);
+}
+.service-card {
+  padding: 28px 30px;
+  border-bottom: 1px solid var(--line);
+  border-inline-end: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  transition: background 0.2s;
+}
+.service-card:hover {
+  background: #eef0e6;
+}
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #90a08d;
+  direction: ltr;
+}
+.card-arrow {
+  font-size: 22px;
+}
+.service-icon {
+  font-size: 34px;
+  font-weight: 400;
+  color: #96a98a;
+  margin: 20px 0;
+}
+.service-card h3 {
+  font-weight: 500;
+  font-size: 20px;
+  margin-bottom: 15px;
+}
+.service-card p {
+  color: #6e7a70;
+  font-size: 12px;
+  line-height: 2;
+  flex: 1;
+}
+.card-link {
+  margin-top: 20px;
+  font-size: 11px;
+  display: flex;
+  justify-content: space-between;
+}
+.journey-section {
+  background: #eef0e7;
+}
+.journey-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 45px;
+}
+.step-number {
+  font-size: 42px;
+  color: #a7b49a;
+  display: block;
+  border-top: 1px solid #cdd5c5;
+  padding-top: 24px;
+  margin-bottom: 28px;
+  font-weight: 300;
+}
+.journey-grid h3 {
+  font-size: 20px;
+  font-weight: 500;
+}
+.journey-grid p {
+  font-size: 13px;
+  color: #697666;
+  line-height: 1.9;
+  max-width: 280px;
+}
+.cost-note {
+  margin: 45px 0 0;
+  padding-top: 25px;
+  border-top: 1px solid #d1d7c9;
+  font-size: 12px;
+  line-height: 2;
+  color: #61715e;
+}
+.sources-section {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  gap: 100px;
+}
+.sources-section details {
+  border-bottom: 1px solid var(--line);
+  padding: 22px 0;
+  font-size: 13px;
+}
+.sources-section summary {
+  cursor: pointer;
+  font-weight: 600;
+  line-height: 1.9;
+}
+.sources-section details p {
+  margin: 18px 0 0;
+  line-height: 2;
+  color: var(--muted);
+}
+.source-panel {
+  padding: 32px;
+  background: #eeeee3;
+  border-radius: 5px;
+  align-self: start;
+}
+.source-mark {
+  font-size: 36px;
+  color: #96a98a;
+}
+.source-panel h3,
+.source-panel h2 {
+  font-size: 22px;
+  margin: 12px 0;
+}
+.source-panel p {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 2;
+}
+.source-panel > a:not(.action-primary) {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid #d9ddcf;
+  padding: 13px 0;
+  font-size: 12px;
+  direction: ltr;
+}
+.source-panel small {
+  display: block;
+  font-size: 9px;
+  color: #7d8974;
+  margin-top: 24px;
+}
+.source-panel .action-primary {
+  margin-top: 28px;
+  display: flex;
+}
+.editorial-note {
+  padding-top: 0;
+  padding-bottom: 45px;
+}
+.editorial-note h2 {
+  font-size: 14px;
+}
+.editorial-note p {
+  font-size: 13px;
+  line-height: 2;
+  color: var(--muted);
+  max-width: 750px;
+}
+.contact-band {
+  max-width: 1300px;
+  margin: 0 auto 70px;
+  background: #133e35;
+  color: #f2f2df;
+  padding: 55px 5%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 45px;
+  border-radius: 6px;
+}
+.contact-band h2 {
+  font-size: 34px;
+  font-weight: 400;
+  max-width: 580px;
+  line-height: 1.5;
+}
+.contact-band p:not(.eyebrow) {
+  font-size: 12px;
+  color: #afc5b0;
+  line-height: 1.9;
+}
+.contact-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 200px;
+}
+.contact-actions .action-primary {
+  background: #d5dfbd;
+  color: #193e33;
+}
+.contact-actions > a:last-child {
+  font-size: 11px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}

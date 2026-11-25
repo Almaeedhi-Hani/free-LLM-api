@@ -57,3 +57,9 @@ Return concise source-backed findings, provenance and checked_at, evidence IDs, 
 - Plans and source-based text remain in human review. Do not alter approved site design, prices, live H1s, robots, legal information or production code autonomously. Change requests affecting code need CI and human signoff.
 - Only generate crawlable internal links to already-live routes (or separately approved and published guides). Use topical parent/child relationships, not arbitrary reciprocal links.
 - Schema JSON-LD must match visible content; a recommended schema type isn't evidence of a rich result, ranking or AI recommendation. Do not create invented Organization credentials/ratings/FAQ markup.
+
+## Architecture and style ownership (owner-requested)
+- Follow docs/project-architecture.md. Keep Next.js route files as composition boundaries; place feature components under src/components/<feature>/ and server data/model logic under src/lib/<feature>/.
+- New component-specific styling belongs in its adjacent CSS Module; shared legacy CSS belongs in the relevant ordered src/styles/ file. Keep src/app/globals.css an import-only manifest. Do not mix unrelated feature styles, UI, data access, or orchestration in a single large file.
+- Do not invent a palette or change approved colors, typography, content, URLs, pricing, functionality, schemas or schedules during a structural refactor. Preserve current DOM/cascade and locale behavior; run relevant architecture, build, regression and actual browser tests before merge.
+- Move existing admin/backend domains incrementally behind stable contracts; do not rewrite authorization, data or automated workflows for cosmetic reasons.

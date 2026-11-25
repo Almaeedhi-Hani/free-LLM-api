@@ -1,0 +1,68 @@
+/* Stage 4: cohesive accessible visual tokens and responsive interaction. */
+:root{
+  --brand-deep:#123b35;
+  --brand-hover:#24584d;
+  --surface-warm:#f8f7f2;
+  --surface-soft:#eef1e9;
+  --accent-brass:#8b6c3b;
+  --focus-visible:#81521c;
+  --content-max:1300px;
+}
+.site-header,.site-footer,.service-editorial,.section-wrap{min-width:0}
+.hero-copy,.hero-art,.service-card,.detail-columns>section,.detail-columns>aside{min-width:0}
+.hero h1,.service-detail h1,.service-card h3,.service-next-step h2{overflow-wrap:break-word}
+.hero h1,.service-detail h1{letter-spacing:normal}
+:where(.site-header,.hero,.section-wrap,.service-detail,.site-footer) a:focus-visible,
+:where(.site-header,.hero,.section-wrap,.service-detail,.site-footer) button:focus-visible{
+  outline:3px solid var(--focus-visible);
+  outline-offset:4px;
+}
+.action-primary,.service-quick-nav a,.language-switch a,.card-link{
+  min-height:44px;
+}
+.action-primary{align-items:center;line-height:1.5}
+.language-switch a{display:inline-flex;align-items:center;justify-content:center;min-width:40px}
+.service-quick-nav a{display:inline-flex;align-items:center}
+.service-card:focus-within{background:var(--surface-soft);outline:2px solid var(--brand-deep);outline-offset:-2px}
+.service-card a:focus-visible{outline-offset:5px}
+.source-panel>a:not(.action-primary){overflow-wrap:anywhere;gap:16px;min-height:44px;align-items:center}
+.service-decision-checklist li p{color:var(--brand-deep)}
+.service-decision-disclaimer{color:#425c50}
+.service-context-band p{color:#263f35}
+.service-next-step .action-primary{justify-content:center}
+[dir="rtl"] .service-next-step,[dir="rtl"] .service-context-band{text-align:start}
+[dir="ltr"] .service-next-step,[dir="ltr"] .service-context-band{text-align:start}
+@media (max-width:1000px){
+  .header-inner{flex-wrap:wrap}
+  .desktop-nav{gap:clamp(10px,1.3vw,20px)}
+  .service-editorial .detail-columns{gap:clamp(24px,4vw,50px)}
+}
+@media (max-width:700px){
+  .hero h1{font-size:clamp(32px,9vw,44px);line-height:1.35}
+  .service-detail h1{font-size:clamp(30px,8vw,38px)}
+  .hero-actions{gap:14px}
+  .hero-actions .action-primary{width:100%;justify-content:center}
+  .hero-art{min-height:clamp(270px,75vw,380px)}
+  .service-grid{grid-template-columns:1fr}
+  .service-card{padding:26px 22px}
+  .service-card h3{font-size:20px}
+  .service-card p{font-size:13px}
+  .mobile-nav{gap:8px;flex-wrap:wrap}
+  .mobile-nav a{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:8px 10px}
+  .service-quick-nav{margin-top:26px}
+  .service-quick-nav a{font-size:13px}
+  .service-next-step .action-primary{width:100%}
+  .footer-top{grid-template-columns:1fr}
+  .footer-top>div:first-child{grid-column:auto}
+}
+@media (max-width:360px){
+  .wordmark{font-size:14px}
+  .header-inner{gap:8px}
+  .language-switch a{min-width:36px;padding:6px}
+  .service-context-band{padding:18px}
+}
+@media (prefers-contrast:more){
+  :root{--muted:#3c5348;--line:#879c8b}
+  .service-quick-nav a,.service-card{border-color:#829989}
+}
+

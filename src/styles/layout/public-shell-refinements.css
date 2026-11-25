@@ -1,0 +1,31 @@
+/* Compact public navigation and admin-only shell. */
+body:has(.admin-route) .site-header,
+body:has(.admin-route) .site-footer,
+body:has(.admin-route) .skip-link{display:none!important}
+body:has(.admin-route) #main{min-height:100vh}
+.site-header .header-inner{padding:10px clamp(16px,3vw,36px);gap:14px;min-height:58px}
+.site-header .wordmark{font-size:17px;line-height:1.25;gap:6px}
+.site-header .wordmark small{font-size:8px;letter-spacing:2px;margin-top:2px}
+.site-header .brand-symbol{display:none!important}
+.site-header .desktop-nav{gap:18px;font-size:12px}
+.site-header .language-switch{padding:2px;gap:2px}
+.site-header .language-switch a{padding:6px 8px;font-size:10px}
+@media(max-width:760px){
+.site-header .header-inner{min-height:56px;padding:8px 14px;gap:8px}
+.site-header .wordmark{font-size:15px;min-width:0}
+.site-header .wordmark small{font-size:7px;letter-spacing:1.5px}
+.site-header .language-switch a{padding:5px 7px;font-size:10px}
+.site-header .mobile-nav{padding:0 12px;min-height:35px;gap:4px;display:flex;justify-content:space-between;align-items:center}
+.site-header .mobile-nav a{font-size:10px;min-height:34px;padding:5px 7px}
+html{scroll-padding-top:96px}
+}
+@media(max-width:390px){
+.site-header .wordmark{font-size:13px}
+.site-header .language-switch a{padding:5px 5px;font-size:9px}
+.site-header .mobile-nav a{font-size:9px}
+}
+
+/* Price separation: text-only note within the restored original detail panel. */
+.license-price-note{font-size:12px;line-height:1.65;color:#586e62;margin:4px 0 12px}
+
+
