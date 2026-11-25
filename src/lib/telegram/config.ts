@@ -1,6 +1,6 @@
 export const coordinator=require('../telegram-ops-coordinator.cjs') as {report:(d:Record<string,unknown>)=>Promise<string>};
 export const coordinatorEnabled=()=>process.env.TELEGRAM_OPS_COORDINATOR_ENABLED==='true';
-export const core=require('../../../../lib/telegram-ops-core.cjs') as {
+export const core=require('../telegram-ops-core.cjs') as {
  config:(env:NodeJS.ProcessEnv)=>{token:string;secret:string;chat:string;owner:string}|null;
  authentic:(expected:string,supplied:string)=>boolean;
  command:(update:unknown,cfg:{chat:string;owner:string})=>string|null;
