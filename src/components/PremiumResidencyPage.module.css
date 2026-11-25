@@ -74,3 +74,14 @@
 .page .assessmentForm button,.page .assessmentResult a,.page .assessmentResult button,.secondary,.product .actions a,.hero .actions a {border-radius:var(--discovery-card-radius)}
 .page .assessmentResult {border-radius:var(--discovery-card-radius)}
 .references a {border-radius:14px}
+
+/* Product cards only: owner-approved spacing and charcoal consultation CTA. */
+.note + .products {margin-block-start:24px}
+.product .actions {margin-top:32px}
+.page :global(#products) .product .actions :global(a.action-primary:not(:disabled)),
+.page :global(#products) .product .actions :global(a.action-primary:not(:disabled):hover) {
+  background:var(--reference-ink);
+  color:var(--reference-white);
+  border-color:var(--conversion-gold-border);
+  box-shadow:inset 0 0 0 1px var(--conversion-gold-border);
+}
