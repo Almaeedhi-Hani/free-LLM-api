@@ -29,8 +29,8 @@ function authentic(expected,supplied){
 }
 function reviewCallback(update,cfg){
  const q=update?.callback_query;
- if(!Number.isSafeInteger(update?.update_id)||!q||q.from?.is_bot!==false||String(q.from?.id)!==cfg.owner||q.message?.chat?.type!=='private'||String(q.message.chat.id)!==cfg.chat||typeof q.id!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(q.id)||typeof q.data!=='string'||!/^review:[a-f0-9]{24}$/.test(q.data))return null;
- return {id:q.id,update:{update_id:update.update_id,message:{chat:q.message.chat,from:q.from,text:'/review '+q.data.slice(7)}}};
+ if(!Number.isSafeInteger(update?.update_id)||!q||q.from?.is_bot!==false||String(q.from?.id)!==cfg.owner||q.message?.chat?.type!=='private'||String(q.message.chat.id)!==cfg.chat||typeof q.id!=='string'||!/^[A-Za-z0-9_-]{1,128}$/.test(q.id)||typeof q.data!=='string'||!(/^(?:review|approve|reject):[a-f0-9]{24}$/.test(q.data)||/^confirm:[a-f0-9]{16}$/.test(q.data)||q.data==='reviewlist'))return null;
+ return {id:q.id,update:{update_id:update.update_id,message:{chat:q.message.chat,from:q.from,text:'/'+q.data.replace(':',' ')}}};
 }
 function command(update,cfg){
  const m=update?.message;

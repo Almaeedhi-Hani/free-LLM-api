@@ -48,13 +48,17 @@ test('advanced greeting is accurate; compact health retains publication and AI e
  assert(!status.includes('Market Radar:'));assert(!status.includes('Watchdog: غير متحقق'));
 });
 
-test('review callback is owner-only, read-only and exact-key bound',()=>{
+test('review callback is owner-only, exact-key bound and requires explicit decision intent',()=>{
  const {reviewCallback}=require('../src/lib/telegram-ops-core.cjs');
  const q={id:'123456',from:update.message.from,message:{chat:update.message.chat},data:'review:'+'a'.repeat(24)};
  const valid=reviewCallback({update_id:2,callback_query:q},cfg);
  assert.equal(valid.update.message.text,'/review '+'a'.repeat(24));
+ for(const [data,expected] of [['approve:'+'a'.repeat(24),'/approve '+'a'.repeat(24)],['reject:'+'a'.repeat(24),'/reject '+'a'.repeat(24)],['confirm:1234567890abcdef','/confirm 1234567890abcdef'],['reviewlist','/reviewlist']]){
+  assert.equal(reviewCallback({update_id:2,callback_query:{...q,data}},cfg).update.message.text,expected);
+  assert.equal(reviewCallback({update_id:2,callback_query:{...q,data,from:{id:9,is_bot:false}}},cfg),null);
+ }
  assert.equal(command(valid.update,cfg),'unknown');
- for(const patch of [{from:{id:9,is_bot:false}},{message:{chat:{id:1234567,type:'group'}}},{data:'approve:'+'a'.repeat(24)},{data:'confirm:1234567890abcdef'},{data:'review:bad'}])assert.equal(reviewCallback({update_id:2,callback_query:{...q,...patch}},cfg),null);
+ for(const patch of [{from:{id:9,is_bot:false}},{message:{chat:{id:1234567,type:'group'}}},{data:'approve:all'},{data:'confirm:bad'},{data:'review:bad'}])assert.equal(reviewCallback({update_id:2,callback_query:{...q,...patch}},cfg),null);
 });
 
 test('review subscription repair is bounded, verified, preserves pending messages and refuses conflicts',async()=>{
