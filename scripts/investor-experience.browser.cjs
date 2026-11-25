@@ -34,6 +34,21 @@ const langs=[{id:'ar',locale:'ar-SA',reject:'رفض الاختيارية',accept
     const dims=await page.evaluate(()=>({viewport:innerWidth,scroll:document.documentElement.scrollWidth,nav:performance.getEntriesByType('navigation').map(n=>({ttfb:n.responseStart-n.requestStart,domContentLoaded:n.domContentLoadedEventEnd,transferSize:n.transferSize}))[0]}));
     assert(dims.scroll<=width+1,route+' horizontal overflow '+JSON.stringify(dims));
     assert.equal(await page.locator('.site-footer .investor-footer-intro').count(),1,route+' existing service footer card preserved');
+    if(slug==='premium-residency'){
+     const products=page.locator('#products [data-residency-product]');
+     assert.equal(await products.count(),7,route+' all seven residency cards');
+     const firstGap=await products.first().evaluate(card=>card.getBoundingClientRect().top-card.parentElement.previousElementSibling.getBoundingClientRect().bottom);
+     assert(firstGap>=24,route+' fee note to cards spacing '+firstGap);
+     for(const product of await products.all()){
+      const button=product.locator('a.action-primary');assert.equal(await button.count(),1);
+      const style=await button.evaluate(a=>{const s=getComputedStyle(a),box=a.parentElement,prev=box.previousElementSibling;return {bg:s.backgroundColor,color:s.color,shadow:s.boxShadow,radius:s.borderTopLeftRadius,approved:s.getPropertyValue('--discovery-card-radius').trim(),gap:box.getBoundingClientRect().top-prev.getBoundingClientRect().bottom,href:a.getAttribute('href')}});
+      assert.equal(style.bg,'rgb(32, 42, 54)',route+' charcoal CTA');
+      assert.equal(style.color,'rgb(255, 255, 255)',route+' white CTA label');
+      assert(style.shadow.includes('rgb(184, 134, 11)')&&style.shadow.includes('inset'),route+' gold inset outline');
+      assert.equal(style.radius,style.approved,route+' unchanged approved radius');
+      assert(style.gap>=24&&style.href,route+' description spacing and existing contact');
+     }
+    }
     if(slug!=='premium-residency'){
      assert(await page.locator('.investor-preparation-list .detail-step').count(),route+' preparation');
      const link=page.locator('.investor-next-actions .discovery-compact');
