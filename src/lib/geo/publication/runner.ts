@@ -8,6 +8,7 @@ import {getGeoFeedbackIndex,excludesEditorial,excludesFaq} from '../../geo-agent
 import {appendPublicationAudit,UNATTRIBUTED_PUBLICATION_ORIGIN} from '../../geo-publication-audit';
 import type {PublicationOrigin,AuditPhase} from '../../geo-publication-audit';
 import {getAutoPublicationStatus,restCall} from './policy-store';
+import {assessEditorialCandidate,assessFaqCandidate} from './preflight';
 import {optionalResearchCitations} from './citations';
 import type {AutoPublishReport} from './types';
 
@@ -17,7 +18,7 @@ export async function runGuardedAutoPublishing(dryRun=false,origin:PublicationOr
  const report:AutoPublishReport={status:'disabled',examined:0,published:0,skipped:0,events:[],message:''};
  const state=await getAutoPublicationStatus();
  if(!state.available)return {...report,status:'storage_unavailable',message:'Publication migration or storage unavailable'};
- if(!state.enabled)return {...report,status:'disabled',message:'Automatic publication is not enabled'};
+ if(!state.enabled&&!dryRun)return {...report,status:'disabled',message:'Automatic publication is not enabled'};
  let content;
  try{content=await getContent()}catch{
   return {...report,status:'storage_unavailable',message:'Cannot load saved content'};
@@ -35,16 +36,26 @@ export async function runGuardedAutoPublishing(dryRun=false,origin:PublicationOr
  report.examined=editorial.length+faqDrafts.length;
  const publishable=editorial.filter(e=>publishableKinds.has(e.kind));
  if(dryRun){
-  const pending=publishable.filter(e=>e.risk_level!=='low'&&!state.allow_high_risk);
-  const unfinishedItems=publishable.filter(unfinished);
+  // Read-only even while the emergency pause is active. Limit live source
+  // probes to one candidate per request; report the remainder as unchecked.
+  const reasons:Record<string,number>={};
+  const checks:Record<string,number>={};
+  let probed=false;
+  for(const item of publishable){
+   let result=await assessEditorialCandidate(item,competitorDomains,false);
+   if(!probed&&result.reason==='source_check_required'){
+    probed=true;result=await assessEditorialCandidate(item,competitorDomains,true);
+   }
+   reasons[result.reason]=(reasons[result.reason]||0)+1;
+   checks[result.sourceCheck]=(checks[result.sourceCheck]||0)+1;
+  }
+  for(const draft of faqDrafts){const reason=assessFaqCandidate(draft);reasons[reason]=(reasons[reason]||0)+1}
   return {...report,status:'dry_run',message:JSON.stringify({
    pending_editorial:editorial.length,pending_faq:faqDrafts.length,
-   visitor_page_candidates:publishable.length,
-   source_requirement:'optional',high_risk_permission:state.allow_high_risk,
-   needs_finished_copy:unfinishedItems.length,
-   sensitive_permission_not_enabled:pending.length,
-   technical_tasks:editorial.length-publishable.length,
-   dry_run_only:true
+   visitor_page_candidates:publishable.length,technical_tasks:editorial.length-publishable.length,
+   source_requirement:'automated_verification_required',publication_enabled:state.enabled,
+   high_risk_permission:state.allow_high_risk,blocked_by_reason:reasons,source_checks:checks,
+   eligible_to_publish:0,dry_run_only:true
   })};
  }
  // One append-only audit trail for both schedulers. RPCs fail closed if
@@ -70,6 +81,11 @@ export async function runGuardedAutoPublishing(dryRun=false,origin:PublicationOr
   }
   if(!path||unfinished(candidate)){
    if(!(await recordSkip('editorial',candidate.id,'requires_finished_visitor_copy')))return storageAuditFailure();
+   continue;
+  }
+  const verification=await assessEditorialCandidate(candidate,competitorDomains,false);
+  if(verification.reason){
+   if(!(await recordSkip('editorial',candidate.id,verification.reason)))return storageAuditFailure();
    continue;
   }
   const cited=competitorDomains===null?[]:optionalResearchCitations(candidate,competitorDomains);
@@ -129,6 +145,8 @@ export async function runGuardedAutoPublishing(dryRun=false,origin:PublicationOr
    if(!(await recordSkip('faq',String(draft.q||'unknown'),'invalid_faq_structure')))return storageAuditFailure();
    continue;
   }
+  const faqBlock=assessFaqCandidate(draft);
+  if(faqBlock){if(!(await recordSkip('faq',draft.q,faqBlock)))return storageAuditFailure();continue;}
   let startedAuditId:string;
   try{startedAuditId=await audit('faq',draft.q,'rpc_started')}
   catch{return storageAuditFailure()}

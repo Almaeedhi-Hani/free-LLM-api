@@ -61,6 +61,23 @@ function eligibleEditorial(item){
  if(!safeText(item.title,EDITORIAL_TEXT_MINIMA.title[item.lang],170)||
     !safeText(item.summary,EDITORIAL_TEXT_MINIMA.summary,360)||
     !safeText(item.body,EDITORIAL_TEXT_MINIMA.body[item.lang],10000))return 'insufficient_text';
+ if(!['technical_seo','internal_link'].includes(item.kind)){
+  const sections=Array.isArray(item.sections)?item.sections:[];
+  const parts=[item.title,item.summary,item.body,...sections.flatMap(s=>s&&typeof s==='object'?[s.h2,s.body,...(Array.isArray(s.subsections)?s.subsections:[]).flatMap(h=>h&&typeof h==='object'?[h.h3,h.body]:[])]:[]),...(Array.isArray(item.internal_links)?item.internal_links:[]).map(l=>l?.anchor)];
+  const patterns=[
+  /خطة المحتوى|ملاحظات تحريرية|ملاحظات داخلية|تعليمات الكتابة|اقتراح العنوان|الكلمة المفتاحية الرئيسية|مقترح تحريري|مراجعة تحريرية قبل النشر|خاضع[ة]? للمراجعة التحريرية|قبل النشر|العنوان الحالي|ترتيبها البصري|دون تغيير العرض الحالي|يقترح هذا القسم|يمكن تنظيم المعلومات على الصفحة|ويفضل عرض هذه العناصر|ويُفضل عرض هذه العناصر|سياسة داخلية|تعليمات الوكيل|المسارات المنشورة فعليًا/u,
+  /内部备注|写作指令|编辑计划|编辑提案|内容提案|发布前.{0,12}(?:审核|审查)|保留.{0,12}(?:标题|布局|设计)|不改变.{0,12}(?:页面|布局|套餐)|首页决策支持模块|服务页强化|内部指令|主关键词|建议.{0,10}(?:页面|模块).{0,10}(?:展示|添加)/u,
+  /\b(?:editorial proposal|content proposal|editorial review before publication|retain the current (?:title|layout|design)|without changing the (?:current |existing )?(?:layout|design|page title)|decision-support (?:block|section) for the (?:live |homepage)|fee-and-scope explanation section for the live|internal instructions)\b/i,
+  /\b(?:the|this) (?:home\s?page|service page|page|guide|article|section|package (?:page|content)|insights hub) should \b/i,
+  /\bpackage (?:content|page) should\b/i,
+  /\b(?:this is (?:a )?(?:content|navigation) proposal|the primary keyword (?:comes|is inferred)|this is (?:a )?technical SEO task)\b/i,
+  /\b(?:this|the) (?:service )?page should (?:explain|describe|include|cover|list|discuss)\b/i,
+  /\b(?:this|the) (?:section|article|guide) should (?:explain|describe|include|cover|list|discuss)\b/i,
+  /(?:^|[.!?]\s+)(?:describe|explain|list|include|add|write|mention|outline|provide a (?:general |brief )?(?:checklist|overview))\s+(?:the|a|an|how|what|tasks|steps|information|proposed|current|practical)\b/i,
+  /\b(?:the H1 suggestion is for review|primary keyword is taken from the site tree|demand is unverified)\b/i
+  ];
+  if(parts.some(p=>typeof p==='string'&&patterns.some(rx=>rx.test(p))))return 'requires_finished_visitor_copy';
+ }
  return null;
 }
 // Canonicalize only an explicitly supplied, unambiguous guide route. The

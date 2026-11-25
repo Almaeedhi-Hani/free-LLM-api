@@ -108,3 +108,20 @@ const worker=fs.readFileSync('scripts/opencode-geo-analysis.js','utf8');
 assert(worker.includes('stageEditorialActions'),'GEO produces editorial proposals beyond FAQ');
 assert(worker.includes("persisted_editorial_actions"),'persisted counters measured, not inferred');
 console.log('PASS diverse editorial review types, placement, locale, source review and publication gating');
+
+// Recent real multilingual failure shapes: every visible surface is checked.
+for(const marker of ['مقترح تحريري','ملاحظات داخلية','编辑提案','内部备注','editorial proposal','retain the current layout']){
+ for(const field of ['title','summary','body'])assert(editorialPublicationIssues({kind:'guide',body:'Useful investor text.',[field]:marker}).length,field+' '+marker);
+ assert(editorialPublicationIssues({kind:'guide',body:'Useful investor text.',sections:[{h2:marker,body:'Useful copy.'}]}).length);
+ assert(editorialPublicationIssues({kind:'guide',body:'Useful investor text.',sections:[{h2:'Overview',body:'Useful copy.',subsections:[{h3:marker,body:'Useful copy.'}]}]}).length);
+ assert(editorialPublicationIssues({kind:'guide',body:'Useful investor text.',internal_links:[{node_id:'packages',anchor:marker}]}).length);
+}
+
+const {exactClaimCoverage,normalizeClaimEvidence}=require('../.editorial-test-build/lib/geo-claim-evidence.js');
+const exact='A fictional regression sentence with sufficient text to exercise the coverage gate.';
+const citation={claim:exact,quote:exact,url:'https://misa.gov.sa/en/'};
+assert.equal(exactClaimCoverage([exact],[citation]).complete,true);
+assert.equal(exactClaimCoverage([exact,'A second unsupported sentence.'],[citation]).complete,false);
+assert.equal(exactClaimCoverage([exact],[{...citation,quote:'An unrelated statement with an official URL does not prove the claim.'}]).matched,0);
+assert.throws(()=>normalizeClaimEvidence([citation],exact,[]),/mapping/);
+assert.deepEqual(normalizeClaimEvidence([citation],exact,[{kind:'official_candidate',url:citation.url}]),[citation]);

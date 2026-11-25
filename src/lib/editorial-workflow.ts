@@ -1,3 +1,4 @@
+import {normalizeClaimEvidence} from './geo-claim-evidence';
 import {topicNodeById,siteTopicPath} from './content-tree';
 /** Reviewed or transparently labeled automatic publication surfaces. */
 import { type EditorialItem, type EditorialKind, type EditorialLocale, type EditorialStatus } from './editorial-types';
@@ -32,9 +33,12 @@ export function approvedEditorial(items:readonly EditorialItem[]|undefined,lang:
 }
 /** Publication gate: reject planning instructions accidentally saved as visitor-facing copy.
  * Run only on new approvals; pending legacy proposals remain editable and preserved. */
-export function editorialPublicationIssues(item:Pick<EditorialItem,'body'|'sections'|'kind'>):string[]{
- const parts=[item.body,...(item.sections||[]).flatMap(s=>[s.body,...(s.subsections||[]).map(h=>h.body)])];
+export function editorialPublicationIssues(item:Pick<EditorialItem,'body'|'sections'|'kind'>&Partial<Pick<EditorialItem,'title'|'summary'|'internal_links'>>):string[]{
+ const parts=[item.title||'',item.summary||'',item.body,...(item.sections||[]).flatMap(s=>[s.h2,s.body,...(s.subsections||[]).flatMap(h=>[h.h3,h.body])]),...(item.internal_links||[]).map(l=>l.anchor)];
  const patterns=[
+  /خطة المحتوى|ملاحظات تحريرية|ملاحظات داخلية|تعليمات الكتابة|اقتراح العنوان|الكلمة المفتاحية الرئيسية|مقترح تحريري|مراجعة تحريرية قبل النشر|خاضع[ة]? للمراجعة التحريرية|قبل النشر|العنوان الحالي|ترتيبها البصري|دون تغيير العرض الحالي|يقترح هذا القسم|يمكن تنظيم المعلومات على الصفحة|ويفضل عرض هذه العناصر|ويُفضل عرض هذه العناصر|سياسة داخلية|تعليمات الوكيل|المسارات المنشورة فعليًا/,
+  /内部备注|写作指令|编辑计划|编辑提案|内容提案|发布前.{0,12}(?:审核|审查)|保留.{0,12}(?:标题|布局|设计)|不改变.{0,12}(?:页面|布局|套餐)|首页决策支持模块|服务页强化|内部指令|主关键词|建议.{0,10}(?:页面|模块).{0,10}(?:展示|添加)/,
+  /\b(?:editorial proposal|content proposal|editorial review before publication|retain the current (?:title|layout|design)|without changing the (?:current |existing )?(?:layout|design|page title)|decision-support (?:block|section) for the (?:live |homepage)|fee-and-scope explanation section for the live|internal instructions)\b/i,
   /\b(?:the|this) (?:home\s?page|service page|page|guide|article|section|package (?:page|content)|insights hub) should \b/i,
   /\bpackage (?:content|page) should\b/i,
   /\b(?:this is (?:a )?(?:content|navigation) proposal|the primary keyword (?:comes|is inferred)|this is (?:a )?technical SEO task)\b/i,
@@ -78,6 +82,7 @@ export function validateEditorialItem(item:unknown):EditorialItem {
  if(e.sections&&(!Array.isArray(e.sections)||e.sections.length>6||!e.sections.every(s=>safeText(s.h2,editorialMin(e.lang,6,4),170)&&safeText(s.body,editorialMin(e.lang,70,20),5000)&&(!s.subsections||(Array.isArray(s.subsections)&&s.subsections.length<=5&&s.subsections.every(h=>safeText(h.h3,editorialMin(e.lang,6,4),170)&&safeText(h.body,editorialMin(e.lang,60,20),4000)))))))throw Error('Invalid H2/H3 section structure');
  if(e.internal_links&&(!Array.isArray(e.internal_links)||e.internal_links.length>6||!e.internal_links.every(x=>safeText(x.node_id,2,90)&&safeText(x.anchor,editorialMin(e.lang,5,3),120)&&Boolean(siteTopicPath(x.node_id)))))throw Error('Internal links must point to existing live tree pages');
  if(e.schema_suggestions&&(!Array.isArray(e.schema_suggestions)||e.schema_suggestions.length>5||!e.schema_suggestions.every(s=>['Article','BreadcrumbList','Service','WebPage','FAQPage','CollectionPage'].includes(s))))throw Error('Invalid Schema suggestion');
+ if(e.claim_evidence!==undefined)e.claim_evidence=normalizeClaimEvidence(e.claim_evidence,[e.title,e.summary,e.body,...(e.sections||[]).flatMap(s=>[s.h2,s.body,...(s.subsections||[]).flatMap(h=>[h.h3,h.body])]),...(e.internal_links||[]).map(l=>l.anchor)].join(' '),e.evidence_refs);
  if(!Number.isFinite(Date.parse(e.createdAt)))throw Error('Invalid editorial creation date');
  if(e.status==='approved'){
    if(!e.reviewedAt||!Number.isFinite(Date.parse(e.reviewedAt)))throw Error('Editorial approval must have reviewedAt');

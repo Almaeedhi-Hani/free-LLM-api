@@ -68,7 +68,18 @@ export async function verifyHighRiskOfficialClaims(item:EditorialItem,request:ty
     const size=Number(res.headers?.get('content-length')||0);
     if(!res.ok||!/^text\/html(?:;|$)/i.test(mime)||
        (Number.isFinite(size)&&size>600000))return null;
-    const html=await res.text();
+    // Bound the streamed response before decoding (the Content-Length header
+    // is optional and cannot be trusted). The text fallback exists only for
+    // isolated unit-test Response doubles with no body stream.
+    let html:string;
+    if(res.body){
+     const reader=res.body.getReader(),decoder=new TextDecoder();
+     let bytes=0;html='';
+     try{while(true){const {done,value}=await reader.read();if(done)break;
+      bytes+=value.byteLength;if(bytes>600000){await reader.cancel();return null}
+      html+=decoder.decode(value,{stream:true});
+     }html+=decoder.decode()}finally{reader.releaseLock()}
+    }else html=await res.text();
     if(html.length>600000)return null;
     pages.set(u.href,readableHtml(html));
    }catch{return null}

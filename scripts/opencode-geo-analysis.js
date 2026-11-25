@@ -357,6 +357,14 @@ async function stageEvidence() {
   logStage('EVIDENCE','Unreviewed Google Suggest noise excluded from model: '+
     JSON.stringify({total:quality.excluded,by_language:quality.by_language}));
 
+  // Fetch bounded excerpts directly from the approved official site tree;
+  // never spend extra model quota, and never treat reachability as verification.
+  if(typeof process!=='undefined'&&process.env?.GEO_OFFICIAL_EVIDENCE==='true'){
+    const official=await require('./geo-official-evidence.cjs').collectOfficialEvidence();
+    evidenceItems=[...official.items,...evidenceItems];
+    logStage('EVIDENCE','Official source excerpts observed: '+official.items.length+'/'+official.attempted);
+  }
+
   // Refresh the append-only admin memory before invoking the model. Using only
   // server-side ingestion guards would still let a rejected result contaminate
   // the model's in-memory reasoning input during this very same run.
@@ -387,6 +395,7 @@ async function stageEvidence() {
     language: e.language || 'ar',
     url: e.url || null,
     observed_at: e.collected_at || e.observed_at || null,
+    ...(e.type==='official_candidate'&&e.source==='official_live_html'&&typeof e.snippet==='string'?{snippet:e.snippet}:{}),
   }));
   logStage('EVIDENCE', `Built bundle: ${evidenceItems.length} items`);
   const {chooseResearchEvidence}=require('./geo-opencode-planner.cjs');
@@ -665,6 +674,8 @@ async function stageDrafts() {
    return {id,label:String(e.name||id).slice(0,240),source:String(e.source||'unknown').slice(0,100),kind:String(e.type||'unknown').slice(0,100),...(url?{url}:{}),...(e.observed_at?{observed_at:e.observed_at}:{})};
   }).filter(Boolean);
   d.evidence_ids=d.evidence_refs.map(e=>e.id);
+  if(Array.isArray(d.claim_evidence))d.claim_evidence=require('./geo-official-evidence.cjs').bindClaimEvidence(d.claim_evidence,d.a,d.evidence_ids,byId);
+  else delete d.claim_evidence;
  }
  const saved=await saveGEOStage('drafts',items);
  const status=rejected>repaired?'partial':saved.status;
@@ -715,7 +726,7 @@ async function stageEditorialActions() {
   const schemas=supportedSchemaSuggestions(item.schema_suggestions);
   if(Array.isArray(item.schema_suggestions) && schemas.length!==item.schema_suggestions.length)
     console.warn('[EDITORIAL] Removed unsupported or duplicate schema suggestion for '+item.lang+'/'+item.kind+' (pending human review)');
-  return {id,kind:item.kind,lang:item.lang,target:item.target,slug:item.slug,related_service:item.related_service,topic_node_id:item.topic_node_id,primary_keyword:item.primary_keyword,secondary_keywords:item.secondary_keywords,h1_suggestion:item.h1_suggestion,sections:item.sections,internal_links:item.internal_links,schema_suggestions:schemas,title:item.title,summary:item.summary,body:item.body,risk_level:item.risk_level==='low'||item.risk_level==='medium'?'high':item.risk_level,status:'pending',createdAt:new Date().toISOString(),evidence_ids:ids,evidence_refs:refs};
+  return {id,kind:item.kind,lang:item.lang,target:item.target,slug:item.slug,related_service:item.related_service,topic_node_id:item.topic_node_id,primary_keyword:item.primary_keyword,secondary_keywords:item.secondary_keywords,h1_suggestion:item.h1_suggestion,sections:item.sections,internal_links:item.internal_links,schema_suggestions:schemas,title:item.title,summary:item.summary,body:item.body,risk_level:item.risk_level==='low'||item.risk_level==='medium'?'high':item.risk_level,status:'pending',createdAt:new Date().toISOString(),evidence_ids:ids,evidence_refs:refs,...(Array.isArray(item.claim_evidence)?{claim_evidence:require('./geo-official-evidence.cjs').bindClaimEvidence(item.claim_evidence,require('./geo-official-evidence.cjs').editorialCopy(item),ids,byId)}:{})};
  });
  const saved=await saveGEOStage('editorial_actions',proposed);
  const status=unresolved?'partial':saved.status;

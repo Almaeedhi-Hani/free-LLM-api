@@ -53,6 +53,7 @@ jobs:
           PARALLEL_API_KEY: ${{ secrets.PARALLEL_API_KEY }}
           FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
           GEO_LLM_MODE: direct
+          GEO_OFFICIAL_EVIDENCE: 'true'
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}

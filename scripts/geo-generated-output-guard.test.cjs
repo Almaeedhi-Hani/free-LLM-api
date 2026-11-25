@@ -101,3 +101,9 @@ for(const lang of ['ar','en','zh']){
  assert.equal(screenEditorial([{...input,target:'/'+wrong+'/insights/investor-guide'}],lang).accepted.length,0);
  assert.equal(screenEditorial([{...input,target:prefix+'other-guide/'}],lang).accepted.length,0);
 }
+
+for(const marker of ['مقترح تحريري','编辑提案','editorial proposal']){
+ const candidate={...guide,title:'A guide for foreign investor setup',summary:'A practical overview of the current investor service options.',body:'Original visitor text. '.repeat(10)};
+ for(const field of ['title','summary','body'])assert.equal(screenEditorial([{...candidate,[field]:marker+' '+candidate[field]}]).rejected[0].reason,'requires_finished_visitor_copy');
+ assert.equal(screenEditorial([{...candidate,sections:[{h2:marker,body:candidate.body}]}]).rejected[0].reason,'requires_finished_visitor_copy');
+}
