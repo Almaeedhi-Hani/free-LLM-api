@@ -47,8 +47,11 @@ assert(css.includes('.mobile-floating-nav-shell{display:none}'),
   "Desktop hides mobile-only header");
 assert(css.includes('.site-header .header-inner,.site-header .mobile-nav{display:none!important}'),
   "Legacy crowded mobile header is replaced, not duplicated");
-assert(css.includes('.mobile-floating-nav-bar')&&css.includes('border-radius:999px'),
-  "Warm floating pill presentation present");
+const corners=fs.readFileSync("src/styles/components/public-corner-radius.css","utf8");
+assert(css.includes(corners)&&css.includes("--discovery-card-radius:20px;"),"approved shared radius imported");
+assert(corners.includes(".mobile-floating-nav-bar")&&corners.includes(".mobile-floating-menu-cta"),"shared radius on mobile header and actions");
+const cornerDeclarations=[...corners.replace(/\/\*[\s\S]*?\*\//g,"").matchAll(/\{([^{}]*)\}/g)].map(m=>m[1].trim());
+assert.deepEqual(cornerDeclarations,["border-radius:var(--discovery-card-radius);","border-radius:var(--discovery-card-radius);"],"radius-only contract, no size or style changes");
 assert(css.includes('.mobile-floating-menu-link.is-active')&&css.includes('background:#202a36')&&css.includes('background:#d1d5db'),
   "Active page uses charcoal, white text and a restrained gold underline");
 assert(css.includes('width:min(200px,calc(100vw - 48px))') &&

@@ -65,6 +65,33 @@ const viewports=[{width:320,height:640},{width:390,height:844},{width:768,height
         assert(bounds.left>=-1&&bounds.right<=viewport.width+1&&bounds.scroll<=bounds.width+1,name+' banner overflow');
         assert(bounds.cards.every(c=>c.scroll<=c.width+1),name+' card text overflow');
         assert(bounds.mesh.includes('radial-gradient'),name+' mesh background');
+        // Compare the same rendered DOM with and without the radius-only rules.
+        // Removing only these declarations recreates the previous geometry without
+        // changing CSS for cards, colors, layouts, fonts or any interaction.
+        const verifyCornerRadius=async()=>{
+          const result=await page.evaluate(()=>{
+            const selectors='.site-header,.site-header .mobile-floating-nav-bar,.site-header .mobile-floating-menu,.site-header .mobile-floating-menu-link,.site-header .mobile-floating-menu-cta,.site-header .mobile-floating-menu-toggle,.site-header .language-switch,.site-header .language-switch a,.site-header .mobile-floating-header-languages,.site-header .mobile-floating-header-languages a,.site-header .desktop-nav a,.site-header .mobile-nav a,#main .cinematic-primary,#main .cinematic-secondary,#main .action-primary,#main .action-secondary,#main .btn-primary,#main .btn-secondary,#main .btn-gold,#main [data-formation-packages-cta],.conversion-chat-toggle';
+            const nodes=[...document.querySelectorAll(selectors)].filter(e=>e.getClientRects().length&&getComputedStyle(e).visibility!=='hidden');
+            const snapshot=()=>nodes.map(e=>{
+              const r=e.getBoundingClientRect(),s=getComputedStyle(e);
+              return {width:r.width,height:r.height,left:r.left,top:r.top,padding:s.padding,margin:s.margin,borderWidth:s.borderWidth,background:s.background,color:s.color,font:s.font,display:s.display,position:s.position,gap:s.gap};
+            });
+            const corners=nodes.map(e=>({selector:e.className,radii:['borderTopLeftRadius','borderTopRightRadius','borderBottomLeftRadius','borderBottomRightRadius'].map(p=>getComputedStyle(e)[p])}));
+            const before=snapshot(),rules=[];
+            const scan=list=>{for(const rule of list){if(rule.selectorText&&rule.style&&rule.style.getPropertyValue('border-radius').trim()==='var(--discovery-card-radius)'&&(/\.site-header|\.cinematic-hero/.test(rule.selectorText))){rules.push([rule.style,rule.style.getPropertyValue('border-radius'),rule.style.getPropertyPriority('border-radius')]);}else if(rule.cssRules)scan(rule.cssRules);}};
+            for(const sheet of document.styleSheets){try{scan(sheet.cssRules);}catch{}}
+            let baseline;
+            try{for(const [style] of rules)style.removeProperty('border-radius');baseline=snapshot();}
+            finally{for(const [style,value,priority] of rules)style.setProperty('border-radius',value,priority);}
+            return {before,baseline,corners,ruleCount:rules.length,arrowRadius:getComputedStyle(document.querySelector('#services .discovery-arrow')).borderTopLeftRadius};
+          });
+          assert(result.ruleCount>=2,name+' radius override rules found');
+          assert(result.corners.length>=6,name+' visible header and homepage controls');
+          for(const corner of result.corners)assert(corner.radii.every(v=>v==='20px'),name+' corner radius '+corner.selector+' '+corner.radii);
+          assert.deepEqual(result.before,result.baseline,name+' no geometry, padding, colors or font changes');
+          assert.equal(result.arrowRadius,'50%',name+' preserve round discovery arrow');
+        };
+        await verifyCornerRadius();
         const geometry=await page.evaluate(()=>{
           const hero=document.querySelector('.cinematic-hero');
           const title=hero.querySelector('h1');
@@ -105,6 +132,7 @@ const viewports=[{width:320,height:640},{width:390,height:844},{width:768,height
           await toggle.click();
           assert.equal(await toggle.getAttribute('aria-expanded'),'true',name);
           assert(await page.locator('.mobile-floating-menu').isVisible(),name);
+          await verifyCornerRadius();
           const menuActive=page.locator('.mobile-floating-menu-link.is-active');
           const menuColors=await menuActive.evaluate(e=>({bg:getComputedStyle(e).backgroundColor,text:getComputedStyle(e).color,line:getComputedStyle(e,'::after').backgroundColor}));
           assert.deepEqual(menuColors,{bg:'rgb(32, 42, 54)',text:'rgb(255, 255, 255)',line:'rgb(184, 134, 11)'},name+' dark selected menu with gold underline');

@@ -1,5 +1,6 @@
 /* Owner-approved shared discovery system. All mesh colors are transparent
    mixtures of the existing metallic gold, white, and charcoal. Public navigation only. */
+body:not(:has(.admin-route)) {--discovery-card-radius:20px;}
 body:not(:has(.admin-route)) #main .discovery-grid {
   gap:16px;
   border:0;
@@ -16,7 +17,7 @@ body:not(:has(.admin-route)) #main .discovery-card {
   min-height:0;
   padding:clamp(18px,2.4vw,28px);
   border:1px solid var(--reference-line);
-  border-radius:20px;
+  border-radius:var(--discovery-card-radius);
   background:var(--discovery-mesh),var(--reference-white);
   color:var(--reference-ink);
   box-shadow:0 5px 18px rgba(32,42,54,.035);

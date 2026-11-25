@@ -1,0 +1,10 @@
+/* Radius-only owner directive: reuse the approved discovery-card corner size.
+   Do not alter padding, width, height, layout, colors, or icon circles. */
+body:not(:has(.admin-route)) .site-header,
+body:not(:has(.admin-route)) .site-header :is(.mobile-floating-nav-bar,.mobile-floating-menu,.mobile-floating-menu-link,.mobile-floating-menu-cta,.mobile-floating-menu-toggle,.language-switch,.language-switch a,.mobile-floating-header-languages,.mobile-floating-header-languages a,.desktop-nav a,.mobile-nav a) {
+  border-radius:var(--discovery-card-radius);
+}
+body:not(:has(.admin-route)):has(> #main .cinematic-hero) #main :is(.cinematic-primary,.cinematic-secondary,.action-primary,.action-secondary,.btn-primary,.btn-secondary,.btn-gold,[data-formation-packages-cta]),
+body:not(:has(.admin-route)):has(> #main .cinematic-hero) .conversion-chat-toggle {
+  border-radius:var(--discovery-card-radius);
+}
