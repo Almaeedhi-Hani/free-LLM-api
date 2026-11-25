@@ -19,4 +19,5 @@ const m=require('../.llm-knowledge-test-build/lib/llm-knowledge-metrics.js');
 assert.equal(m.botFamily('Mozilla GPTBot/1.0'),'OpenAI');assert.equal(m.botFamily('Mozilla/5.0'),null);m.recordFeed('/llms/en.txt','Mozilla',200,10,5);m.recordFeed('/llms/en.txt','GPTBot',304,0,2);m.recordAiReferral();
 const stats=m.knowledgeMetrics();assert.equal(stats.requests,2);assert.equal(stats.botRequests,1);assert.equal(stats.bodyBytes,10);assert.equal(stats.aiReferrals,1);
 assert(!JSON.stringify(stats).includes('Mozilla'));
+assert.equal(renderKnowledge({...c,updatedAt:'2026-12-01T00:00:00Z'},{kind:'full'},site,[]),full,'internal store revision must not invalidate public ETag');
 console.log('PASS scoped knowledge, approved-only deletion, full sections, privacy-minimized metrics');

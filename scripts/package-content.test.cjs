@@ -36,7 +36,7 @@ for (const lang of ["ar","en","zh"]) {
 }
 const markup = fs.readFileSync("src/components/SchemaMarkup.tsx","utf8");
 assert(!/1010998877|MISA-2024-LIC-9988|\+966110000000/.test(markup),"no fabricated licensing or telephone defaults");
-const llm = fs.readFileSync("src/app/api/llm-version/route.ts","utf8");
+const llm = fs.readFileSync("src/lib/llm-knowledge.ts","utf8");
 assert(llm.includes("government fees, official charges and taxes are never discounted"),"machine readable fee separation");
 const historicalUI = ["src/components/packages/PackageSelection.tsx","src/components/packages/usePackageRequest.ts"].map(p=>fs.readFileSync(p,"utf8")).join("\n");
 for(const marker of ["license-category-grid","license-offer-grid","license-detail"]) assert(historicalUI.includes(marker), "original interactive layout preserved: "+marker);

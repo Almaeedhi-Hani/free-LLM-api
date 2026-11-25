@@ -123,7 +123,7 @@ export async function loadGrowthContext(keywords:readonly {term?:string;keyword?
   const leadsForLang=leadTotals?Object.entries(leadTotals.byPage).filter(([p])=>pathLanguage(p)===lang).reduce((n,[,m])=>n+m.total,0):null;
   const countFeedback=Array.from(memory.values()).filter(f=>f.decision!=='valid'&&(f.language===lang||f.language===null)).length;
   push({id:'performance_'+lang,type:'performance',source:'stored_impact_summary',language:lang,name:'Observed outcomes (not causal or legal proof)',snippet:short(JSON.stringify({gsc_days:coverage?currentCoverage:null,gsc_rows:gsc?pages.length:null,requests_28d:leadsForLang,ai_manual_samples:ai?samples.length:null,ai_cited:ai?samples.filter(e=>e.result==='cited').length:null,revision:impact?{path:impact.targetPath,status:impact.status,click_delta:impact.change?.clicks??null}:null}),285)});
-  push({id:'inventory_'+lang,type:'inventory',source:'content_store',language:lang,name:'Existing content / reviewer learning',snippet:short(JSON.stringify({available:!!content,live:liveTitles,pending:pendingTitles,faq:liveFaq,excluded:countFeedback,feed_bot_requests:feedStats.botRequests,feed_scope:'process_24h',last_run_status:content?.agent?.status||null}),285)});
+  push({id:'inventory_'+lang,type:'inventory',source:'content_store',language:lang,name:'Existing content / reviewer learning',snippet:short(JSON.stringify({feed_scope:'sitewide_process_24h',feed_bot_requests:feedStats.botRequests,top_feed:feedStats.byFeed[0]?.path||null,ai_referral_views:feedStats.aiReferrals,available:!!content,excluded:countFeedback,live:liveTitles,pending:pendingTitles,faq:liveFaq}),285)});
  }
  return {status:Object.values(sources).every(s=>s==='available')?'available':'partial',items,sources};
 }

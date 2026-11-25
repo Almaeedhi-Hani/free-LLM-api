@@ -102,7 +102,7 @@ for(const lang of langs){
  const sample=require('./geo-opencode-planner.cjs').selectLocaleEvidence(contextual,lang,8);
  const raw=promptForDirectLocale(lang,sample),p=JSON.parse(raw);
  assert(raw.length<=15500);
- for(const name of ['growth-decision','statistical-analysis','human-behavior-communication','growth-learning'])assert(p.skill_guidance[name],name+' delivered');
+ for(const name of ['growth-decision','statistical-analysis','human-behavior-communication','growth-learning','ai-knowledge-optimization'])assert(p.skill_guidance[name],name+' delivered');
  for(const kind of ['goal','gsc','performance','inventory'])assert(p.research_evidence.some(e=>e.kind===kind),'Stored context '+kind+' delivered');
  assert(p.research_evidence.some(e=>e.kind==='competitor_candidate'),'Retain real research evidence');
  assert(p.instructions.some(x=>x.includes('Operational records guide priority')));

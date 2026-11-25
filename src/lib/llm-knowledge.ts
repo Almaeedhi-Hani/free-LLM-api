@@ -11,10 +11,9 @@ export type KnowledgeLocale=typeof LOCALES[number];
 const TOPICS=['services','packages','faq','insights','updates'] as const;
 type Topic=typeof TOPICS[number];
 const prefix=(lang:KnowledgeLocale)=>lang==='ar'?'':'/'+lang;
-const root=(lang:KnowledgeLocale)=>prefix(lang)||'/';
 const localeOf=(q:string):KnowledgeLocale=>/[\u3400-\u9fff]/.test(q)?'zh':/[\u0600-\u06ff]/.test(q)?'ar':'en';
 const publicItems=(c:SiteContent,l:KnowledgeLocale)=>approvedEditorial(c.editorialItems,l).filter(e=>!!editorialPath(e));
-const safeCitations=(urls:string[]|undefined,domains:string[]|null)=>domains===null?[]:[...new Set((urls||[]).filter(u=>isDisplayable(u,domains)))];
+const safeCitations=(urls:string[]|undefined,domains:string[]|null)=>domains===null?[]:Array.from(new Set((urls||[]).filter(u=>isDisplayable(u,domains))));
 const validDate=(s:unknown):s is string=>typeof s==='string'&&Number.isFinite(Date.parse(s));
 const dateOf=(e:EditorialItem)=>[e.updatedAt,e.reviewedAt].filter(validDate).sort().at(-1)||null;
 const policy=[
@@ -51,7 +50,7 @@ function article(e:EditorialItem,siteUrl:string,domains:string[]|null){
 }
 function serviceText(l:KnowledgeLocale,siteUrl:string,slug?:string){
  return services.filter(s=>!slug||s.slug===slug).map(s=>['### '+s.title[l],s.summary[l],guides[s.slug].insight[l],guides[s.slug].budget[l],guides[s.slug].q[l],guides[s.slug].a[l],
- ...[...new Set([s.source,...guides[s.slug].references.map(ref=>ref.url)])].map(u=>'Authority reference (verify current status): '+u),
+ ...Array.from(new Set([s.source,...guides[s.slug].references.map(ref=>ref.url)])).map(u=>'Authority reference (verify current status): '+u),
  'Public page: '+siteUrl+localPath(l,'/services/'+s.slug)].join('\n'));
 }
 function packageText(l:KnowledgeLocale,siteUrl:string){
@@ -143,7 +142,7 @@ export function renderFull(c:SiteContent,siteUrl:string,domains:string[]|null=nu
     "## Additional Arabic editorial material (legacy FAQs are not independently verified in this feed)",
     content.goldenParagraph,
     ...content.faqs.filter(f=>!/^STORAGE_TEST_/i.test(f.q)).map(f=>"Q: "+f.q+"\nA: "+f.a),
-    "Content store revision: " + content.updatedAt,
+    "Latest dated public editorial revision: " + (languages.flatMap(l=>publicItems(content,l).map(dateOf)).filter(validDate).sort().pop()||'unknown'),
   ].join("\n\n");
 
   return text;
@@ -156,14 +155,14 @@ export function renderKnowledge(c:SiteContent,sel:KnowledgeSelection,siteUrl:str
    {p:'/',l},{p:'/packages',l},...services.map(s=>({p:'/services/'+s.slug,l})),
    ...publicItems(c,l).filter(e=>e.kind==='guide'||e.kind==='comparison').map(e=>({p:'/insights/'+e.slug,l}))
   ]);
-  return [...head,'## Direct text feeds (choose only the relevant scope)',...feedPaths.filter(p=>p!=='/llms.txt').map(p=>'- '+siteUrl+p),
-  '## Page-specific Markdown and original HTML',...new Set(routes.map(({p,l})=>'- '+siteUrl+mdPath(l,p)+' — '+siteUrl+localPath(l,p))),
+  return [...head,'## Direct text feeds (choose only the relevant scope)',...feedPaths.filter(p=>p!=='/llms.txt').map(p=>'- ['+p+']('+siteUrl+p+')'),
+  '## Page-specific Markdown and original HTML',...Array.from(new Set(routes.map(({p,l})=>'- ['+l+' '+p+']('+siteUrl+mdPath(l,p)+') — '+siteUrl+localPath(l,p)))),
   '## Updates','Current approved content is generated directly from the same site source.'].join('\n')+'\n';
  }
  if(sel.kind==='page'&&sel.locale&&sel.page){
   const l=sel.locale,p=sel.page,path=localPath(l,p);
   let body:string[]=[];
-  if(p==='/')body=[...(l==='ar'?[c.goldenParagraph]:[]),...editorials(c,l,siteUrl,domains,e=>e.kind==='home'||e.kind==='trust'),...faqText(c,l,siteUrl)];
+  if(p==='/')body=[...(l==='ar'?[c.goldenParagraph]:[]),...editorials(c,l,siteUrl,domains,e=>e.kind==='home'||e.kind==='trust'),...(l==='ar'?LOCALES.flatMap(locale=>faqText(c,locale,siteUrl)):[])];
   else if(p==='/packages')body=[...packageText(l,siteUrl),...editorials(c,l,siteUrl,domains,e=>e.kind==='packages')];
   else if(p.startsWith('/services/'))body=[...serviceText(l,siteUrl,p.slice(10)),...editorials(c,l,siteUrl,domains,e=>editorialPath(e)===path)];
   else if(p.startsWith('/insights/')){body=editorials(c,l,siteUrl,domains,e=>editorialPath(e)===path);if(!body.length)return null}

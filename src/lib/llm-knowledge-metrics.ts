@@ -9,7 +9,7 @@ export function botFamily(ua:string){
  return families.find(([,rx])=>rx.test(ua))?.[0]||null;
 }
 const keyOf=(path:string)=>path.startsWith('/llms/')&&path.endsWith('.md')?'/llms/page.md':path;
-function prune(s:State,hour:number){for(const k of s.hours.keys())if(k<hour-23)s.hours.delete(k);for(const k of s.referrals.keys())if(k<hour-23)s.referrals.delete(k)}
+function prune(s:State,hour:number){for(const k of Array.from(s.hours.keys()))if(k<hour-23)s.hours.delete(k);for(const k of Array.from(s.referrals.keys()))if(k<hour-23)s.referrals.delete(k)}
 export function recordFeed(path:string,ua:string,status:number,bytes:number,ms:number){
  const s=state(),now=Date.now(),hour=Math.floor(now/3600000);prune(s,hour);
  const family=botFamily(ua),key=keyOf(path);
@@ -23,7 +23,7 @@ export function recordAiReferral(){const s=state(),h=Math.floor(Date.now()/36000
 export function knowledgeMetrics(){
  const s=state(),h=Math.floor(Date.now()/3600000);prune(s,h);
  const rows:Record<string,Counter>={};
- for(const bucket of s.hours.values())for(const [key,r] of bucket){const a=rows[key]||={requests:0,botRequests:0,bytes:0,ms:0,notModified:0,errors:0};for(const k of Object.keys(a) as (keyof Counter)[])a[k]+=r[k]}
+ for(const bucket of Array.from(s.hours.values()))for(const [key,r] of Array.from(bucket.entries())){const a=rows[key]||={requests:0,botRequests:0,bytes:0,ms:0,notModified:0,errors:0};for(const k of Object.keys(a) as (keyof Counter)[])a[k]+=r[k]}
  const byFeed=Object.entries(rows).map(([path,r])=>({path,...r,averageServerMs:r.requests?Math.round(r.ms/r.requests):null})).sort((a,b)=>b.botRequests-a.botRequests||b.requests-a.requests);
- return {scope:'current_process_last_24_hour_buckets',since:new Date(Math.max(s.since,(h-23)*3600000)).toISOString(),byFeed,requests:byFeed.reduce((n,r)=>n+r.requests,0),botRequests:byFeed.reduce((n,r)=>n+r.botRequests,0),bodyBytes:byFeed.reduce((n,r)=>n+r.bytes,0),averageServerMs:byFeed.length?Math.round(byFeed.reduce((n,r)=>n+r.ms,0)/byFeed.reduce((n,r)=>n+r.requests,0)):null,aiReferrals:[...s.referrals.values()].reduce((a,b)=>a+b,0)};
+ return {scope:'current_process_last_24_hour_buckets',since:new Date(Math.max(s.since,(h-23)*3600000)).toISOString(),byFeed,requests:byFeed.reduce((n,r)=>n+r.requests,0),botRequests:byFeed.reduce((n,r)=>n+r.botRequests,0),bodyBytes:byFeed.reduce((n,r)=>n+r.bytes,0),averageServerMs:byFeed.length?Math.round(byFeed.reduce((n,r)=>n+r.ms,0)/byFeed.reduce((n,r)=>n+r.requests,0)):null,aiReferrals:Array.from(s.referrals.values()).reduce((a,b)=>a+b,0)};
 }
