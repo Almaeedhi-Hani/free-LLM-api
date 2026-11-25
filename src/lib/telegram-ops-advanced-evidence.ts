@@ -130,8 +130,10 @@ export async function runReviewEvidenceBatch(){
  if(!getSupabaseCredentials())return {status:'storage_unavailable',processed:0,ready:0};
  const c=await getContent();
  const items:Candidate[]=[...c.drafts.filter(i=>i.status==='pending').map(item=>({kind:'faq' as const,item})),...c.editorialItems.filter(i=>i.status==='pending').map(item=>({kind:'editorial' as const,item}))];
- const selected=evidence.selectReviewBatch(items.filter(x=>evidence.due(x.item.review_preflight,x.kind,identityFields(x))));
- if(!selected.length)return {status:'idle',processed:0,ready:0};
+ const technical=items.filter(x=>x.kind==='editorial'&&['technical_seo','internal_link'].includes(x.item.kind));
+ const visitorItems=items.filter(x=>!technical.includes(x));
+ const selected=evidence.selectReviewBatch(visitorItems.filter(x=>evidence.due(x.item.review_preflight,x.kind,identityFields(x))));
+ if(!selected.length)return {status:'idle',processed:0,ready:0,technical_tasks:technical.length};
  const checked=await Promise.all(selected.map(check));
  const faq=new Map<ContentDraft,ContentDraft>(),editorial=new Map<EditorialItem,EditorialItem>();
  for(let i=0;i<selected.length;i++){
@@ -147,5 +149,5 @@ export async function runReviewEvidenceBatch(){
   return records.some(i=>i.review_preflight?.digest===x.item.review_preflight?.digest&&i.review_preflight?.checked_at===x.item.review_preflight?.checked_at&&i.status==='pending');
  });
  if(!verified)throw Error('review_evidence_readback_unverified');
- return {status:'saved_verified',processed:checked.length,ready:checked.filter(readyForHuman).length};
+ return {status:'saved_verified',processed:checked.length,ready:checked.filter(readyForHuman).length,technical_tasks:technical.length};
 }

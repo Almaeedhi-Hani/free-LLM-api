@@ -190,3 +190,15 @@ test('editorial guide without a service slug can discover approved official topi
  assert.equal(e.assessPublicationRisk('editorial',{...item,target:'company-formation'},neutral,ready),'high');
  assert.equal(e.assessPublicationRisk('faq',item,['Unverified bank account details'],ready),'high');
  });
+
+ test('technical tasks never consume official content review slots; exact duplicates do not crowd out distinct content',()=>{
+ const {selectReviewBatch}=require('../src/lib/telegram-ops-advanced-evidence.cjs');
+ const faq={kind:'faq',item:{q:'Same exact question',a:'Same exact answer',risk_level:'high'}};
+ const changed={kind:'faq',item:{...faq.item,a:'A materially different answer'}};
+ const technical=['technical_seo','internal_link'].map(kind=>({kind:'editorial',item:{kind,id:kind}}));
+ const guide={kind:'editorial',item:{kind:'guide',lang:'en',target:'guide-one',title:'Guide title',body:'Guide body',risk_level:'high'}};
+ const other={kind:'editorial',item:{...guide.item,target:'guide-two'}};
+ const result=selectReviewBatch([...technical,faq,{...faq,item:{...faq.item}},changed,guide,{...guide,item:{...guide.item}},other]);
+ assert.deepEqual(result,[faq,changed,guide,other]);
+ assert.equal(selectReviewBatch(technical).length,0);
+ });
