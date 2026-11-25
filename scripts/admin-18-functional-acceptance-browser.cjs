@@ -277,6 +277,28 @@ const groups={
   content=await request('GET','/api/admin/content');
   assert(content.editorialItems.some(x=>x.id===guide.id&&x.status==='approved'));
   checkpoint('Editorial published-only preview and deletion fail closed when learning storage is absent');
+  const [marked]=await Promise.all([
+   page.waitForResponse(r=>new URL(r.url()).pathname==='/api/admin/content'&&r.request().method()==='POST'&&r.request().postDataJSON()?.markGeoReviewed?.id===guide.id),
+   guideRow.getByRole('button',{name:'مُراجَع',exact:true}).click()
+  ]);
+  assert.equal(marked.status(),200);
+  await guideRow.waitFor({state:'detached'});
+  content=await request('GET','/api/admin/content');
+  assert(content.editorialItems.some(x=>x.id===guide.id&&x.status==='approved'&&x.body===guide.body),'Review does not unpublish or change public content');
+  assert(content.adminReviewedContent.some(m=>m.key==='editorial:'+guide.id));
+  await page.reload({waitUntil:'domcontentloaded'});
+  await navigate('تطوير جميع صفحات الموقع');
+  assert.equal(await page.getByText(guide.title,{exact:true}).count(),0);
+  await page.getByLabel('إظهار ما تمت مراجعته').check();
+  await page.getByText(guide.title,{exact:true}).waitFor();
+  await navigate('اعتماد المسودات');
+  const faqMarkedRow=page.locator('li').filter({hasText:targetQuestion}).first();
+  await faqMarkedRow.getByRole('button',{name:'مُراجَع',exact:true}).click();
+  await faqMarkedRow.waitFor({state:'detached'});
+  content=await request('GET','/api/admin/content');
+  assert(content.faqs.some(x=>x.q===targetQuestion));
+  assert(content.adminReviewedContent.some(m=>m.key==='faq:'+targetQuestion));
+  checkpoint('Reviewed publications persist and disappear without changing public content');
 
   // Remaining screens have read-only or explicitly gated functions; do not
   // pretend that missing external tokens constitute operational evidence.

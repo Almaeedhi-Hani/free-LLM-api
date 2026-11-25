@@ -5,7 +5,11 @@ import type {ContentFAQ,ContentDraft} from '@/lib/content-store';
 import {buildPublishedLinks,buildUnpublishedPreviews} from '@/lib/published-links';
 import type {PublicationEventSummary} from '@/lib/published-links';
 
-type Props={editorialItems:EditorialItem[];faqs:ContentFAQ[];drafts:ContentDraft[];adminSecret:string};
+import {editorialReviewIdentity,faqReviewIdentity,wasReviewed} from '@/lib/admin-content-review';
+import type {ReviewMarks,ReviewTarget} from '@/lib/admin-content-review';
+import {editorialAnchor,faqAnchor} from '@/lib/publication-anchors';
+import type {PublishedLink} from '@/lib/published-links';
+type Props={editorialItems:EditorialItem[];faqs:ContentFAQ[];drafts:ContentDraft[];adminSecret:string;saving:boolean;reviewMarks?:ReviewMarks;onReview:(target:ReviewTarget)=>Promise<boolean>;onDelete:(target:ReviewTarget)=>Promise<boolean>};
 const LANG:Record<string,string>={ar:'العربية',en:'English',zh:'中文'};
 const KIND:Record<string,string>={
  home:'الرئيسية',trust:'الثقة',service:'خدمة',packages:'الباقات',guide:'دليل',
@@ -13,7 +17,8 @@ const KIND:Record<string,string>={
 };
 const date=(value:string|null)=>value?new Date(value).toLocaleString('ar-SA'):'غير معروف';
 
-export default function PublishedLinksList({editorialItems,faqs,drafts,adminSecret}:Props){
+export default function PublishedLinksList({editorialItems,faqs,drafts,adminSecret,saving,reviewMarks,onReview,onDelete}:Props){
+ const [showReviewed,setShowReviewed]=useState(false);
  const [events,setEvents]=useState<PublicationEventSummary[]>([]);
  const [eventState,setEventState]=useState('جارٍ فحص أحداث النشر المحفوظة…');
  const [search,setSearch]=useState('');
@@ -38,7 +43,16 @@ export default function PublishedLinksList({editorialItems,faqs,drafts,adminSecr
   [editorialItems,faqs,events]);
  const unpublished=useMemo(()=>buildUnpublishedPreviews(editorialItems||[],drafts||[]),
   [editorialItems,drafts]);
+ const targetFor=(item:PublishedLink):ReviewTarget=>item.kind==='faq'?{kind:'faq',question:item.title}:{kind:'editorial',id:item.id.slice('editorial:'.length)};
+ const reviewed=(item:PublishedLink)=>{
+  const target=targetFor(item);
+  const f=target.kind==='faq'?faqs.find(x=>x.q===target.question):undefined;
+  const e=target.kind==='editorial'?editorialItems.find(x=>x.id===target.id):undefined;
+  return f?wasReviewed(reviewMarks,faqReviewIdentity(f)):e?wasReviewed(reviewMarks,editorialReviewIdentity(e)):false;
+ };
+ const hrefFor=(item:PublishedLink)=>item.kind==='faq'?'/#'+faqAnchor(item.title):['guide','comparison'].includes(item.kind)?item.path:item.path+'#'+editorialAnchor(item.id.slice('editorial:'.length));
  const visible=published.filter(item=>
+  (showReviewed||!reviewed(item))&&
   (language==='all'||item.language===language)&&
   (kind==='all'||item.kind===kind)&&
   (source==='all'||item.publicationSource===source)&&
@@ -77,6 +91,7 @@ export default function PublishedLinksList({editorialItems,faqs,drafts,adminSecr
     </select>
    </label>
   </div>
+  <label className="flex gap-2 text-xs text-slate-600"><input type="checkbox" checked={showReviewed} onChange={e=>setShowReviewed(e.target.checked)}/> إظهار ما تمت مراجعته</label>
   <div className="grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-2">
    {visible.map(item=><article key={item.id} className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
     <h3 className="break-words font-semibold text-navy-900">{item.title}</h3>
@@ -88,7 +103,9 @@ export default function PublishedLinksList({editorialItems,faqs,drafts,adminSecr
     </dl>
     <div className="mt-4 flex min-w-0 flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
      <code className="max-w-full break-all text-xs text-slate-600" dir="ltr">{item.path}</code>
-     <a href={item.path} target="_blank" rel="noopener noreferrer" className="btn-secondary text-xs" aria-label={'فتح المحتوى المنشور: '+item.title}>فتح الرابط / معاينة المنشور</a>
+     <a href={hrefFor(item)} target="_blank" rel="noopener noreferrer" className="btn-secondary text-xs" aria-label={'فتح المحتوى المنشور: '+item.title}>معاينة المنشور</a>
+     <button className="btn-secondary text-xs text-red-700" disabled={saving} onClick={()=>{if(window.confirm('حذف المنشور بعد حفظه في ذاكرة الوكيل؟'))void onDelete(targetFor(item))}}>حذف</button>
+     {!reviewed(item)?<button className="btn-secondary text-xs" disabled={saving} onClick={()=>void onReview(targetFor(item))}>مُراجَع</button>:<span className="text-xs text-slate-600">تمت المراجعة</span>}
     </div>
    </article>)}
   </div>

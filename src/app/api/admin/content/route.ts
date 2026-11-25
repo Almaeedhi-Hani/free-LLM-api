@@ -5,6 +5,8 @@ import { assessGeoDraftCopy, splitGeoDraftReviewText } from "@/lib/geo-draft-qua
 import { StorageConflictError, StorageUnavailableError } from '@/lib/storage-mode';
 import {rememberGeoDeletion,inferFeedbackLanguage} from '@/lib/geo-agent-feedback';
 import {editorialPath} from '@/lib/content-impact';
+import {approvedEditorial} from '@/lib/editorial-workflow';
+import {editorialReviewIdentity,faqReviewIdentity,recordReview} from '@/lib/admin-content-review';
 import {normalizeWhatsAppNumber,validWhatsAppAdvisorField} from '@/lib/whatsapp-contacts';
 
 export const dynamic = 'force-dynamic';
@@ -55,6 +57,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ status: 'error', message: 'Invalid content patch' }, { status: 400 });
     }
     const { expectedUpdatedAt, ...patch } = body as Record<string, unknown>;
+    if(patch.markGeoReviewed!==undefined){
+      const action=patch.markGeoReviewed as Record<string,unknown>;
+      if(Object.keys(patch).length!==1||!action||typeof action!=='object'||Array.isArray(action)||typeof expectedUpdatedAt!=='string'||!expectedUpdatedAt)
+        return NextResponse.json({status:'error',message:'Invalid versioned review'},{status:400});
+      const current=await getContent();
+      if(current.updatedAt!==expectedUpdatedAt)throw new StorageConflictError();
+      let identity:{key:string;version:string}|undefined;
+      if(action.kind==='editorial'&&typeof action.id==='string'){
+        const item=(['ar','en','zh'] as const).flatMap(lang=>approvedEditorial(current.editorialItems,lang)).find(x=>x.id===action.id&&editorialPath(x));
+        if(item)identity=editorialReviewIdentity(item);
+      }else if(action.kind==='faq'&&typeof action.question==='string'){
+        const faq=current.faqs.find(f=>f.q===action.question&&f.q.trim()&&f.a.trim()&&!/^STORAGE_TEST_/i.test(f.q));
+        if(faq)identity=faqReviewIdentity(faq);
+      }
+      if(!identity)return NextResponse.json({status:'error',message:'Published content not found'},{status:404});
+      const marks=recordReview(current.adminReviewedContent,identity,new Date().toISOString());
+      // Review is strictly administrative: no publication state, proof, or public copy changes.
+      const content=await setContent({adminReviewedContent:marks},{replaceArrays:true,expectedUpdatedAt});
+      return NextResponse.json({status:'updated',content});
+    }
+    if(patch.adminReviewedContent!==undefined)return NextResponse.json({status:'error',message:'Use versioned review action'},{status:400});
     if(patch.deleteGeoContent!==undefined){
       const action=patch.deleteGeoContent as Record<string,unknown>;
       if(Object.keys(patch).length!==1||!action||typeof action!=='object'||Array.isArray(action)||typeof expectedUpdatedAt!=='string'||!expectedUpdatedAt)

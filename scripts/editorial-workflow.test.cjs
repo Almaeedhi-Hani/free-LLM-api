@@ -130,3 +130,6 @@ assert.equal(exactClaimCoverage([exact,'A second unsupported sentence.'],[citati
 assert.equal(exactClaimCoverage([exact],[{...citation,quote:'An unrelated statement with an official URL does not prove the claim.'}]).matched,0);
 assert.throws(()=>normalizeClaimEvidence([citation],exact,[]),/mapping/);
 assert.deepEqual(normalizeClaimEvidence([citation],exact,[{kind:'official_candidate',url:citation.url}]),[citation]);
+
+assert(contentApi.includes('markGeoReviewed')&&contentApi.includes('setContent({adminReviewedContent:marks}') ,'Review acknowledgement writes only administrative metadata');
+assert(reviewPanelSource.includes('wasReviewed(reviewMarks,editorialReviewIdentity')&&faqUi.includes('wasReviewed(content.adminReviewedContent,faqReviewIdentity'),'Published-only screens filter confirmed review markers');

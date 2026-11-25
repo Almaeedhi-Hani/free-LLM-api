@@ -10,9 +10,12 @@ import type {ImpactItem,ImpactMeasurement,ImpactStats} from '@/lib/content-impac
 import {usePublicationControls} from './admin/impact/usePublicationControls';
 import PublicationControls from './admin/impact/PublicationControls';
 
+import {editorialReviewIdentity,faqReviewIdentity,wasReviewed} from '@/lib/admin-content-review';
+import type {ReviewMarks,ReviewTarget} from '@/lib/admin-content-review';
+import {editorialAnchor,faqAnchor} from '@/lib/publication-anchors';
 type Props={
  editorialItems:EditorialItem[];faqs:ContentFAQ[];drafts:ContentDraft[];
- adminSecret:string;saving:boolean;
+ adminSecret:string;saving:boolean;reviewMarks?:ReviewMarks;onReview:(target:ReviewTarget)=>Promise<boolean>;onDelete:(target:ReviewTarget)=>Promise<boolean>;
  onSaveItems:(items:EditorialItem[])=>Promise<boolean>;
  onSaveDrafts:(items:ContentDraft[])=>Promise<boolean>;
  onNavigate:(tab:'editorial'|'reviews'|'content'|'visibility'|'published_links')=>void;
@@ -29,8 +32,9 @@ const number=(v:number)=>v.toLocaleString('ar-SA');
 const date=(v:string|null)=>v&&!Number.isNaN(Date.parse(v))?new Date(v).toLocaleString('ar-SA'):'غير متوفر';
 const metric=(value:number|null|undefined)=>value===null||value===undefined?'—':number(value);
 export default function ContentImpactCenter({
- editorialItems,faqs,drafts,adminSecret,saving,onSaveItems,onSaveDrafts,onNavigate,publishedLinksEnabled=false
+ editorialItems,faqs,drafts,adminSecret,saving,reviewMarks,onReview,onDelete,onSaveItems,onSaveDrafts,onNavigate,publishedLinksEnabled=false
 }:Props){
+ const [showReviewed,setShowReviewed]=useState(false);
  const [search,setSearch]=useState('');
  const [category,setCategory]=useState('all');
  const [status,setStatus]=useState('all');
@@ -45,10 +49,20 @@ export default function ContentImpactCenter({
  const {autoStatus}=publication;
 
  const rows=useMemo(()=>buildImpactInventory(editorialItems||[],faqs||[],drafts||[]),[editorialItems,faqs,drafts]);
- const filtered=rows.filter(x=>(category==='all'||x.category===category)&&
+ const targetFor=(x:ImpactItem):ReviewTarget|null=>x.itemId!==null?{kind:'editorial',id:x.itemId}:x.faqIndex!==null?{kind:'faq',question:faqs[x.faqIndex].q}:null;
+ const reviewed=(x:ImpactItem)=>{
+  if(x.status!=='published')return false;
+  const target=targetFor(x);
+  const e=target?.kind==='editorial'?editorialItems.find(i=>i.id===target.id):undefined;
+  const f=target?.kind==='faq'?faqs.find(i=>i.q===target.question):undefined;
+  return e?wasReviewed(reviewMarks,editorialReviewIdentity(e)):f?wasReviewed(reviewMarks,faqReviewIdentity(f)):false;
+ };
+ const publicHref=(x:ImpactItem)=>x.category==='faq'&&x.faqIndex!==null?'/#'+faqAnchor(faqs[x.faqIndex].q):x.targetPath&&x.itemId!==null&&!['guide','comparison'].includes(x.kind)?x.targetPath+'#'+editorialAnchor(x.itemId):x.targetPath;
+ const followup=rows.filter(x=>showReviewed||!reviewed(x));
+ const filtered=followup.filter(x=>(category==='all'||x.category===category)&&
   (status==='all'||x.status===status)&&(language==='all'||x.lang===language)&&
   (!search.trim()||[x.title,x.summary,x.kind,x.targetPath||''].join(' ').toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())));
- const selected=rows.find(x=>x.id===selectedId)||null;
+ const selected=followup.find(x=>x.id===selectedId)||null;
  useEffect(()=>{
   let active=true;
   const controller=new AbortController();
@@ -136,7 +150,7 @@ export default function ContentImpactCenter({
    {measureError&&<p className="mt-3 text-sm text-amber-900" role="status">{measureError}؛ لا نعرض صفرًا بديلًا عن البيانات المفقودة.</p>}
    {measurement&&<p className="mt-3 text-sm text-slate-600" role="status">{measurement.message} {measurement.leads?.message||'بيانات الطلبات غير متاحة.'} قياسات ظهور AI لم تتصل بعد، ولا ننسب أداء الصفحة إلى سؤال FAQ منفرد.</p>}
   </section>
-  <GeoWorkPriorities items={rows} measurement={measurement} loading={loading}
+  <GeoWorkPriorities items={followup} measurement={measurement} loading={loading}
    onPreview={setSelectedId} onVisibility={()=>onNavigate('visibility')}/>
   <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
    <div className="mb-4 grid grid-cols-1 gap-2 md:grid-cols-4">
@@ -152,6 +166,7 @@ export default function ContentImpactCenter({
       <option value="all">جميع اللغات</option><option value="ar">العربية</option><option value="en">الإنجليزية</option><option value="zh">الصينية</option><option value="und">غير محددة</option>
     </select>
    </div>
+   <label className="mb-3 flex gap-2 text-xs text-slate-600"><input type="checkbox" checked={showReviewed} onChange={e=>setShowReviewed(e.target.checked)}/> إظهار ما تمت مراجعته</label>
    <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="سجل المحتوى">
     <table className="w-full min-w-[800px] text-right text-sm">
      <thead className="border-b bg-slate-50 text-slate-700"><tr>
@@ -172,9 +187,11 @@ export default function ContentImpactCenter({
        <td className="p-3">
         <div className="flex flex-wrap gap-2">
          <button className="btn-secondary text-xs" onClick={()=>setSelectedId(item.id)}>معاينة وتفاصيل</button>
-         {item.status==='published'&&item.targetPath&&(publishedLinksEnabled?
-           <button type="button" className="btn-secondary text-xs" onClick={()=>onNavigate('published_links')}>عرض في شاشة الروابط</button>:
-           <a className="btn-secondary text-xs" href={item.targetPath} target="_blank" rel="noopener noreferrer">فتح الصفحة</a>)}
+         {item.status==='published'&&publicHref(item)&&targetFor(item)&&<>
+           <a className="btn-secondary text-xs" href={publicHref(item)!} target="_blank" rel="noopener noreferrer">معاينة المنشور</a>
+           <button className="btn-secondary text-xs text-red-700" disabled={saving} onClick={()=>{if(window.confirm('حذف المنشور بعد حفظه في ذاكرة الوكيل؟'))void onDelete(targetFor(item)!)}}>حذف</button>
+           {!reviewed(item)?<button className="btn-secondary text-xs" disabled={saving} onClick={()=>void onReview(targetFor(item)!)}>مُراجَع</button>:<span className="text-xs">تمت المراجعة</span>}
+         </>}
         </div>
        </td>
       </tr>;
@@ -208,13 +225,15 @@ export default function ContentImpactCenter({
     {selected.verifiedSources.length>0&&<ul className="mt-2 space-y-1 text-xs">{selected.verifiedSources.map((url,i)=><li key={i}><a href={url} target="_blank" rel="noopener noreferrer" className="break-all text-blue-700 underline">{url}</a></li>)}</ul>}
     {mutationError&&<p role="alert" className="mt-3 text-sm text-red-700">{mutationError}</p>}
     <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-200 pt-4">
-      {selected.status==='published'&&selected.category==='page'&&localPath&&(publishedLinksEnabled?
-        <button type="button" className="btn-primary text-xs" onClick={()=>{setSelectedId(null);onNavigate('published_links')}}>عرض في شاشة الروابط</button>:
-        <a className="btn-primary text-xs" href={localPath} target="_blank" rel="noopener noreferrer">معاينة الصفحة المنشورة</a>)}
-      <button className="btn-secondary text-xs" onClick={()=>onNavigate(selected.itemId!==null?'editorial':selected.faqIndex!==null?'content':'reviews')}>تعديل / مراجعة</button>
-      {selected.status==='published'&&selected.itemId!==null&&<button className="btn-secondary text-xs" disabled={saving} onClick={()=>void archiveEditorial(selected)}>إلغاء النشر / أرشفة</button>}
+      {selected.status==='published'&&publicHref(selected)&&targetFor(selected)&&<>
+           <a className="btn-secondary text-xs" href={publicHref(selected)!} target="_blank" rel="noopener noreferrer">معاينة المنشور</a>
+           <button className="btn-secondary text-xs text-red-700" disabled={saving} onClick={()=>{if(window.confirm('حذف المنشور بعد حفظه في ذاكرة الوكيل؟'))void onDelete(targetFor(selected)!)}}>حذف</button>
+           {!reviewed(selected)?<button className="btn-secondary text-xs" disabled={saving} onClick={()=>void onReview(targetFor(selected)!)}>مُراجَع</button>:<span className="text-xs">تمت المراجعة</span>}
+         </>}
+      {selected.status!=='published'&&<button className="btn-secondary text-xs" onClick={()=>onNavigate(selected.itemId!==null?'editorial':'reviews')}>متابعة المعالجة</button>}
+      
       {selected.status!=='published'&&selected.status!=='approved_unlinked'&&<button className="btn-secondary text-xs text-red-700" disabled={saving} onClick={()=>void deleteUnpublished(selected)}>حذف نهائي</button>}
-      {selected.status==='published'&&selected.category==='faq'&&<button className="btn-secondary text-xs" onClick={()=>onNavigate('content')}>إدارة السؤال / الحذف</button>}
+      
     </div>
   </section>}
  </div>;
