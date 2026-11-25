@@ -328,6 +328,11 @@ async function stageEvidence() {
         const data = await res.json();
         if (data.competitors) evidenceItems.push(...data.competitors.map((c, i) => ({ id: `comp_${c.id || i}`, type: 'competitor', source: 'supabase', name: c.name || c.domain, domain: c.domain, language: c.language || 'ar' })));
         if (data.observations) evidenceItems.push(...data.observations.map((o, i) => ({ id: `obs_${o.id || i}`, type: 'observation', source: 'supabase', name: o.title || o.content?.substring(0, 50), language: o.language || 'ar' })));
+        if(data.growth_context&&Array.isArray(data.growth_context.items)){
+          const context=data.growth_context.items.filter(e=>e&&typeof e.id==='string'&&typeof e.name==='string'&&['goal','opportunity','gsc','performance','inventory'].includes(e.type)&&['ar','en','zh'].includes(e.language)).slice(0,40);
+          evidenceItems.push(...context);
+          logStage('EVIDENCE','Stored growth context: '+JSON.stringify({status:data.growth_context.status,types:Object.fromEntries([...new Set(context.map(e=>e.type))].map(type=>[type,context.filter(e=>e.type===type).length])),sources:data.growth_context.sources||{}}));
+        }
         if (data.keywords) evidenceItems.push(...data.keywords.map((k, i) => ({ id: `kw_${k.id || i}`, type: 'keyword', source: 'supabase', original_source:k.source, name: k.keyword || k.term, language: k.language || 'ar' })));
         logStage('EVIDENCE', `Loaded from GEO API: ${data.counts?.competitors || 0} comps, ${data.counts?.observations || 0} obs, ${data.counts?.keywords || 0} kws`);
       }
@@ -395,7 +400,7 @@ async function stageEvidence() {
     language: e.language || 'ar',
     url: e.url || null,
     observed_at: e.collected_at || e.observed_at || null,
-    ...(e.type==='official_candidate'&&e.source==='official_live_html'&&typeof e.snippet==='string'?{snippet:e.snippet}:{}),
+    ...(((e.type==='official_candidate'&&e.source==='official_live_html')||['goal','opportunity','gsc','performance','inventory'].includes(e.type))&&typeof e.snippet==='string'?{snippet:e.snippet}:{}),
   }));
   logStage('EVIDENCE', `Built bundle: ${evidenceItems.length} items`);
   const {chooseResearchEvidence}=require('./geo-opencode-planner.cjs');
@@ -466,7 +471,7 @@ async function stageGeoAnalysis() {
       const evidence=selectLocaleEvidence(all,lang,recovered?2:index===0?8:index===1?4:2);
       const timeoutMs=recovered?45000:index===0?90000:index===1?60000:45000;
       const prompt=direct?promptForDirectLocale(lang,evidence):promptForLocale(lang,evidence);
-      if(direct){const skillNames=Object.keys(JSON.parse(prompt).skill_guidance||{});if(skillNames.length)logStage('GEO_ANALYSIS',lang+' local OpenCode skills: '+skillNames.join(','));}
+      if(direct){const input=JSON.parse(prompt);const skillNames=Object.keys(input.skill_guidance||{});if(skillNames.length)logStage('GEO_ANALYSIS',lang+' local OpenCode skills: '+skillNames.join(','));const contextTypes=(input.research_evidence||[]).filter(e=>['goal','opportunity','gsc','performance','inventory'].includes(e.kind)).map(e=>e.kind);if(contextTypes.length)logStage('GEO_ANALYSIS',lang+' growth context delivered: '+contextTypes.join(','));}
       const trial=direct
         ?await direct.generate(prompt,model,{timeoutMs})
         :runOpenCode(prompt,model,timeoutMs);

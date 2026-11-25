@@ -90,3 +90,21 @@ assert.throws(()=>directSkillGuidance('../secrets'),/Unapproved/);
 assert(selectDirectSkills([{type:'technical_seo'}]).includes('technical-seo'));
 assert(selectDirectSkills([{type:'keyword_suggestion'}]).includes('keyword-research'));
 assert(selectDirectSkills([{type:'conversion'}]).includes('conversion-optimization'));
+
+for(const lang of langs){
+ const contextual=[
+  {id:'goal_00000000-0000-0000-0000-000000000001',language:lang,type:'goal',source:'agent_goals',name:'Existing goal',snippet:'measurable_criteria=0; priority=high'},
+  {id:'gsc-test',language:lang,type:'gsc',source:'gsc_daily_metrics',name:'/packages',snippet:'{"observed_days":3,"impressions":51,"clicks":2,"delta_clicks":null}'},
+  {id:'performance-test',language:lang,type:'performance',source:'stored_impact_summary',name:'Observed outcomes',snippet:'requests_28d=null; ai_manual_samples=0'},
+  {id:'inventory-test',language:lang,type:'inventory',source:'content_store',name:'Existing content',snippet:'pending: test article'},
+  ...Array.from({length:4},(_,i)=>({id:'source-'+i,language:lang,type:'competitor_candidate',source:'search',name:'Research '+i,url:'https://example.com/'+i,snippet:'public search result'}))
+ ];
+ const sample=require('./geo-opencode-planner.cjs').selectLocaleEvidence(contextual,lang,8);
+ const raw=promptForDirectLocale(lang,sample),p=JSON.parse(raw);
+ assert(raw.length<=15500);
+ for(const name of ['growth-decision','statistical-analysis','human-behavior-communication','growth-learning'])assert(p.skill_guidance[name],name+' delivered');
+ for(const kind of ['goal','gsc','performance','inventory'])assert(p.research_evidence.some(e=>e.kind===kind),'Stored context '+kind+' delivered');
+ assert(p.research_evidence.some(e=>e.kind==='competitor_candidate'),'Retain real research evidence');
+ assert(p.instructions.some(x=>x.includes('Operational records guide priority')));
+}
+console.log('PASS bounded growth data and behavior/statistics/goal/learning skills in all three direct prompts');

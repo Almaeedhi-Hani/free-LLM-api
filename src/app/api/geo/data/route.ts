@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import {loadGrowthContext} from '@/lib/geo-growth-context';
+export const dynamic='force-dynamic';
 
 const GEO_API_KEY = process.env.GEO_API_KEY || '';
 const MAX_COMPETITORS = 250; // Still bounded; Stage-2 needs all 107 registered competitors.
@@ -44,7 +46,9 @@ export async function GET(req: NextRequest) {
     const observations = obsRes.ok ? await obsRes.json() : [];
     const keywords = kwsRes.ok ? await kwsRes.json() : [];
 
+    const growth=await loadGrowthContext(Array.isArray(keywords)?keywords:[]).catch(()=>({status:'partial',items:[],sources:{growth:'unavailable'}}));
     return NextResponse.json({
+      growth_context:growth,
       competitors: Array.isArray(competitors) ? competitors : [],
       observations: Array.isArray(observations) ? observations : [],
       keywords: Array.isArray(keywords) ? keywords : [],
@@ -55,7 +59,7 @@ export async function GET(req: NextRequest) {
       },
       source: 'supabase',
       timestamp: new Date().toISOString(),
-    });
+    },{headers:{'Cache-Control':'no-store'}});
   } catch (e) {
     return NextResponse.json({ error: 'Failed to fetch data from Supabase' }, { status: 500 });
   }
