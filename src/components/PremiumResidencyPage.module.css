@@ -46,3 +46,20 @@
 .assessmentResult dd {font-weight:600;margin:0}
 .assessmentResult p {margin-block:12px;line-height:1.8}
 @media(max-width:700px){.assessmentForm{grid-template-columns:1fr}.assessmentForm button{width:100%}.assessmentResult{padding:16px}}
+
+/* Conversion-focused assessment: independent palette with readable contrast. */
+.page .assessment {background:#123e35;color:#fff;border:1px solid #123e35;border-radius:16px;padding:clamp(24px,5vw,48px)}
+.page .assessment h2 {color:#fff}
+.page .assessment>p {color:#d7e5df}
+.page .assessmentForm label {color:#fff}
+.page .assessmentForm select {background:#fff;color:#123e35;border:2px solid #d7e5df;border-radius:8px;min-height:52px}
+.page .assessmentForm button {background:#d8be87;color:#123e35;border:2px solid #d8be87;border-radius:8px;min-height:52px;font-weight:700;padding:12px 24px}
+.page .assessmentForm button:hover {background:#ead5a8;border-color:#ead5a8}
+.page .assessmentResult {background:#fff;color:#123e35;border:0;border-radius:12px}
+.page .assessmentResult h3,.page .assessmentResult p,.page .assessmentResult dl {color:#123e35}
+.page .assessmentResult a {background:#146c43;color:#fff;border:2px solid #146c43;border-radius:8px;min-height:48px}
+.page .assessmentResult a:hover {background:#0d5232}
+.page .assessmentResult button {background:#fff;color:#123e35;border:1px solid #123e35;border-radius:8px;font:inherit;cursor:pointer}
+.page .assessment :is(button,a,select):focus-visible {outline:3px solid #b78532;outline-offset:4px}
+.page .assessmentForm button:focus-visible,.page .assessmentForm select:focus-visible {outline-color:#fff}
+@media(max-width:700px){.page .assessmentResult .actions>*{width:100%;justify-content:center}}
