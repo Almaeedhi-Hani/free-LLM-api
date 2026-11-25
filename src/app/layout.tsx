@@ -36,6 +36,9 @@ export default async function RootLayout({
     >
       <head>
         {verification && <meta name="google-site-verification" content={verification} />}
+        <link rel="describedby" type="text/plain" href="/llms.txt" title="AI knowledge index" />
+        <link rel="alternate" type="text/plain" href="/llms-full.txt" title="Full machine-readable content" />
+        <link rel="alternate" type="text/plain" href={"/llms/"+lang+".txt"} hrefLang={lang==="zh"?"zh-Hans":lang} title="Localized machine-readable content" />
         <link
           rel="alternate"
           type="text/plain"

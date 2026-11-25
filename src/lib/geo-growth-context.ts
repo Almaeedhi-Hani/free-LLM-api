@@ -1,4 +1,5 @@
 import {getContent} from './content-store';
+import {knowledgeMetrics} from './llm-knowledge-metrics';
 import {getSupabaseCredentials} from './storage-mode';
 import {getGeoFeedbackIndex,excludesOpportunity,containsRejectedKeyword,isExcluded,excludesEditorial,excludesFaq,inferFeedbackLanguage} from './geo-agent-feedback';
 import type {FeedbackIndex} from './geo-agent-feedback';
@@ -86,6 +87,7 @@ export async function loadGrowthContext(keywords:readonly {term?:string;keyword?
  if(leads)try{leadTotals=summarizeConfirmedLeads(leads)}catch{sources.leads='invalid'};
  const activeRevisions=(revisions||[]).filter(r=>published.some(e=>e.id===r.item_id&&editorialPath(e)===r.target_path));
  const effects=rankObservedRevisions(activeRevisions.map(r=>compareRevisionImpact(r,gscRows,7,property,now)));
+ const feedStats=knowledgeMetrics();
  const knownKeywords=new Set(keywords.filter(k=>clean(k.term||k.keyword)).map(k=>norm((k.term||k.keyword)!)));
  for(const lang of LANGS){
   for(const g of allowedGoals.filter(g=>inferFeedbackLanguage(g.title)===lang).slice(0,3)){
@@ -121,7 +123,7 @@ export async function loadGrowthContext(keywords:readonly {term?:string;keyword?
   const leadsForLang=leadTotals?Object.entries(leadTotals.byPage).filter(([p])=>pathLanguage(p)===lang).reduce((n,[,m])=>n+m.total,0):null;
   const countFeedback=Array.from(memory.values()).filter(f=>f.decision!=='valid'&&(f.language===lang||f.language===null)).length;
   push({id:'performance_'+lang,type:'performance',source:'stored_impact_summary',language:lang,name:'Observed outcomes (not causal or legal proof)',snippet:short(JSON.stringify({gsc_days:coverage?currentCoverage:null,gsc_rows:gsc?pages.length:null,requests_28d:leadsForLang,ai_manual_samples:ai?samples.length:null,ai_cited:ai?samples.filter(e=>e.result==='cited').length:null,revision:impact?{path:impact.targetPath,status:impact.status,click_delta:impact.change?.clicks??null}:null}),285)});
-  push({id:'inventory_'+lang,type:'inventory',source:'content_store',language:lang,name:'Existing content / reviewer learning',snippet:short(JSON.stringify({available:!!content,live:liveTitles,pending:pendingTitles,faq:liveFaq,excluded:countFeedback,last_run_status:content?.agent?.status||null}),285)});
+  push({id:'inventory_'+lang,type:'inventory',source:'content_store',language:lang,name:'Existing content / reviewer learning',snippet:short(JSON.stringify({available:!!content,live:liveTitles,pending:pendingTitles,faq:liveFaq,excluded:countFeedback,feed_bot_requests:feedStats.botRequests,feed_scope:'process_24h',last_run_status:content?.agent?.status||null}),285)});
  }
  return {status:Object.values(sources).every(s=>s==='available')?'available':'partial',items,sources};
 }

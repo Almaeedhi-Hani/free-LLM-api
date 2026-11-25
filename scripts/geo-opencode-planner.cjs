@@ -9,7 +9,7 @@ const manifest=require("../src/data/content-tree.json");
 // a path. Output specifications are skipped: the existing JSON contract wins.
 const fs=require('node:fs');
 const path=require('node:path');
-const DIRECT_SKILLS=Object.freeze(['evidence-verification','content-strategy','saudi-investment-expert','content-architecture','geo-ai-visibility','competitor-intelligence','keyword-research','technical-seo','conversion-optimization','performance-analytics','growth-decision','statistical-analysis','human-behavior-communication','growth-learning']);
+const DIRECT_SKILLS=Object.freeze(['evidence-verification','content-strategy','saudi-investment-expert','content-architecture','geo-ai-visibility','competitor-intelligence','keyword-research','technical-seo','conversion-optimization','performance-analytics','growth-decision','statistical-analysis','human-behavior-communication','growth-learning','ai-knowledge-optimization']);
 function directSkillGuidance(name){
  if(!DIRECT_SKILLS.includes(name))throw Error('Unapproved GEO skill');
  const file=path.join(__dirname,'..','.opencode','skills',name,'SKILL.md');
@@ -29,6 +29,7 @@ function selectDirectSkills(evidence){
  if(kinds.has('technical_seo')||kinds.has('internal_link'))result.push('technical-seo');
  if(kinds.has('gsc')||kinds.has('performance'))result.push('performance-analytics');
  if(kinds.has('conversion')||kinds.has('lead'))result.push('conversion-optimization');
+ if(kinds.has('performance')||kinds.has('inventory'))result.push('ai-knowledge-optimization');
  result.push('geo-ai-visibility');
  return result;
 }

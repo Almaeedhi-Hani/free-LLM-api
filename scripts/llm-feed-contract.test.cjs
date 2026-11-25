@@ -1,7 +1,7 @@
 'use strict';
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
-const source=fs.readFileSync('src/app/api/llm-version/route.ts','utf8');
+const source=fs.readFileSync('src/lib/llm-knowledge.ts','utf8');
 for(const required of [
  'Independent Saudi investor services',
  'languages.flatMap((lang,index)',

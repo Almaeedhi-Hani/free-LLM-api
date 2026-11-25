@@ -2,6 +2,7 @@ import {NextRequest,NextResponse} from "next/server";
 import {CONSENT_NAME,parseConsent,validateInvestorSignal} from "@/lib/investor-events";
 import {saveInvestorSignal} from "@/lib/investor-report-store";
 import {getContent} from "@/lib/content-store";
+import {recordAiReferral} from "@/lib/llm-knowledge-metrics";
 export const dynamic="force-dynamic";
 let minute=-1,accepted=0;
 const empty=(status:number)=>new NextResponse(null,{status,headers:{"Cache-Control":"no-store"}});
@@ -17,12 +18,13 @@ export async function POST(req:NextRequest){
  if(!origin||(origin!==req.nextUrl.origin&&origin!==configuredOrigin)||req.headers.get("sec-fetch-site")==="cross-site")return empty(403);
  if(!parseConsent(req.cookies.get(CONSENT_NAME)?.value))return empty(403);
  if(!req.headers.get("content-type")?.startsWith("application/json"))return empty(415);
- let signal;try{const raw=await boundedBody(req);if(!raw)return empty(413);signal=validateInvestorSignal(JSON.parse(raw))}catch{return empty(400)}
+ let signal;let referral=false;try{const raw=await boundedBody(req);if(!raw)return empty(413);const value=JSON.parse(raw);referral=value?.event==="ai_referral";signal=validateInvestorSignal(referral?{...value,event:"page_view"}:value)}catch{return empty(400)}
  if(!signal)return empty(400);
  const now=Math.floor(Date.now()/60000);if(minute!==now){minute=now;accepted=0}
  if(accepted>=120)return empty(429);
  accepted++;
  try{const content=await getContent();if(!content.cookiePolicy.analyticsAvailable)return empty(403)}catch{return empty(503)}
+ if(referral){recordAiReferral();return empty(204)}
  try{await saveInvestorSignal(signal)}catch{console.warn("investor_signal_storage_unavailable");return empty(503)}
  return empty(204);
 }

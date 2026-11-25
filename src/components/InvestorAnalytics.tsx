@@ -6,11 +6,12 @@ function allowed(){const raw=document.cookie.split("; ").find(x=>x.startsWith(CO
 export default function InvestorAnalytics({locale,enabled}:{locale:"ar"|"en"|"zh";enabled:boolean}){
  const pathname=usePathname();
  const viewed=useRef<string|null>(null);
+ const referralSent=useRef(false);
  useEffect(()=>{
   if(!enabled)return;
   const path=window.location.pathname,page=publicPage(path);if(!page)return;
   function send(event:InvestorEvent){if(!allowed())return;void fetch("/api/investor-events",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({event,page,locale}),keepalive:true,credentials:"same-origin",referrerPolicy:"no-referrer"}).catch(()=>{})}
-  function view(){if(!allowed()){viewed.current=null;return}if(viewed.current!==path){viewed.current=path;send("page_view")}}
+  function view(){if(!allowed()){viewed.current=null;return}if(viewed.current!==path){viewed.current=path;send("page_view");if(!referralSent.current){referralSent.current=true;try{const host=new URL(document.referrer).hostname.toLowerCase();if(["chatgpt.com","chat.openai.com","claude.ai","perplexity.ai","www.perplexity.ai","gemini.google.com","grok.com","chat.deepseek.com","copilot.microsoft.com"].includes(host))void fetch("/api/investor-events",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({event:"ai_referral",page,locale}),keepalive:true,credentials:"same-origin",referrerPolicy:"no-referrer"}).catch(()=>{})}catch{}}}}
   function click(event:MouseEvent){
    if(!event.isTrusted||!(event.target instanceof Element))return;
    const target=event.target.closest("a,button");if(!target)return;
