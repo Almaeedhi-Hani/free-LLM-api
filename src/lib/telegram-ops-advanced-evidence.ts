@@ -1,6 +1,6 @@
 import {createHash} from 'node:crypto';
 import {getContent,setContent,type ContentDraft,type SiteContent} from './content-store';
-import type {EditorialItem,EditorialClaimEvidence,EditorialRef,ReviewPreflight} from './editorial-types';
+import type {EditorialItem,EditorialClaimEvidence,EditorialRef,ReviewPreflight,SemanticShadowReceipt} from './editorial-types';
 import {assessGeoDraftCopy,detectGeoDraftLocale,splitGeoDraftReviewText} from './geo-draft-quality';
 import {editorialPublicationIssues,validateEditorialItem} from './editorial-workflow';
 import {getCompetitorDomains} from './source-policy-store';
@@ -147,6 +147,10 @@ export async function liveAutoPublicationReceipt(x:Candidate,request:typeof fetc
 }
 // Existing signed tick only, at most four candidates and 3 source URLs each.
 // One version-checked save; conflicts are not retried blindly.
+function shadowIdentity(receipt:SemanticShadowReceipt|undefined){
+ if(!receipt)return null;
+ return JSON.stringify([receipt.version_digest,receipt.packet_digest,receipt.checked_at,receipt.status,receipt.reason,receipt.reviewed_claims,receipt.requests,receipt.reviewers.map(r=>[r.model,r.provider,r.cost]),receipt.publication_authorized,receipt.independent_gateway_verified]);
+}
 export async function runReviewEvidenceBatch(){
  if(!getSupabaseCredentials())return {status:'storage_unavailable',processed:0,ready:0};
  const c=await getContent();
@@ -181,7 +185,7 @@ export async function runReviewEvidenceBatch(){
  const saved=await getContent();
  const verified=checked.every(x=>{
   const records=x.kind==='faq'?saved.drafts.filter(i=>i.q===(x.item as ContentDraft).q):saved.editorialItems.filter(i=>i.id===(x.item as EditorialItem).id);
-  return records.some(i=>i.review_preflight?.digest===x.item.review_preflight?.digest&&i.review_preflight?.checked_at===x.item.review_preflight?.checked_at&&i.review_preflight?.source_discovery_version===evidence.SOURCE_DISCOVERY_VERSION&&JSON.stringify(i.review_preflight?.semantic_shadow||null)===JSON.stringify(x.item.review_preflight?.semantic_shadow||null)&&i.status==='pending');
+  return records.some(i=>i.review_preflight?.digest===x.item.review_preflight?.digest&&i.review_preflight?.checked_at===x.item.review_preflight?.checked_at&&i.review_preflight?.source_discovery_version===evidence.SOURCE_DISCOVERY_VERSION&&shadowIdentity(i.review_preflight?.semantic_shadow)===shadowIdentity(x.item.review_preflight?.semantic_shadow)&&i.status==='pending');
  });
  if(!verified)throw Error('review_evidence_readback_unverified');
  return {status:'saved_verified',processed:checked.length,ready:checked.filter(readyForHuman).length,technical_tasks:technical.length,semantic_shadow:shadowStatus};

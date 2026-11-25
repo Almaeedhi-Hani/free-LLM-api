@@ -273,6 +273,6 @@ test('semantic shadow contract binds trilingual claim coverage to source passage
  assert(worker.includes('const index=checked.findIndex')&&worker.includes('process.env.OPENROUTER_API_KEY'));
  assert(worker.includes('if(r.requests>0)meta.semantic_shadow='));
  assert(worker.includes('publication_authorized:false,independent_gateway_verified:false'));
- assert(worker.includes('JSON.stringify(i.review_preflight?.semantic_shadow||null)'));
+ assert(worker.includes('shadowIdentity(i.review_preflight?.semantic_shadow)'));
  assert(worker.includes('prior?.semantic_shadow?.version_digest===meta.digest'));
  });
