@@ -94,6 +94,24 @@ const guard=require('./geo-generated-output-guard.cjs');
  assert.equal(savedItems[0].status,'pending','never autoapprove editorial proposals');
  assert.equal(savedItems[0].risk_level,'high','conservative risk unchanged');
 
+ // Execute the actual workflow classification command with a temporary artifact.
+ const os=require('node:os'),path=require('node:path'),cp=require('node:child_process');
+ const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'geo-workflow-'));
+ try {
+  fs.mkdirSync(path.join(tmp,'market-intel'));
+  fs.mkdirSync(path.join(tmp,'scripts'));
+  fs.copyFileSync('scripts/geo-editorial-no-data-contract.cjs',path.join(tmp,'scripts/geo-editorial-no-data-contract.cjs'));
+  const workflow=fs.readFileSync('.github/workflows/geo-analysis.yml','utf8');
+  const command=workflow.split('\n').find(line=>line.includes('node -e')&&line.includes('execution_outcome='));
+  assert(command,'actual workflow classification command');
+  for(const [report,expected] of [[{dashboard_synced:true,stages:partial},'partial_success'],[{dashboard_synced:false,stages:partial},'failed']]){
+   fs.writeFileSync(path.join(tmp,'market-intel/geo-persisted-results.json'),JSON.stringify(report));
+   const output=path.join(tmp,'output');
+   fs.writeFileSync(output,'');
+   cp.execSync(command.trim(),{cwd:tmp,env:{...process.env,GITHUB_OUTPUT:output}});
+   assert.equal(fs.readFileSync(output,'utf8'),'execution_outcome='+expected+'\n');
+  }
+ } finally {fs.rmSync(tmp,{recursive:true,force:true});}
  const wf=fs.readFileSync('.github/workflows/geo-analysis.yml','utf8');
  assert(wf.includes('node scripts/geo-editorial-no-data-contract.cjs --decision market-intel/geo-persisted-results.json'));
  assert(wf.includes('if [ "$decision" = "skip_no_data" ]; then'));
