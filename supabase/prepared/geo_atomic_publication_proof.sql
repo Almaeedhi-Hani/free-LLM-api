@@ -1,5 +1,5 @@
 -- Prepared migration: apply only after isolated SQL CI and application contract review.
--- Existing publisher is paused; no schedule, data deletion, or policy activation.
+-- Keep existing publication setting and schedule unchanged; no data deletion.
 -- The database checks the receipt and the entire locked JSONB snapshot.
 -- Live source retrieval and semantic/translation assessment remain server responsibilities.
 BEGIN;
@@ -92,7 +92,7 @@ BEGIN
  SELECT enabled,allow_high_risk,daily_limit INTO v_enabled,v_sensitive,v_limit
   FROM public.geo_publication_settings WHERE id=1 FOR UPDATE;
  IF NOT FOUND OR NOT v_enabled THEN RETURN jsonb_build_object('status','disabled'); END IF;
- IF v_limit NOT BETWEEN 1 AND 3 THEN RAISE EXCEPTION 'Invalid daily limit'; END IF;
+ IF v_limit NOT BETWEEN 1 AND 10 THEN RAISE EXCEPTION 'Invalid daily limit'; END IF;
  IF p_item_id IS NULL OR length(p_item_id) NOT BETWEEN 8 AND 128 THEN
   RAISE EXCEPTION 'Invalid candidate ID'; END IF;
  IF jsonb_typeof(p_verified_urls) IS DISTINCT FROM 'array' OR
@@ -160,7 +160,7 @@ BEGIN
  IF v_lang<>'ar' THEN v_target:='/'||v_lang||v_target; END IF;
  IF EXISTS(SELECT 1 FROM jsonb_array_elements(v_array) other
   WHERE other->>'id'<>p_item_id AND other->>'status'='approved'
-   AND other->>'lang'=v_lang AND other->>'kind'=v_kind
+   AND other->>'lang'=v_lang AND other->>'kind' IN ('guide','comparison')
    AND other->>'target'=v_item->>'target' AND v_kind IN ('guide','comparison')) THEN
   RETURN jsonb_build_object('status','route_conflict'); END IF;
  SELECT (SELECT count(*) FROM public.geo_publication_events e
@@ -202,6 +202,7 @@ BEGIN
  SELECT enabled,allow_high_risk,daily_limit INTO v_enabled,v_sensitive,v_limit
   FROM public.geo_publication_settings WHERE id=1 FOR UPDATE;
  IF NOT FOUND OR NOT v_enabled THEN RETURN jsonb_build_object('status','disabled'); END IF;
+ IF v_limit NOT BETWEEN 1 AND 10 THEN RAISE EXCEPTION 'Invalid daily limit'; END IF;
  IF p_question IS NULL OR length(p_question) NOT BETWEEN 5 AND 450 THEN
   RAISE EXCEPTION 'Invalid FAQ question'; END IF;
  SELECT content INTO v_content FROM public.content_store WHERE id=1 FOR UPDATE;
