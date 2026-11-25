@@ -92,3 +92,12 @@ assert(planner.includes('Never use a research evidence ID as topic_node_id'));
 assert(planner.includes('return editorial_actions:[]'));
 assert(planner.includes('FAQ QUALITY PREFLIGHT'),'direct-model prompt must expose unchanged server draft quality rules');
 console.log('PASS actual-production-schema regressions: required priorities, real editorial kinds/routes, no invented identity');
+
+for(const lang of ['ar','en','zh']){
+ const prefix=lang==='ar'?'/insights/':'/'+lang+'/insights/';
+ const input={...guide,lang,target:prefix+'Investor-Guide/',slug:'investor-guide'};
+ assert.equal(screenEditorial([input],lang).accepted[0].slug,'investor-guide');
+ const wrong=lang==='zh'?'en':'zh';
+ assert.equal(screenEditorial([{...input,target:'/'+wrong+'/insights/investor-guide'}],lang).accepted.length,0);
+ assert.equal(screenEditorial([{...input,target:prefix+'other-guide/'}],lang).accepted.length,0);
+}
