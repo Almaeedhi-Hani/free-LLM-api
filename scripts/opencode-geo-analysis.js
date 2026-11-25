@@ -440,7 +440,11 @@ async function stageGeoAnalysis() {
     return {records_processed:0,status:'partial',languages_analyzed:0,models_used:[],
       error:'No direct model provider configured in GitHub Actions'};
   }
-  for(const lang of LANGS){
+  // Rotate first access to free providers across existing three-hour slots.
+  // No extra calls, paid fallback, or changes to legacy CLI ordering.
+  const rotation=direct?Math.floor(Date.now()/10800000)%LANGS.length:0;
+  const localeOrder=[...LANGS.slice(rotation),...LANGS.slice(0,rotation)];
+  for(const lang of localeOrder){
     const sample=selectLocaleEvidence(all,lang,8);
     if(!sample.length){result.languages[lang]={status:'missing_evidence'};failed++;continue}
     let response=null;

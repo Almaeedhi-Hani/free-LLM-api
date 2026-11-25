@@ -166,3 +166,14 @@ test('automatic proof receipt rereads both approved authorities and binds every 
  assert.equal(await e.liveProofReceipt([a,b],claims,refs,async()=>new Response('<p>Unrelated source text.</p>',{headers:{'content-type':'text/html'}})),null);
  assert.equal(await e.liveProofReceipt([a,b],claims,refs,async()=>new Response('',{status:302,headers:{location:'https://example.com'}})),null);
 });
+
+test('editorial guide without a service slug can discover approved official topic sources',()=>{
+ const e=require('../src/lib/telegram-ops-advanced-evidence.cjs');
+ const targets=['foreign-founder-checklist',...e.faqTopicTargets('How to prepare for company formation')];
+ const urls=e.selectOfficialCandidates(targets,[],[]);
+ assert(urls.some(u=>new URL(u).hostname==='mc.gov.sa'));
+ assert(urls.length<=3);
+ assert.deepEqual(e.selectOfficialCandidates(['unknown-slug',...e.faqTopicTargets('Unrelated topic')],[],[]),[]);
+ const source=require('node:fs').readFileSync('src/lib/telegram-ops-advanced-evidence.ts','utf8');
+ assert(source.includes("evidence.faqTopicTargets([title,x.item.primary_keyword||''].join(' '))"));
+});
