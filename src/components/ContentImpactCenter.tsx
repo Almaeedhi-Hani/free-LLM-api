@@ -3,6 +3,7 @@ import React,{useEffect,useMemo,useState} from 'react';
 import type {EditorialItem} from '@/lib/editorial-types';
 import type {ContentFAQ,ContentDraft} from '@/lib/content-store';
 import {buildImpactInventory} from '@/lib/content-impact';
+import InvestorConversionReport from '@/components/admin/impact/InvestorConversionReport';
 import GeoImpactExperiments from '@/components/GeoImpactExperiments';
 import GeoWorkPriorities from '@/components/GeoWorkPriorities';
 import type {ImpactItem,ImpactMeasurement,ImpactStats} from '@/lib/content-impact';
@@ -183,6 +184,7 @@ export default function ContentImpactCenter({
    {filtered.length===0&&<p className="py-5 text-center text-sm text-slate-600">لا يوجد محتوى مطابق للبحث.</p>}
    <p className="mt-3 text-xs text-slate-500">المحتوى الفني والنسخ المقترحة ليست صفحات منشورة حتى اعتمادها. قياسات FAQ لا يمكن فصلها عن الصفحة المضيفة باستخدام GSC وحده.</p>
   </section>
+  <InvestorConversionReport adminSecret={adminSecret}/>
   <GeoImpactExperiments adminSecret={adminSecret} days={days}/>
   {selected&&<section className="rounded-2xl border-2 border-blue-200 bg-white p-4 shadow-sm sm:p-6" aria-label="معاينة المحتوى التفصيلية">
     <div className="flex flex-wrap items-start justify-between gap-3">

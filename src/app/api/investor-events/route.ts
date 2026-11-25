@@ -1,5 +1,6 @@
 import {NextRequest,NextResponse} from "next/server";
 import {CONSENT_NAME,parseConsent,validateInvestorSignal} from "@/lib/investor-events";
+import {saveInvestorSignal} from "@/lib/investor-report-store";
 import {getContent} from "@/lib/content-store";
 export const dynamic="force-dynamic";
 let minute=-1,accepted=0;
@@ -22,6 +23,6 @@ export async function POST(req:NextRequest){
  if(accepted>=120)return empty(429);
  accepted++;
  try{const content=await getContent();if(!content.cookiePolicy.analyticsAvailable)return empty(403)}catch{return empty(503)}
- console.info("investor_signal",JSON.stringify(signal));
+ try{await saveInvestorSignal(signal)}catch{console.warn("investor_signal_storage_unavailable");return empty(503)}
  return empty(204);
 }

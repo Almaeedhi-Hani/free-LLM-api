@@ -1,0 +1,11 @@
+const assert=require('node:assert/strict');
+const {reportFilters,summarizeReport}=require('../.investor-report-test-build/investor-report.js');
+assert(reportFilters('30','ar','company-formation'));
+assert(!reportFilters('365','all','all'));
+assert(!reportFilters('30','all','constructor'));
+const base={day:'2026-11-25',page:'company-formation',locale:'ar'};
+const summary=summarizeReport({from:base.day,to:base.day,firstRecordedDay:base.day,signals:[{...base,event:'page_view',total:10},{...base,event:'whatsapp_click',total:2},{...base,event:'call_click',total:1}],requests:[{...base,total:1}]});
+assert.equal(summary.contacts,3);assert.equal(summary.requests,1);assert.equal(summary.ratio,30);
+assert.equal(summary.byPage['company-formation'].requests,1);
+assert.equal(summarizeReport({signals:[],requests:[]}).ratio,null);
+console.log('PASS investor report counters and distinct confirmed requests');
