@@ -26,4 +26,11 @@ for(const name of ['PackageSelection','PackageContactStep','PackageInvestmentSte
   assert(source.includes('PackageArrow direction="back"'),name+' uses reusable back arrow');
   assert(!/[↩↪🔙]/u.test(source),name+' contains emoji arrow');
 }
-console.log('PASS exact owner-approved metallic gold, dark menu selection and directional package arrows');
+const bannerCss=fs.readFileSync('src/components/home/FormationPackagesBanner.module.css','utf8');
+assert(bannerCss.includes('var(--conversion-gold)')&&bannerCss.includes('radial-gradient'),'approved gold mesh');
+assert(!/#[0-9a-f]{3,8}\b/i.test(bannerCss),'banner uses existing palette tokens, not new hex colors');
+for(const m of bannerCss.matchAll(/rgba\((\d+),(\d+),(\d+),([.\d]+)\)/g)){
+  assert(['184,134,11','32,42,54','255,255,255'].includes(m.slice(1,4).join(',')),'only approved palette RGB');
+  if(m.slice(1,4).join(',')==='184,134,11')assert(Number(m[4])<=.30,'subtle gold mesh only');
+}
+console.log('PASS exact approved gold, dark menu, package arrows and restrained homepage mesh');

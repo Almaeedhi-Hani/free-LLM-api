@@ -28,4 +28,14 @@ assert(home.includes('pageMetadata()') && home.includes('JSON.stringify(schema)'
 assert(sources.includes('id="sources"') && journey.includes('{t.note}'));
 assert(!/https?:\/\/|<video\b|<iframe\b|["']use client["']/.test(hero),'static server hero, no remote media');
 for(const marker of ['100svh','env(safe-area-inset-top','prefers-reduced-motion:reduce','html[lang="ar"] .cinematic-hero','html[lang="zh-Hans"] .cinematic-hero','body:has(> #main .cinematic-hero) .site-header','cinematic-hero a:focus-visible'])assert(css.includes(marker),marker);
-console.log('PASS cinematic hero static integration, locales, CTA routes, SEO landmarks and scoped responsive CSS');
+const banner=read('src/components/home/FormationPackagesBanner.tsx');
+const bannerCss=read('src/components/home/FormationPackagesBanner.module.css');
+const editorial=read('src/components/home/EditorialPromise.tsx');
+assert.equal((home.match(/<FormationPackagesBanner\b/g)||[]).length,1);
+assert(home.includes('<EditorialPromise lang={lang} t={t} />\n      <FormationPackagesBanner lang={lang} />'),'replace previous CTA in place');
+assert(!editorial.includes('استعرض باقات التأسيس وأسعارها')&&!editorial.includes('localizedPath(lang,"/packages")'));
+assert(banner.includes('localizedPath(lang,"/packages")')&&banner.includes('packageOffers.filter(offer=>offer.group===id).length'));
+assert(!/<h1\b|<img\b|<video\b/.test(banner),'semantic, live text/CSS banner only');
+for(const label of ['استعرض باقات','التأسيس وأسعارها','Explore formation','packages and prices','查看企业设立','套餐及价格'])assert(banner.includes(label),label);
+assert(bannerCss.includes('radial-gradient')&&bannerCss.includes('prefers-reduced-motion')&&bannerCss.includes('@media(max-width:850px)'));
+console.log('PASS cinematic homepage and localized formation packages banner');

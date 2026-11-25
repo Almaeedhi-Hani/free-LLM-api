@@ -6,7 +6,7 @@ const {readGlobalStyles}=require('./support/global-styles.cjs');
 const read=p=>fs.readFileSync(p,'utf8');
 const page=read('src/app/page.tsx');
 assert(page.split('\n').length<70,'Route should compose feature components, not contain every section');
-for(const name of ["ConversionProof","AuthorityStrip","MarketEntry","EditorialPromise","HomeEditorial","ServicesSection","JourneySection","SourcesSection","ContactSection"]){
+for(const name of ["ConversionProof","AuthorityStrip","MarketEntry","EditorialPromise","FormationPackagesBanner","HomeEditorial","ServicesSection","JourneySection","SourcesSection","ContactSection"]){
   assert(page.includes('import '+name+' from "@/components/home/'+name+'";'),name+' import');
   assert(page.includes('<'+name+' '),name+' mounted');
   assert(fs.existsSync('src/components/home/'+name+'.tsx'),name+' source');
