@@ -35,8 +35,8 @@ export function approvedEditorial(items:readonly EditorialItem[]|undefined,lang:
 export function editorialPublicationIssues(item:Pick<EditorialItem,'body'|'sections'|'kind'>&Partial<Pick<EditorialItem,'title'|'summary'|'internal_links'>>):string[]{
  const parts=[item.title||'',item.summary||'',item.body,...(item.sections||[]).flatMap(s=>[s.h2,s.body,...(s.subsections||[]).flatMap(h=>[h.h3,h.body])]),...(item.internal_links||[]).map(l=>l.anchor)];
  const patterns=[
-  /مقترح تحريري|مراجعة تحريرية قبل النشر|خاضع[ة]? للمراجعة التحريرية|قبل النشر|العنوان الحالي|ترتيبها البصري|دون تغيير العرض الحالي|يقترح هذا القسم|يمكن تنظيم المعلومات على الصفحة|ويفضل عرض هذه العناصر|ويُفضل عرض هذه العناصر|سياسة داخلية|تعليمات الوكيل|المسارات المنشورة فعليًا/u,
-  /编辑提案|内容提案|发布前.{0,12}(?:审核|审查)|保留.{0,12}(?:标题|布局|设计)|不改变.{0,12}(?:页面|布局|套餐)|首页决策支持模块|服务页强化|内部指令|主关键词|建议.{0,10}(?:页面|模块).{0,10}(?:展示|添加)/u,
+  /مقترح تحريري|مراجعة تحريرية قبل النشر|خاضع[ة]? للمراجعة التحريرية|قبل النشر|العنوان الحالي|ترتيبها البصري|دون تغيير العرض الحالي|يقترح هذا القسم|يمكن تنظيم المعلومات على الصفحة|ويفضل عرض هذه العناصر|ويُفضل عرض هذه العناصر|سياسة داخلية|تعليمات الوكيل|المسارات المنشورة فعليًا/,
+  /编辑提案|内容提案|发布前.{0,12}(?:审核|审查)|保留.{0,12}(?:标题|布局|设计)|不改变.{0,12}(?:页面|布局|套餐)|首页决策支持模块|服务页强化|内部指令|主关键词|建议.{0,10}(?:页面|模块).{0,10}(?:展示|添加)/,
   /\b(?:editorial proposal|content proposal|editorial review before publication|retain the current (?:title|layout|design)|without changing the (?:current |existing )?(?:layout|design|page title)|decision-support (?:block|section) for the (?:live |homepage)|fee-and-scope explanation section for the live|internal instructions)\b/i,
   /\b(?:the|this) (?:home\s?page|service page|page|guide|article|section|package (?:page|content)|insights hub) should \b/i,
   /\bpackage (?:content|page) should\b/i,
