@@ -6,9 +6,9 @@ type Locale="ar"|"en"|"zh";
 type Consent={necessary:true;analytics:boolean;marketing:boolean;preferences?:boolean;version:typeof CONSENT_VERSION;updatedAt:string};
 const NAME=CONSENT_NAME;
 const labels={
- ar:{title:"خصوصيتك تهمنا",description:"نسعى باستمرار إلى تحسين جودة خدماتنا وتقديم تجربة تصفح أفضل. نستخدم ملفات تعريف الارتباط لتشغيل الموقع، وبموافقتك لتحسين الأداء وقياس فعالية خدماتنا وحفظ تفضيلاتك ودعم التسويق.",accept:"قبول الكل",reject:"رفض الاختيارية",saved:"تم حفظ تفضيلاتك"},
- en:{title:"Your privacy matters",description:"We continually improve the quality of our services to provide a better browsing experience. We use cookies to operate the website and, with your consent, improve performance, measure service effectiveness, remember your preferences and support marketing.",accept:"Accept all",reject:"Reject optional",saved:"Preferences saved"},
- zh:{title:"您的隐私很重要",description:"我们不断提升服务质量，为您提供更好的浏览体验。我们使用 Cookie 保障网站运行，并在您同意后改善性能、衡量服务效果、保存偏好及支持营销。",accept:"全部接受",reject:"拒绝可选项",saved:"偏好已保存"}
+ ar:{title:"خصوصيتك تهمنا",description:"نعمل باستمرار على تحسين جودة خدماتنا وتطوير تجربة تصفح الموقع. تساعدنا موافقتك.",accept:"قبول الكل",reject:"رفض الاختيارية",saved:"تم حفظ تفضيلاتك"},
+ en:{title:"Your privacy matters",description:"We continually work to improve the quality of our services and enhance your browsing experience. Your consent helps us.",accept:"Accept all",reject:"Reject optional",saved:"Preferences saved"},
+ zh:{title:"您的隐私很重要",description:"我们不断努力提升服务质量并改善网站浏览体验。您的同意将为我们提供帮助。",accept:"全部接受",reject:"拒绝可选项",saved:"偏好已保存"}
 };
 function readConsent():Consent|null{
  try{
