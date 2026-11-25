@@ -177,3 +177,16 @@ test('editorial guide without a service slug can discover approved official topi
  const source=require('node:fs').readFileSync('src/lib/telegram-ops-advanced-evidence.ts','utf8');
  assert(source.includes("evidence.faqTopicTargets([title,x.item.primary_keyword||''].join(' '))"));
 });
+
+ test('risk assessment preserves high-risk records and rejects sensitive copy even with exact evidence',()=>{
+ const e=require('../src/lib/telegram-ops-advanced-evidence.cjs');
+ const ready={complete:true,matched:2,total:2};
+ const item={status:'pending',risk_level:'low',q:'How can I find information on a website?'};
+ const neutral=['A separate fictional source sentence for testing','Another fictional source sentence for testing'];
+ assert.equal(e.assessPublicationRisk('faq',item,neutral,ready),'low');
+ for(const q of ['What is the investment license fee?','ما متطلبات فتح حساب مصرفي؟','公司注册需要哪些文件？','How do I obtain a visa?'])assert.equal(e.assessPublicationRisk('faq',{...item,q},neutral,ready),'high');
+ assert.equal(e.assessPublicationRisk('faq',{...item,risk_level:'high'},neutral,ready),'high');
+ assert.equal(e.assessPublicationRisk('faq',item,neutral,{...ready,complete:false}),'high');
+ assert.equal(e.assessPublicationRisk('editorial',{...item,target:'company-formation'},neutral,ready),'high');
+ assert.equal(e.assessPublicationRisk('faq',item,['Unverified bank account details'],ready),'high');
+ });

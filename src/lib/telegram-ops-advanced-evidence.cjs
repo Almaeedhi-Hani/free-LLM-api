@@ -84,6 +84,22 @@ function editorialIdentityFields(item,copyFields){
 }
 // Give both content queues capacity, then use spare capacity for the oldest
 // remaining due entries. Never raise the existing four-item cap.
+// Risk is independent of the model's self-label. Absence of a keyword
+// never establishes safety. Existing low-risk labels survive only with independent exact proof.
+// Unknown, financial, legal and translated copy remains high risk.
+const regulated=/(licen[sc]|legal|regulat|government fee|tax|ownership|shareholder|bank|residen|immigrat|visa|permit|approval|guarantee|cost estimate|paid service|service fee|sanction|penalt|موافقة|ترخيص|رخصة|نظام|قانون|رسوم|ضريبة|ملكية|إقامة|تأشيرة|بنك|مصرف|许可|执照|法律|税|收费|银行|居留|签证|股东|监管|审批)/iu;
+function assessPublicationRisk(kind,item,copyFields,result){
+ if(!item||item.status!=='pending'||!Array.isArray(copyFields)||copyFields.some(x=>typeof x!=='string'))return 'high';
+ // A positive safe classification needs a reviewed, closed topic vocabulary.
+ // This first version deliberately does not downgrade existing investment
+ // articles or arbitrary user-facing answers based on a lexical heuristic.
+ const text=[item.q,item.title,item.primary_keyword,item.target,item.related_service,...copyFields].filter(Boolean).join(' ').normalize('NFKC');
+ if(regulated.test(text)||faqTopicTargets(text.replace(/-/g,' ')).length)return 'high';
+ // Exact evidence checks are necessary but not sufficient for downgrading
+ // unknown high-risk records. Preserve their current classification.
+ if(item.risk_level!=='low'||!result?.complete||result.matched!==result.total||result.total<2)return 'high';
+ return 'low';
+}
 function selectReviewBatch(dueItems){
  const sorted=[...dueItems].sort((a,b)=>(a.item.review_preflight?.checked_at||'').localeCompare(b.item.review_preflight?.checked_at||''));
  const chosen=[...sorted.filter(x=>x.kind==='faq').slice(0,2),...sorted.filter(x=>x.kind==='editorial').slice(0,2)];
@@ -105,4 +121,4 @@ async function liveProofReceipt(fields,claims,refs,request=fetch){
  const checked_at=new Date().toISOString();
  return {urls:[...urls].sort(),proofs:claims.map(p=>({claim:p.claim,quote:p.quote,url:p.url,checked_at,verified_by:'live_official_exact_quote'}))};
 }
-module.exports={liveProofReceipt,parts,digest,safeUrl,topicUrls,readBounded,page,match,eligible,due,editorialIdentityFields,selectReviewBatch,faqTopicTargets,selectOfficialCandidates};
+module.exports={assessPublicationRisk,liveProofReceipt,parts,digest,safeUrl,topicUrls,readBounded,page,match,eligible,due,editorialIdentityFields,selectReviewBatch,faqTopicTargets,selectOfficialCandidates};

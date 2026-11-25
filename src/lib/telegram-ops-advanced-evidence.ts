@@ -23,6 +23,7 @@ const evidence=require('./telegram-ops-advanced-evidence.cjs') as {
  due:(meta:ReviewPreflight|undefined,kind:Kind,fields:string[])=>boolean;
  editorialIdentityFields:(item:EditorialItem,copyFields:string[])=>string[];
  selectReviewBatch:(items:Candidate[])=>Candidate[];
+ assessPublicationRisk:(kind:Kind,item:ContentDraft|EditorialItem,copyFields:string[],result:Result)=>'low'|'high';
  faqTopicTargets:(title:string)=>string[];
  selectOfficialCandidates:(targets:string[],saved:string[],discovered:string[])=>string[];
 };
@@ -70,7 +71,12 @@ async function check(x:Candidate):Promise<Candidate>{
  const pages=await Promise.all(urls.map(async url=>({url,sentences:await evidence.page(url)})));
  const result=evidence.match(fields(candidate),pages);
  const ready=allowed&&result.complete&&reviewCopyQuality(candidate);
- const original=ready?candidate:x;
+ const reviewed=ready?candidate:x;
+ // Preserve existing high-risk classifications; detect mislabeled sensitive
+ // copy before saving the digest. Never grant low risk from missing evidence.
+ const classified=evidence.assessPublicationRisk(reviewed.kind,reviewed.item,fields(reviewed),result);
+ const original:Candidate=classified==='high'&&reviewed.item.risk_level==='low'
+  ?({...reviewed,item:{...reviewed.item,risk_level:'high'}} as Candidate):reviewed;
  const prior=x.item.review_preflight;
  const same=prior?.digest===evidence.digest(x.kind,identityFields(x));
  const attempts=(same?(prior?.attempts||0):0)+1;
@@ -98,6 +104,8 @@ export async function liveReadyForHuman(x:Candidate):Promise<boolean>{
 export function canProbeAutoPublication(x:Candidate):boolean{
  try{
   if(x.item.status!=='pending'||x.item.risk_level!=='low'||x.item.review_preflight?.archived===true||!readyForHuman(x))return false;
+  const meta=x.item.review_preflight!;
+  if(evidence.assessPublicationRisk(x.kind,x.item,fields(x),{complete:true,total:meta.total,matched:meta.matched,proofs:x.item.claim_evidence||[]})!=='low')return false;
   if(x.kind==='editorial'){
    if(detectGeoDraftLocale(x.item.title)!==x.item.lang||
       !assessGeoDraftCopy(x.item.title,x.item.body).publishable)return false;
