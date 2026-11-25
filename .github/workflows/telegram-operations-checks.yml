@@ -8,6 +8,7 @@ on:
       - 'src/lib/telegram-ops-phase2.cjs'
       - 'src/lib/telegram-ops-notifier.ts'
       - 'src/lib/telegram-ops-advanced*'
+      - 'src/lib/telegram/**'
       - 'src/lib/telegram-voice-providers.cjs'
       - 'scripts/telegram-voice-providers.test.cjs'
       - 'scripts/telegram-advanced.test.cjs'

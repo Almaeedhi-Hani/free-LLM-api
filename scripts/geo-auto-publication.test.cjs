@@ -127,7 +127,7 @@ const {parsePublicationOrigin,publicationAuditPayload,appendPublicationAudit}=re
   "revoke all on function public.geo_rollback_auto_publication",
   "to service_role"
  ])assert(sql.includes(required),'Missing atomic publication security invariant: '+required);
- const worker=fs.readFileSync('src/lib/geo-auto-publication.ts','utf8');
+ const worker=['runner','policy-store','citations','official-evidence','types'].map(name=>fs.readFileSync('src/lib/geo/publication/'+name+'.ts','utf8')).join('\n');
  assert(worker.includes("optionalResearchCitations(candidate,competitorDomains)")&&worker.includes("validateEditorialItem("));
  assert(worker.includes("editorialPublicationIssues(x).length")||worker.includes("editorialPublicationIssues(candidate)"),"unfinished visitor-copy instructions must not be misrepresented as a finished public article");
  assert(!worker.includes("method:'DELETE'"),'autopublisher never destroys user content');
@@ -247,7 +247,7 @@ const {parsePublicationOrigin,publicationAuditPayload,appendPublicationAudit}=re
   assert(workflow.includes('curl --fail-with-body --retry 0'),
    kind+' must not blindly retry an ambiguous write');
  }
- const auditWorker=fs.readFileSync('src/lib/geo-auto-publication.ts','utf8');
+ const auditWorker=['runner','policy-store','citations','official-evidence','types'].map(name=>fs.readFileSync('src/lib/geo/publication/'+name+'.ts','utf8')).join('\n');
  for(const rpc of ['rpc/geo_commit_auto_publication','rpc/geo_commit_auto_faq']){
   assert(auditWorker.includes(rpc));
   assert(auditWorker.includes("phase:'rpc_started'")||

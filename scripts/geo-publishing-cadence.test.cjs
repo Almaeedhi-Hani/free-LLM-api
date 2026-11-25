@@ -9,6 +9,6 @@ assert(workflow.includes("if: steps.cadence.outputs.run == 'true'"),'no publishi
 assert(workflow.includes('--retry 0'),'no ambiguous publisher POST retries');
 assert(workflow.includes('geo-auto-publication-daily'),'serialized publisher execution');
 assert(workflow.includes('/api/geo/auto-publication'),'only authenticated publisher endpoint is invoked');
-const controls=fs.readFileSync('src/lib/geo-auto-publication.ts','utf8');
+const controls=['runner','policy-store','citations','official-evidence','types'].map(name=>fs.readFileSync('src/lib/geo/publication/'+name+'.ts','utf8')).join('\n');
 assert(controls.includes('daily_limit')||controls.includes('maxDailyPages'),'publisher must obey database quota');
 console.log('PASS GEO frequent publish eligibility checks with unchanged 24h DB quota, serialized execution and no retries');

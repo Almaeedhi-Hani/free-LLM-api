@@ -17,7 +17,7 @@ const sensitive='client_secret=secret-value&refresh_token=refresh-value';
 const bad=classifyGscSyncFailure(new Error(sensitive));
 assert.deepEqual(bad,{error:'gsc_unexpected_failure',retryable:false});
 assert(!JSON.stringify(bad).includes('secret-value'));
-const route=fs.readFileSync('src/app/api/cron-gsc/route.ts','utf8');
+const route=fs.readFileSync('src/lib/gsc/sync-service.ts','utf8');
 assert(route.includes('classifyGscSyncFailure(error)'));
 assert(route.includes('return NextResponse.json({status:\'error\',...failure},{status:502})'));
 assert(route.includes("throw new Error('google_token_' + tokenResponse.status)"));

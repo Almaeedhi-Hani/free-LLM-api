@@ -36,6 +36,14 @@ for(const name of ["types","classification","scoring","domain-exclusions","keywo
 const storage=read('src/lib/market/storage.ts');
 assert(storage.includes('let fileLock: Promise<void> = Promise.resolve()')&&storage.includes('getSupabaseCredentials()'),'Shared server storage adapter keeps original lock and credential boundary');
 assert(!market.includes("from './market/storage'"),'No public export of internal storage helpers');
+const publication=read('src/lib/geo-auto-publication.ts');
+assert(publication.split('\n').length<15,'GEO publication facade');
+assert(read('src/lib/geo/publication/runner.ts').includes('runGuardedAutoPublishing'),'GEO publication runner');
+const cronGsc=read('src/app/api/cron-gsc/route.ts');
+assert(cronGsc.split('\n').length<30&&cronGsc.includes('if (!authorized(req))')&&cronGsc.includes('return runGscSync()'),'GSC auth stays at route boundary');
+const telegram=read('src/app/api/telegram/operations/route.ts');
+assert(telegram.split('\n').length<65&&telegram.includes('core.authentic')&&telegram.includes('await claimDelivery'),'Telegram auth and idempotency stay at route boundary');
+assert(read('src/lib/telegram/transport.ts').includes('length>65536'),'Telegram request size bound');
 const manifest=read('src/app/globals.css');
 assert(!/\{[^}]*:[^}]*\}/s.test(manifest),'Global entrypoint only imports styles');
 const css=readGlobalStyles();
@@ -68,6 +76,17 @@ if(baseline){
     const normalized=s=>s.replace(/^export (async )?function (withFileLock|readFile|writeFile|sbFetch|assertOk|sbJson|isSupabase|nowIso|listRadarRuns)\b/gm,'$1function $2');
     assert(normalized(read('src/lib/market/'+name+'.ts')).includes(marketOriginal.slice(start-1,end).join('\n')),name+' original market implementation');
   }
-  console.log('PASS exact baseline CSS, public/admin markup, package steps and market implementation');
+  const geoOriginal=cp.execFileSync('git',['show',baseline+':src/lib/geo-auto-publication.ts'],{encoding:'utf8'}).split('\n');
+  for(const [name,start,end] of [['types',12,18],['official-evidence',19,117],['policy-store',118,191],['citations',192,206],['runner',207,350]]){
+    const normalized=read('src/lib/geo/publication/'+name+'.ts').replace('export type Policy=','type Policy=').replace('export async function restCall(','async function restCall(');
+    assert(normalized.includes(geoOriginal.slice(start-1,end).join('\n')),name+' original GEO implementation');
+  }
+  const gscOriginal=cp.execFileSync('git',['show',baseline+':src/app/api/cron-gsc/route.ts'],{encoding:'utf8'}).split('\n');
+  assert(read('src/lib/gsc/sync-service.ts').includes(gscOriginal.slice(20,102).join('\n')),'original GSC sync orchestration');
+  const tgOriginal=cp.execFileSync('git',['show',baseline+':src/app/api/telegram/operations/route.ts'],{encoding:'utf8'}).split('\n');
+  assert(read('src/lib/telegram/operations-data.ts').replace('export async function dataFor(','async function dataFor(').includes(tgOriginal.slice(22,64).join('\n')),'original Telegram data collection');
+  assert(read('src/lib/telegram/transport.ts').replace('export async function send(','async function send(').replace('export async function boundedBody(','async function boundedBody(').includes(tgOriginal.slice(64,83).join('\n')),'original Telegram transport and body bounds');
+  assert(telegram.includes(tgOriginal.slice(83,120).join('\n')),'original Telegram webhook security and dispatch');
+  console.log('PASS exact baseline CSS, public/admin markup, package steps and backend implementations');
 }
 console.log('PASS ordered CSS manifest and composed homepage architecture');

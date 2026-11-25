@@ -52,3 +52,9 @@ The former 1,616-line market-intelligence.ts now re-exports the exact original p
 
 ## Seventh migration slice — dashboard controller
 - Route composes views and invokes a controller; separate hooks for local state/navigation, session restoration/content reads and writes, market/evidence reads, and content actions. A pure summary helper builds derived view data. Session credentials remain in the existing client session state; no new persistence or authorization behavior. Original request, conflict, validation and confirmation code retained. No global context or new dependencies.
+
+## Eighth migration slice — backend boundaries
+- GEO publication: public facade with separate evidence verification, types, policy persistence, citation rules and guarded runner. Original RPC, audit, quota and ambiguity behavior retained.
+- GSC: cron route keeps its constant-time authorization and delegates existing synchronization to a dedicated service.
+- Telegram: webhook retains authentication, delivery ledger and dispatch; data reads, transport, configuration and voice processing are separate modules. Existing commands and scopes remain unchanged.
+- No new schedules, migration, credentials, external request or publication behavior. Static source contracts follow the owning modules. The pinned baseline checks exact moved implementation bodies.
