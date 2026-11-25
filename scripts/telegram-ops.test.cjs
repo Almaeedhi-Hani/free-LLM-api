@@ -53,7 +53,7 @@ test('review callback is owner-only, exact-key bound and requires explicit decis
  const q={id:'123456',from:update.message.from,message:{chat:update.message.chat},data:'review:'+'a'.repeat(24)};
  const valid=reviewCallback({update_id:2,callback_query:q},cfg);
  assert.equal(valid.update.message.text,'/review '+'a'.repeat(24));
- for(const [data,expected] of [['approve:'+'a'.repeat(24),'/approve '+'a'.repeat(24)],['reject:'+'a'.repeat(24),'/reject '+'a'.repeat(24)],['confirm:1234567890abcdef','/confirm 1234567890abcdef'],['reviewlist','/reviewlist']]){
+ for(const [data,expected] of [['approve:'+'a'.repeat(24),'/approve '+'a'.repeat(24)],['reject:'+'a'.repeat(24),'/reject '+'a'.repeat(24)],['confirm:1234567890abcdef','/confirm 1234567890abcdef'],['reviewlist','/reviewlist'],...['verify','revise','reasons'].map(k=>[k+':'+'a'.repeat(24),'/'+k+' '+'a'.repeat(24)])]){
   assert.equal(reviewCallback({update_id:2,callback_query:{...q,data}},cfg).update.message.text,expected);
   assert.equal(reviewCallback({update_id:2,callback_query:{...q,data,from:{id:9,is_bot:false}}},cfg),null);
  }

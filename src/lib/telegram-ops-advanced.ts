@@ -1,7 +1,12 @@
 import {randomBytes} from 'node:crypto';
 import {getSupabaseCredentials} from '@/lib/storage-mode';
 import {getContent,type SiteContent,type ContentDraft} from '@/lib/content-store';
-import {assessGeoDraftCopy,splitGeoDraftReviewText} from '@/lib/geo-draft-quality';
+import {assessGeoDraftCopy,splitGeoDraftReviewText,detectGeoDraftLocale} from '@/lib/geo-draft-quality';
+import {officialCandidateUrls,checkOfficialUrlReachable,verifyHighRiskOfficialClaims} from '@/lib/geo/publication/official-evidence';
+import {assessFaqCandidate,assessEditorialCandidate,publicEditorialFields} from '@/lib/geo/publication/preflight';
+import {exactClaimCoverage} from '@/lib/geo-claim-evidence';
+import {getCompetitorDomains} from '@/lib/source-policy-store';
+import {isSaudiGovernmentCandidate} from '@/lib/editorial-official-source-search';
 type Cfg={token:string;secret:string;chat:string;owner:string};
 type Action={kind:string;decision?:string;id?:string;key?:string;code?:string};
 export type ReviewButton={text:string;callback_data:string}|{text:string;url:string};
@@ -58,6 +63,60 @@ export async function reviewCard(key:string):Promise<ReviewCard>{
 export async function reviewNotificationCandidates(){
  const items=pending(await readContent());
  return items.slice(0,30).map((x,index)=>({key:'review-card:'+x.key,...buildReviewCard(items,index)}));
+}
+// Read-only, item-version-bound tools. No approval, content writes or workflow dispatch.
+export async function reviewDiagnostics(a:Action):Promise<ReviewCard>{
+ const items=pending(await readContent()),x=items.find(i=>i.key===a.key);
+ const back:ReviewButton[][]=[[{text:'العودة للبطاقة',callback_data:'review:'+(a.key||'')}],[{text:'قائمة المراجعات',callback_data:'reviewlist'}]];
+ if(!x)return {text:'العنصر تغير أو لم يعد معلقًا. افتح قائمة المراجعات.',inline_keyboard:[back[1]]};
+ const rows:ReviewButton[][]=[];
+ const body=x.kind==='faq'?x.item.a:x.item.body;
+ const refs=x.item.evidence_refs||[];
+ const item={body,evidence_refs:refs,claim_evidence:x.item.claim_evidence};
+ const urls=officialCandidateUrls(item);
+ const heading=x.title.slice(0,220);
+ if(a.kind==='reasons'){
+  const reasons:string[]=[];
+  if(!reviewText(x))reasons.push('النص يتجاوز طول المراجعة الآمنة داخل Telegram.');
+  if(x.kind==='faq'){
+   if(x.item.risk_level!=='low')reasons.push('درجة المخاطر ليست منخفضة أو غير محددة.');
+   if(splitGeoDraftReviewText(x.item.a).note)reasons.push('يتضمن النص ملاحظة تطلب التحقق قبل النشر.');
+   const quality=assessGeoDraftCopy(x.item.q,x.item.a);
+   if(!quality.publishable)reasons.push('فحص جودة النص: '+quality.issues.join(' | '));
+  }else reasons.push('اعتماد المحتوى التحريري يتطلب بوابة الإدارة الحالية.');
+  if(!urls.length)reasons.push('لا توجد أدلة حكومية مصنفة ضمن المصادر المحفوظة.');
+  const auto=x.kind==='faq'?assessFaqCandidate(x.item):(await assessEditorialCandidate(x.item,await getCompetitorDomains().catch(()=>null),false)).reason;
+  return {text:'📋 أسباب منع الاعتماد\n\n'+heading+'\n\n'+(canApprove(x)&&reviewText(x)?'طلب الاعتماد اليدوي متاح مع تأكيد منفصل.':'الاعتماد اليدوي عبر البوت غير متاح.')+'\n'+(reasons.map(v=>'• '+v).join('\n')||'لا توجد ملاحظات إضافية.')+'\n\nبوابة النشر الآلي (مستقلة): '+auto+'\nلم يتم تغيير حالة المحتوى.',inline_keyboard:back};
+ }
+ const reachable=await Promise.all(urls.map(url=>checkOfficialUrlReachable(url)));
+ // Existing exact-quote verifier enforces 2 authority domains and bounded HTML reads.
+ const proof=reachable.some(Boolean)&&item.claim_evidence?.length?await verifyHighRiskOfficialClaims(item):null;
+ const coverage=proof?exactClaimCoverage(x.kind==='faq'?[body]:publicEditorialFields(x.item).split('\n'),proof.proofs):null;
+ if(a.kind==='verify'){
+  let discovery='لم يلزم البحث عن روابط إضافية.';
+  if(!reachable.some(Boolean)){
+   discovery='البحث عن مصادر مرشحة غير متاح.';
+   const secret=process.env.ADMIN_SECRET||process.env.REVALIDATION_SECRET;
+   if(secret)try{
+    const lang=x.kind==='faq'?detectGeoDraftLocale(x.title):x.item.lang;
+    const response=await fetch('https://free-llm-api-1-didl.onrender.com/api/admin/editorial-sources',{method:'POST',headers:{'x-admin-secret':secret,'Content-Type':'application/json'},body:JSON.stringify({title:x.title.slice(0,170),lang,...(x.kind==='editorial'?{primary_keyword:x.item.primary_keyword?.slice(0,160),target:x.item.target.slice(0,120)}:{})}),cache:'no-store',redirect:'error',signal:AbortSignal.timeout(16000)});
+    if(response.ok){
+     const data=await response.json();
+     const candidates=Array.isArray(data.results)?data.results.filter((r:unknown):r is {url:string;title:string}=>!!r&&typeof r==='object'&&'url' in r&&typeof r.url==='string'&&isSaudiGovernmentCandidate(r.url)&&'title' in r&&typeof r.title==='string').slice(0,5):[];
+     discovery=candidates.length?'عُثر على '+candidates.length+' روابط حكومية مرشحة فقط؛ لم تثبت الادعاءات.':'لم يعثر البحث على روابط حكومية مرشحة.';
+     for(const c of candidates)rows.push([{text:'🔗 '+c.title.slice(0,55),url:c.url}]);
+    }
+   }catch{}
+  }
+  for(let i=0;i<urls.length;i++)rows.push([{text:(reachable[i]?'✓ متاح: ':'تعذر الوصول: ')+new URL(urls[i]).hostname,url:urls[i]}]);
+  return {text:'🔍 نتيجة فحص المصادر الرسمية\n\n'+heading+'\n\nالمصادر الحكومية المحفوظة: '+urls.length+'\nالمتاحة الآن: '+reachable.filter(Boolean).length+'\nالاقتباسات المطابقة: '+(proof?.proofs.length||0)+'\nتغطية النص: '+(coverage?coverage.matched+' من '+coverage.total:'غير مثبتة')+'\n'+discovery+'\n\nالوصول للمصدر لا يثبت صحة الادعاء. لم يتم الاعتماد أو حفظ أدلة جديدة.',inline_keyboard:[...rows,...back]};
+ }
+ // A correction suggestion is deliberately non-mutating. Never invent a legal claim.
+ const separated=x.kind==='faq'?splitGeoDraftReviewText(body):{answer:body,note:''};
+ const tidy=separated.answer.replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').trim();
+ const revised=tidy!==body.trim()&&tidy.length>0;
+ const result=coverage?.complete?'تغطية النص الحرفية متاحة؛ لا تعني الموافقة أو التحقق الدلالي.':'الأدلة غير كافية لإعادة صياغة الحقائق بأمان. يلزم ربط كل ادعاء بمصدر رسمي مناسب.';
+ return {text:('✏️ اقتراح تصحيح — غير محفوظ\n\n'+heading+'\n\n'+result+'\n\n'+(revised?'معاينة تنسيق النص دون إضافة حقائق:\n'+tidy+(separated.note?'\n\nملاحظة المراجعة المحتفظ بها: '+separated.note:''):'لم أجد تعديلًا شكليًا آمنًا؛ لا أقترح نصًا بديلًا غير مستند إلى أدلة.')+'\n\nالمسودة الأصلية باقية دون تغيير.').slice(0,3500),inline_keyboard:[[{text:'فحص المصادر',callback_data:'verify:'+x.key}],...back]};
 }
 export async function handleReviewAction(a:Action,cfg:Cfg,updateId:number):Promise<ReviewCard>{
  return cards.decisionCard(await handleAdvanced(a,cfg,updateId));

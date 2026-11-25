@@ -17,11 +17,14 @@ function sourceButtons(refs){
 function card({key,title,kind,body,refs,eligible,index,total,previous,next,full}){
  const type=kind==='faq'?'سؤال شائع FAQ':'محتوى تحريري';
  const sources=sourceButtons(refs);
- const text='📋 طلب مراجعة محتوى — '+(index+1)+' / '+total+'\n\n'+title+'\n\nالنوع: '+type+'\nالحالة: بانتظار المراجعة\n\n'+(full?'المحتوى المقترح:\n'+body:'النص طويل؛ اقرأ المحتوى الكامل من لوحة الإدارة قبل اتخاذ أي قرار.')+'\n\nالأدلة المحفوظة: '+(refs||[]).length+' — وجود روابط لا يعني التحقق المستقل منها.\n'+(eligible&&full?'يمكن طلب الاعتماد بعد قراءة النص والأدلة؛ يلزم تأكيد منفصل.':'الاعتماد غير متاح هنا؛ يلزم استكمال شروط المراجعة في لوحة الإدارة.');
+ const text='📋 طلب مراجعة محتوى — '+(index+1)+' من '+total+'\n\n'+title+'\n\nالنوع: '+type+'\nالحالة: بانتظار المراجعة\n\n'+(full?'المحتوى المقترح:\n'+body:'النص طويل؛ اقرأ المحتوى الكامل من لوحة الإدارة قبل اتخاذ أي قرار.')+'\n\nالأدلة المحفوظة: '+(refs||[]).length+' — وجود روابط لا يعني التحقق المستقل منها.\n'+(eligible&&full?'يمكن طلب الاعتماد بعد قراءة النص والأدلة؛ يلزم تأكيد منفصل.':'الاعتماد غير متاح هنا؛ يلزم استكمال شروط المراجعة في لوحة الإدارة.');
  const rows=full&&text.length<=3500?[...sources]:[];
  if(full&&text.length<=3500){
   rows.push([...(eligible?[button('✅ طلب الاعتماد','approve:'+key)]:[]),button('❌ طلب الرفض','reject:'+key)]);
  }
+ rows.push([button('🔍 التحقق من المصادر الرسمية','verify:'+key)]);
+ rows.push([button('✏️ اقتراح تصحيح المحتوى','revise:'+key)]);
+ rows.push([button('📋 أسباب منع الاعتماد','reasons:'+key)]);
  rows.push([urlButton('لوحة الإدارة — المصادر والتعديل',dashboard)]);
  const nav=[];
  if(previous)nav.push(button('⬅ السابق','review:'+previous));

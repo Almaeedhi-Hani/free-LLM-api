@@ -1,6 +1,6 @@
 import {NextRequest,NextResponse} from 'next/server';
 import {telegramPhase2Enabled,healthText,claimDelivery,markDelivery} from '@/lib/telegram-ops-notifier';
-import {advancedEnabled,parseAdvanced,handleAdvanced,handleVoice,memorySummary,reviewMenu,reviewCard,handleReviewAction,type ReviewButton} from '@/lib/telegram-ops-advanced';
+import {advancedEnabled,parseAdvanced,handleAdvanced,handleVoice,memorySummary,reviewMenu,reviewCard,reviewDiagnostics,handleReviewAction,type ReviewButton} from '@/lib/telegram-ops-advanced';
 import {coordinator,coordinatorEnabled,core} from '@/lib/telegram/config';
 import {dataFor} from '@/lib/telegram/operations-data';
 import {send,boundedBody} from '@/lib/telegram/transport';
@@ -31,6 +31,7 @@ export async function POST(req:NextRequest){
   }
   else if(action?.kind==='reviewlist'){const m=await reviewMenu();message=m.text;inline=m.inline_keyboard;}
   else if(action?.kind==='review'){const m=await reviewCard(action.key||'');message=m.text;inline=m.inline_keyboard;}
+  else if(action&&['verify','revise','reasons'].includes(action.kind)){const m=await reviewDiagnostics(action);message=m.text;inline=m.inline_keyboard;}
   else if(action&&['approve','reject','confirm'].includes(action.kind)){const m=await handleReviewAction(action,cfg,(update as {update_id:number}).update_id);message=m.text;inline=m.inline_keyboard;}
   else if(action)message=await handleAdvanced(action,cfg,(update as {update_id:number}).update_id);
   else if(command==='voice'&&advancedEnabled())message=await handleVoice(update,cfg);
