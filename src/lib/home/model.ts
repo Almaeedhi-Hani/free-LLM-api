@@ -1,7 +1,7 @@
 import { siteUrl } from "@/lib/site-seo";
 import { getLocale, localizedPath } from "@/lib/site-language";
 import { copy, services } from "@/lib/service-catalog";
-import { getContent } from "@/lib/content-store";
+import {getPublicContent as getContent} from "@/lib/public-content";
 
 /** Server-only homepage data preparation and structured data. */
 export async function loadHomeModel() {

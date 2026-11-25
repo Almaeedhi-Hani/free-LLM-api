@@ -1,6 +1,6 @@
 import { getLocale, localizedPath } from "@/lib/site-language";
 import { copy, services } from "@/lib/service-catalog";
-import { getContent } from "@/lib/content-store";
+import {getPublicContent as getContent} from "@/lib/public-content";
 import { approvedEditorial } from "@/lib/editorial-workflow";
 import { guides, guideLabels } from "@/lib/service-guides";
 import { siteUrl } from "@/lib/site-seo";

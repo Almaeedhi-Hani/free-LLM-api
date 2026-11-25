@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import {notFound} from "next/navigation";
 import {DiscoveryContent} from "@/components/discovery/DiscoveryCard";
-import {getContent} from "@/lib/content-store";
+import {getPublicContent as getContent} from "@/lib/public-content";
 import {getLocale,localizedPath} from "@/lib/site-language";
 import {siteUrl} from "@/lib/site-seo";
 import {approvedEditorial} from "@/lib/editorial-workflow";

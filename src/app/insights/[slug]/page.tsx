@@ -3,7 +3,7 @@ import {notFound} from "next/navigation";
 import ArrowUpRight from "@/components/ArrowUpRight";
 import {DiscoveryLink} from "@/components/discovery/DiscoveryCard";
 import {getLocale,localizedPath} from "@/lib/site-language";
-import {getContent} from "@/lib/content-store";
+import {getPublicContent as getContent} from "@/lib/public-content";
 import {publicGuide,approvedEditorial} from "@/lib/editorial-workflow";
 import {siteUrl} from "@/lib/site-seo";
 import {getCompetitorDomains} from "@/lib/source-policy-store";

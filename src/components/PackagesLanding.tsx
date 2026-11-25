@@ -1,4 +1,4 @@
-import { getContent } from "@/lib/content-store";
+import {getPublicContent as getContent} from "@/lib/public-content";
 import { localizedPath } from "@/lib/site-language";
 import { siteUrl } from "@/lib/site-seo";
 import { packageOffers, packageDisclosure, packageUpdatedAt } from "@/lib/package-offers";

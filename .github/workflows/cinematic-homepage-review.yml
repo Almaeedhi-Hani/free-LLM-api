@@ -36,6 +36,12 @@ on:
       - 'scripts/reference-color-contract.test.cjs'
       - 'src/components/WhatsAppFloat.tsx'
       - 'src/components/CookieConsent.tsx'
+      - 'src/components/InvestorAnalytics.tsx'
+      - 'src/lib/investor-events.ts'
+      - 'src/app/api/investor-events/**'
+      - 'src/lib/public-content.ts'
+      - 'scripts/investor-events.test.cjs'
+      - 'scripts/investor-experience.browser.cjs'
       - 'src/components/PremiumResidencyPage.module.css'
       - '.github/workflows/cinematic-homepage-review.yml'
 permissions:
@@ -73,6 +79,8 @@ jobs:
           node scripts/admin-dashboard-contract.test.cjs
           npm run test:packages
           npm run test:whatsapp
+          npx --no-install tsc src/lib/investor-events.ts --outDir .investor-test-build --module commonjs --target es2020 --skipLibCheck --strict --types node
+          node scripts/investor-events.test.cjs
           npx --no-install tsc src/lib/premium-residency-content.ts --outDir .residency-test-build --module commonjs --target es2020 --lib es2020,dom --moduleResolution node --esModuleInterop --skipLibCheck --strict --types node
           node --test scripts/premium-residency-content.test.cjs
       - name: Verify exact pre-refactor CSS and markup parity
@@ -90,7 +98,9 @@ jobs:
           done
           if [ "$ready" != "1" ]; then tail -80 /tmp/cinematic-dev.log; exit 1; fi
       - name: Capture and check actual rendered Next.js pages
-        run: NODE_PATH=/tmp/cinematic-tools/node_modules node scripts/cinematic-homepage.browser.cjs
+        run: |
+          NODE_PATH=/tmp/cinematic-tools/node_modules node scripts/cinematic-homepage.browser.cjs
+          NODE_PATH=/tmp/cinematic-tools/node_modules node scripts/investor-experience.browser.cjs
       - name: Upload screenshots and browser results
         if: always()
         uses: actions/upload-artifact@v4
