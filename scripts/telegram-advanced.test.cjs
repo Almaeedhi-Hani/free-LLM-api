@@ -228,3 +228,18 @@ test('semantic shadow contract binds trilingual claim coverage to source passage
  assert.equal(prepare({...base,pages:[pages[0],{...pages[1],url:'https://example.com/'}]}),null);
  assert.equal(prepare({...base,fields:Array.from({length:21},(_,i)=>'Claim '+i)}),null);
 });
+
+ test('publication diagnostics share the production version gate and avoid stale sensitive permission claims',()=>{
+ const fs=require('node:fs');
+ const runner=fs.readFileSync('src/lib/geo/publication/runner.ts','utf8');
+ const gate=fs.readFileSync('src/lib/telegram-ops-advanced-evidence.ts','utf8');
+ const dry=runner.slice(runner.indexOf(' if(dryRun){'),runner.indexOf(' // A legacy RPC'));
+ assert(dry.includes('autoPublicationBlockReason')&&dry.includes('ready_for_live_probe:readyForProbe'));
+ assert(!dry.includes('liveAutoPublicationReceipt')&&!dry.includes('restCall('));
+ assert(gate.includes("if(x.item.risk_level!=='low')return 'risk_not_low'"));
+ assert(gate.includes('return autoPublicationBlockReason(x)===null'));
+ assert(runner.includes('verifier.canProbeAutoPublication')&&runner.includes('verifier.liveAutoPublicationReceipt'));
+ const ui=fs.readFileSync('src/components/admin/impact/PublicationControls.tsx','utf8');
+ assert(!ui.includes('دون اشتراط مصدرين')&&!ui.includes('لا يلزم مصدران'));
+ assert(ui.includes('مصدرين رسميين مستقلين')&&ui.includes('changeSensitive(false)'));
+ });

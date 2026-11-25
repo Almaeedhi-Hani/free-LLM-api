@@ -45,10 +45,8 @@ export function usePublicationControls(adminSecret:string){
  };
 
  const changeSensitive=async(allow:boolean)=>{
-  if(allow){
-   if(!window.confirm('السماح بالنشر التلقائي لمحتوى استثماري أو نظامي حساس قد يؤثر على قرارات العملاء. هل تريد تفعيله؟'))return;
-   if(!window.confirm('تأكيد إضافي: سيُنشر المحتوى الحساس آليًا حتى دون مرجع حكومي إلزامي، مع حفظ حالة التوثيق داخليًا وإمكانية التراجع وحد النشر اليومي.'))return;
-  }else if(!window.confirm('إيقاف النشر التلقائي للمحتوى الحساس؟ يبقى النشر منخفض المخاطر وفق الإعداد الآخر.'))return;
+  if(allow){setAutoNotice('عقد التحقق الحالي يمنع النشر الآلي للمحتوى الحساس.');return;}
+  if(!window.confirm('إيقاف النشر التلقائي للمحتوى الحساس؟ يبقى النشر منخفض المخاطر وفق الإعداد الآخر.'))return;
   await autoAction({action:'configure_sensitive',allow_high_risk:allow,
    ...(allow?{confirm:'ENABLE_AUTONOMOUS_SENSITIVE_CONTENT',
     acknowledge:'UNDERSTAND_SOURCE_VERIFICATION_LIMITS'}:{})});

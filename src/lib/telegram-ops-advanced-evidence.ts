@@ -101,18 +101,26 @@ export async function liveReadyForHuman(x:Candidate):Promise<boolean>{
 }
 // Automated publication is stricter than human review. Exact quotations in
 // the same locale only; translated/paraphrased or regulated copy stays queued.
-export function canProbeAutoPublication(x:Candidate):boolean{
+export function autoPublicationBlockReason(x:Candidate):string|null{
  try{
-  if(x.item.status!=='pending'||x.item.risk_level!=='low'||x.item.review_preflight?.archived===true||!readyForHuman(x))return false;
-  const meta=x.item.review_preflight!;
-  if(evidence.assessPublicationRisk(x.kind,x.item,fields(x),{complete:true,total:meta.total,matched:meta.matched,proofs:x.item.claim_evidence||[]})!=='low')return false;
+  if(x.item.status!=='pending')return 'not_pending';
+  if(x.item.risk_level!=='low')return 'risk_not_low';
+  if(x.item.review_preflight?.archived===true)return 'review_archived';
+  if(!reviewCopyQuality(x))return 'requires_finished_visitor_copy';
+  const meta=x.item.review_preflight;
+  if(!meta)return 'review_not_checked';
+  if(meta.status!=='ready')return 'review_blocked';
+  if(!evidence.eligible(meta,x.kind,identityFields(x)))return 'review_version_or_freshness_invalid';
+  if(!x.item.claim_evidence?.length)return 'claim_evidence_missing';
+  if(evidence.assessPublicationRisk(x.kind,x.item,fields(x),{complete:true,total:meta.total,matched:meta.matched,proofs:x.item.claim_evidence||[]})!=='low')return 'independent_risk_check_failed';
   if(x.kind==='editorial'){
    if(detectGeoDraftLocale(x.item.title)!==x.item.lang||
-      !assessGeoDraftCopy(x.item.title,x.item.body).publishable)return false;
+      !assessGeoDraftCopy(x.item.title,x.item.body).publishable)return 'editorial_locale_or_copy_invalid';
   }
-  return true;
- }catch{return false}
+  return null;
+ }catch{return 'invalid_candidate'}
 }
+export function canProbeAutoPublication(x:Candidate):boolean{return autoPublicationBlockReason(x)===null;}
 export async function liveAutoPublicationReceipt(x:Candidate,request:typeof fetch=fetch):Promise<PublicationReceipt|null>{
  if(!canProbeAutoPublication(x)||!await reviewContentPolicy(x).catch(()=>false))return null;
  // The authority allowlist does not override the current competitor registry.
