@@ -1,5 +1,6 @@
 import {getSupabaseCredentials} from '@/lib/storage-mode';
 import {getContent} from '@/lib/content-store';
+import {reviewNotificationCandidates,type ReviewButton} from '@/lib/telegram-ops-advanced';
 import {buildPublishedLinks} from '@/lib/published-links';
 const core=require('./telegram-ops-core.cjs') as {config:(env:NodeJS.ProcessEnv)=>{token:string;secret:string;chat:string;owner:string}|null;render:(cmd:string,d:Record<string,unknown>)=>string;chunks:(text:string)=>string[];reconcileReviewWebhook:(cfg:{token:string;secret:string;chat:string;owner:string},username:string,api:(method:string,body:object)=>Promise<unknown>)=>Promise<string>};
 const phase=require('./telegram-ops-phase2.cjs') as {dailyKey:(now:string)=>string|null;alerts:(d:Record<string,unknown>)=>{key:string;text:string}[];healthText:(d:Record<string,unknown>)=>string};
@@ -50,8 +51,8 @@ export async function markDelivery(key:string,state:'sent'|'uncertain',id?:numbe
  const result=await ledger('?delivery_key=eq.'+encodeURIComponent(key),'PATCH',{state,...(state==='sent'?{sent_at:new Date().toISOString(),...(id?{telegram_message_id:id}:{})}:{})},'return=representation');
  if(!Array.isArray(result)||result.length!==1||result[0].state!==state)throw Error('telegram_delivery_readback_unverified');
 }
-async function sendOne(cfg:NonNullable<ReturnType<typeof core.config>>,message:string){
- const r=await fetch('https://api.telegram.org/bot'+cfg.token+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:cfg.chat,text:message.slice(0,3800),link_preview_options:{is_disabled:true}}),signal:AbortSignal.timeout(5000),redirect:'error',cache:'no-store'});
+async function sendOne(cfg:NonNullable<ReturnType<typeof core.config>>,message:string,inline?:ReviewButton[][]){
+ const r=await fetch('https://api.telegram.org/bot'+cfg.token+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:cfg.chat,text:message.slice(0,3800),link_preview_options:{is_disabled:true},...(inline?.length?{reply_markup:{inline_keyboard:inline}}:{})}),signal:AbortSignal.timeout(5000),redirect:'error',cache:'no-store'});
  const j=await r.json();if(!r.ok||j?.ok!==true||String(j.result?.chat?.id)!==cfg.chat||!Number.isSafeInteger(j.result?.message_id))throw Error('telegram_delivery_unconfirmed');return Number(j.result.message_id);
 }
 async function reconcileReviewSubscription(cfg:NonNullable<ReturnType<typeof core.config>>,now:string){
@@ -73,7 +74,21 @@ export async function runTelegramTick(now:string){
  const subscription=reconcileReviewSubscription(cfg,now);
  const d=await snapshot(now);
  const day=phase.dailyKey(now);
- const candidates=[...(day?[{key:day,kind:'daily' as const,text:'الإحاطة اليومية\n'+core.render('/brief',{...d,healthSummary:phase.healthText(d)})}]:[]),...phase.alerts(d).map(x=>({...x,kind:'alert' as const}))];
+ const candidates:{key:string;kind:'daily'|'alert';text:string;inline_keyboard?:ReviewButton[][]}[]=[...(day?[{key:day,kind:'daily' as const,text:'الإحاطة اليومية\n'+core.render('/brief',{...d,healthSummary:phase.healthText(d)})}]:[]),...phase.alerts(d).map(x=>({...x,kind:'alert' as const}))];
+ // Reuse the existing signed tick and delivery ledger, no new schedule.
+ if(process.env.TELEGRAM_OPS_ADVANCED_ENABLED==='true'){
+  try{
+   const reviews=await reviewNotificationCandidates();
+   if(reviews.length){
+    const keys=reviews.map(x=>'"'+x.key+'"').join(',');
+    const known=await ledger('?select=delivery_key&delivery_key=in.'+encodeURIComponent('('+keys+')'),'GET');
+    if(!Array.isArray(known))throw Error('review_ledger_unverified');
+    const seen=new Set(known.map(x=>x.delivery_key));
+    const next=reviews.find(x=>!seen.has(x.key));
+    if(next)candidates.push({...next,kind:'alert'});
+   }
+  }catch{/* Fail closed for review delivery; preserve existing alerts. */}
+ }
  if(!candidates.length)return {status:'no_alerts',sent:0,review_subscription:await subscription};
  // One read of bounded candidate keys, then atomic claims to handle concurrent invocations.
  const keys=candidates.slice(0,105).map(x=>'"'+x.key+'"').join(',');
@@ -83,7 +98,7 @@ export async function runTelegramTick(now:string){
  let sent=0,uncertain=0;
  for(const item of candidates.filter(x=>!seen.has(x.key)).slice(0,4)){
   if(!await claimDelivery(item.key,item.kind))continue;
-  try{const id=await sendOne(cfg,item.text);await markDelivery(item.key,'sent',id);sent++;}
+  try{const id=await sendOne(cfg,item.text,item.inline_keyboard);await markDelivery(item.key,'sent',id);sent++;}
   catch{uncertain++;try{await markDelivery(item.key,'uncertain');}catch{}}
  }
  return {status:uncertain?'delivery_uncertain':'checked',sent,uncertain,review_subscription:await subscription};

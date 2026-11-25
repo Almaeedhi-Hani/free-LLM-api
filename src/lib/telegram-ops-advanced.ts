@@ -4,6 +4,9 @@ import {getContent,type SiteContent,type ContentDraft} from '@/lib/content-store
 import {assessGeoDraftCopy,splitGeoDraftReviewText} from '@/lib/geo-draft-quality';
 type Cfg={token:string;secret:string;chat:string;owner:string};
 type Action={kind:string;decision?:string;id?:string;key?:string;code?:string};
+export type ReviewButton={text:string;callback_data:string}|{text:string;url:string};
+export type ReviewCard={text:string;inline_keyboard:ReviewButton[][]};
+const cards=require('./telegram-ops-advanced-card.cjs') as {card:(input:Record<string,unknown>)=>ReviewCard;decisionCard:(text:string)=>ReviewCard};
 const core=require('./telegram-ops-advanced-core.cjs') as {parse:(s:unknown)=>Action|null;fingerprint:(kind:string,item:unknown)=>string;voiceSuggestion:(s:string)=>string|null;safeDecision:(s:string)=>boolean};
 export function advancedEnabled(){return process.env.TELEGRAM_OPS_ADVANCED_ENABLED==='true';}
 export function parseAdvanced(text:unknown){return advancedEnabled()?core.parse(text):null;}
@@ -39,7 +42,25 @@ export async function memorySummary(cfg:Cfg){
 }
 export async function reviewMenu(){
  const c=await readContent(),items=pending(c),first=items.slice(0,10);
- return {text:'المراجعات المعلقة ('+items.length+') — أول 10 (النص الأصلي):\n'+(first.map((x,i)=>(i+1)+'. '+x.title.slice(0,180)+'\n/review '+x.key).join('\n')||'لا توجد مراجعات')+'\nللبقية: '+dashboard,inline_keyboard:first.map((x,i)=>[{text:'مراجعة '+(i+1),callback_data:'review:'+x.key}])};
+ return {text:'📋 المراجعات المعلقة ('+items.length+')\nاختر المحتوى لعرض بطاقة المراجعة والأدلة والقرار.',inline_keyboard:[...first.map((x,i)=>[{text:(i+1)+'. '+x.title.slice(0,55),callback_data:'review:'+x.key}]),[{text:'لوحة الإدارة',url:dashboard}]]};
+}
+function buildReviewCard(items:Pending[],index:number):ReviewCard{
+ const x=items[index];
+ const full=Boolean(reviewText(x));
+ const body=x.kind==='faq'?x.item.a:[x.item.summary,x.item.body,JSON.stringify(x.item.sections||[])].join('\n\n');
+ return cards.card({key:x.key,title:x.title,kind:x.kind,body,refs:x.item.evidence_refs||[],eligible:canApprove(x),index,total:items.length,previous:items[index-1]?.key,next:items[index+1]?.key,full});
+}
+export async function reviewCard(key:string):Promise<ReviewCard>{
+ const items=pending(await readContent()),index=items.findIndex(x=>x.key===key);
+ if(index<0)return {text:'العنصر غير موجود أو تغير. أعد المراجعة.',inline_keyboard:[[{text:'قائمة المراجعات',callback_data:'reviewlist'}]]};
+ return buildReviewCard(items,index);
+}
+export async function reviewNotificationCandidates(){
+ const items=pending(await readContent());
+ return items.slice(0,30).map((x,index)=>({key:'review-card:'+x.key,...buildReviewCard(items,index)}));
+}
+export async function handleReviewAction(a:Action,cfg:Cfg,updateId:number):Promise<ReviewCard>{
+ return cards.decisionCard(await handleAdvanced(a,cfg,updateId));
 }
 export async function handleAdvanced(a:Action,cfg:Cfg,updateId:number):Promise<string>{
  if(a.kind==='memory')return memorySummary(cfg);
