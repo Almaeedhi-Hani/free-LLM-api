@@ -8,7 +8,7 @@ const {fixtures}=require('./geo-semantic-review-smoke.cjs');
  assert.equal(account({...q,is_free_tier:false}).status,'free_account_unverified');
  assert.equal(account({...q,free_model_daily_requests:null}).status,'daily_quota_unverified');
  assert.equal(account({...q,free_model_daily_requests:{used:40,limit:50,remaining:10}}).status,'reserve_protected');
- const models=['qwen/test:free','google/test:free'].map(id=>({id,pricing:{prompt:'0',completion:'0'},architecture:{input_modalities:['text'],output_modalities:['text']},context_length:32000,supported_parameters:['response_format']}));
+ const models=['qwen/test-qwen:free','google/test-gemma:free'].map(id=>({id,pricing:{prompt:'0',completion:'0'},architecture:{input_modalities:['text'],output_modalities:['text']},context_length:32000,supported_parameters:['response_format']}));
  const calls=[];
  const fake=async(url,o)=>{
   calls.push({url,method:o.method});
@@ -23,7 +23,7 @@ const {fixtures}=require('./geo-semantic-review-smoke.cjs');
  };
  const env={OPENROUTER_API_KEY:'fixture-secret'};
  const r=await run({env,fetchFn:fake});
- assert.equal(r.status,'openrouter_shadow_pass');assert.equal(r.passed,6);assert.equal(r.requests,2);
+ assert.equal(r.status,'openrouter_shadow_pass',JSON.stringify(r));assert.equal(r.passed,6);assert.equal(r.requests,2);
  assert.equal(r.publicationAuthorized,false);assert.equal(r.independentGatewayVerified,false);
  assert(!JSON.stringify(r).includes(env.OPENROUTER_API_KEY));
  assert.equal(calls.filter(c=>c.method==='POST').length,2);
