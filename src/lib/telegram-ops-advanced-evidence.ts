@@ -19,6 +19,8 @@ const evidence=require('./telegram-ops-advanced-evidence.cjs') as {
  match:(fields:string[],pages:{url:string;sentences:string[]}[])=>Result;
  eligible:(meta:ReviewPreflight|undefined,kind:Kind,fields:string[])=>boolean;
  due:(meta:ReviewPreflight|undefined,kind:Kind,fields:string[])=>boolean;
+ editorialIdentityFields:(item:EditorialItem,copyFields:string[])=>string[];
+ selectReviewBatch:(items:Candidate[])=>Candidate[];
 };
 function fields(x:Candidate):string[]{
  if(x.kind==='faq')return [x.item.a.trim()];
@@ -27,7 +29,7 @@ function fields(x:Candidate):string[]{
 }
 // Bind the question, editorial identity, risk and visitor copy, not only the answer.
 function identityFields(x:Candidate):string[]{
- return x.kind==='faq'?[x.item.q,x.item.risk_level||'',...fields(x)]:[x.item.id,x.item.kind,x.item.lang,x.item.target,x.item.risk_level,...fields(x)];
+ return x.kind==='faq'?['review-v2',x.item.q,x.item.risk_level||'',...fields(x)]:evidence.editorialIdentityFields(x.item,fields(x));
 }
 export function reviewCopyQuality(x:Candidate):boolean{
  if(x.kind==='faq')return !splitGeoDraftReviewText(x.item.a).note&&assessGeoDraftCopy(x.item.q,x.item.a).publishable&&!editorialPublicationIssues({kind:'guide',title:x.item.q,body:x.item.a}).length;
@@ -93,7 +95,7 @@ export async function runReviewEvidenceBatch(){
  if(!getSupabaseCredentials())return {status:'storage_unavailable',processed:0,ready:0};
  const c=await getContent();
  const items:Candidate[]=[...c.drafts.filter(i=>i.status==='pending').map(item=>({kind:'faq' as const,item})),...c.editorialItems.filter(i=>i.status==='pending').map(item=>({kind:'editorial' as const,item}))];
- const selected=items.filter(x=>evidence.due(x.item.review_preflight,x.kind,identityFields(x))).sort((a,b)=>(a.item.review_preflight?.checked_at||'').localeCompare(b.item.review_preflight?.checked_at||'')).slice(0,4);
+ const selected=evidence.selectReviewBatch(items.filter(x=>evidence.due(x.item.review_preflight,x.kind,identityFields(x))));
  if(!selected.length)return {status:'idle',processed:0,ready:0};
  const checked=await Promise.all(selected.map(check));
  const faq=new Map<ContentDraft,ContentDraft>(),editorial=new Map<EditorialItem,EditorialItem>();

@@ -47,4 +47,21 @@ function due(meta,kind,fields,now=Date.now()){
  const age=now-Date.parse(meta.checked_at);
  return !Number.isFinite(age)||age<0||age>=(meta.status==='ready'?86400000:7*86400000);
 }
-module.exports={parts,digest,safeUrl,topicUrls,readBounded,page,match,eligible,due};
+// Bind public identity, headings and link destinations without hashing mutable
+// verification results, timestamps or approval state.
+function editorialIdentityFields(item,copyFields){
+ return ['review-v2',item.id,item.kind,item.lang,item.target,item.risk_level,
+  item.slug||'',item.related_service||'',item.topic_node_id||'',item.primary_keyword||'',
+  item.h1_suggestion||'',JSON.stringify(item.secondary_keywords||[]),
+  JSON.stringify(item.sections||[]),JSON.stringify((item.internal_links||[]).map(l=>[l.node_id,l.anchor])),
+  JSON.stringify(item.schema_suggestions||[]),...copyFields];
+}
+// Give both content queues capacity, then use spare capacity for the oldest
+// remaining due entries. Never raise the existing four-item cap.
+function selectReviewBatch(dueItems){
+ const sorted=[...dueItems].sort((a,b)=>(a.item.review_preflight?.checked_at||'').localeCompare(b.item.review_preflight?.checked_at||''));
+ const chosen=[...sorted.filter(x=>x.kind==='faq').slice(0,2),...sorted.filter(x=>x.kind==='editorial').slice(0,2)];
+ for(const x of sorted){if(chosen.length>=4)break;if(!chosen.includes(x))chosen.push(x)}
+ return chosen;
+}
+module.exports={parts,digest,safeUrl,topicUrls,readBounded,page,match,eligible,due,editorialIdentityFields,selectReviewBatch};
