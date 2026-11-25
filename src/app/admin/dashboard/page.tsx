@@ -2,10 +2,9 @@
 
 import EditorialReviewPanel from '@/components/EditorialReviewPanel';
 import ContentImpactCenter from '@/components/ContentImpactCenter';
-import EvidencePriorityReviewPanel from '@/components/EvidencePriorityReviewPanel';
 import type { CompetitorPageEvidenceBrief } from '@/lib/competitor-page-evidence';
 import PackageRequestsAdmin from '@/components/PackageRequestsAdmin';
-import {DataRoleLegend,DataRolePanel,DataRoleTag} from '@/components/AdminDataRoles';
+import {DataRoleLegend} from '@/components/AdminDataRoles';
 import { assessGeoDraftCopy, splitGeoDraftReviewText } from "@/lib/geo-draft-quality";
 import React, { useState, useEffect } from 'react';
 import VisibilityDashboard from '@/components/VisibilityDashboard';
@@ -13,7 +12,6 @@ import CookiePolicyAdmin from '@/components/CookiePolicyAdmin';
 import SearchIntegrationsAdmin from '@/components/SearchIntegrationsAdmin';
 import GeoEngineMonitor from '@/components/GeoEngineMonitor';
 import UnifiedRunHistory from '@/components/UnifiedRunHistory';
-import TechnicalTaskBoard from '@/components/TechnicalTaskBoard';
 import GeoFeedbackMemory, {type CorrectionCandidate} from '@/components/GeoFeedbackMemory';
 import {buildPublishedLinks} from '@/lib/published-links';
 import LegacyToolsArchive from '@/components/LegacyToolsArchive';
@@ -21,13 +19,23 @@ import PublishedLinksList from '@/components/PublishedLinksList';
 import {ADMIN_LEGACY_ARCHIVE_ENABLED,ADMIN_PUBLISHED_LINKS_ENABLED} from '@/lib/admin-consolidation-flags';
 import {validWhatsAppAdvisorField} from '@/lib/whatsapp-contacts';
 
-import { NAV_HUBS, TABS, type Tab, type AdminHub } from "@/lib/admin/dashboard/navigation";
+import { NAV_HUBS, type Tab, type AdminHub } from "@/lib/admin/dashboard/navigation";
 import { contactToForm, numberValid, digitsOnly, type ContactForm } from "@/lib/admin/dashboard/contact-form";
-import { readable, formatDate, draftReviewKey, opportunityKind, opportunityMeaning, opportunityConfidence, opportunityPriority, observationType } from "@/lib/admin/dashboard/presentation";
+import { draftReviewKey } from "@/lib/admin/dashboard/presentation";
 import DashboardSidebar from "@/components/admin/dashboard/DashboardSidebar";
 import DashboardHeader from "@/components/admin/dashboard/DashboardHeader";
 import DashboardOverview from "@/components/admin/dashboard/DashboardOverview";
 import DashboardContact from "@/components/admin/dashboard/DashboardContact";
+
+import DashboardContent from "@/components/admin/dashboard/DashboardContent";
+import DashboardAgentStatus from "@/components/admin/dashboard/DashboardAgentStatus";
+import DashboardReviews from "@/components/admin/dashboard/DashboardReviews";
+import DashboardSettings from "@/components/admin/dashboard/DashboardSettings";
+import DashboardCompetitors from "@/components/admin/dashboard/DashboardCompetitors";
+import DashboardKeywords from "@/components/admin/dashboard/DashboardKeywords";
+import DashboardOpportunities from "@/components/admin/dashboard/DashboardOpportunities";
+import DashboardGoals from "@/components/admin/dashboard/DashboardGoals";
+import DashboardEvidence from "@/components/admin/dashboard/DashboardEvidence";
 
 export default function AdminDashboard() {
   const [secret, setSecret] = useState('');
@@ -429,153 +437,18 @@ export default function AdminDashboard() {
             )}
 
             {tab === 'content' && (
-              <div className="space-y-6">
-                <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                  <h2 className="text-xl font-bold mb-2">الفقرة الذهبية</h2>
-                  <textarea className="w-full border border-slate-300 rounded-lg px-4 py-2 min-h-[120px]" value={goldenDraft} onChange={(e) => setGoldenDraft(e.target.value)} />
-                  <button onClick={saveGolden} className="btn-primary mt-3" disabled={saving}>حفظ</button>
-                </section>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-                  أصبحت الكلمات البحثية المعتمدة في <button className="text-blue-700 underline" onClick={()=>setTab('keywords')}>السوق والمنافسون ← كلمات البحث السوقية</button>.
-                  أُخفيت القائمة القديمة المنفصلة دون حذف بياناتها.
-                </div>
-
-                <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                  <h2 className="text-xl font-bold mb-4">الأسئلة الشائعة</h2>
-                  <ul className="space-y-3">
-                    {content.faqs.map((f: any, i: number) => (
-                      <li key={i} className="bg-slate-50 rounded-lg p-4">
-                        {editingFaq?.index === i ? (
-                          <div className="space-y-2">
-                            <input className="w-full border border-slate-300 rounded-lg px-4 py-2" value={editingFaq.q} onChange={(e) => setEditingFaq({ ...editingFaq, q: e.target.value })} />
-                            <textarea className="w-full border border-slate-300 rounded-lg px-4 py-2" value={editingFaq.a} onChange={(e) => setEditingFaq({ ...editingFaq, a: e.target.value })} />
-                            <div className="flex gap-2">
-                              <button onClick={updateFaq} className="btn-primary text-xs" disabled={saving}>حفظ</button>
-                              <button onClick={() => setEditingFaq(null)} className="btn-secondary text-xs">إلغاء</button>
-                            </div>
-                          </div>
-                        ) : (
-                          <>
-                            <p className="font-semibold">{f.q}</p>
-                            <p className="text-slate-600 text-sm mt-1">{f.a}</p>
-                            <div className="flex gap-2 mt-2">
-                              <button onClick={() => setEditingFaq({ index: i, q: f.q, a: f.a })} className="text-xs text-emerald-700 hover:underline">تعديل</button>
-                              <button onClick={() => deleteFaq(i)} className="text-xs text-red-600 hover:underline">حذف</button>
-                            </div>
-                          </>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="السؤال" value={newFaq.q} onChange={(e) => setNewFaq({ ...newFaq, q: e.target.value })} />
-                    <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="الإجابة" value={newFaq.a} onChange={(e) => setNewFaq({ ...newFaq, a: e.target.value })} />
-                  </div>
-                  <button onClick={addFaq} className="btn-primary mt-3" disabled={saving}>إضافة سؤال</button>
-                </section>
-              </div>
+            <DashboardContent content={content} goldenDraft={goldenDraft} setGoldenDraft={setGoldenDraft} saveGolden={saveGolden} saving={saving} setTab={setTab} editingFaq={editingFaq} setEditingFaq={setEditingFaq} updateFaq={updateFaq} deleteFaq={deleteFaq} newFaq={newFaq} setNewFaq={setNewFaq} addFaq={addFaq} />
             )}
 
             {tab === 'agent' && <GeoEngineMonitor secret={secret} runs={runs} competitors={competitors} keywords={keywords} opportunities={opportunities} goals={goals} sources={marketSources} loading={marketLoading} refresh={() => { void refreshMarket(); void fetchMarketSources(); }} />}
             {tab === 'agent' && <GeoFeedbackMemory adminSecret={secret} initial={feedbackTarget} candidates={uniqueCorrectionCandidates} />}
 
             {tab === 'agent' && (
-              <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                <h2 className="text-xl font-bold mb-4">وكيل GEO — حالة النظام</h2>
-                {!ADMIN_LEGACY_ARCHIVE_ENABLED && <details className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <summary className="cursor-pointer text-sm font-semibold">خيارات تشغيل الرادار والتحليل القديم (متقدمة)</summary>
-                  <p className="my-2 text-xs text-slate-600">الرادار المستقل أصبح مجدولًا كل ساعتين حتى السبت 21 نوفمبر، ثم كل 4 ساعات من الأحد 22 نوفمبر، ويعمل منفصلًا عن محرك GEO الحديث. التشغيل اليدوي هنا يضيف دورة أخرى وقد يستهلك حدود مصادر البحث.</p>
-                  <div className="flex gap-2">
-                      <button className="btn-primary text-xs" disabled={saving} onClick={async () => {
-                        if(!window.confirm('بدء تحليل السوق وحفظ النتائج؟'))return;
-                        setSaving(true);
-                         setError('');try { await marketFetch('/api/admin/market/analyze', { method: 'POST', body: JSON.stringify({ triggered_by: 'admin' }) }); await refreshMarketCollection('opportunities'); await refreshMarketCollection('goals'); await refreshMarketCollection('runs');setNotice('اكتمل تحليل السوق'); }
-                        catch (e: any) { setError(e.message); }
-                        finally { setSaving(false); }
-                      }}>تشغيل التحليل</button>
-                      <button className="btn-secondary text-xs" disabled={saving} onClick={async () => {
-                        if(!window.confirm('تشغيل الرادار وجمع بيانات بحث خارجية وحفظها؟'))return;
-                        setSaving(true);
-                         setError('');try { await marketFetch('/api/admin/market/radar', { method: 'POST', body: JSON.stringify({ triggered_by: 'admin' }) }); await refreshMarketCollection('opportunities'); await refreshMarketCollection('goals'); await refreshMarketCollection('keywords'); await refreshMarketCollection('competitors'); await refreshMarketCollection('runs');setNotice('اكتمل تشغيل الرادار'); }
-                        catch (e: any) { setError(e.message); }
-                        finally { setSaving(false); }
-                      }}>تشغيل الرادار</button>
-                    </div>
-                </details>}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="bg-slate-50 rounded-lg p-4">
-                    <p className="text-xs text-slate-500">الحالة</p>
-                    <p className="font-bold text-emerald-700">{content.agent?.status || 'idle'}</p>
-                  </div>
-                  <div className="bg-slate-50 rounded-lg p-4">
-                    <p className="text-xs text-slate-500">آخر تشغيل</p>
-                    <p className="font-bold text-slate-700 text-sm">{content.agent?.lastRun || '—'}</p>
-                  </div>
-                  <div className="bg-slate-50 rounded-lg p-4">
-                    <p className="text-xs text-slate-500">آخر نتيجة</p>
-                    <p className="text-slate-700 text-sm">{content.agent?.lastResult || '—'}</p>
-                  </div>
-                </div>
-                <p className="text-xs text-slate-500 mt-4">تُدار أوقات تشغيل الوكيل من GitHub Actions. المحتوى عالي الخطورة يحتاج إلى مراجعة بشرية.</p>
-                <div className="mt-5 rounded-xl border border-slate-200 p-4"><h3 className="font-bold mb-3">مصادر البحث في Render</h3><div className="grid grid-cols-2 sm:grid-cols-4 gap-2">{marketSources.filter((s:any)=>['exa','tavily','parallel','firecrawl'].includes(s.id)).map((s:any)=><div key={s.id} className="rounded-lg bg-slate-50 p-3 text-sm"><p className="font-medium">{s.id}</p><p className={s.available?'text-emerald-700':'text-amber-700'}>{s.available?'المفتاح موجود':'غير مهيأ'}</p></div>)}</div><p className="text-xs text-slate-500 mt-2">وجود المفتاح لا يضمن نجاح الاتصال؛ راجع اختبارات الاتصال المنفصلة.</p><button className="btn-secondary text-xs mt-3" onClick={fetchMarketSources}>تحديث المصادر</button></div>
-              </section>
+            <DashboardAgentStatus content={content} marketSources={marketSources} fetchMarketSources={fetchMarketSources} saving={saving} setSaving={setSaving} setError={setError} setNotice={setNotice} marketFetch={marketFetch} refreshMarketCollection={refreshMarketCollection} />
             )}
 
             {tab === 'reviews' && (
-              <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-                <h2 className="mb-2 text-xl font-bold">مراجعة المسودات قبل النشر</h2>
-                <p className="mb-4 text-sm text-slate-600">اعتماد المسودة ينشر السؤال والإجابة؛ ألوان الأقسام تفصل النص المولّد عن بيانات النظام وروابط المنافسين والتنبيهات.</p>
-                {pendingDrafts===0&&<p className="text-sm text-slate-600">لا توجد مسودات معلقة.</p>}
-                <ul className="space-y-5">
-                  {content.drafts.map((d: any,i: number)=>{
-                    const parts=splitGeoDraftReviewText(d.a);
-                    const reviewKey=draftReviewKey(d);
-                    const finalAnswer=d.status==='pending'?(draftReviewEdits[reviewKey]??parts.answer):d.a;
-                    const finalAssessment=assessGeoDraftCopy(d.q,finalAnswer);
-                    return <li key={i} className="min-w-0 space-y-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-5">
-                      <DataRolePanel tone="content" title="السؤال والإجابة المقترحة للاستخدام" description="الجزء الأخضر هو المحتوى الذي أنشأه النموذج، وليس توثيقًا رسميًا.">
-                        <h3 className="mb-3 text-base font-bold text-emerald-950 break-words">{d.q}</h3>
-                        {d.status==='pending'?<div className="space-y-2">
-                          <label htmlFor={`faq-publish-${i}`} className="block text-xs font-bold text-emerald-950">النص النهائي الذي سيُنشر — قابل للتعديل</label>
-                          <textarea id={`faq-publish-${i}`} aria-label={`النص النهائي للنشر: ${d.q}`}
-                            className="w-full rounded-lg border border-emerald-300 bg-white p-3 text-sm leading-7 text-slate-900"
-                            rows={5} value={finalAnswer}
-                            onChange={e=>setDraftReviewEdits(prev=>({...prev,[reviewKey]:e.target.value}))}/>
-                          <p className="text-xs text-emerald-900">هذا هو النص الذي سيُحفظ في المسودة المعتمدة ويُنشر في الأسئلة الشائعة بعد موافقتك.</p>
-                        </div>:<p className="whitespace-pre-line break-words text-sm text-slate-900">{d.a}</p>}
-                      </DataRolePanel>
-                      {d.status==='pending'&&parts.note&&<DataRolePanel tone="warning" title="عبارة تحقق وردت ضمن النص المولّد" description="هذه العبارة مستخرجة من نهاية الإجابة الأصلية للتوضيح. استُبعدت من معاينة النشر المقترحة، ولن تُنشر إلا إذا كتبتها بنفسك في النص النهائي.">
-                        <p className="text-rose-900 font-semibold">{parts.note}</p>
-                      </DataRolePanel>}
-                      <DataRolePanel tone="system" title="بيانات المسودة من النظام" description="الحالة والتاريخ ومستوى المراجعة معلومات إدارية وليست جزءًا من الإجابة.">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <DataRoleTag tone="system">الحالة: {readable(d.status)}</DataRoleTag>
-                          <span className="text-xs text-slate-600">تاريخ الإنشاء: {formatDate(d.createdAt)}</span>
-                        </div>
-                      </DataRolePanel>
-                      {!finalAssessment.publishable&&<DataRolePanel tone="warning" title="تنبيه جودة آلي — ليس جزءًا من الإجابة">
-                        <p className="text-rose-900" role="alert">النص النهائي غير صالح للنشر بعد: راجع اللغة وطول الإجابة وجودتها، ثم صححه في مربع النص الأخضر. يمكن رفض المسودة عند الحاجة.</p>
-                      </DataRolePanel>}
-                      {d.risk_level==='high'&&<DataRolePanel tone="warning" title="تحذير من النظام — محتوى عالي المخاطر">
-                        <p className="text-rose-900">لا تعتمد دون مراجعة مختص والتحقق من المصدر الرسمي. هذا التنبيه ليس جزءًا من الإجابة.</p>
-                      </DataRolePanel>}
-                      <DataRolePanel tone="research" title="مصادر الرصد المستخدمة — صفحات منافسة ونتائج بحث مرتبطة بالموضوع" description="روابط اكتشفها البحث لمقارنة التغطية والموضوعات؛ لا تثبت صحة الإجابة ولا تعني أن النموذج نقل النص من هذه المواقع.">
-                        {Array.isArray(d.evidence_refs)&&d.evidence_refs.length>0?<ul className="space-y-2">{d.evidence_refs.map((ref:any,j:number)=><li key={String(ref.id)+'-'+j} className="rounded-lg border border-blue-100 bg-white/80 p-2 break-words text-xs">
-                          {ref.url?.startsWith('https://')?<a href={ref.url} target="_blank" rel="noopener noreferrer" className="font-medium text-blue-800 underline underline-offset-2">{ref.label}</a>:<span>{ref.label}</span>}
-                          <p className="mt-1 text-blue-700">نوع الرصد: {ref.kind||'غير معروف'} · مزوّد البحث: {ref.source||'غير معروف'}</p>
-                        </li>)}</ul>:<p className="text-xs text-blue-900">لا توجد روابط رصد مسجلة لهذه المسودة.</p>}
-                      </DataRolePanel>
-                      <DataRolePanel tone="verification" title="المصادر الرسمية والتحقق قبل النشر" description="مصادر المنافسين ليست مصدرًا رسميًا. تحقّق من صحة المعلومات من الجهات المختصة قبل الاعتماد.">
-                        <p className="text-xs text-amber-950">ستُنشر فقط الإجابة النهائية الظاهرة في مربع التحرير الأخضر بعد اعتمادك. أما عبارة التحقق الحمراء فلا تدخل ضمن الإجابة النهائية المقترحة.</p>
-                      </DataRolePanel>
-                      {d.status==='pending'&&<div className="flex flex-wrap gap-2 border-t border-slate-200 pt-3">
-                        <button onClick={()=>approveDraft(i)} className="btn-primary text-xs" disabled={saving || !finalAssessment.publishable || Boolean(splitGeoDraftReviewText(finalAnswer).note)}>اعتماد ونشر</button>
-                        <button onClick={()=>rejectDraft(i)} className="btn-secondary text-xs" disabled={saving}>رفض</button>
-                      </div>}
-                    </li>
-                  })}
-                </ul>
-              </section>
+            <DashboardReviews content={content} pendingDrafts={pendingDrafts} draftReviewEdits={draftReviewEdits} setDraftReviewEdits={setDraftReviewEdits} saving={saving} approveDraft={approveDraft} rejectDraft={rejectDraft} />
             )}
 
             {tab === 'published_links' && ADMIN_PUBLISHED_LINKS_ENABLED && <PublishedLinksList editorialItems={content.editorialItems||[]} faqs={content.faqs||[]} drafts={content.drafts||[]} adminSecret={secret} />}
@@ -606,286 +479,25 @@ export default function AdminDashboard() {
             )}
 
             {tab === 'settings' && (
-              <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                <h2 className="text-xl font-bold mb-2">إعدادات وإدارة النظام</h2><p className="text-sm text-slate-500 mb-4">إعدادات عامة وروابط الإدارة. تُحفظ الأسرار في Render ولا تُعرض هنا.</p>
-                <p className="text-slate-600 text-sm mb-2">الفقرة الذهبية (للقراءة هنا؛ يحدّثها الوكيل):</p>
-                <p className="text-slate-700 bg-slate-50 rounded-lg p-4">{content.goldenParagraph}</p>
-                <p className="text-xs text-slate-500 mt-4">آخر تحديث: {content.updatedAt ? new Date(content.updatedAt).toLocaleString('ar-SA') : '—'}</p>
-                {!ADMIN_LEGACY_ARCHIVE_ENABLED && <div className="mt-6 border-t border-slate-200 pt-4"><h3 className="font-bold mb-3">إدارة النظام</h3><p className="text-sm text-slate-600 mb-3">تُحدّث إعدادات مفاتيح API من Render، وتُدار جدولة الوكيل من GitHub Actions. لا تُعرض القيم السرية في اللوحة.</p><div className="flex flex-wrap gap-2"><button className="btn-secondary text-xs" onClick={()=>setTab('agent')}>مصادر البحث والوكيل</button><button className="btn-secondary text-xs" onClick={()=>setTab('contact')}>معلومات التواصل</button><button className="btn-secondary text-xs" onClick={()=>setTab('reviews')}>مسودات الموافقة</button><button className="btn-secondary text-xs" disabled={marketLoading||refreshingAll||saving} onClick={refreshAll}>تحديث جميع البيانات</button></div></div>}
-              </section>
+            <DashboardSettings content={content} setTab={setTab} marketLoading={marketLoading} refreshingAll={refreshingAll} saving={saving} refreshAll={refreshAll} />
             )}
 
             {tab === 'settings' && ADMIN_LEGACY_ARCHIVE_ENABLED && <LegacyToolsArchive onNavigate={setTab} />}
 
             {tab === 'competitors' && (
-              <div className="space-y-6">
-                <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                  <h2 className="text-xl font-bold mb-2">دليل المنافسين</h2><p className="text-sm text-slate-500 mb-4">يمكن إضافة المنافسين وتعديلهم أو استبعادهم. يبقى سجل الأدلة محفوظًا عند الاستبعاد.</p>
-                  <div className="flex flex-wrap items-center gap-2 mb-4"><input className="border border-slate-300 rounded-lg px-3 py-2 flex-1 min-w-[170px]" value={competitorSearch} onChange={e=>setCompetitorSearch(e.target.value)} placeholder="بحث بالاسم أو النطاق" aria-label="بحث المنافسين"/><select value={competitorFilter} onChange={e=>setCompetitorFilter(e.target.value)} aria-label="حالة المنافس" className="border border-slate-300 rounded-lg px-3 py-2"><option value="all">كل الحالات</option><option value="active">نشط</option><option value="inactive">غير نشط</option><option value="disqualified">مستبعد</option></select></div>
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-4">
-                    <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="اسم المنافس" aria-label="اسم المنافس" value={newCompetitor.name} onChange={(e) => setNewCompetitor({ ...newCompetitor, name: e.target.value })} />
-                    <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="النطاق مثل example.com" aria-label="نطاق المنافس" value={newCompetitor.domain} onChange={(e) => setNewCompetitor({ ...newCompetitor, domain: e.target.value })} />
-                    <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="اللغات: ar,en,zh" aria-label="لغات المنافس" value={newCompetitor.languages} onChange={(e) => setNewCompetitor({ ...newCompetitor, languages: e.target.value })} />
-                    <button className="btn-primary" disabled={saving} onClick={async () => {
-                      if(!newCompetitor.name.trim()||!newCompetitor.domain.trim()){setError('أدخل اسم المنافس والنطاق');return;}
-                      setSaving(true);
-                      try {
-                        await marketFetch('/api/admin/market/competitors', { method: 'POST', body: JSON.stringify({ name: newCompetitor.name, domain: newCompetitor.domain, languages: newCompetitor.languages.split(',').map((s) => s.trim()).filter(Boolean), source: newCompetitor.source }) });
-                        setNewCompetitor({ name: '', domain: '', languages: 'ar,en', source: 'manual' });
-                        await refreshMarketCollection('competitors');setNotice('اكتمل تحديث المنافسين');
-                      } catch (e: any) { setError(e.message); }
-                      finally { setSaving(false); }
-                    }}>إضافة</button>
-                  </div>
-                  {editingCompetitor && <section className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
-                    <h3 className="font-bold mb-3">تعديل بيانات المنافس</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      <input aria-label="اسم المنافس المعدل" className="border rounded-lg px-3 py-2" value={editingCompetitor.name} onChange={e=>setEditingCompetitor({...editingCompetitor,name:e.target.value})}/>
-                      <input aria-label="نطاق المنافس المعدل" className="border rounded-lg px-3 py-2" value={editingCompetitor.domain} onChange={e=>setEditingCompetitor({...editingCompetitor,domain:e.target.value})}/>
-                      <input aria-label="لغات المنافس المعدلة" className="border rounded-lg px-3 py-2" value={editingCompetitor.languages} onChange={e=>setEditingCompetitor({...editingCompetitor,languages:e.target.value})}/>
-                    </div>
-                    <div className="flex gap-2 mt-3">
-                      <button className="btn-primary text-xs" disabled={saving} onClick={async()=>{
-                        if(!editingCompetitor.name.trim()||!editingCompetitor.domain.trim()){setError('اسم المنافس والنطاق مطلوبان.');return;}
-                        setSaving(true);setError('');
-                        try {
-                          await marketFetch('/api/admin/market/competitors',{method:'PATCH',body:JSON.stringify({id:editingCompetitor.id,name:editingCompetitor.name.trim(),domain:editingCompetitor.domain.trim(),languages:editingCompetitor.languages.split(',').map(v=>v.trim()).filter(Boolean)})});
-                          await refreshMarketCollection('competitors');setEditingCompetitor(null);setNotice('تم حفظ بيانات المنافس.');
-                        } catch(err:any){setError(err.message||'فشل تعديل المنافس.');} finally{setSaving(false);}
-                      }}>حفظ التعديل</button>
-                      <button className="btn-secondary text-xs" disabled={saving} onClick={()=>setEditingCompetitor(null)}>إلغاء</button>
-                    </div>
-                  </section>}
-                  <div className="mb-4 flex items-center gap-3">
-                    <button className="btn-primary" disabled={saving} onClick={async () => {
-                      if (!confirm('بدء بحث محدود عبر مزودي البحث المهيئين وحفظ النتائج في قاعدة البيانات؟')) return;
-                      setSaving(true); setError('');
-                      try {
-                        const d = await marketFetch('/api/admin/market/discovery', { method: 'POST', body: JSON.stringify({ max_competitors: 10 }) });
-                        setNotice('اكتمل الاكتشاف: ' + (d.summary?.competitors_discovered ?? 0) + ' منافسين، ' + (d.summary?.keywords_upserted ?? 0) + ' كلمات، ' + (d.summary?.errors?.length ?? 0) + ' أخطاء.');
-                        await refreshMarketCollection('competitors');
-                      } catch (e: any) { setError(e.message); }
-                      finally { setSaving(false); }
-                    }}>تشغيل اكتشاف المنافسين</button>
-                    <span className="text-sm text-slate-500">Exa وTavily وParallel وFirecrawl، ضمن حدود الاستهلاك.</span>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead><tr className="text-right border-b"><th className="py-2">الاسم</th><th>النطاق</th><th>الحالة</th><th>اللغات</th><th>آخر رصد</th><th>إجراء</th></tr></thead>
-                      <tbody>
-                        {competitors.filter((c:any)=>(competitorFilter==='all'||c.status===competitorFilter)&&(!competitorSearch.trim()||((c.name||'')+' '+(c.domain||'')).toLowerCase().includes(competitorSearch.trim().toLowerCase()))).map((c:any) => (
-                          <tr key={c.id} className="border-b">
-                            <td className="py-2">{c.name}</td>
-                            <td dir="ltr" className="text-left">{c.domain}</td>
-                            <td>{readable(c.status)}</td>
-                            <td>{(c.languages || []).map(readable).join('، ')}</td>
-                            <td className="text-xs text-slate-400">{c.last_seen_at ? new Date(c.last_seen_at).toLocaleDateString('ar-SA') : '—'}</td>
-                            <td><div className="flex flex-wrap gap-2 items-center"><button className="text-blue-700 text-xs underline" disabled={saving} onClick={()=>setEditingCompetitor({id:c.id,name:c.name,domain:c.domain,languages:(c.languages||[]).join(',')})}>تعديل البيانات</button><select aria-label={'حالة '+c.name} className="border border-slate-300 rounded px-2 py-1 text-xs" disabled={saving} value={c.status} onChange={async(e)=>{
-                              const status=e.target.value;if(status==='disqualified'&&!window.confirm('هل تريد استبعاد هذا المنافس؟'))return;
-                              setSaving(true);setError('');try{await marketFetch('/api/admin/market/competitors',{method:'PATCH',body:JSON.stringify({id:c.id,status})});await refreshMarketCollection('competitors');setNotice('تم تحديث حالة المنافس');}
-                              catch(err:any){setError(err.message);}finally{setSaving(false);}
-                            }}><option value="active">نشط</option><option value="inactive">غير نشط</option><option value="disqualified">مستبعد</option></select></div></td>
-                          </tr>
-                        ))}
-                        {competitors.length === 0 && <tr><td colSpan={6} className="py-4 text-slate-400 text-center">لا يوجد منافسون بعد. شغّل الاكتشاف لجلب مرشحين فعليين.</td></tr>}
-                      </tbody>
-                    </table>
-                  </div>
-                </section>
-              </div>
+            <DashboardCompetitors competitorSearch={competitorSearch} setCompetitorSearch={setCompetitorSearch} competitorFilter={competitorFilter} setCompetitorFilter={setCompetitorFilter} newCompetitor={newCompetitor} setNewCompetitor={setNewCompetitor} editingCompetitor={editingCompetitor} setEditingCompetitor={setEditingCompetitor} competitors={competitors} saving={saving} setSaving={setSaving} setError={setError} setNotice={setNotice} marketFetch={marketFetch} refreshMarketCollection={refreshMarketCollection} />
             )}
 
             {tab === 'keywords' && (
-              <div className="space-y-6">
-                <GeoFeedbackMemory adminSecret={secret} initial={feedbackTarget} candidates={uniqueCorrectionCandidates} />
-                <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                  <h2 className="text-xl font-bold mb-2">كلمات البحث السوقية</h2><p className="text-sm text-slate-500 mb-4">تُستخدم لمراقبة السوق ولا تُنشر تلقائيًا في الموقع.</p>
-                  <input className="border border-slate-300 rounded-lg px-3 py-2 w-full mb-3" value={keywordSearch} onChange={e=>setKeywordSearch(e.target.value)} placeholder="تصفية الكلمات أو اللغات" aria-label="تصفية الكلمات المفتاحية"/>
-                  <p className="text-xs text-slate-400 mb-3">الأحجام تُخزّن فقط عند توفر مصدر موثوق. لا يتم اختلاق أي بيانات.</p>
-                  <div className="flex gap-2 mb-4 flex-wrap">
-                    <input className="border border-slate-300 rounded-lg px-4 py-2 flex-1" placeholder="المصطلح" value={newMarketKeyword} onChange={(e) => setNewMarketKeyword(e.target.value)} />
-                    <select className="border border-slate-300 rounded-lg px-4 py-2" value={keywordLanguage} onChange={e=>setKeywordLanguage(e.target.value as 'ar'|'en'|'zh')} aria-label="لغة الكلمة المفتاحية">
-                      <option value="ar">العربية</option><option value="en">الإنجليزية</option><option value="zh">الصينية</option>
-                    </select>
-                    <button className="btn-primary" disabled={saving} onClick={async () => {
-                      if (!newMarketKeyword.trim()) {setError('أدخل كلمة مفتاحية');return;}
-                      if(keywords.some((k:any)=>k.language===keywordLanguage&&k.term.trim().toLowerCase()===newMarketKeyword.trim().toLowerCase())){setError('الكلمة موجودة بالفعل لهذه اللغة.');return;}
-                      setSaving(true);setError('');
-                      try {
-                        const lang=keywordLanguage;
-                        await marketFetch('/api/admin/market/keywords', { method: 'POST', body: JSON.stringify({ term: newMarketKeyword.trim(), language: lang, source: 'manual' }) });
-                        await refreshMarketCollection('keywords');
-                        setNewMarketKeyword('');setNotice('أُضيفت الكلمة المفتاحية');
-                      } catch (e: any) { setError(e.message); }
-                      finally { setSaving(false); }
-                    }}>إضافة</button>
-                  </div>
-                  {editingMarketKeyword && <section className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
-                    <h3 className="font-bold mb-3">تعديل كلمة البحث</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      <input className="border rounded-lg px-3 py-2" aria-label="تعديل مصطلح البحث" value={editingMarketKeyword.term} onChange={e=>setEditingMarketKeyword({...editingMarketKeyword,term:e.target.value})}/>
-                      <select className="border rounded-lg px-3 py-2" aria-label="تعديل لغة البحث" value={editingMarketKeyword.language} onChange={e=>setEditingMarketKeyword({...editingMarketKeyword,language:e.target.value as 'ar'|'en'|'zh'})}>
-                        <option value="ar">العربية</option><option value="en">الإنجليزية</option><option value="zh">الصينية</option>
-                      </select>
-                      <input className="border rounded-lg px-3 py-2" aria-label="مجموعة البحث" placeholder="المجموعة (اختياري)" value={editingMarketKeyword.cluster} onChange={e=>setEditingMarketKeyword({...editingMarketKeyword,cluster:e.target.value})}/>
-                    </div>
-                    <div className="flex gap-2 mt-3">
-                      <button className="btn-primary text-xs" disabled={saving} onClick={async()=>{
-                        if(!editingMarketKeyword.term.trim()){setError('مصطلح البحث مطلوب.');return;}
-                        setSaving(true);setError('');
-                        try{await marketFetch('/api/admin/market/keywords',{method:'PATCH',body:JSON.stringify(editingMarketKeyword)});await refreshMarketCollection('keywords');setEditingMarketKeyword(null);setNotice('تم حفظ تعديل كلمة البحث.');}
-                        catch(e:any){setError(e.message||'فشل تعديل الكلمة.');}finally{setSaving(false);}
-                      }}>حفظ التعديل</button>
-                      <button className="btn-secondary text-xs" onClick={()=>setEditingMarketKeyword(null)} disabled={saving}>إلغاء</button>
-                    </div>
-                  </section>}
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead><tr className="text-right border-b"><th className="py-2">المصطلح</th><th>اللغة</th><th>النية</th><th>الحجم</th><th>المصدر</th><th>الإجراء</th></tr></thead>
-                      <tbody>
-                        {keywords.filter((k:any)=>!keywordSearch.trim()||((k.term||'')+' '+(k.language||'')).toLowerCase().includes(keywordSearch.trim().toLowerCase())).map((k:any) => (
-                          <tr key={k.id} className="border-b">
-                            <td className="py-2">{k.term}</td>
-                            <td>{readable(k.language)}</td>
-                            <td>{readable(k.intent)}</td>
-                            <td>{k.search_volume ?? '—'}</td>
-                            <td className="text-xs text-slate-400">{k.source} ({k.volume_confidence})</td>
-                            <td><div className="flex items-center gap-3">
-                              <button className="text-blue-700 text-xs underline disabled:opacity-50" disabled={saving} onClick={()=>setEditingMarketKeyword({id:k.id,term:k.term,language:k.language,intent:k.intent,cluster:k.cluster||''})}>تعديل</button>
-                              <button className="text-amber-800 text-xs underline" onClick={()=>setFeedbackTarget({kind:'keyword',key:k.term,language:k.language})}>تعليم الوكيل</button>
-                              <button className="text-red-700 text-xs hover:underline disabled:opacity-50" disabled={saving} onClick={async()=>{
-                              if(!window.confirm('حذف الكلمة المفتاحية: '+k.term+'؟'))return;
-                              setSaving(true);setError('');try{await marketFetch('/api/admin/market/keywords',{method:'DELETE',body:JSON.stringify({id:k.id})});await refreshMarketCollection('keywords');setNotice('حُذفت الكلمة المفتاحية');}
-                              catch(err:any){setError(err.message);}finally{setSaving(false);}
-                            }}>حذف</button></div></td>
-                          </tr>
-                        ))}
-                        {keywords.length === 0 && <tr><td colSpan={6} className="py-4 text-slate-400 text-center">لا توجد كلمات بعد.</td></tr>}
-                      </tbody>
-                    </table>
-                  </div>
-                </section>
-              </div>
+            <DashboardKeywords secret={secret} feedbackTarget={feedbackTarget} uniqueCorrectionCandidates={uniqueCorrectionCandidates} keywordSearch={keywordSearch} setKeywordSearch={setKeywordSearch} newMarketKeyword={newMarketKeyword} setNewMarketKeyword={setNewMarketKeyword} keywordLanguage={keywordLanguage} setKeywordLanguage={setKeywordLanguage} keywords={keywords} editingMarketKeyword={editingMarketKeyword} setEditingMarketKeyword={setEditingMarketKeyword} setFeedbackTarget={setFeedbackTarget} saving={saving} setSaving={setSaving} setError={setError} setNotice={setNotice} marketFetch={marketFetch} refreshMarketCollection={refreshMarketCollection} />
             )}
 
             {tab === 'opportunities' && (
-              <div className="space-y-6">
-                <TechnicalTaskBoard secret={secret} items={content.editorialItems||[]} onOpenDetails={()=>setTab('editorial')} />
-                <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                  <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
-                    <h2 className="text-xl font-bold">الفرص السوقية</h2>
-                    <button type="button" className="btn-primary text-xs" onClick={()=>setTab('agent')}>تشغيل المحرك من وكيل GEO</button>
-                  </div>
-                  {editingOpportunity && <section className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
-                    <h3 className="font-bold mb-2">تعديل الفرصة</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      <input className="border rounded-lg px-3 py-2" aria-label="عنوان الفرصة المعدل" value={editingOpportunity.title} onChange={e=>setEditingOpportunity({...editingOpportunity,title:e.target.value})}/>
-                      <select className="border rounded-lg px-3 py-2" aria-label="أولوية الفرصة المعدلة" value={editingOpportunity.priority} onChange={e=>setEditingOpportunity({...editingOpportunity,priority:e.target.value})}>
-                        <option value="low">منخفضة</option><option value="medium">متوسطة</option><option value="high">عالية</option>
-                      </select>
-                    </div>
-                    <div className="flex gap-2 mt-3"><button className="btn-primary text-xs" disabled={saving} onClick={async()=>{
-                      if(!editingOpportunity.title.trim()){setError('عنوان الفرصة مطلوب.');return;}
-                      setSaving(true);setError('');
-                      try{await marketFetch('/api/admin/market/opportunities',{method:'PATCH',body:JSON.stringify({...editingOpportunity,title:editingOpportunity.title.trim()})});await refreshMarketCollection('opportunities');setEditingOpportunity(null);setNotice('تم حفظ تعديل الفرصة.');}
-                      catch(e:any){setError(e.message||'تعذر حفظ الفرصة.');}finally{setSaving(false);}
-                    }}>حفظ التعديل</button><button className="btn-secondary text-xs" disabled={saving} onClick={()=>setEditingOpportunity(null)}>إلغاء</button></div>
-                  </section>}
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead><tr className="text-right border-b"><th className="py-2">العنوان</th><th>النوع</th><th>الأولوية</th><th>الدرجة</th><th>الحالة</th><th>إجراء</th></tr></thead>
-                      <tbody>
-                        {opportunities.map((o: any) => (
-                          <tr key={o.id} className="border-b">
-                            <td className="py-2">{o.title}</td>
-                            <td>{o.type === 'content_gap' ? 'فجوة تنافسية (منافس)' : 'فجوة كلمات (مستنتجة)'}</td>
-                            <td>{readable(o.priority)}</td>
-                            <td>{o.score}</td>
-                            <td>{readable(o.status)}</td>
-                            <td><div className="flex flex-wrap gap-2 items-center">
-                              <button className="text-xs text-blue-700 underline" disabled={saving} onClick={()=>setEditingOpportunity({id:o.id,title:o.title,priority:o.priority})}>تعديل</button>
-                              <select disabled={saving} className="border border-slate-300 rounded text-xs" value={o.status} onChange={async (e) => {
-                                setSaving(true);setError('');try { await marketFetch('/api/admin/market/opportunities', { method: 'PATCH', body: JSON.stringify({ id: o.id, status: e.target.value }) }); await refreshMarketCollection('opportunities');setNotice('تم تحديث حالة الفرصة'); }
-                                catch (err: any) { setError(err.message); }finally{setSaving(false);}
-                              }}>
-                                <option value="new">جديد</option><option value="triaged">فرز</option><option value="planned">مخطط</option><option value="done">منجز</option><option value="rejected">مرفوض</option>
-                              </select></div>
-                            </td>
-                          </tr>
-                        ))}
-                        {opportunities.length === 0 && <tr><td colSpan={6} className="py-4 text-slate-400 text-center">لا توجد فرص بعد. شغّل التحليل بعد إضافة منافسين/كلمات.</td></tr>}
-                      </tbody>
-                    </table>
-                  </div>
-                  <p className="text-xs text-slate-500 mt-3">الفرص المعروضة تعتمد على البيانات المحفوظة. تحقق من الأدلة قبل اتخاذ أي إجراء.</p>
-                </section>
-              </div>
+            <DashboardOpportunities secret={secret} content={content} setTab={setTab} editingOpportunity={editingOpportunity} setEditingOpportunity={setEditingOpportunity} opportunities={opportunities} saving={saving} setSaving={setSaving} setError={setError} setNotice={setNotice} marketFetch={marketFetch} refreshMarketCollection={refreshMarketCollection} />
             )}
 
             {tab === 'goals' && (
-              <div className="space-y-6">
-                <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                  <h2 className="text-xl font-bold mb-2">أهداف الوكيل</h2>
-                  <p className="text-sm text-slate-500 mb-4">أضف هدفًا قابلاً للمتابعة. يمكن تعديله أو إغلاقه دون حذف سجل القرارات.</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
-                    <input className="border rounded-lg px-3 py-2" placeholder="عنوان الهدف" aria-label="عنوان هدف جديد" value={newGoal.title} onChange={e=>setNewGoal({...newGoal,title:e.target.value})}/>
-                    <input className="border rounded-lg px-3 py-2" placeholder="وصف الهدف أو النتيجة المطلوبة" aria-label="وصف هدف جديد" value={newGoal.description} onChange={e=>setNewGoal({...newGoal,description:e.target.value})}/>
-                    <select className="border rounded-lg px-3 py-2" aria-label="أولوية الهدف الجديد" value={newGoal.priority} onChange={e=>setNewGoal({...newGoal,priority:e.target.value})}>
-                      <option value="low">منخفضة</option><option value="medium">متوسطة</option><option value="high">عالية</option>
-                    </select>
-                  </div>
-                  <button className="btn-primary mb-4" disabled={saving} onClick={async()=>{
-                    if(!newGoal.title.trim()||!newGoal.description.trim()){setError('أدخل عنوان الهدف ووصفه.');return;}
-                    setSaving(true);setError('');
-                    try{
-                      await marketFetch('/api/admin/market/goals',{method:'POST',body:JSON.stringify({title:newGoal.title.trim(),description:newGoal.description.trim(),priority:newGoal.priority,evidence:[],success_metrics:[],confidence:'low'})});
-                      await refreshMarketCollection('goals');setNewGoal({title:'',description:'',priority:'medium'});setNotice('أُضيف الهدف بنجاح. أضف مؤشرات قياس قبل التنفيذ.');
-                    }catch(e:any){setError(e.message||'تعذرت إضافة الهدف.');}finally{setSaving(false);}
-                  }}>إضافة هدف</button>
-                  {editingGoal && <section className="mb-4 bg-blue-50 border border-blue-200 p-4 rounded-xl">
-                    <h3 className="font-bold mb-2">تعديل الهدف</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      <input className="border rounded-lg px-3 py-2" aria-label="عنوان الهدف المعدل" value={editingGoal.title} onChange={e=>setEditingGoal({...editingGoal,title:e.target.value})}/>
-                      <input className="border rounded-lg px-3 py-2" aria-label="وصف الهدف المعدل" value={editingGoal.description} onChange={e=>setEditingGoal({...editingGoal,description:e.target.value})}/>
-                      <select className="border rounded-lg px-3 py-2" value={editingGoal.priority} aria-label="أولوية الهدف المعدلة" onChange={e=>setEditingGoal({...editingGoal,priority:e.target.value})}>
-                        <option value="low">منخفضة</option><option value="medium">متوسطة</option><option value="high">عالية</option>
-                      </select>
-                    </div>
-                    <div className="flex gap-2 mt-3"><button className="btn-primary text-xs" disabled={saving} onClick={async()=>{
-                      if(!editingGoal.title.trim()){setError('عنوان الهدف مطلوب.');return;}
-                      setSaving(true);setError('');
-                      try{await marketFetch('/api/admin/market/goals',{method:'PATCH',body:JSON.stringify({...editingGoal,title:editingGoal.title.trim()})});await refreshMarketCollection('goals');setEditingGoal(null);setNotice('حُفظ تعديل الهدف.');}
-                      catch(e:any){setError(e.message||'تعذر حفظ الهدف.');}finally{setSaving(false);}
-                    }}>حفظ التعديل</button><button className="btn-secondary text-xs" disabled={saving} onClick={()=>setEditingGoal(null)}>إلغاء</button></div>
-                  </section>}
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead><tr className="text-right border-b"><th className="py-2">العنوان</th><th>الأولوية</th><th>الحالة</th><th>الثقة</th><th>المؤشرات</th><th>إجراء</th></tr></thead>
-                      <tbody>
-                        {goals.map((g: any) => (
-                          <tr key={g.id} className="border-b">
-                            <td className="py-2">{g.title}<div className="text-xs text-slate-400">{g.description}</div></td>
-                            <td>{readable(g.priority)}</td>
-                            <td>{readable(g.status)}</td>
-                            <td>{g.confidence}</td>
-                            <td className="text-xs">{(g.success_metrics || []).map((m: any) => m.metric).join(', ')}</td>
-                            <td><div className="flex gap-2 flex-wrap items-center">
-                              <button className="text-xs text-blue-700 underline" disabled={saving} onClick={()=>setEditingGoal({id:g.id,title:g.title,description:g.description||'',priority:g.priority})}>تعديل</button>
-                              <select disabled={saving} className="border border-slate-300 rounded text-xs" value={g.status} onChange={async (e) => {
-                                setSaving(true);setError('');try { await marketFetch('/api/admin/market/goals', { method: 'PATCH', body: JSON.stringify({ id: g.id, status: e.target.value }) }); await refreshMarketCollection('goals');setNotice('تم تحديث حالة الهدف'); }
-                                catch (err: any) { setError(err.message); }finally{setSaving(false);}
-                              }}>
-                                <option value="open">مفتوح</option><option value="in_progress">قيد التنفيذ</option><option value="done">منجز</option><option value="cancelled">ملغى</option>
-                              </select></div>
-                            </td>
-                          </tr>
-                        ))}
-                        {goals.length === 0 && <tr><td colSpan={6} className="py-4 text-slate-400 text-center">لا توجد أهداف بعد.</td></tr>}
-                      </tbody>
-                    </table>
-                  </div>
-                </section>
-              </div>
+            <DashboardGoals newGoal={newGoal} setNewGoal={setNewGoal} editingGoal={editingGoal} setEditingGoal={setEditingGoal} goals={goals} saving={saving} setSaving={setSaving} setError={setError} setNotice={setNotice} marketFetch={marketFetch} refreshMarketCollection={refreshMarketCollection} />
             )}
 
             {tab === 'visibility' && <VisibilityDashboard key={visibilityRefreshKey} secret={secret} onOpenImpact={()=>setTab('impact')} />}
@@ -895,82 +507,7 @@ export default function AdminDashboard() {
             {tab === 'runs' && <UnifiedRunHistory secret={secret} legacyRuns={runs} />}
 
             {tab === 'evidence' && (
-              <div className="min-w-0 space-y-6">
-                <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-6">
-                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <h2 className="text-xl font-bold text-navy-900">الأدلة ومصادر فرص السوق</h2>
-                      <p className="mt-1 text-xs text-slate-600">تفاصيل الرصد وتصنيفات النظام؛ لا تمثل بيانات المنافسين مراجع رسمية للتحقق من المحتوى.</p>
-                    </div>
-                    <button className="btn-secondary text-xs" disabled={evidenceLoading} onClick={fetchEvidence}>{evidenceLoading?'جاري التحميل...':'تحديث'}</button>
-                  </div>
-                  {!evidenceData&&!evidenceLoading&&<p className="text-sm text-slate-500">اضغط تحديث لتحميل الأدلة.</p>}
-                  {evidenceLoading&&<p className="text-sm text-slate-500">جاري التحميل...</p>}
-                  <EvidencePriorityReviewPanel recordedBriefs={recordedBriefs} />
-                  {evidenceData&&<div className="min-w-0 space-y-4">
-                    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                      <div className="rounded-xl border border-blue-200 bg-blue-50 p-3"><p className="text-xs font-semibold text-blue-900">منافسون مرصودون</p><p className="text-xl font-bold text-blue-950">{evidenceData.competitors.length}</p></div>
-                      <div className="rounded-xl border border-violet-200 bg-violet-50 p-3"><p className="text-xs font-semibold text-violet-900">كلمات بحث</p><p className="text-xl font-bold text-violet-950">{evidenceData.keywords.length}</p></div>
-                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3"><p className="text-xs font-semibold text-emerald-900">فرص مقترحة</p><p className="text-xl font-bold text-emerald-950">{evidenceData.opportunities.length}</p></div>
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><p className="text-xs font-semibold text-slate-900">أهداف النظام</p><p className="text-xl font-bold text-slate-950">{evidenceData.goals.length}</p></div>
-                    </div>
-                    <DataRolePanel tone="verification" title="تنبيه التحقق من أدلة السوق" description="العناوين الظاهرة أدناه فرص بحث أو تحليل، وليست معلومات حكومية موثّقة ولا نتائج تصنيف مؤكدة.">
-                      <p className="text-xs text-amber-950">الفرص: {evidenceData.opportunities.length}، الكلمات: {evidenceData.keywords.length}، المنافسون: {evidenceData.competitors.length}. يجب مراجعة المصادر قبل استخدام هذه البيانات في أي محتوى منشور.</p>
-                    </DataRolePanel>
-                    <div className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-3">
-                      <div className="flex flex-wrap items-center gap-2"><DataRoleTag tone="research">الرصد من مصادر خارجية</DataRoleTag><DataRoleTag tone="system">تصنيف وبيانات النظام</DataRoleTag></div>
-                      <p className="mt-2 text-xs font-medium text-blue-950">اسحب الجدول يمينًا ويسارًا لرؤية جميع الأعمدة، ومرره لأعلى وأسفل لقراءة الصفوف. مساحة العناوين واسعة حتى لا تنضغط الكلمات على الجوال.</p>
-                    </div>
-                    <div role="region" aria-label="جدول أدلة السوق قابل للتمرير أفقيًا وعموديًا" tabIndex={0} className="max-h-[72vh] w-full min-w-0 overflow-auto overscroll-contain rounded-xl border border-slate-200 bg-white shadow-inner focus:outline-none focus:ring-2 focus:ring-blue-400">
-                      <table className="w-[1120px] min-w-[1120px] table-fixed border-collapse text-sm">
-                        <colgroup><col style={{width:'175px'}}/><col style={{width:'430px'}}/><col style={{width:'215px'}}/><col style={{width:'300px'}}/></colgroup>
-                        <thead className="sticky top-0 z-10 bg-slate-100 text-slate-900 shadow-sm">
-                          <tr className="border-b border-slate-300 text-right">
-                            <th scope="col" className="px-4 py-3 font-bold">نوع الفرصة وتقييمها</th>
-                            <th scope="col" className="px-4 py-3 font-bold">ما المقصود بهذه الفرصة؟</th>
-                            <th scope="col" className="px-4 py-3 font-bold">من أين جاءت الفكرة؟</th>
-                            <th scope="col" className="px-4 py-3 font-bold">روابط ومعلومات البحث المسجلة</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {evidenceData.opportunities.map((o:any)=>(
-                            <tr key={o.id} className="align-top odd:bg-white even:bg-slate-50/80 border-b border-slate-200">
-                              <td className="px-4 py-4 whitespace-normal break-words">
-                                <DataRoleTag tone="technical">{opportunityKind(o.type)}</DataRoleTag>
-                                <p className="mt-3 text-xs text-slate-700">الأولوية المقترحة: <strong>{opportunityPriority(o.priority)}</strong></p>
-                                <p className="mt-1 text-xs text-slate-700">درجة الثقة: <strong className={o.confidence==='low'?'text-amber-800':'text-slate-800'}>{opportunityConfidence(o.confidence)}</strong></p>
-                              </td>
-                              <td className="px-4 py-4 whitespace-normal break-words leading-7 text-slate-900">
-                                <span className="block font-semibold">{String(o.title||'').includes('دلائل مخططة بدون صفحات منشورة')?'أدلة مخططة لم تُنشر بعد':o.title}</span>
-                                <span className="mt-2 block text-sm text-slate-700">{opportunityMeaning(o)}</span>
-                              </td>
-                              <td className="px-4 py-4 whitespace-normal break-words">
-                                {Array.isArray(o.evidence)&&o.evidence.length>0?
-                                  <p className="text-sm text-blue-900">بيانات رصد مسجلة. نوعها مذكور لكل نتيجة في العمود التالي.</p>:
-                                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs text-slate-700">
-                                    تحليل مقترح من النظام، دون روابط بحث مرتبطة بهذه الفرصة. لا يُنسب إلى منافس محدد.
-                                  </div>}
-                              </td>
-                              <td className="px-4 py-4 whitespace-normal break-words text-xs">
-                                {Array.isArray(o.evidence)&&o.evidence.length>0?<ul className="space-y-2">
-                                  {o.evidence.map((e:any,j:number)=><li key={j} className="rounded-lg border border-blue-100 bg-blue-50 p-2 leading-6">
-                                    <DataRoleTag tone="research">{observationType(e.origin)}</DataRoleTag>
-                                    {e.source&&<span className="mt-1 block text-blue-900">سجل البحث: {e.source}</span>}
-                                    {typeof e.url==='string'&&e.url.startsWith('https://')&&<a className="mt-1 block break-all text-blue-800 underline" href={e.url} target="_blank" rel="noopener noreferrer">{e.url}</a>}
-                                    {e.quote&&<span className="mt-1 block text-blue-950">{e.quote}</span>}
-                                    {!e.url&&!e.quote&&<span className="mt-1 block text-slate-600">لا يوجد رابط أو مقتطف محفوظ لهذا الرصد.</span>}
-                                  </li>)}
-                                </ul>:<span className="text-amber-800">لم تُسجّل مصادر بحث لهذه الفرصة. هي فكرة تحتاج إلى أدلة قبل اعتمادها.</span>}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    {evidenceData.opportunities.length===0&&<p className="text-sm text-slate-500">لا توجد فرص محفوظة لعرضها في الجدول.</p>}
-                  </div>}
-                </section>
-              </div>
+            <DashboardEvidence evidenceData={evidenceData} evidenceLoading={evidenceLoading} fetchEvidence={fetchEvidence} recordedBriefs={recordedBriefs} />
             )}
 
           </main>

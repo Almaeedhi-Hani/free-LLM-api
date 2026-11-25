@@ -21,7 +21,8 @@ for(const name of ["ResidencyHero","ResidencyProducts","ResidencyComparison","Re
 const admin=read('src/app/admin/dashboard/page.tsx');
 for(const name of ["DashboardSidebar","DashboardHeader","DashboardOverview","DashboardContact"])assert(admin.includes('<'+name+' '),name+' is mounted');
 assert(admin.includes('from "@/lib/admin/dashboard/navigation"'),'Dashboard registry is separate');
-assert(admin.split('\n').length<1100,'First admin migration reduces page size');
+for(const name of ["DashboardContent","DashboardAgentStatus","DashboardReviews","DashboardSettings","DashboardCompetitors","DashboardKeywords","DashboardOpportunities","DashboardGoals","DashboardEvidence"])assert(admin.includes('<'+name+' '),name+' mounted');
+assert(admin.split('\n').length<550,'Dashboard route orchestrates feature views');
 const manifest=read('src/app/globals.css');
 assert(!/\{[^}]*:[^}]*\}/s.test(manifest),'Global entrypoint only imports styles');
 const css=readGlobalStyles();
@@ -38,6 +39,7 @@ if(baseline){
   for(const [name,start,end] of [["ResidencyHero",39,47],["ResidencyProducts",50,61],["ResidencyComparison",62,66],["ResidencyGuidance",67,72],["ResidencyReferences",73,74]])assert(read('src/components/residency/'+name+'.tsx').includes(residency.slice(start-1,end).join('\n')),name+' original markup');
   const adminOriginal=cp.execFileSync('git',['show',baseline+':src/app/admin/dashboard/page.tsx'],{encoding:'utf8'}).split('\n');
   for(const [name,start,end] of [["DashboardSidebar",523,565],["DashboardHeader",568,585],["DashboardOverview",593,630],["DashboardContact",635,685]])assert(read('src/components/admin/dashboard/'+name+'.tsx').includes(adminOriginal.slice(start-1,end).join('\n')),name+' original markup');
-  console.log('PASS exact baseline public CSS, homepage, shared shell, residency and admin views');
+  for(const [name,start,end] of [["DashboardContent",689,733],["DashboardAgentStatus",740,778],["DashboardReviews",782,835],["DashboardSettings",866,872],["DashboardCompetitors",878,952],["DashboardKeywords",956,1025],["DashboardOpportunities",1029,1079],["DashboardGoals",1083,1145],["DashboardEvidence",1155,1230]])assert(read('src/components/admin/dashboard/'+name+'.tsx').includes(adminOriginal.slice(start-1,end).join('\n')),name+' original markup');
+  console.log('PASS exact baseline public CSS, homepage, shared shell, residency and all extracted admin views');
 }
 console.log('PASS ordered CSS manifest and composed homepage architecture');

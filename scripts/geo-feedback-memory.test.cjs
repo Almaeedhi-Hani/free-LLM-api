@@ -81,7 +81,7 @@ const paths={
  publisher:fs.readFileSync('src/lib/geo-auto-publication.ts','utf8'),
  market:fs.readFileSync('src/lib/market-intelligence.ts','utf8'),
  admin:fs.readFileSync('src/app/api/admin/geo-feedback/route.ts','utf8'),
- ui:fs.readFileSync('src/app/admin/dashboard/page.tsx','utf8')
+ ui:require('./support/admin-dashboard-source.cjs').readAdminDashboardSource()
 };
 assert(paths.discovery.includes('reviewer_excluded:excluded')&&paths.discovery.includes('getGeoFeedbackIndex()'));
 assert(paths.results.includes('reviewer_excluded:excluded')&&paths.results.includes('excludesFaq(memory,d.q)'));

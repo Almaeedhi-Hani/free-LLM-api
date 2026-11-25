@@ -11,5 +11,15 @@ function readAdminDashboardSource(){return [
   "src/components/admin/dashboard/DashboardHeader.tsx",
   "src/components/admin/dashboard/DashboardOverview.tsx",
   "src/components/admin/dashboard/DashboardContact.tsx"
+,
+  'src/components/admin/dashboard/DashboardContent.tsx',
+  'src/components/admin/dashboard/DashboardAgentStatus.tsx',
+  'src/components/admin/dashboard/DashboardReviews.tsx',
+  'src/components/admin/dashboard/DashboardSettings.tsx',
+  'src/components/admin/dashboard/DashboardCompetitors.tsx',
+  'src/components/admin/dashboard/DashboardKeywords.tsx',
+  'src/components/admin/dashboard/DashboardOpportunities.tsx',
+  'src/components/admin/dashboard/DashboardGoals.tsx',
+  'src/components/admin/dashboard/DashboardEvidence.tsx'
 ].map(read).join('\n');}
 module.exports={readAdminDashboardSource};

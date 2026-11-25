@@ -1,7 +1,7 @@
 'use strict';
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
-const dashboard=fs.readFileSync('src/app/admin/dashboard/page.tsx','utf8');
+const dashboard=require('./support/admin-dashboard-source.cjs').readAdminDashboardSource();
 const component=fs.readFileSync('src/components/LegacyToolsArchive.tsx','utf8');
 const flags=fs.readFileSync('src/lib/admin-consolidation-flags.ts','utf8');
 const archive=fs.readFileSync('docs/plans/phase4-legacy-inventory-20261120.md','utf8');

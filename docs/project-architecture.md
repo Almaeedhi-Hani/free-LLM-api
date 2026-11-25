@@ -38,3 +38,6 @@ Legacy global style order is intentionally preserved. Some responsive/shared leg
 ## Third migration slice — admin foundation
 - src/lib/admin/dashboard/navigation.ts owns seven hubs and nineteen tabs; contact-form.ts owns existing contact transformations and validation; presentation.ts owns labels and formatting.
 - src/components/admin/dashboard/ owns Sidebar, Header, Overview and Contact presentation. The existing authenticated route retains session, state, mutations and the remaining tab composition. Do not move credentials into shared/global state or alter request semantics. No API or data changes. Additional tabs and hooks will be extracted in smaller reviewed changes.
+
+## Fourth migration slice — remaining admin tab views
+Content, agent status, FAQ reviews, settings, competitors, keywords, opportunities, goals and evidence each have a dedicated client component. The route retains the existing controller state and authenticated request functions; legacy inline event handlers are preserved verbatim pending focused extraction into domain hooks. view-contracts.ts provides typed view boundaries. All extracted JSX blocks are verified against the pinned original in CI; existing role checks, readback and confirm flows are not changed.
