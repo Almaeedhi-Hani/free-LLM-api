@@ -1,0 +1,120 @@
+name: Public live editorial audit
+on:
+  pull_request:
+    branches: [main]
+    paths: ['.github/workflows/public-live-editorial-audit.yml']
+permissions:
+  contents: read
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Audit production sitemap and public page HTML
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import concurrent.futures as cf, html, re, sys, urllib.request, urllib.error, urllib.parse, xml.etree.ElementTree as ET
+          from html.parser import HTMLParser
+          from collections import Counter
+          ROOT='https://free-llm-api-1-didl.onrender.com'
+          host=urllib.parse.urlsplit(ROOT).netloc
+          class SameOrigin(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self,req,fp,code,msg,headers,newurl):
+                  u=urllib.parse.urlsplit(newurl)
+                  if u.scheme!='https' or u.netloc!=host: raise ValueError('external redirect')
+                  return super().redirect_request(req,fp,code,msg,headers,newurl)
+          opener=urllib.request.build_opener(SameOrigin())
+          def get(path):
+              req=urllib.request.Request(ROOT+path,headers={'User-Agent':'InvestSaudi-public-content-audit/1.0','Cache-Control':'no-cache'})
+              try:
+                  with opener.open(req,timeout=30) as r:
+                      data=r.read(4_000_001)
+                      if len(data)>4_000_000: raise ValueError('response exceeds scan bound')
+                      return r.status,data.decode('utf-8','replace')
+              except urllib.error.HTTPError as e: return e.code,''
+              except Exception as e: return 0,type(e).__name__
+          def canonical(path):
+              return path.rstrip('/') or '/'
+          class Page(HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.links=[]; self.text=[]; self.skip=0
+              def handle_starttag(self,tag,attrs):
+                  a=dict(attrs)
+                  if tag in ('script','style','template'): self.skip+=1
+                  if tag=='a' and a.get('href'): self.links.append(a['href'])
+              def handle_endtag(self,tag):
+                  if tag in ('script','style','template'): self.skip=max(0,self.skip-1)
+              def handle_data(self,d):
+                  if not self.skip: self.text.append(d)
+          markers=[
+            'قسم توضيحي للأتعاب المهنية منفصل عن عرض الباقات الحالي',
+            'مقترح تحريري يستند إلى سياسة داخلية',
+            'قسم إرشادي على الصفحة الرئيسية لمساعدة الزائر على اختيار الخدمة المناسبة',
+            'يحتاج مراجعة تحريرية قبل النشر',
+            'يقترح هذا القسم الإرشادي',
+            'تبقى صياغته النهائية خاضعة للمراجعة التحريرية',
+            'Fee-and-scope explanation section for the live packages page',
+            'Decision-support block for the homepage investor journey',
+            'Decision-support section for the live investment registration service page',
+            'Original English guide to verifying Saudi investment registration requirements',
+            'This proposed block meets them',
+            'This action proposes a new supporting section',
+            'Keyword interest is inferred from observed competitor titles',
+            '服务套餐费用口径说明内容',
+            '套餐价格说明：专业服务费与政府规费分离',
+            '首页决策支持：沙特市场进入路径与服务选择',
+            '首页投资决策支持模块',
+            '服务页强化：公司注册范围、交付边界与咨询入口',
+            '深度指南：沙特公司设立材料准备框架',
+            '沙特投资登记步骤核验指南',
+            '外资投资许可类型比较框架',
+            '人工复核后发布','人工核对主管部门页面后方可发布',
+            '不改变现有H1和视觉设计','新增首页决策支持模块的提案标题'
+          ]
+          def norm(s): return re.sub(r'\s+',' ',html.unescape(s)).strip().casefold()
+          markers=[norm(x) for x in markers]
+          def inspect(path):
+              code,raw=get(path)
+              if code!=200:return path,code,[],[]
+              p=Page();p.feed(raw)
+              visible=norm(' '.join(p.text)); raw=norm(raw)
+              hits=[i+1 for i,m in enumerate(markers) if m in visible or m in raw]
+              links=[]
+              for href in p.links:
+                  u=urllib.parse.urlsplit(urllib.parse.urljoin(ROOT+path,href))
+                  if u.scheme!='https' or u.netloc!=host or u.query:continue
+                  x=canonical(u.path)
+                  if re.fullmatch(r'/(?:en|zh)?(?:/(?:packages|services(?:/[a-z0-9-]+)?|insights(?:/[a-z0-9-]+)?))?|/(?:packages|services(?:/[a-z0-9-]+)?|insights(?:/[a-z0-9-]+)?)',x):links.append(x)
+              return path,code,hits,links
+          status,body=get('/sitemap.xml')
+          if status!=200:print('SITEMAP_HTTP',status);sys.exit(1)
+          xml=ET.fromstring(body)
+          locs=[el.text for el in xml.findall('.//{*}url/{*}loc') if el.text]
+          if not locs: raise RuntimeError('empty sitemap')
+          sitemap=set()
+          for loc in locs:
+              u=urllib.parse.urlsplit(loc)
+              if u.scheme!='https' or u.netloc!=host: raise RuntimeError('unexpected sitemap origin')
+              sitemap.add(canonical(u.path))
+          services=['misa-license','company-formation','corporate-banking','contract-drafting','premium-residency','investment-funds']
+          base={canonical(prefix+path) for prefix in ('','/en','/zh') for path in ['/','/packages']+['/services/'+s for s in services]}
+          expected=base|{'/insights','/en/insights','/insights/foreign-investor-company-documents','/insights/investor-services-package-scope','/insights/misa-registration-process-guide','/en/insights/saudi-foreign-investor-incorporation-documents'}
+          retired={'/en/insights/saudi-investment-registration-verification','/zh/insights/saudi-company-formation-documents','/zh/insights/verify-misa-registration-steps','/zh/insights/compare-investment-license-types','/zh/insights'}
+          seen={};todo=set(sitemap)|expected|retired
+          with cf.ThreadPoolExecutor(max_workers=4) as pool:
+              while todo:
+                  if len(seen)+len(todo)>100:raise RuntimeError('crawl limit exceeded')
+                  discovered=set()
+                  for path,code,hits,links in pool.map(inspect,sorted(todo)):
+                      seen[path]=(code,hits)
+                      print('PAGE',path,'HTTP',code,'INTERNAL_MARKERS',hits,flush=True)
+                      discovered.update(links)
+                  todo=discovered-set(seen)
+          counts=Counter('zh' if p=='/zh' or p.startswith('/zh/') else 'en' if p=='/en' or p.startswith('/en/') else 'ar' for p,(code,hits) in seen.items() if code==200)
+          print('SITEMAP_TOTAL',len(sitemap),'LANGUAGE_HTTP_200',dict(counts),'CHECKED',len(seen))
+          print('MISSING_EXPECTED',sorted(expected-sitemap),'UNEXPECTED_SITEMAP',sorted(sitemap-expected))
+          failures=[p for p,(code,hits) in seen.items() if hits or (p in sitemap|expected and code!=200) or (p in retired and code not in (404,410))]
+          print('FAILURES',failures)
+          if failures or expected!=sitemap:sys.exit(1)
+          PY
