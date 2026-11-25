@@ -317,9 +317,9 @@ export const labels = {
     "zh": "费用与期限对比"
   },
   "fee": {
-    "ar": "المقابل المالي للمنتج",
-    "en": "Official product fee",
-    "zh": "官方产品费用"
+    "ar": "المقابل المالي الحكومي للإقامة",
+    "en": "Government residency product fee",
+    "zh": "政府居留产品费用"
   },
   "duration": {
     "ar": "مدة الإقامة",
@@ -347,9 +347,9 @@ export const labels = {
     "zh": "官方产品详情"
   },
   "feeNote": {
-    "ar": "المبالغ هي المقابل المالي للمنتج المنشور من المركز، وليست تكلفة شاملة. لا تشمل رأس المال أو العقار أو رسوم معالجة الطلب أو التأمين أو أتعاب الخدمات المهنية. قد تتغير الشروط والرسوم؛ راجع المركز قبل الالتزام.",
-    "en": "Amounts are the Center's listed product fees, not all-inclusive costs. Investment, property, application processing, insurance and professional fees are separate. Confirm current criteria and fees with the Center before committing.",
-    "zh": "金额为中心公布的产品费用，并非总成本。投资、房产、申请处理、保险及专业服务费用另计。承诺支出前请向中心核实最新条件及费用。"
+    "ar": "هذه المبالغ هي المقابل المالي الحكومي لمنتجات الإقامة المميزة، ويُسدد للمركز بعد الموافقة على الطلب. مبلغ 4,000 ريال ليس تكلفة الحصول على الإقامة كاملة، ولا يشمل الاستثمار أو العقار أو رسوم معالجة الطلب أو التأمين الطبي أو أتعاب خدماتنا المهنية. تختلف شروط الأهلية حسب المنتج، وقد تتغير الرسوم والشروط.",
+    "en": "These are government residency product fees payable to the Center after approval. SAR 4,000 is not the total cost of obtaining residency. Investment, property, application processing, medical insurance and our professional fees are separate. Eligibility varies by product and conditions and fees may change.",
+    "zh": "以上为申请获批后向中心缴纳的政府居留产品费用。4000沙特里亚尔并非获得居留的全部成本，不包含投资、房产、申请处理费、医疗保险及我们的专业服务费。各产品资格条件不同，条件及费用可能调整。"
   },
   "benefits": {
     "ar": "مزايا الإقامة المميزة",
@@ -380,11 +380,6 @@ export const labels = {
     "ar": "استفسر عن أهليتك",
     "en": "Discuss your eligibility",
     "zh": "咨询您的资格"
-  },
-  "apply": {
-    "ar": "التقديم عبر المركز الرسمي",
-    "en": "Apply via the official Center",
-    "zh": "通过官方中心申请"
   },
   "faq": {
     "ar": "الأسئلة الشائعة",
@@ -442,13 +437,5 @@ export const sources = [
       "zh": "官方常见问题"
     },
     "url": "https://pr.gov.sa/faq"
-  },
-  {
-    "title": {
-      "ar": "اختيار المنتج والتقديم",
-      "en": "Product selection and application",
-      "zh": "产品选择与申请"
-    },
-    "url": "https://pr.gov.sa/Select-products"
   }
 ];
