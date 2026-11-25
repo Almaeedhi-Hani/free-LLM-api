@@ -1,6 +1,6 @@
 import {NextRequest,NextResponse} from 'next/server';
 import {telegramPhase2Enabled,healthText,claimDelivery,markDelivery} from '@/lib/telegram-ops-notifier';
-import {advancedEnabled,parseAdvanced,handleAdvanced,handleVoice,memorySummary,reviewMenu} from '@/lib/telegram-ops-advanced';
+import {advancedEnabled,parseAdvanced,handleAdvanced,handleVoice,memorySummary,reviewMenu,reviewCard,handleReviewAction,type ReviewButton} from '@/lib/telegram-ops-advanced';
 import {coordinator,coordinatorEnabled,core} from '@/lib/telegram/config';
 import {dataFor} from '@/lib/telegram/operations-data';
 import {send,boundedBody} from '@/lib/telegram/transport';
@@ -24,12 +24,14 @@ export async function POST(req:NextRequest){
  try{if(key&&!await claimDelivery(key,'command'))return reply({ok:true,duplicate:true});}catch{return reply({error:'delivery_ledger_unavailable'},503);}
  try{
   const action=command==='unknown'?parseAdvanced(core.normalizeCommand((update as {message?:{text?:unknown}}).message?.text)):null;
-  let message:string;let inline:{text:string;callback_data:string}[][]|undefined;
+  let message:string;let inline:ReviewButton[][]|undefined;
   if(command==='unknown'&&core.normalizeCommand((update as {message?:{text?:unknown}}).message?.text)==='/commandcenter'){
    message=coordinatorEnabled()?await coordinator.report(await dataFor('/commandcenter')):'غرفة القيادة غير مفعلة بعد.';
    if(coordinatorEnabled()&&advancedEnabled())try{message+='\n\n'+await memorySummary(cfg);}catch{message+='\n\nالذاكرة الاستراتيجية غير متاحة.';}
   }
   else if(action?.kind==='reviewlist'){const m=await reviewMenu();message=m.text;inline=m.inline_keyboard;}
+  else if(action?.kind==='review'){const m=await reviewCard(action.key||'');message=m.text;inline=m.inline_keyboard;}
+  else if(action&&['approve','reject','confirm'].includes(action.kind)){const m=await handleReviewAction(action,cfg,(update as {update_id:number}).update_id);message=m.text;inline=m.inline_keyboard;}
   else if(action)message=await handleAdvanced(action,cfg,(update as {update_id:number}).update_id);
   else if(command==='voice'&&advancedEnabled())message=await handleVoice(update,cfg);
   else{

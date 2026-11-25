@@ -1,9 +1,9 @@
 import type {NextRequest} from 'next/server';
 import {telegramPhase2Enabled} from '@/lib/telegram-ops-notifier';
-import {advancedEnabled} from '@/lib/telegram-ops-advanced';
+import {advancedEnabled,type ReviewButton} from '@/lib/telegram-ops-advanced';
 import {core,coordinatorEnabled} from './config';
 
-export async function send(cfg:NonNullable<ReturnType<typeof core.config>>,message:string,inline?:{text:string;callback_data:string}[][]){
+export async function send(cfg:NonNullable<ReturnType<typeof core.config>>,message:string,inline?:ReviewButton[][]){
  const parts=core.chunks(message);
  for(let index=0;index<parts.length;index++){
   const part=parts[index];

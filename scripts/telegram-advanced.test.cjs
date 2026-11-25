@@ -40,3 +40,19 @@ test('bounded Arabic spelling recovery handles new transcription mistakes',()=>{
 test('spelling recovery rejects compound requests, mutations and single-word guesses',()=>{
  for(const text of ['التقرير لداري واحذف الكل','لا تعرض التقرير لداري','احذف التقرير الاداري','انشر التقرير الاداري','أبغى التقرير لداري ثم انشر','/aprove','المسودات المعلقة /confirm abcdef0123456789','الفرس','شيء غير معروف','التقرير لداري ووافق','أبغى التقرير لداري، احذف الكل'])assert.equal(voiceSuggestion(text),null,text);
 });
+
+test('review cards hide identifiers, show full text, bound URLs and withhold ineligible approvals',()=>{
+ const {card,decisionCard}=require('../src/lib/telegram-ops-advanced-card.cjs');
+ const key='a'.repeat(24),base={key,title:'سؤال',kind:'faq',body:'إجابة كاملة',refs:[{label:'مصدر',url:'https://example.org'},{url:'javascript:alert(1)'}],index:0,total:2,next:'b'.repeat(24),full:true};
+ const blocked=card({...base,eligible:false});
+ assert(blocked.text.includes('إجابة كاملة'));assert(!blocked.text.includes(key));
+ assert(!blocked.inline_keyboard.flat().some(b=>b.callback_data?.startsWith('approve:')));
+ assert(blocked.inline_keyboard.flat().some(b=>b.callback_data==='reject:'+key));
+ assert(!blocked.inline_keyboard.flat().some(b=>b.url?.startsWith('javascript:')));
+ assert(card({...base,eligible:true}).inline_keyboard.flat().some(b=>b.callback_data==='approve:'+key));
+ assert(!card({...base,eligible:true,full:false}).inline_keyboard.flat().some(b=>/^(approve|reject):/.test(b.callback_data||'')));
+ const code='1234567890abcdef';
+ const c=decisionCard('النص الكامل\n\nللتأكيد الصريح خلال 10 دقائق: /confirm '+code+'\nعدم التأكيد يعني عدم التنفيذ.');
+ assert(!c.text.includes(code));assert.equal(c.inline_keyboard[0][0].callback_data,'confirm:'+code);
+ assert(!decisionCard('blocked').inline_keyboard.flat().some(b=>b.callback_data?.startsWith('confirm:')));
+});
