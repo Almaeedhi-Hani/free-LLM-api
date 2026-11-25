@@ -56,3 +56,6 @@ assert.match(route,/central_slot:slot/);
 assert.match(master,/Supabase central master/);
 assert.match(fs.readFileSync('.github/workflows/gsc-daily-sync.yml','utf8'),/Supabase central W04/);
 console.log('PASS central source labels, latest failure, stale, pending and measured GSC daily coverage');
+
+assert(route.includes("Number(req.headers.get('x-w02-cron-ts'))*1000"),'signed original timestamp rather than arrival minute');
+assert(route.includes('radar_result_readback_unverified'),'verify actual saved Radar row');

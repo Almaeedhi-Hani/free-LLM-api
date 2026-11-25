@@ -16,9 +16,10 @@ const WORKFLOWS = Object.freeze([
   { id: 'W06', filename: 'autonomous-site-maintenance.yml', name: 'Bounded maintenance' },
 ]);
 const LEGACY_PAUSE_VARS=Object.freeze({W02:'MARKET_RADAR_PAUSED',W05:'LLM_INDEX_PAUSED',W06:'AUTODEV_PAUSED'});
+const {geoReadback,radarReadback}=require('../src/lib/geo-run-health.cjs');
 const POSTGREST_READS = Object.freeze({
-  W01: {table:'content_store',time:'updated_at',query:'select=updated_at&order=updated_at.desc&limit=1'},
-  W02: {table:'analysis_runs',time:'finished_at',query:'select=finished_at&run_type=eq.radar&status=eq.success&order=finished_at.desc&limit=1'},
+  W01: {table:'content_store',time:'updated_at',query:'select=content->agent&id=eq.1&limit=1'},
+  W02: {table:'analysis_runs',time:'finished_at',query:'select=status,finished_at&run_type=eq.radar&order=started_at.desc&limit=1'},
   W03: {table:'audit_logs',time:'created_at',query:'select=created_at&action=eq.geo_publication_rpc_result&metadata->>source_workflow=eq.W03&order=created_at.desc&limit=1'},
   W04: {table:'gsc_sync_day_outcomes',time:'checked_at',query:'select=checked_at&order=checked_at.desc&limit=1'},
 });
@@ -197,6 +198,8 @@ async function readStorage(id,{url,key,fetchImpl=fetch}) {
     if(!response.ok)return {status:'unknown',note:'readback_http_'+response.status};
     const body=await response.json();
     if(!Array.isArray(body)||body.length===0)return {status:'unknown',note:'no_existing_rows'};
+    if(id==='W01')return geoReadback(body[0].agent);
+    if(id==='W02')return radarReadback(body[0]);
     const value=body[0][selection.time];
     if(typeof value!=='string'||!Number.isFinite(Date.parse(value)))return {status:'unknown',note:'missing_storage_timestamp'};
     return {status:'observed',latestTimestamp:value,source:selection.table};
@@ -218,6 +221,8 @@ function persistedFreshness(storage,nowMillis) {
   const saved=Date.parse(storage.latestTimestamp);
   if(!Number.isFinite(saved)||!Number.isFinite(nowMillis)||saved>nowMillis)
     return {status:'unknown',reason:'invalid_persisted_timestamp'};
+  if(['failed','blocked'].includes(storage.runOutcome))return {status:'stale',reason:'latest_persisted_run_'+storage.runOutcome};
+  if(storage.runOutcome==='partial_success')return {status:'partial',reason:'latest_persisted_run_partial_success'};
   const ageHours=(nowMillis-saved)/3600000;
   const limitHours=2*expectedIntervalHours(nowMillis);
   return {status:ageHours>limitHours?'stale':'fresh',
@@ -408,7 +413,7 @@ async function readGeoSnapshot({key,mode,now,fetchImpl=fetch}) {
         if(row.source!==table||typeof row.latestTimestamp!=='string'||
            !Number.isFinite(Date.parse(row.latestTimestamp))||
            Date.parse(row.latestTimestamp)>now)return null;
-        storage[id]={status:'observed',source:table,latestTimestamp:row.latestTimestamp,...(id==='W04'&&typeof row.metricDate==='string'&&typeof row.dayStatus==='string'?{metricDate:row.metricDate,dayStatus:row.dayStatus}:{})};
+        storage[id]={status:'observed',source:table,latestTimestamp:row.latestTimestamp,...(['W01','W02'].includes(id)&&['success','partial_success','failed','blocked'].includes(row.runOutcome)?{runOutcome:row.runOutcome}:{}),...(id==='W04'&&typeof row.metricDate==='string'&&typeof row.dayStatus==='string'?{metricDate:row.metricDate,dayStatus:row.dayStatus}:{})};
       }else {
         storage[id]={status:'unknown',note:'server_readback_unverified'};
       }
@@ -495,9 +500,9 @@ async function handleWatchdog(client,rows,now) {
       '\nLimit hours: '+(freshness.limitHours??'unknown')+
       '\nLast observed save: '+(row.storage.latestTimestamp||row.storage.note||'unknown')+
       '\nNo provider calls, forced publishing, or synthetic records were made by the monitor.';
-    if(row.run.status==='healthy'&&freshness.status==='stale')
+    if(['healthy','delegated'].includes(row.run.status)&&['stale','partial'].includes(freshness.status))
       result.push({workflow:row.target.id,kind:'persisted_output',...await client.upsertIssue({title:savedTitle,body:savedBody,label:'watchdog'})});
-    if(row.run.status==='paused'||(row.run.status==='healthy'&&freshness.status==='fresh'))
+    if(row.run.status==='paused'||(['healthy','delegated'].includes(row.run.status)&&freshness.status==='fresh'))
       result.push({workflow:row.target.id,kind:'persisted_output',...await client.resolveIssue(savedTitle,savedBody+
         '\nResolved: '+(row.run.status==='paused'?'owner-requested pause':'genuine schedule and recent stored output')+'.')});
   }

@@ -2,19 +2,20 @@ import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseCredentials } from "@/lib/storage-mode";
 
+const runHealth=require("@/lib/geo-run-health.cjs") as {geoReadback:(agent:unknown)=>Readback;radarReadback:(row:unknown)=>Readback};
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const ORIGIN = "https://free-llm-api-1-didl.onrender.com";
 const STORAGE = {
-  W01: { table: "content_store", column: "updated_at", query: "select=updated_at&order=updated_at.desc&limit=1" },
-  W02: { table: "analysis_runs", column: "finished_at", query: "select=finished_at&run_type=eq.radar&status=eq.success&order=finished_at.desc&limit=1" },
+  W01: { table: "content_store", column: "updated_at", query: "select=content->agent&id=eq.1&limit=1" },
+  W02: { table: "analysis_runs", column: "finished_at", query: "select=status,finished_at&run_type=eq.radar&order=started_at.desc&limit=1" },
   W03: { table: "audit_logs", column: "created_at", query: "select=created_at&action=eq.geo_publication_rpc_result&metadata->>source_workflow=eq.W03&order=created_at.desc&limit=1" },
   W04: { table: "gsc_sync_day_outcomes", column: "checked_at", query: "select=checked_at,metric_date,status&order=metric_date.desc,checked_at.desc&limit=1" }
 } as const;
 
 type JsonRow = Record<string, unknown>;
-type Readback = { status: "observed"; latestTimestamp: string; source: string; metricDate?: string; dayStatus?: string } | { status: "unknown"; note: string };
+type Readback = { status: "observed"; latestTimestamp: string; source: string; metricDate?: string; dayStatus?: string; runOutcome?: string } | { status: "unknown"; note: string };
 type GscMeasurement = { status: "observed"; grain: "total"; latestDate: string; impressions: number; clicks: number; observedDays: number } | { status: "unknown"; note: string };
 type Unknown = { status: "unknown"; reason: string };
 type Feedback = { status: "observed"; sampleSize: number; from: string; counts: Record<string, number> } | Unknown;
@@ -65,6 +66,11 @@ export async function GET(req: NextRequest) {
     try {
       const property=process.env.GSC_PROPERTY_URL||ORIGIN+'/';
       const list = await rows(spec.table, spec.query+(id==='W04'?'&property=eq.'+encodeURIComponent(property):''));
+      if(id==="W01"||id==="W02"){
+        const result=id==="W01"?runHealth.geoReadback(list[0]?.agent):runHealth.radarReadback(list[0]);
+        storage[id]=result.status==="observed"&&Date.parse(result.latestTimestamp)>now?{status:"unknown",note:"future_run_timestamp"}:result;
+        return;
+      }
       const stamp = list[0]?.[spec.column];
       storage[id] = typeof stamp === "string" && Number.isFinite(Date.parse(stamp)) && Date.parse(stamp) <= now ?
         { status: "observed", latestTimestamp: stamp, source: spec.table, ...(id==='W04'&&isDate(list[0]?.metric_date)&&typeof list[0]?.status==='string'?{metricDate:list[0].metric_date,dayStatus:list[0].status}:{}) } :

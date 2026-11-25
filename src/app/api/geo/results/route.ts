@@ -79,11 +79,12 @@ export async function POST(req:NextRequest) {
    return incoming.filter(e=>after.editorialItems?.some(a=>a.id===e.id)).length;
   },
   saveReport:async report=>{
-   await setContent({agent:{
+   const saved=await setContent({agent:{
     lastRun:report.run_at,
     status:report.status==="success"?"success":"error",
     lastResult:report.last_result
    }});
+   if(saved.agent.lastRun!==report.run_at||saved.agent.lastResult!==report.last_result||saved.agent.status!==(report.status==='success'?'success':'error'))throw Error('GEO run report readback mismatch');
   }
  });
  if(!outcome.ok)console.error("GEO ingestion was partial",outcome.errors);

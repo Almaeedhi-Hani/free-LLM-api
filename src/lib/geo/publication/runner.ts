@@ -28,8 +28,7 @@ export async function runGuardedAutoPublishing(dryRun=false,origin:PublicationOr
  try{feedback=await getGeoFeedbackIndex()}catch{
   return {...report,status:'storage_unavailable',message:'Reviewer feedback could not be loaded'};
  }
- // If the live competitor registry is unavailable, publish without external citations;
- // do not make optional sources into a new mandatory publication gate.
+ // If the competitor registry is unavailable, source preflight fails closed.
  const competitorDomains=await getCompetitorDomains().catch(()=>null);
  const editorial=(content.editorialItems||[]).filter(e=>e.status==='pending');
  const faqDrafts=(content.drafts||[]).filter(d=>d.status==='pending');
@@ -42,6 +41,8 @@ export async function runGuardedAutoPublishing(dryRun=false,origin:PublicationOr
   const checks:Record<string,number>={};
   let probed=false;
   for(const item of publishable){
+   const path=editorialPath(item);
+   if(!path||excludesEditorial(feedback,item,path)){reasons.reviewer_excluded=(reasons.reviewer_excluded||0)+1;continue}
    let result=await assessEditorialCandidate(item,competitorDomains,false);
    if(!probed&&result.reason==='source_check_required'){
     probed=true;result=await assessEditorialCandidate(item,competitorDomains,true);
@@ -49,7 +50,7 @@ export async function runGuardedAutoPublishing(dryRun=false,origin:PublicationOr
    reasons[result.reason]=(reasons[result.reason]||0)+1;
    checks[result.sourceCheck]=(checks[result.sourceCheck]||0)+1;
   }
-  for(const draft of faqDrafts){const reason=assessFaqCandidate(draft);reasons[reason]=(reasons[reason]||0)+1}
+  for(const draft of faqDrafts){const reason=excludesFaq(feedback,draft.q)?'reviewer_excluded':assessFaqCandidate(draft);reasons[reason]=(reasons[reason]||0)+1}
   return {...report,status:'dry_run',message:JSON.stringify({
    pending_editorial:editorial.length,pending_faq:faqDrafts.length,
    visitor_page_candidates:publishable.length,technical_tasks:editorial.length-publishable.length,
@@ -73,6 +74,7 @@ export async function runGuardedAutoPublishing(dryRun=false,origin:PublicationOr
  };
  // Existing DB quota governs the combined publication count, with strict
  // transactional locks. Never retry ambiguous writes.
+ let sourceProbeUsed=false;
  for(const candidate of publishable){
   const path=editorialPath(candidate);
   if(path&&excludesEditorial(feedback,candidate,path)){
@@ -83,7 +85,10 @@ export async function runGuardedAutoPublishing(dryRun=false,origin:PublicationOr
    if(!(await recordSkip('editorial',candidate.id,'requires_finished_visitor_copy')))return storageAuditFailure();
    continue;
   }
-  const verification=await assessEditorialCandidate(candidate,competitorDomains,false);
+  let verification=await assessEditorialCandidate(candidate,competitorDomains,false);
+  if(!sourceProbeUsed&&verification.reason==='source_check_required'){
+   sourceProbeUsed=true;verification=await assessEditorialCandidate(candidate,competitorDomains,true);
+  }
   if(verification.reason){
    if(!(await recordSkip('editorial',candidate.id,verification.reason)))return storageAuditFailure();
    continue;
@@ -170,6 +175,6 @@ export async function runGuardedAutoPublishing(dryRun=false,origin:PublicationOr
   if(status==='quota_reached')break;
  }
  return {...report,status:'completed',message:report.published?
-  'Published visitor-facing items with source status clearly labeled; no mandatory government citation requirement':
+  'Published visitor-facing items with source status clearly labeled':
   'No item published; see result codes or daily limit for details'};
 }

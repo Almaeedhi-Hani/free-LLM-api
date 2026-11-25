@@ -14,7 +14,7 @@ test('distinguishes stale, failed, unknown and recent results',()=>{
  assert.equal(alerts(d).length,2);
  assert(healthText(d).includes('غير متاح'));
  assert.deepEqual(alerts(d),alerts({...d,now:'2026-11-25T06:15:00Z'}));
- assert.equal(alerts({...d,geo:{status:'success',lastRun:now},gsc:{status:'success_no_data',checked_at:now}}).length,0);
+ assert.equal(alerts({...d,geo:{status:'success',lastRun:now,lastResult:'execution_outcome=success'},gsc:{status:'success_no_data',checked_at:now}}).length,0);
 });
 test('watchdog issue links are scoped, deterministic and numeric',()=>{
  const d={now,watchdogIssues:[{number:42,created_at:now},{number:'https://bad.example',created_at:now}]};
@@ -23,4 +23,12 @@ test('watchdog issue links are scoped, deterministic and numeric',()=>{
 test('invalid or future timestamps do not invent health',()=>{
  const d={now,geo:{status:'success',lastRun:'2030-01-01T00:00:00Z'},radar:{status:'success',finished_at:'invalid'}};
  assert(health(d).every(x=>x.state==='unknown'));assert.equal(alerts(d).length,0);
+});
+
+test('persisted GEO partial and blocked are not generic failures or success',()=>{
+ const partial={now,geo:{status:'error',lastRun:now,lastResult:'drafts:success | execution_outcome=partial_success'}};
+ assert.equal(health(partial)[1].state,'partial');
+ assert(alerts(partial)[0].text.includes('نجاح جزئي'));
+ assert.equal(health({...partial,geo:{...partial.geo,lastResult:'execution_outcome=blocked'}})[1].state,'blocked');
+ assert.equal(health({...partial,geo:{...partial.geo,status:'success'}})[1].state,'unknown');
 });
