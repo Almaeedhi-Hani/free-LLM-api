@@ -76,7 +76,7 @@ body:not(:has(.admin-route)) #main :is(.service-card .card-arrow,.entry-route-li
 }
 /* Gold digits on light surfaces require large text; compact labels use the
    exact approved gold as a badge surface with readable charcoal text. */
-body:not(:has(.admin-route)) #main :is(.step-number,.conversion-proof-grid article>span,.entry-route-meta>span:first-child) {
+body:not(:has(.admin-route)) #main :is(.conversion-proof-grid article>span,.entry-route-meta>span:first-child) {
   color:var(--conversion-gold);
   font-size:max(24px,1em);
   font-weight:600;
@@ -96,3 +96,7 @@ body:not(:has(.admin-route)) #main :is(.card-top>span:first-child,.license-categ
 body:not(:has(.admin-route)) #main :is(.license-offer.active,.license-tabs button.active) small {
   opacity:1;
 }
+
+/* Keep existing journey scale; match the selected language even on homepage-specific header rules. */
+body:not(:has(.admin-route)) #main .step-number {color:var(--conversion-gold);font-weight:600;}
+body:not(:has(.admin-route)):has(> #main .cinematic-hero) .site-header :is(.language-switch a[aria-current="true"],.language-switch a[aria-current="page"],.mobile-floating-header-languages a[aria-current="page"]) {background:var(--conversion-gold);color:var(--reference-heading);}
