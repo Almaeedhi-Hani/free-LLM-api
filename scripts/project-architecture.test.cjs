@@ -28,6 +28,12 @@ for(const name of ["ServiceHeader","ServicePreparation","ServiceReferences","Ser
 assert(service.split('\n').length<50,'Service composition boundary');
 const packages=read('src/components/packages/PackageRequest.tsx');
 assert(packages.includes('usePackageRequest(lang)')&&packages.includes('<PackageSelection ')&&packages.includes('<PackageWizard '),'Package selection and submission separated');
+const market=read('src/lib/market-intelligence.ts');
+assert(market.split('\n').length<30,'Market entrypoint must only expose stable contracts');
+for(const name of ["types","classification","scoring","domain-exclusions","keyword-clustering","storage","competitors","keywords","opportunities","goals","runs","analysis","discovery","radar"])assert(fs.existsSync('src/lib/market/'+name+'.ts'),name+' market domain');
+const storage=read('src/lib/market/storage.ts');
+assert(storage.includes('let fileLock: Promise<void> = Promise.resolve()')&&storage.includes('getSupabaseCredentials()'),'Shared server storage adapter keeps original lock and credential boundary');
+assert(!market.includes("from './market/storage'"),'No public export of internal storage helpers');
 const manifest=read('src/app/globals.css');
 assert(!/\{[^}]*:[^}]*\}/s.test(manifest),'Global entrypoint only imports styles');
 const css=readGlobalStyles();
@@ -55,6 +61,11 @@ if(baseline){
     const match=packageOriginal[line-1].match(/^\{step===(\d)\?([\s\S]*):null\}(?:<\/section>\})?$/);
     assert(match&&read('src/components/packages/'+name+'.tsx').includes(match[2]),name+' original form markup');
   }
-  console.log('PASS exact baseline CSS, public and admin feature markup, package selection and request steps');
+  const marketOriginal=cp.execFileSync('git',['show',baseline+':src/lib/market-intelligence.ts'],{encoding:'utf8'}).split('\n');
+  for(const [name,start,end] of [["types",24,211],["classification",217,270],["scoring",272,306],["domain-exclusions",312,330],["keyword-clustering",336,378],["storage",384,478],["competitors",484,729],["keywords",735,892],["opportunities",898,1006],["goals",1012,1106],["runs",1112,1186],["analysis",1192,1338],["discovery",1344,1583],["radar",1585,1607]]){
+    const normalized=s=>s.replace(/^export (async )?function (withFileLock|readFile|writeFile|sbFetch|assertOk|sbJson|isSupabase|nowIso|listRadarRuns)\b/gm,'$1function $2');
+    assert(normalized(read('src/lib/market/'+name+'.ts')).includes(marketOriginal.slice(start-1,end).join('\n')),name+' original market implementation');
+  }
+  console.log('PASS exact baseline CSS, public/admin markup, package steps and market implementation');
 }
 console.log('PASS ordered CSS manifest and composed homepage architecture');

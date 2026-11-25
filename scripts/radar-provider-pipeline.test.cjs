@@ -5,7 +5,7 @@ const adapter=require('../src/lib/provider-search.cjs');
 const {RADAR_QUERIES}=require('../.market-test-build/radar-query-plan.js');
 const {buildQueryMemory,buildCompetitorMatrix}=require('../.market-test-build/radar-memory.js');
 const {calculateRadarMetrics}=require('../.market-test-build/radar-metrics.js');
-const discoverySource=fs.readFileSync('src/lib/market-intelligence.ts','utf8');
+const discoverySource=fs.readFileSync('src/lib/market/discovery.ts','utf8');
 assert(discoverySource.includes("rank_status: 'unverified_provider_order'"),'Discovery must not claim verified Google rank');
 assert(discoverySource.includes('rank: null,'),'Unverified provider order must not be saved as search ranking');
 assert(discoverySource.includes('url: retainEvidence ? r.url : undefined,'),'Permitted provider evidence URL must be retained for page inspection');

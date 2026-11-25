@@ -79,7 +79,7 @@ const paths={
  discovery:fs.readFileSync('src/app/api/geo/discovery/route.ts','utf8'),
  results:fs.readFileSync('src/app/api/geo/results/route.ts','utf8'),
  publisher:fs.readFileSync('src/lib/geo-auto-publication.ts','utf8'),
- market:fs.readFileSync('src/lib/market-intelligence.ts','utf8'),
+ market:['src/lib/market/analysis.ts','src/lib/market/discovery.ts'].map(p=>fs.readFileSync(p,'utf8')).join('\n'),
  admin:fs.readFileSync('src/app/api/admin/geo-feedback/route.ts','utf8'),
  ui:require('./support/admin-dashboard-source.cjs').readAdminDashboardSource()
 };

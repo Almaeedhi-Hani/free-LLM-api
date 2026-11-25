@@ -12,6 +12,8 @@ on:
       - 'src/app/packages/PackageRequest.tsx'
       - 'src/lib/services/**'
       - 'src/lib/packages/**'
+      - 'src/lib/market/**'
+      - 'src/lib/market-intelligence.ts'
       - 'src/components/layout/**'
       - 'src/components/admin/dashboard/**'
       - 'src/lib/admin/dashboard/**'
