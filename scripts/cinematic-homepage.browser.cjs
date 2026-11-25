@@ -49,6 +49,22 @@ const viewports=[{width:320,height:640},{width:390,height:844},{width:768,height
         assert.notEqual(await page.locator('.cinematic-secondary').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(184, 134, 11)',name+' neutral secondary');
         assert.equal(await page.locator('#contact').count(),1,name);
         assert.equal(await page.locator('#services').count(),1,name);
+        const banner=page.locator('#formation-packages-banner');
+        assert.equal(await banner.count(),1);
+        const bannerLink=banner.locator('[data-formation-packages-cta]');
+        assert.equal(await bannerLink.getAttribute('href'),lang.packages,name+' localized banner link');
+        assert.equal(await bannerLink.evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(184, 134, 11)');
+        assert.equal(await banner.locator('[data-formation-category]').count(),3);
+        assert.deepEqual(await banner.locator('[data-package-count]').evaluateAll(els=>els.map(e=>Number(e.dataset.packageCount)).sort((a,b)=>a-b)),[3,3,4]);
+        const bounds=await banner.evaluate(e=>{
+          const r=e.getBoundingClientRect();
+          return {left:r.left,right:r.right,scroll:e.scrollWidth,width:e.clientWidth,
+            cards:[...e.querySelectorAll('[data-formation-category]')].map(c=>({scroll:c.scrollWidth,width:c.clientWidth})),
+            mesh:getComputedStyle(e.querySelector('[data-formation-packages-visual]'),'::before').backgroundImage};
+        });
+        assert(bounds.left>=-1&&bounds.right<=viewport.width+1&&bounds.scroll<=bounds.width+1,name+' banner overflow');
+        assert(bounds.cards.every(c=>c.scroll<=c.width+1),name+' card text overflow');
+        assert(bounds.mesh.includes('radial-gradient'),name+' mesh background');
         const geometry=await page.evaluate(()=>{
           const hero=document.querySelector('.cinematic-hero');
           const title=hero.querySelector('h1');
@@ -104,7 +120,12 @@ const viewports=[{width:320,height:640},{width:390,height:844},{width:768,height
         assert.equal(popup.url(),consultation,name+' direct consultation route');
         await popup.close();
         if(viewport.width===390||viewport.width===1440){
-          await page.goto(base+lang.packages,{waitUntil:'networkidle'});
+          await banner.scrollIntoViewIfNeeded();
+          await banner.screenshot({path:path.join(output,name+'-formation-banner.png'),animations:'disabled'});
+          const bannerAxe=await page.evaluate(async()=>await window.axe.run('#formation-packages-banner',{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']}}));
+          assert(!bannerAxe.violations.some(v=>['critical','serious'].includes(v.impact)),name+' banner accessibility: '+JSON.stringify(bannerAxe.violations.map(v=>v.id)));
+          await Promise.all([page.waitForURL(base+lang.packages),bannerLink.click()]);
+          await page.waitForLoadState('networkidle');
           if(viewport.width===1440){
             const active=page.locator('.desktop-nav a[aria-current="page"]');
             await active.waitFor();

@@ -1,5 +1,4 @@
 import ArrowUpRight from "@/components/ArrowUpRight";
-import { localizedPath } from "@/lib/site-language";
 import type { HomeModel } from "@/lib/home/model";
 
 export default function EditorialPromise({lang, t}: Pick<HomeModel, "lang" | "t">) {
@@ -17,7 +16,6 @@ export default function EditorialPromise({lang, t}: Pick<HomeModel, "lang" | "t"
           </div>
         </div>
       </section>
-      <section className="section-wrap" style={{paddingBlock:"32px"}}><a className="action-primary" href={localizedPath(lang,"/packages")}>{lang==="ar"?"استعرض باقات التأسيس وأسعارها":lang==="zh"?"查看设立套餐和价格":"Explore formation packages and prices"} <ArrowUpRight /></a></section>
     </>
   );
 }
