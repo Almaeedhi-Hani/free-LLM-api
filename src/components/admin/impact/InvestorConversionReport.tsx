@@ -1,0 +1,28 @@
+"use client";
+import {useEffect,useState} from "react";
+import {eventLabels,localeLabels,pageLabels,summarizeReport,type InvestorReport} from "@/lib/investor-report";
+const n=(value:number)=>value.toLocaleString("ar-SA");
+export default function InvestorConversionReport({adminSecret}:{adminSecret:string}){
+ const [days,setDays]=useState("30"),[locale,setLocale]=useState("all"),[page,setPage]=useState("all"),[refresh,setRefresh]=useState(0);
+ const [state,setState]=useState<{key:string;report:InvestorReport|null;error:boolean}>({key:"",report:null,error:false});
+ const key=[days,locale,page,refresh].join(":");
+ useEffect(()=>{const controller=new AbortController();let active=true;fetch("/api/admin/investor-report?"+new URLSearchParams({days,locale,page}),{headers:{"x-admin-secret":adminSecret},cache:"no-store",signal:controller.signal}).then(async r=>{if(!r.ok)throw Error();return r.json()}).then(report=>{if(active)setState({key,report,error:false})}).catch(()=>{if(active)setState({key,report:null,error:true})});return()=>{active=false;controller.abort()}},[adminSecret,days,locale,page,key]);
+ const current=state.key===key,report=current?state.report:null,summary=report?summarizeReport(report):null;
+ const label=(key:string,labels:Record<string,string>)=>labels[key]??"غير محددة";
+ const table=(title:string,rows:Record<string,{views:number;contacts:number;requests:number}>,labels:Record<string,string>)=><div><h3 className="font-semibold mb-3">{title}</h3><div className="overflow-x-auto"><table className="w-full text-sm text-right"><thead className="bg-slate-50"><tr>{["البند","المشاهدات","نقرات التواصل","الطلبات المحفوظة"].map(x=><th key={x} scope="col" className="p-2 whitespace-nowrap">{x}</th>)}</tr></thead><tbody>{Object.entries(rows).sort((a,b)=>b[1].contacts-a[1].contacts||b[1].views-a[1].views).map(([k,v])=><tr key={k} className="border-b border-slate-100"><th scope="row" className="p-2 font-medium">{label(k,labels)}</th><td className="p-2">{n(v.views)}</td><td className="p-2">{n(v.contacts)}</td><td className="p-2">{n(v.requests)}</td></tr>)}</tbody></table>{!Object.keys(rows).length&&<p className="p-3 text-slate-500">لا توجد بيانات مسجلة لهذا الاختيار.</p>}</div></div>;
+ return <section id="investor-conversions" aria-labelledby="investor-conversions-title" className="rounded-[20px] border border-slate-200 bg-white p-4 sm:p-6 space-y-5">
+ <div><h2 id="investor-conversions-title" className="text-xl font-bold text-slate-900">تحليلات الزوار والتحويلات</h2><p className="mt-2 text-sm text-slate-600">إحصائيات مجمعة محفوظة في Supabase. نقرات التواصل مؤشرات اهتمام وليست عملاء مؤكدين. الطلبات من السجلات المحفوظة فعليًا، مستقلة عن موافقة التحليلات.</p></div>
+ <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+ <label className="text-sm">الفترة<select className="mt-1 w-full border rounded-xl p-2" value={days} onChange={e=>setDays(e.target.value)}>{[7,30,90].map(v=><option key={v} value={v}>آخر {v} يومًا</option>)}</select></label>
+ <label className="text-sm">اللغة<select className="mt-1 w-full border rounded-xl p-2" value={locale} onChange={e=>setLocale(e.target.value)}><option value="all">جميع اللغات</option>{Object.entries(localeLabels).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label>
+ <label className="text-sm">الخدمة / الصفحة<select className="mt-1 w-full border rounded-xl p-2" value={page} onChange={e=>setPage(e.target.value)}><option value="all">جميع الصفحات</option>{Object.entries(pageLabels).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label>
+ <button className="rounded-[20px] border border-slate-300 p-2 self-end" onClick={()=>setRefresh(v=>v+1)}>تحديث الإحصائيات</button></div>
+ {!current?<p role="status">جارٍ تحميل الإحصائيات...</p>:state.error?<p role="alert" className="text-red-700">تعذر الوصول إلى مخزن الإحصائيات. لا يمكن اعتبار البيانات المفقودة صفرًا.</p>:summary&&report?<><p className="text-xs text-slate-500">{report.from} — {report.to} بتوقيت الرياض. {report.firstRecordedDay?"أول يوم مسجل: "+report.firstRecordedDay:"لم تسجل أي أحداث بعد."} لا توجد بيانات زيارات تاريخية قبل تشغيل الحفظ.</p>
+ <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">{[["مشاهدات الصفحات",n(summary.totals.page_view)],["نقرات التواصل",n(summary.contacts)],["طلبات الباقات المحفوظة",n(summary.requests)],["النقرات / المشاهدات",summary.ratio===null?"—":summary.ratio.toFixed(2)+"%"]].map(([k,v])=><div className="rounded-[20px] border border-slate-200 p-4" key={k}><p className="text-xs text-slate-600">{k}</p><p className="text-2xl font-bold mt-2">{v}</p></div>)}</div>
+ <p className="text-xs text-slate-500">النسبة ليست معدل تحويل الزوار الفريدين؛ قد ينقر الشخص أكثر من مرة. إسناد الطلب إلى صفحة سابقة تقديري اعتمادًا على المسار الذي قدمه المتصفح. الطلبات المحذوفة غير محسوبة.</p>
+ <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">{Object.entries(eventLabels).filter(([k])=>k!=="page_view").map(([k,v])=><div className="p-3 rounded-xl bg-slate-50" key={k}><p className="text-xs">{v}</p><strong>{n(summary.totals[k as keyof typeof summary.totals])}</strong></div>)}</div>
+ {table("الأداء حسب الصفحة",summary.byPage,pageLabels)}{table("الأداء حسب اللغة",summary.byLocale,localeLabels)}
+ <div><h3 className="font-semibold mb-2">المشاهدات اليومية</h3>{Object.entries(summary.byDay).sort(([a],[b])=>a.localeCompare(b)).map(([day,v])=><div key={day} className="flex items-center gap-3 my-1 text-xs"><span className="w-24 shrink-0">{day}</span><div className="flex-1 bg-slate-100 rounded-full h-2"><div className="bg-slate-700 rounded-full h-2" style={{width:(100*v.views/Math.max(1,...Object.values(summary.byDay).map(x=>x.views)))+"%"}}/></div><span>{n(v.views)}</span></div>)}</div>
+ </>:null}
+ </section>
+}

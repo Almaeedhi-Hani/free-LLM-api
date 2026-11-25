@@ -80,6 +80,10 @@ jobs:
         run: npm run test:storage
       - name: Cron guard tests
         run: npx tsc src/lib/cron-agent-guards.ts --outDir .cron-test-build --module commonjs --target es2020 --skipLibCheck --types node && node scripts/cron-agent-guards.test.cjs
+      - name: Verify investor conversion totals and filters
+        run: |
+          npx --no-install tsc src/lib/investor-report.ts --outDir .investor-report-test-build --module commonjs --target es2020 --skipLibCheck --strict --types node
+          node scripts/investor-report.test.cjs
       - name: Production build
         run: npm run build
       - name: Validate rendered SEO metadata, visible offers and LLM feed (isolated file fixture)
