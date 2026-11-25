@@ -8,30 +8,23 @@ const heroCopy = {
   zh: { title: "投资沙特阿拉伯，", accent: "清晰规划，自信前行。", topic: "沙特公司设立与投资者服务", primary: "预约咨询", secondary: "查看服务套餐" },
 } as const;
 
-/** Static server-rendered hero. Reuses the site's original architectural CSS artwork;
- * no external media, remote fonts, client bundle, or video until rights are confirmed. */
+/** Monochrome editorial hero; real Riyadh architecture, locally hosted responsive poster. */
 export default function CinematicHero({lang}: {lang: Locale}) {
   const t = copy[lang];
   const h = heroCopy[lang];
   return (
     <section className="cinematic-hero" aria-labelledby="cinematic-title">
-      <div className="hero-art cinematic-art" aria-hidden="true">
-        <div className="art-orbit" />
-        <div className="art-sun" />
-        <div className="cinematic-distant-city" />
-        <div className="tower tower-four" />
-        <div className="tower tower-one" />
-        <div className="tower tower-two" />
-        <div className="tower tower-three" />
-        <div className="art-ground" />
-      </div>
+      <picture className="cinematic-art" aria-hidden="true">
+        <source media="(max-width: 760px)" srcSet="/media/riyadh-monochrome-mobile.webp" />
+        <img src="/media/riyadh-monochrome.webp" alt="" width={1600} height={1067} fetchPriority="high" decoding="async" />
+      </picture>
       <div className="cinematic-scrim" aria-hidden="true" />
       <div className="cinematic-inner">
         <div className="cinematic-copy">
           <p className="eyebrow cinematic-eyebrow"><span aria-hidden="true" />{t.eyebrow}</p>
           <h1 id="cinematic-title">
             <small className="cinematic-topic">{h.topic}</small>
-            <span>{h.title}</span>{" "}
+            <span className="cinematic-headline">{h.title}</span>{" "}
             <span className="cinematic-accent">{h.accent}</span>
           </h1>
           <p className="cinematic-intro">{t.intro}</p>

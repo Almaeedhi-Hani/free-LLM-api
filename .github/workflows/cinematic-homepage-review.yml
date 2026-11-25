@@ -9,7 +9,32 @@ on:
 permissions:
   contents: read
 jobs:
+  prepare-poster:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Acquire licensed public Riyadh photograph
+        run: |
+          mkdir -p poster
+          curl --fail --location --retry 3 --max-time 60 --silent --show-error 'https://images.pexels.com/photos/31849530/pexels-photo-31849530.jpeg?auto=compress&cs=tinysrgb&w=1600&fm=webp&q=72' -o poster/riyadh-monochrome.webp
+          curl --fail --location --retry 3 --max-time 60 --silent --show-error 'https://images.pexels.com/photos/31849530/pexels-photo-31849530.jpeg?auto=compress&cs=tinysrgb&w=760&fm=webp&q=65' -o poster/riyadh-monochrome-mobile.webp
+          python3 - <<'PY'
+          import pathlib,base64,hashlib
+          for f in sorted(pathlib.Path('poster').glob('*.webp')):
+              b=f.read_bytes()
+              assert b[:4]==b'RIFF' and b[8:12]==b'WEBP',f'Invalid image {f}'
+              assert 1000<len(b)<500000,f'Unexpected image size {f}'
+              print('POSTER_SHA256',f.name,hashlib.sha256(b).hexdigest(),len(b))
+              encoded=base64.b64encode(b).decode()
+              for i in range(0,len(encoded),3000): print('POSTER64',f.name,i//3000,encoded[i:i+3000])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: licensed-riyadh-poster
+          path: poster/
+          retention-days: 7
   browser-review:
+    needs: prepare-poster
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
@@ -34,6 +59,10 @@ jobs:
           node scripts/mobile-header-contract.test.cjs
           npm run test:packages
           npm run test:whatsapp
+      - uses: actions/download-artifact@v4
+        with:
+          name: licensed-riyadh-poster
+          path: public/media
       - name: Start isolated development fixture
         run: |
           (npm run dev -- -p 3000 > /tmp/cinematic-dev.log 2>&1 &)

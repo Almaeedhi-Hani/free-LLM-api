@@ -31,6 +31,8 @@ const viewports=[{width:320,height:640},{width:390,height:844},{width:768,height
         assert.equal(response.status(),200,name);
         await page.locator('.cinematic-hero').waitFor();
         await page.evaluate(()=>document.fonts.ready);
+        await page.locator('.cinematic-art img').evaluate(async img=>{await img.decode();if(!img.naturalWidth)throw Error('Local licensed poster did not load');});
+        assert(await page.locator('.cinematic-art img').evaluate(img=>new URL(img.currentSrc).origin===location.origin),'same-origin media');
         const reject=page.getByRole('button',{name:lang.reject,exact:true});
         await reject.click({timeout:30000});
         await page.locator('[role="dialog"][aria-labelledby="cookie-title"]').waitFor({state:'hidden'});
