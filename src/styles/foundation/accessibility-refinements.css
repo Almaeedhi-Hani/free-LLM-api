@@ -1,11 +1,11 @@
 /* Stage 4: cohesive accessible visual tokens and responsive interaction. */
 :root{
-  --brand-deep:#123b35;
-  --brand-hover:#24584d;
-  --surface-warm:#f8f7f2;
-  --surface-soft:#eef1e9;
-  --accent-brass:#8b6c3b;
-  --focus-visible:#81521c;
+  --brand-deep:#202a36;
+  --brand-hover:#1a2229;
+  --surface-warm:#f9fafb;
+  --surface-soft:#f9fafb;
+  --accent-brass:var(--reference-subtle);
+  --focus-visible:var(--reference-muted);
   --content-max:1300px;
 }
 .site-header,.site-footer,.service-editorial,.section-wrap{min-width:0}
@@ -27,8 +27,8 @@
 .service-card a:focus-visible{outline-offset:5px}
 .source-panel>a:not(.action-primary){overflow-wrap:anywhere;gap:16px;min-height:44px;align-items:center}
 .service-decision-checklist li p{color:var(--brand-deep)}
-.service-decision-disclaimer{color:#425c50}
-.service-context-band p{color:#263f35}
+.service-decision-disclaimer{color:#4b5563}
+.service-context-band p{color:#202a36}
 .service-next-step .action-primary{justify-content:center}
 [dir="rtl"] .service-next-step,[dir="rtl"] .service-context-band{text-align:start}
 [dir="ltr"] .service-next-step,[dir="ltr"] .service-context-band{text-align:start}
@@ -62,7 +62,7 @@
   .service-context-band{padding:18px}
 }
 @media (prefers-contrast:more){
-  :root{--muted:#3c5348;--line:#879c8b}
-  .service-quick-nav a,.service-card{border-color:#829989}
+  :root{--muted:#4b5563;--line:#d1d5db}
+  .service-quick-nav a,.service-card{border-color:#d1d5db}
 }
 

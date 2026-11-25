@@ -1,9 +1,9 @@
-/* Public site: architectural emerald, warm paper and restrained typography. */
+/* Public site: original SkyElite reference colors. */
 :root {
-  --ink: #123b35;
-  --paper: #f8f7f2;
-  --muted: #6b7770;
-  --line: #dce1d8;
+  --ink: var(--reference-ink);
+  --paper: var(--reference-paper);
+  --muted: var(--reference-muted);
+  --line: var(--reference-line);
 }
 body {
   margin: 0;

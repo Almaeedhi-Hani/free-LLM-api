@@ -25,7 +25,7 @@
 .eyebrow > span {
   height: 6px;
   width: 6px;
-  background: #b69b66;
+  background: #6b7280;
   border-radius: 50%;
 }
 .hero h1 {
@@ -39,11 +39,11 @@
   display: block;
 }
 .hero-accent {
-  color: #809e81;
+  color: #4b5563;
 }
 .hero-intro {
   max-width: 460px;
-  color: #67766b;
+  color: #4b5563;
   font-size: 15px;
   line-height: 2;
 }
@@ -67,7 +67,7 @@
   transition: background 0.2s;
 }
 .action-primary:hover {
-  background: #24584d;
+  background: #1a2229;
 }
 .action-primary span {
   font-size: 20px;
@@ -86,20 +86,20 @@
   border-bottom: 1px solid var(--line);
   gap: 15px;
   font-size: 10px;
-  color: #748476;
+  color: #4b5563;
 }
 .hero-bottom > span:first-child {
   letter-spacing: 3px;
   direction: ltr;
 }
 .hero-art {
-  background: #d2d9ca;
+  background: #d1d5db;
   position: relative;
   min-height: 580px;
   overflow: hidden;
   border-radius: 150px 6px 6px 6px;
   isolation: isolate;
-  background-image: linear-gradient(155deg, #e6e6d7, #c1d1bb 55%, #719989);
+  background-image: linear-gradient(155deg, #f9fafb, #d1d5db 55%, #4b5563);
 }
 .hero-art:after {
   content: "";
@@ -109,7 +109,7 @@
     0deg,
     transparent,
     transparent 3px,
-    #fff1 4px
+    #ffffff11 4px
   );
   z-index: 4;
   pointer-events: none;
@@ -120,9 +120,9 @@
   left: 15%;
   width: 155px;
   aspect-ratio: 1;
-  background: #f3edcf;
+  background: #f9fafb;
   border-radius: 50%;
-  box-shadow: 0 0 100px #f7eac055;
+  box-shadow: 0 0 100px #f9fafb55;
 }
 .art-orbit {
   position: absolute;
@@ -130,15 +130,15 @@
   left: 8%;
   width: 87%;
   aspect-ratio: 1;
-  border: 1px solid #f6f5df70;
+  border: 1px solid #f9fafb70;
   border-radius: 50%;
 }
 .tower {
   position: absolute;
   bottom: 17%;
-  background: linear-gradient(90deg, #2c6158, #81a397 72%, #aec3ac);
-  box-shadow: 25px 20px 40px #204c4533;
-  border: 1px solid #c7d5bc70;
+  background: linear-gradient(90deg, #374151, #4b5563 72%, #d1d5db);
+  box-shadow: 25px 20px 40px #202a3633;
+  border: 1px solid #d1d5db70;
   z-index: 2;
   background-size: auto;
 }
@@ -147,8 +147,8 @@
   position: absolute;
   inset: 0;
   background:
-    repeating-linear-gradient(0deg, transparent 0 11px, #d4dfc63b 11px 12px),
-    repeating-linear-gradient(90deg, transparent 0 13px, #b5cabb3b 13px 14px);
+    repeating-linear-gradient(0deg, transparent 0 11px, #d1d5db3b 11px 12px),
+    repeating-linear-gradient(90deg, transparent 0 13px, #d1d5db3b 13px 14px);
 }
 .tower-one {
   left: 20%;
@@ -162,20 +162,20 @@
   width: 20%;
   height: 69%;
   clip-path: polygon(50% 0, 100% 17%, 100% 100%, 0 100%, 0 17%);
-  background: linear-gradient(90deg, #a8c0ad, #477669 55%, #285b51);
+  background: linear-gradient(90deg, #d1d5db, #374151 55%, #374151);
 }
 .tower-three {
   right: 10%;
   height: 39%;
   width: 18%;
   transform: skewY(9deg);
-  background: linear-gradient(90deg, #a8bda5, #3f6d61);
+  background: linear-gradient(90deg, #d1d5db, #374151);
 }
 .tower-four {
   left: 9%;
   height: 27%;
   width: 14%;
-  background: #6e9280;
+  background: #4b5563;
 }
 .art-ground {
   position: absolute;
@@ -183,7 +183,7 @@
   left: -20%;
   width: 140%;
   height: 46%;
-  background: #426c5d;
+  background: #374151;
   border-radius: 50%;
   z-index: 3;
   transform: rotate(-9deg);
@@ -193,7 +193,7 @@
   bottom: 35px;
   left: 30px;
   z-index: 5;
-  color: #f2f1df;
+  color: #f9fafb;
   display: flex;
   flex-direction: column;
   gap: 9px;
@@ -215,6 +215,6 @@
   writing-mode: vertical-rl;
   font-size: 8px;
   letter-spacing: 2px;
-  color: #3a6658;
+  color: #374151;
   direction: ltr;
 }

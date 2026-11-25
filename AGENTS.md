@@ -63,3 +63,6 @@ Return concise source-backed findings, provenance and checked_at, evidence IDs, 
 - New component-specific styling belongs in its adjacent CSS Module; shared legacy CSS belongs in the relevant ordered src/styles/ file. Keep src/app/globals.css an import-only manifest. Do not mix unrelated feature styles, UI, data access, or orchestration in a single large file.
 - Do not invent a palette or change approved colors, typography, content, URLs, pricing, functionality, schemas or schedules during a structural refactor. Preserve current DOM/cascade and locale behavior; run relevant architecture, build, regression and actual browser tests before merge.
 - Move existing admin/backend domains incrementally behind stable contracts; do not rewrite authorization, data or automated workflows for cosmetic reasons.
+
+## Public visual color contract (owner directive)
+Use only the original SkyElite reference colors in src/styles/foundation/reference-colors.css for public decorative UI. Main CTA #202A36, hover #1A2229, headline first line #6B7280, second line #202A36; navigation gray-900/gray-700, borders gray-300, white and gray-50 surfaces. No green, gold or alternative branding. Preserve functional error/status semantics and admin-specific controls. Preserve content, layout, routes, business logic and localization.

@@ -1,0 +1,13 @@
+/* Original reference: SkyElite gray utilities and CTA colors. */
+:root {
+  --reference-ink: #202a36;
+  --reference-hover: #1a2229;
+  --reference-heading: #111827;
+  --reference-body: #374151;
+  --reference-muted: #4b5563;
+  --reference-subtle: #6b7280;
+  --reference-line: #d1d5db;
+  --reference-paper: #f9fafb;
+  --reference-white: #ffffff;
+  --reference-dark: #1f2937;
+}

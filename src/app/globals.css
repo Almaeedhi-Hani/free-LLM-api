@@ -1,5 +1,6 @@
 /* Ordered global stylesheet entrypoint. Preserve cascade order; add new component styles locally. */
 @import "../styles/foundation/legacy-utilities.css";
+@import "../styles/foundation/reference-colors.css";
 @import "../styles/foundation/base.css";
 @import "../styles/layout/header.css";
 @import "../styles/components/legacy-hero-and-actions.css";

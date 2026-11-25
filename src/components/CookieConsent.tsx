@@ -36,16 +36,16 @@ export function CookieConsent({locale="ar",policy={analyticsAvailable:true,marke
  if(!ready||pathname?.startsWith('/admin'))return null;
  return <>
   {open&&<div className="fixed inset-x-0 bottom-0 z-50 flex justify-center p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-5" role="presentation">
-   <section role="dialog" aria-modal="false" aria-labelledby="cookie-title" dir={locale==="ar"?"rtl":"ltr"} className="w-full max-w-3xl max-h-[70dvh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 text-slate-900 shadow-xl">
+   <section role="dialog" aria-modal="false" aria-labelledby="cookie-title" dir={locale==="ar"?"rtl":"ltr"} className="w-full max-w-3xl max-h-[70dvh] overflow-y-auto rounded-2xl border border-[#d1d5db] bg-white p-4 sm:p-5 text-[#111827] shadow-xl">
     <h2 id="cookie-title" className="text-base sm:text-lg font-bold">{t.title}</h2>
-    <p className="mt-1.5 text-xs sm:text-sm leading-6 text-slate-600">{t.description}</p>
+    <p className="mt-1.5 text-xs sm:text-sm leading-6 text-[#4b5563]">{t.description}</p>
     <div className="mt-3 flex flex-wrap items-center gap-2">
-     <button type="button" onClick={()=>save(policy.analyticsAvailable,policy.marketingAvailable)} className="rounded-full bg-emerald-700 px-4 py-2 text-xs sm:text-sm font-semibold text-white">{t.accept}</button>
-     <button type="button" onClick={()=>save(false,false)} className="rounded-full border border-slate-300 px-4 py-2 text-xs sm:text-sm font-semibold">{t.reject}</button>
+     <button type="button" onClick={()=>save(policy.analyticsAvailable,policy.marketingAvailable)} className="rounded-full bg-[#202a36] px-4 py-2 text-xs sm:text-sm font-semibold text-white">{t.accept}</button>
+     <button type="button" onClick={()=>save(false,false)} className="rounded-full border border-[#d1d5db] px-4 py-2 text-xs sm:text-sm font-semibold">{t.reject}</button>
     </div>
-    <div className="mt-3 flex items-center gap-2 border-t border-slate-100 pt-2 text-xs text-slate-600">
+    <div className="mt-3 flex items-center gap-2 border-t border-[#d1d5db] pt-2 text-xs text-[#4b5563]">
      <input type="checkbox" checked disabled aria-label={t.necessary} className="h-4 w-4 accent-emerald-700"/>
-     <span><strong className="text-slate-800">{t.necessary}</strong> — {t.necessaryDesc}</span>
+     <span><strong className="text-[#1f2937]">{t.necessary}</strong> — {t.necessaryDesc}</span>
     </div>
     {readConsent()&&<button type="button" onClick={()=>setOpen(false)} className="mt-4 block text-xs underline">{t.close}</button>}
    </section>

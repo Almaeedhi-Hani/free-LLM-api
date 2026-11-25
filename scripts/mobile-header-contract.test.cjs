@@ -47,7 +47,7 @@ assert(css.includes('.site-header .header-inner,.site-header .mobile-nav{display
   "Legacy crowded mobile header is replaced, not duplicated");
 assert(css.includes('.mobile-floating-nav-bar')&&css.includes('border-radius:999px'),
   "Warm floating pill presentation present");
-assert(css.includes('.mobile-floating-menu-link.is-active')&&css.includes('background:#104148')&&css.includes('background:#c7a365'),
+assert(css.includes('.mobile-floating-menu-link.is-active')&&css.includes('background:#202a36')&&css.includes('background:#d1d5db'),
   "Active page uses project emerald and a restrained gold underline");
 assert(css.includes('width:min(200px,calc(100vw - 48px))') &&
   css.includes('right:22px;left:auto') &&

@@ -1,5 +1,5 @@
 .site-header {
-  background: rgba(248, 247, 242, 0.96);
+  background: rgba(255,255,255,.95);
   border-bottom: 1px solid var(--line);
   position: sticky;
   top: 0;
@@ -36,7 +36,7 @@
   height: 43px;
   display: grid;
   place-items: center;
-  border: 1px solid #8eaa97;
+  border: 1px solid #d1d5db;
   border-radius: 12px 0;
   font-size: 29px;
 }
@@ -46,7 +46,7 @@
   font-size: 13px;
 }
 .desktop-nav a:hover {
-  color: #8e6e37;
+  color: #4b5563;
 }
 .language-switch {
   display: flex;

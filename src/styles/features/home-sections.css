@@ -8,12 +8,12 @@
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  color: #748273;
+  color: #4b5563;
   font-size: 15px;
 }
 .authority-strip span:first-child {
   font-size: 10px;
-  color: #9a9f93;
+  color: #4b5563;
 }
 .section-wrap {
   max-width: 1300px;
@@ -57,13 +57,13 @@
   transition: background 0.2s;
 }
 .service-card:hover {
-  background: #eef0e6;
+  background: #f9fafb;
 }
 .card-top {
   display: flex;
   justify-content: space-between;
   font-size: 10px;
-  color: #90a08d;
+  color: #4b5563;
   direction: ltr;
 }
 .card-arrow {
@@ -72,7 +72,7 @@
 .service-icon {
   font-size: 34px;
   font-weight: 400;
-  color: #96a98a;
+  color: #4b5563;
   margin: 20px 0;
 }
 .service-card h3 {
@@ -81,7 +81,7 @@
   margin-bottom: 15px;
 }
 .service-card p {
-  color: #6e7a70;
+  color: #4b5563;
   font-size: 12px;
   line-height: 2;
   flex: 1;
@@ -93,7 +93,7 @@
   justify-content: space-between;
 }
 .journey-section {
-  background: #eef0e7;
+  background: #f9fafb;
 }
 .journey-grid {
   display: grid;
@@ -102,9 +102,9 @@
 }
 .step-number {
   font-size: 42px;
-  color: #a7b49a;
+  color: #4b5563;
   display: block;
-  border-top: 1px solid #cdd5c5;
+  border-top: 1px solid #d1d5db;
   padding-top: 24px;
   margin-bottom: 28px;
   font-weight: 300;
@@ -115,17 +115,17 @@
 }
 .journey-grid p {
   font-size: 13px;
-  color: #697666;
+  color: #4b5563;
   line-height: 1.9;
   max-width: 280px;
 }
 .cost-note {
   margin: 45px 0 0;
   padding-top: 25px;
-  border-top: 1px solid #d1d7c9;
+  border-top: 1px solid #d1d5db;
   font-size: 12px;
   line-height: 2;
-  color: #61715e;
+  color: #4b5563;
 }
 .sources-section {
   display: grid;
@@ -149,13 +149,13 @@
 }
 .source-panel {
   padding: 32px;
-  background: #eeeee3;
+  background: #f9fafb;
   border-radius: 5px;
   align-self: start;
 }
 .source-mark {
   font-size: 36px;
-  color: #96a98a;
+  color: #4b5563;
 }
 .source-panel h3,
 .source-panel h2 {
@@ -170,7 +170,7 @@
 .source-panel > a:not(.action-primary) {
   display: flex;
   justify-content: space-between;
-  border-bottom: 1px solid #d9ddcf;
+  border-bottom: 1px solid #d1d5db;
   padding: 13px 0;
   font-size: 12px;
   direction: ltr;
@@ -178,7 +178,7 @@
 .source-panel small {
   display: block;
   font-size: 9px;
-  color: #7d8974;
+  color: #4b5563;
   margin-top: 24px;
 }
 .source-panel .action-primary {
@@ -201,8 +201,8 @@
 .contact-band {
   max-width: 1300px;
   margin: 0 auto 70px;
-  background: #133e35;
-  color: #f2f2df;
+  background: #202a36;
+  color: #f9fafb;
   padding: 55px 5%;
   display: flex;
   justify-content: space-between;
@@ -218,7 +218,7 @@
 }
 .contact-band p:not(.eyebrow) {
   font-size: 12px;
-  color: #afc5b0;
+  color: #d1d5db;
   line-height: 1.9;
 }
 .contact-actions {
@@ -228,8 +228,8 @@
   min-width: 200px;
 }
 .contact-actions .action-primary {
-  background: #d5dfbd;
-  color: #193e33;
+  background: #d1d5db;
+  color: #202a36;
 }
 .contact-actions > a:last-child {
   font-size: 11px;
