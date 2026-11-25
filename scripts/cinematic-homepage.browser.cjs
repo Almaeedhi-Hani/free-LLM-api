@@ -62,7 +62,7 @@ const viewports=[{width:320,height:640},{width:390,height:844},{width:768,height
         assert(geometry.title.top>=geometry.header.bottom-1,name+' heading obscured by navigation');
         assert.equal(geometry.transition,'0s',name+' reduced motion');
         const overlap=await page.evaluate(()=>{
-          const floating=[...document.querySelectorAll('button[aria-controls]')].find(el=>el.classList.contains('bg-[#16794f]'));
+          const floating=[...document.querySelectorAll('button[aria-controls]')].find(el=>el.classList.contains('bg-[#202a36]'));
           if(!floating)return [];
           const a=floating.getBoundingClientRect();
           return [...document.querySelectorAll('.cinematic-discover,.cinematic-tagline,.cinematic-actions a')].filter(el=>{
