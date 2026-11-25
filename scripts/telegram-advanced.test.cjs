@@ -202,3 +202,29 @@ test('editorial guide without a service slug can discover approved official topi
  assert.deepEqual(result,[faq,changed,guide,other]);
  assert.equal(selectReviewBatch(technical).length,0);
  });
+
+test('semantic shadow contract binds trilingual claim coverage to source passages and content version',()=>{
+ const {prepare,prompt,compare}=require('../src/lib/geo-semantic-review.cjs');
+ const pages=[{url:'https://mc.gov.sa/en/Pages/Start-your-project.aspx',sentences:['Synthetic test: review available information before deciding.']},{url:'https://misa.gov.sa/activities/laws-regulations-copy/',sentences:['Synthetic test: check the information before making a decision.']}];
+ for(const [locale,claim] of [['ar','راجع المعلومات المتاحة قبل اتخاذ القرار'],['en','Review the available information before deciding'],['zh','作出决定之前，请先核实可用信息']]){
+  const p=prepare({kind:'faq',locale,versionDigest:'a'.repeat(64),context:'Synthetic fixture question',fields:[claim],pages});
+  assert(p);assert(prompt(p).includes(claim));
+  const review=(provider,passage_ids)=>({provider,model:'synthetic-fixture',response:{packetDigest:p.packetDigest,assessments:[{claim_id:'c0',verdict:'supported',fidelity:'faithful',passage_ids}]}});
+  const a=review('fixture-a',['s0p0']),b=review('fixture-b',['s1p0']);
+  assert.equal(compare(p,[a,b]).status,'shadow_consensus');
+  assert.equal(compare(p,[a,b]).publicationAuthorized,false);
+  assert.equal(compare(p,[a,{...b,provider:a.provider}]).status,'blocked');
+  assert.equal(compare(p,[a,review('fixture-b',['s0p0'])]).status,'blocked');
+  assert.equal(compare(p,[a,review('fixture-b',['invented'])]).status,'blocked');
+  assert.equal(compare({...p,context:'changed'},[a,b]).status,'blocked');
+  assert.equal(compare(p,[a,{...b,response:{...b.response,packetDigest:'b'.repeat(64)}}]).status,'blocked');
+  for(const bad of [{verdict:'unsupported'},{verdict:'uncertain'},{fidelity:'unfaithful'},{fidelity:'uncertain'}]){
+   assert.equal(compare(p,[a,{...b,response:{...b.response,assessments:[{...b.response.assessments[0],...bad}]}}]).status,'blocked');
+  }
+  assert.equal(compare(p,[a,{...b,response:{...b.response,assessments:[]}}]).status,'blocked');
+ }
+ const base={kind:'faq',locale:'en',versionDigest:'a'.repeat(64),context:'Synthetic fixture',fields:['Synthetic claim'],pages};
+ assert.equal(prepare({...base,pages:pages.slice(0,1)}),null);
+ assert.equal(prepare({...base,pages:[pages[0],{...pages[1],url:'https://example.com/'}]}),null);
+ assert.equal(prepare({...base,fields:Array.from({length:21},(_,i)=>'Claim '+i)}),null);
+});
