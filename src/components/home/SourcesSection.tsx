@@ -1,3 +1,4 @@
+import {faqAnchor} from "@/lib/publication-anchors";
 import ArrowUpRight from "@/components/ArrowUpRight";
 import { services } from "@/lib/service-catalog";
 import type { HomeModel } from "@/lib/home/model";
@@ -19,7 +20,7 @@ export default function SourcesSection({lang, t, content}: Pick<HomeModel, "lang
               .map((f, i) => (
                 <details key={`${f.q}-${i}`}>
                   <summary>{f.q}</summary>
-                  <p>{f.a}</p>
+                  <p id={faqAnchor(f.q)}>{f.a}</p>
                 </details>
               ))}
         </div>

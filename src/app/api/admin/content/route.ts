@@ -3,6 +3,8 @@ import { getContent, setContent } from '@/lib/content-store';
 import {validateEditorialBatch,validateEditorialItem,officialSourceCandidates,editorialPublicationIssues} from '@/lib/editorial-workflow';
 import { assessGeoDraftCopy, splitGeoDraftReviewText } from "@/lib/geo-draft-quality";
 import { StorageConflictError, StorageUnavailableError } from '@/lib/storage-mode';
+import {rememberGeoDeletion,inferFeedbackLanguage} from '@/lib/geo-agent-feedback';
+import {editorialPath} from '@/lib/content-impact';
 import {normalizeWhatsAppNumber,validWhatsAppAdvisorField} from '@/lib/whatsapp-contacts';
 
 export const dynamic = 'force-dynamic';
@@ -53,6 +55,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ status: 'error', message: 'Invalid content patch' }, { status: 400 });
     }
     const { expectedUpdatedAt, ...patch } = body as Record<string, unknown>;
+    if(patch.deleteGeoContent!==undefined){
+      const action=patch.deleteGeoContent as Record<string,unknown>;
+      if(Object.keys(patch).length!==1||!action||typeof action!=='object'||Array.isArray(action)||typeof expectedUpdatedAt!=='string'||!expectedUpdatedAt)
+        return NextResponse.json({status:'error',message:'Invalid versioned deletion'},{status:400});
+      const current=await getContent();
+      if(current.updatedAt!==expectedUpdatedAt)throw new StorageConflictError();
+      let next:Parameters<typeof setContent>[0];
+      if(action.kind==='editorial'&&typeof action.id==='string'){
+        const item=current.editorialItems.find(x=>x.id===action.id);
+        if(!item)return NextResponse.json({status:'error',message:'Content not found'},{status:404});
+        const route=editorialPath(item);
+        const exclusions:Array<{subject_type:'editorial'|'publication';subject_key:string}>=[{subject_type:'editorial',subject_key:item.id},{subject_type:'editorial',subject_key:'title:'+item.title}];
+        // Never block the whole homepage, service or packages route when removing a section.
+        if(route&&['guide','comparison'].includes(item.kind))exclusions.push({subject_type:'publication',subject_key:route});
+        await rememberGeoDeletion('editorial',item.id,item.lang,item,exclusions);
+        next={editorialItems:current.editorialItems.filter(x=>x.id!==item.id)};
+      }else if(action.kind==='faq'&&typeof action.question==='string'){
+        const published=current.faqs.filter(f=>f.q===action.question);
+        const drafts=current.drafts.filter(d=>d.q===action.question);
+        if(!published.length&&!drafts.length)return NextResponse.json({status:'error',message:'FAQ not found'},{status:404});
+        await rememberGeoDeletion('faq',action.question,inferFeedbackLanguage(action.question),{published,drafts},[{subject_type:'faq',subject_key:action.question}]);
+        next={faqs:current.faqs.filter(f=>f.q!==action.question),drafts:current.drafts.filter(d=>d.q!==action.question)};
+      }else return NextResponse.json({status:'error',message:'Invalid deletion target'},{status:400});
+      // If memory/audit fails, never remove the content. If a concurrent write
+      // wins, the saved exclusion stays active and the operator can retry.
+      const content=await setContent(next,{replaceArrays:true,expectedUpdatedAt});
+      return NextResponse.json({status:'updated',content});
+    }
     if (patch.contact !== undefined) {
       const c=patch.contact as Record<string,unknown>;
       if(!c||typeof c!=='object'||Array.isArray(c))

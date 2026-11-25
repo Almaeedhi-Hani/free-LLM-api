@@ -91,3 +91,8 @@ assert(paths.market.includes('isExcluded(feedback,\'keyword\',term,lang)')&&
 assert(paths.admin.includes('timingSafeEqual')&&paths.admin.includes('appendGeoFeedback'));
 assert(paths.ui.includes('GeoFeedbackMemory')&&paths.ui.includes('تعليم الوكيل'));
 console.log('PASS feedback memory: exact match, undo, domain block, opportunity triage, publication gates, audit RLS and UI wiring');
+
+const titleMemory=effectiveFeedback([{...a,subject_type:'editorial',subject_key:'title:deleted example',language:'en'}]);
+assert(excludesEditorial(titleMemory,{id:'new-id',title:'Deleted Example',lang:'en'},'/en/services/company-formation'));
+assert(!excludesEditorial(titleMemory,{id:'another',title:'Different example',lang:'en'},'/en/services/company-formation'));
+assert(!excludesEditorial(titleMemory,{id:'new-id',title:'Deleted Example',lang:'ar'},'/services/company-formation'));

@@ -96,9 +96,14 @@ assert.equal(editorialPublicationIssues({kind:'guide',body:'Investors can review
 
 const fs=require('node:fs');
 const reviewPanelSource=fs.readFileSync('src/components/EditorialReviewPanel.tsx','utf8');
-assert(reviewPanelSource.includes('const authorityTarget=item.related_service||item.target;'), 'guide and comparison official source searches use their validated service authority rather than the unpublished guide slug');
-assert(reviewPanelSource.includes("const verified=(reviewedSources[item.id]||[]).filter(url=>official.includes(url))"),'approval only uses explicitly selected official candidate URLs');
-assert(reviewPanelSource.includes('editorialPublicationIssues(item)'), 'UI refuses instruction-like content before approval');
+assert(reviewPanelSource.includes('approvedEditorial(items,lang)')&&reviewPanelSource.includes('معاينة المنشور'),'Only actual public content receives a preview link');
+assert(!reviewPanelSource.includes('اعتماد ونشر')&&reviewPanelSource.includes('onDeleteItem(item.id)'),'Published content is managed after publication, not manually approved');
+const contentApi=fs.readFileSync('src/app/api/admin/content/route.ts','utf8');
+assert(contentApi.includes('editorialPublicationIssues(e as any)'),'Legacy API still enforces publication quality');
+assert(contentApi.indexOf("await rememberGeoDeletion('editorial'")<contentApi.indexOf('const content=await setContent(next,'));
+assert(contentApi.indexOf("await rememberGeoDeletion('faq'")<contentApi.indexOf('const content=await setContent(next,'));
+const faqUi=fs.readFileSync('src/components/admin/dashboard/DashboardReviews.tsx','utf8');
+assert(faqUi.includes('content.faqs.filter')&&faqUi.includes('onDeleteFaq(f.q)')&&!faqUi.includes('اعتماد ونشر'));
 const editorialBlockSource=fs.readFileSync('src/components/EditorialBlock.tsx','utf8');
 assert(editorialBlockSource.includes("route==='/services/'+target"),'published service editorial avoids self-link');
 assert(editorialBlockSource.includes("all.findIndex(other=>other.node_id===link.node_id)"),'published editorial deduplicates link targets');

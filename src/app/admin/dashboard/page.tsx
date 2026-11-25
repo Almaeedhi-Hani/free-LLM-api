@@ -92,7 +92,7 @@ export default function AdminDashboard() {
             )}
 
             {tab === 'reviews' && (
-            <DashboardReviews content={content} pendingDrafts={pendingDrafts} draftReviewEdits={draftReviewEdits} setDraftReviewEdits={setDraftReviewEdits} saving={saving} approveDraft={approveDraft} rejectDraft={rejectDraft} />
+            <DashboardReviews content={content} saving={saving} onDeleteFaq={q=>save({deleteGeoContent:{kind:'faq',question:q}})} />
             )}
 
             {tab === 'published_links' && ADMIN_PUBLISHED_LINKS_ENABLED && <PublishedLinksList editorialItems={content.editorialItems||[]} faqs={content.faqs||[]} drafts={content.drafts||[]} adminSecret={secret} />}
@@ -114,11 +114,9 @@ export default function AdminDashboard() {
 
             {tab === 'editorial' && (
               <EditorialReviewPanel
-                adminSecret={secret}
                 items={content.editorialItems||[]}
                 saving={saving}
-                onSaveItems={async items=>await save({editorialItems:items})}
-                onOpenPublishedLinks={ADMIN_PUBLISHED_LINKS_ENABLED?()=>setTab('published_links'):undefined}
+                onDeleteItem={id=>save({deleteGeoContent:{kind:'editorial',id}})}
               />
             )}
 

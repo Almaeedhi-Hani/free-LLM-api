@@ -61,9 +61,8 @@ export function useDashboardContentActions({content,saving,draftReviewEdits,setE
 
   const deleteFaq = (idx: number) => {
     if(saving||!window.confirm('هل تريد حذف هذا السؤال؟'))return;
-    const faqs = [...(content?.faqs || [])];
-    faqs.splice(idx, 1);
-    save({ faqs });
+    const faq=content?.faqs?.[idx];
+    if(faq)void save({deleteGeoContent:{kind:'faq',question:faq.q}});
   };
 
   const addKeyword = () => {
