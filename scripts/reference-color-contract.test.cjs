@@ -33,4 +33,13 @@ for(const m of bannerCss.matchAll(/rgba\((\d+),(\d+),(\d+),([.\d]+)\)/g)){
   assert(['184,134,11','32,42,54','255,255,255'].includes(m.slice(1,4).join(',')),'only approved palette RGB');
   if(m.slice(1,4).join(',')==='184,134,11')assert(Number(m[4])<=.30,'subtle gold mesh only');
 }
-console.log('PASS exact approved gold, dark menu, package arrows and restrained homepage mesh');
+const discovery=fs.readFileSync('src/styles/components/discovery-cards.css','utf8');
+assert(all.includes(discovery),'shared discovery styles imported');
+assert(!/#[0-9a-f]{3,8}\b/i.test(discovery.replace(/\/\*[\s\S]*?\*\//g,'')),'use palette tokens only');
+for(const m of discovery.matchAll(/rgba\((\d+),(\d+),(\d+),([.\d]+)\)/g)){
+  assert(['184,134,11','32,42,54'].includes(m.slice(1,4).join(',')),'discovery uses approved colors');
+  assert(Number(m[4])<=.12,'subtle discovery mesh only');
+}
+for(const p of ['src/components/packages/PackageSelection.tsx','src/components/home/ServicesSection.tsx','src/components/home/MarketEntry.tsx','src/components/services/ServiceRelated.tsx','src/app/insights/page.tsx'])assert(fs.readFileSync(p,'utf8').includes('DiscoveryContent'),p+' shared discovery markup');
+for(const p of ['src/components/EditorialBlock.tsx','src/app/insights/[slug]/page.tsx','src/components/home/HomeEditorial.tsx','src/components/services/ServiceNextStep.tsx'])assert(fs.readFileSync(p,'utf8').includes('DiscoveryLink'),p+' compact discovery link');
+console.log('PASS exact approved gold and shared quiet discovery design');

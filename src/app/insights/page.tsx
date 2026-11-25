@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import {notFound} from "next/navigation";
-import ArrowUpRight from "@/components/ArrowUpRight";
+import {DiscoveryContent} from "@/components/discovery/DiscoveryCard";
 import {getContent} from "@/lib/content-store";
 import {getLocale,localizedPath} from "@/lib/site-language";
 import {siteUrl} from "@/lib/site-seo";
@@ -18,9 +18,8 @@ export default async function InsightsHub(){
  return <section className="section-wrap service-related">
   <p className="eyebrow">{lang==="ar"?"مصادر المستثمر":lang==="zh"?"知识资源":"INVESTOR RESOURCES"}</p>
   <h1>{texts.title}</h1><p>{texts.desc}</p>
-  <div className="service-related-grid">{items.map(e=><a key={e.id} href={localizedPath(lang,"/insights/"+e.slug)}>
-    <span>{e.kind==="comparison"?(lang==="ar"?"مقارنة":lang==="zh"?"对比":"Comparison"):(lang==="ar"?"دليل":lang==="zh"?"指南":"Guide")}</span>
-    <strong>{e.title}</strong><p>{e.summary}</p><small>{texts.action} <ArrowUpRight /></small>
+  <div className="service-related-grid discovery-grid">{items.map(e=><a key={e.id} href={localizedPath(lang,"/insights/"+e.slug)} className="discovery-card">
+    <DiscoveryContent icon={e.kind==="comparison"?"comparison":"guide"} eyebrow={e.kind==="comparison"?(lang==="ar"?"مقارنة":lang==="zh"?"对比":"Comparison"):(lang==="ar"?"دليل":lang==="zh"?"指南":"Guide")} title={e.title} description={e.summary} action={texts.action} heading/>
   </a>)}</div>
  </section>;
 }

@@ -1,6 +1,7 @@
 import type {Metadata} from "next";
 import {notFound} from "next/navigation";
 import ArrowUpRight from "@/components/ArrowUpRight";
+import {DiscoveryLink} from "@/components/discovery/DiscoveryCard";
 import {getLocale,localizedPath} from "@/lib/site-language";
 import {getContent} from "@/lib/content-store";
 import {publicGuide,approvedEditorial} from "@/lib/editorial-workflow";
@@ -48,7 +49,7 @@ export default async function InsightDetail({params}:{params:{slug:string}}){
     {(page.internal_links?.length
       ?page.internal_links.slice(0,5).filter(link=>safeLiveTopicRoute(siteTopicPath(link.node_id))).map(link=>({id:link.node_id,href:siteTopicPath(link.node_id)!,anchor:link.anchor}))
       :topicRelatedLiveNodes(page.topic_node_id||"").filter(node=>safeLiveTopicRoute(node.route)).slice(0,4).map(node=>({id:node.id,href:node.route!,anchor:node.primary_keyword[lang]}))
-    ).map(link=><p key={link.id}><a href={localizedPath(lang,link.href)}>{link.anchor}</a></p>)}
+    ).map(link=><DiscoveryLink key={link.id} href={localizedPath(lang,link.href)} title={link.anchor}/>)}
    </nav>}
    <p className="service-decision-disclaimer">{lang==="ar"?"هذه معلومات إرشادية. تحقّق من متطلبات الجهات الرسمية الحالية قبل اتخاذ القرار.":lang==="zh"?"仅供参考；请核对主管部门当前要求。":"Planning guidance only; verify current authority requirements before acting."}</p>
   </section><aside className="source-panel service-reference-panel">
@@ -56,6 +57,6 @@ export default async function InsightDetail({params}:{params:{slug:string}}){
    {visibleReferences.map((source,i)=><a key={source} href={source} target="_blank" rel={isWhitelistedOfficial(source,competitorDomains)?"noopener noreferrer":"nofollow noopener noreferrer"}>{lang==="ar"?"المصدر":lang==="zh"?"来源":"Source"} {i+1} <ArrowUpRight /></a>)}
    <a className="action-primary" href={content.contact.whatsapp} target="_blank" rel="noopener noreferrer">{lang==="ar"?"استفسر عن خدمتك":lang==="zh"?"咨询服务":"Ask about our services"} <ArrowUpRight /></a>
   </aside></div>
-  <a href={localizedPath(lang,"/packages")+"?from="+encodeURIComponent(localizedPath(lang,"/insights/"+page.slug))}>{lang==="ar"?"قارن الباقات والأتعاب":lang==="zh"?"比较套餐费用":"Compare service packages"} <ArrowUpRight /></a>
+  <DiscoveryLink icon="comparison" href={localizedPath(lang,"/packages")+"?from="+encodeURIComponent(localizedPath(lang,"/insights/"+page.slug))} title={lang==="ar"?"قارن الباقات والأتعاب":lang==="zh"?"比较套餐费用":"Compare service packages"}/>
  </article>;
 }

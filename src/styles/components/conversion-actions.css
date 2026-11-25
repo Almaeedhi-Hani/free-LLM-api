@@ -17,25 +17,7 @@ body:not(:has(.admin-route)) .conversion-chat-toggle:hover {
   color:var(--reference-heading);
   border-color:var(--conversion-gold-border);
 }
-/* Choices: highlight the existing action affordance, not the full category card. */
-body:not(:has(.admin-route)) #main .license-category-action {
-  background:var(--conversion-gold);
-  color:var(--reference-heading);
-  border-radius:999px;
-  padding:6px 12px;
-}
-body:not(:has(.admin-route)) #main .license-category-card:hover .license-category-action {
-  background:var(--conversion-gold-hover);
-}
-body:not(:has(.admin-route)) #main :is(.license-category-card,.license-offer,.license-tabs button):is(:hover,:focus-visible),
-body:not(:has(.admin-route)) #main :is(.license-offer.active,.license-tabs button.active) {
-  border-color:var(--conversion-gold-border);
-}
-body:not(:has(.admin-route)) #main :is(.license-offer.active,.license-tabs button.active) {
-  background:var(--conversion-gold);
-  color:var(--reference-heading);
-  box-shadow:inset 0 0 0 1px var(--conversion-gold-border);
-}
+/* Discovery cards and offer choices use their own shared, quiet treatment. */
 /* The three required residency choices stand out on the existing dark assessment. */
 body:not(:has(.admin-route)) #main #assessment select {
   border-color:var(--conversion-gold);
@@ -79,7 +61,7 @@ body:not(:has(.admin-route)) .mobile-floating-menu-toggle[aria-expanded="true"] 
   color:var(--reference-ink);
 }
 /* Card accents: do not turn entire content cards gold. */
-body:not(:has(.admin-route)) #main :is(.service-card,.entry-route-card,.license-category-card,.service-related-grid a):is(:hover,:focus-visible,:focus-within) {
+body:not(:has(.admin-route)) #main :is(.service-card:not(.discovery-card),.entry-route-card:not(.discovery-card),.license-category-card:not(.discovery-card),.service-related-grid a:not(.discovery-card)):is(:hover,:focus-visible,:focus-within) {
   box-shadow:inset 0 0 0 2px var(--conversion-gold);
 }
 body:not(:has(.admin-route)) #main :is(.service-card .card-arrow,.entry-route-link>span,.service-related-grid a small,.conversion-proof-link) {
@@ -99,7 +81,7 @@ body:not(:has(.admin-route)) #main :is(.conversion-proof-grid article>span,.entr
 body:not(:has(.admin-route)) #main .entry-route-meta {
   opacity:1;
 }
-body:not(:has(.admin-route)) #main :is(.card-top>span:first-child,.license-category-number,.detail-step>span,.service-decision-checklist li>span,[data-residency-product]>.eyebrow,#steps ol>li>span,.package-number,.entry-index) {
+body:not(:has(.admin-route)) #main :is(.card-top>span:first-child,.detail-step>span,.service-decision-checklist li>span,[data-residency-product]>.eyebrow,#steps ol>li>span,.package-number,.entry-index) {
   background:var(--conversion-gold);
   color:var(--reference-heading);
   border-radius:4px;

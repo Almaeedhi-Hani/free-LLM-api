@@ -1,4 +1,4 @@
-import ArrowUpRight from "@/components/ArrowUpRight";
+import { DiscoveryContent, serviceDiscoveryIcon } from "@/components/discovery/DiscoveryCard";
 import { localizedPath } from "@/lib/site-language";
 import type { HomeModel } from "@/lib/home/model";
 
@@ -13,25 +13,14 @@ export default function ServicesSection({lang, t, serviceList}: Pick<HomeModel, 
           </div>
           <p>{t.description}</p>
         </div>
-        <div className="service-grid">
+        <div className="service-grid discovery-grid">
           {serviceList.map((s, i) => (
             <a
-              className="service-card"
+              className="service-card discovery-card"
               key={s.slug}
               href={localizedPath(lang, `/services/${s.slug}`)}
             >
-              <div className="card-top">
-                <span>0{i + 1}</span>
-                <span className="card-arrow"><ArrowUpRight /></span>
-              </div>
-              <div className="service-icon" aria-hidden="true">
-                {["◈", "▤", "▥", "⌘", "◇", "◉"][i]}
-              </div>
-              <h3>{s.title[lang]}</h3>
-              <p>{s.summary[lang]}</p>
-              <span className="card-link">
-                {t.detail} <span>←</span>
-              </span>
+              <DiscoveryContent icon={serviceDiscoveryIcon(s.slug)} number={i+1} title={s.title[lang]} description={s.summary[lang]} action={t.detail} heading/>
             </a>
           ))}
         </div>
