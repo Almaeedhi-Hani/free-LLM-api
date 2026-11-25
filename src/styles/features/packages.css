@@ -103,3 +103,10 @@
 .package-page .license-detail li{font-size:12px;line-height:1.6}
 }
 
+
+/* Shared line arrows for package navigation; direction follows page locale. */
+.package-arrow{display:inline-block;width:16px;height:16px;flex-shrink:0;vertical-align:middle}
+.package-arrow[data-direction="back"]{transform:rotate(180deg)}
+[dir="rtl"] .package-arrow[data-direction="back"]{transform:none}
+[dir="rtl"] .package-arrow[data-direction="forward"]{transform:rotate(180deg)}
+.license-back,.package-page .package-secondary,.package-page .package-buttons button,.package-page [role="status"]>button{display:inline-flex;align-items:center;justify-content:center;gap:8px}

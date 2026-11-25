@@ -89,7 +89,11 @@ const viewports=[{width:320,height:640},{width:390,height:844},{width:768,height
           await toggle.click();
           assert.equal(await toggle.getAttribute('aria-expanded'),'true',name);
           assert(await page.locator('.mobile-floating-menu').isVisible(),name);
-          assert.equal(await page.locator('.mobile-floating-menu-link.is-active').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(184, 134, 11)');
+          const menuActive=page.locator('.mobile-floating-menu-link.is-active');
+          const menuColors=await menuActive.evaluate(e=>({bg:getComputedStyle(e).backgroundColor,text:getComputedStyle(e).color,line:getComputedStyle(e,'::after').backgroundColor}));
+          assert.deepEqual(menuColors,{bg:'rgb(32, 42, 54)',text:'rgb(255, 255, 255)',line:'rgb(184, 134, 11)'},name+' dark selected menu with gold underline');
+          assert.equal(await page.locator('.mobile-floating-menu-cta').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(32, 42, 54)');
+          if(viewport.width===390)await page.screenshot({path:path.join(output,name+'-menu.png'),animations:'disabled'});
           await page.keyboard.press('Escape');
           assert.equal(await toggle.getAttribute('aria-expanded'),'false',name);
         }
@@ -120,6 +124,17 @@ const viewports=[{width:320,height:640},{width:390,height:844},{width:768,height
             try{await selected.waitFor({state:'visible',timeout:2000});break;}catch(error){if(attempt===2)throw error;}
           }
           await page.mouse.move(0,0);
+          const back=page.locator('.license-back');
+          assert.equal(await back.locator('svg.package-arrow[data-direction="back"]').count(),1);
+          assert(!/[↩↪🔙]/u.test(await back.innerText()),'no emoji return icon');
+          const backTransform=await back.locator('svg').evaluate(e=>getComputedStyle(e).transform);
+          assert.equal(backTransform,lang.id==='ar'?'none':'matrix(-1, 0, 0, -1, 0, 0)');
+          await back.click();
+          await category.waitFor();
+          assert.equal(await category.locator('svg.package-arrow[data-direction="forward"]').count(),1);
+          await category.click();
+          await selected.waitFor();
+          if(viewport.width===390)await page.screenshot({path:path.join(output,name+'-package-selection.png'),fullPage:true,animations:'disabled'});
           assert.equal(await selected.evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(184, 134, 11)');
           if(await page.locator('.license-offer[aria-pressed="false"]').count()){
             // Use a stable index: the previous aria-pressed=false locator
@@ -131,6 +146,8 @@ const viewports=[{width:320,height:640},{width:390,height:844},{width:768,height
           }
           await page.locator('.license-detail>button').click();
           await page.locator('.package-form button[type="submit"]').waitFor();
+          assert.equal(await page.locator('.package-form .package-secondary svg.package-arrow[data-direction="back"]').count(),1);
+          assert.equal(await page.locator('.package-form button[type="submit"] svg.package-arrow[data-direction="forward"]').count(),1);
           await page.screenshot({path:path.join(output,name+'-package.png'),fullPage:true,animations:'disabled'});
           await page.goto(base+(lang.id==='ar'?'':'/'+lang.id)+'/services/premium-residency',{waitUntil:'networkidle'});
           const assessment=page.locator('#assessment');

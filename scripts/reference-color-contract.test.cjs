@@ -19,4 +19,11 @@ const l=hex=>{const a=hex.match(/../g).map(x=>parseInt(x,16)/255).map(v=>v<=.040
 for(const color of ['b8860b'])assert((l(color)+.05)/(l('111827')+.05)>=4.5,'CTA contrast AA');
 assert(accent.includes('--conversion-gold: #b8860b;')&&accent.includes('.desktop-nav a[aria-current]')&&accent.includes('.mobile-floating-menu-link.is-active')&&accent.includes('.step-number')&&accent.includes('.card-top>span:first-child'),'approved metal gold on navigation, cards and numbers');
 assert((l('ffffff')+.05)/(l('b8860b')+.05)>=3,'large gold number contrast');
-console.log('PASS exact owner-approved metallic gold, accessible conversion and selection accents');
+assert(accent.includes('.mobile-floating-menu-link.is-active:hover {\n  background:var(--reference-ink);\n  color:var(--reference-white);'));
+assert(accent.includes('.mobile-floating-menu-link.is-active::after {\n  background:var(--conversion-gold);'));
+for(const name of ['PackageSelection','PackageContactStep','PackageInvestmentStep','PackageReviewStep','PackageSuccessStep']){
+  const source=fs.readFileSync('src/components/packages/'+name+'.tsx','utf8');
+  assert(source.includes('PackageArrow direction="back"'),name+' uses reusable back arrow');
+  assert(!/[↩↪🔙]/u.test(source),name+' contains emoji arrow');
+}
+console.log('PASS exact owner-approved metallic gold, dark menu selection and directional package arrows');
