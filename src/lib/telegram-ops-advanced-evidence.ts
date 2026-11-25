@@ -23,6 +23,8 @@ const evidence=require('./telegram-ops-advanced-evidence.cjs') as {
  due:(meta:ReviewPreflight|undefined,kind:Kind,fields:string[])=>boolean;
  editorialIdentityFields:(item:EditorialItem,copyFields:string[])=>string[];
  selectReviewBatch:(items:Candidate[])=>Candidate[];
+ discoveryRepairDue:(x:Candidate)=>boolean;
+ SOURCE_DISCOVERY_VERSION:string;
  assessPublicationRisk:(kind:Kind,item:ContentDraft|EditorialItem,copyFields:string[],result:Result)=>'low'|'high';
  faqTopicTargets:(title:string)=>string[];
  selectOfficialCandidates:(targets:string[],saved:string[],discovered:string[])=>string[];
@@ -81,7 +83,7 @@ async function check(x:Candidate):Promise<Candidate>{
  const same=prior?.digest===evidence.digest(x.kind,identityFields(x));
  const attempts=(same?(prior?.attempts||0):0)+1;
  const exhausted=allowed&&pages.some(p=>p.sentences.length)&&(!result.complete||!reviewCopyQuality(candidate))&&attempts>=3;
- const meta:ReviewPreflight={status:ready?'ready':'blocked',attempts,archived:!ready&&exhausted,digest:evidence.digest(x.kind,identityFields(original)),checked_at:new Date().toISOString(),matched:result.matched,total:result.total,reason:!allowed?'policy_unavailable_or_excluded':!urls.length?'no_official_candidates':!pages.some(p=>p.sentences.length)?'official_sources_unavailable':!result.complete?'exact_claim_coverage_incomplete':!reviewCopyQuality(candidate)?'copy_quality_failed':'ready'};
+ const meta:ReviewPreflight={status:ready?'ready':'blocked',source_discovery_version:evidence.SOURCE_DISCOVERY_VERSION,attempts,archived:!ready&&exhausted,digest:evidence.digest(x.kind,identityFields(original)),checked_at:new Date().toISOString(),matched:result.matched,total:result.total,reason:!allowed?'policy_unavailable_or_excluded':!urls.length?'no_official_candidates':!pages.some(p=>p.sentences.length)?'official_sources_unavailable':!result.complete?'exact_claim_coverage_incomplete':!reviewCopyQuality(candidate)?'copy_quality_failed':'ready'};
  if(!ready)return {...original,item:{...original.item,review_preflight:meta}} as Candidate;
  const refs:EditorialRef[]=Array.from(new Set(result.proofs.map(p=>p.url))).map(url=>({id:'official_'+createHash('sha256').update(url).digest('hex').slice(0,24),label:new URL(url).hostname,source:'official_live_html',kind:'official_candidate',url,observed_at:meta.checked_at}));
  const existing=(original.item.evidence_refs||[]).filter(r=>!refs.some(n=>n.id===r.id||n.url===r.url));
@@ -140,7 +142,7 @@ export async function runReviewEvidenceBatch(){
  const items:Candidate[]=[...c.drafts.filter(i=>i.status==='pending').map(item=>({kind:'faq' as const,item})),...c.editorialItems.filter(i=>i.status==='pending').map(item=>({kind:'editorial' as const,item}))];
  const technical=items.filter(x=>x.kind==='editorial'&&['technical_seo','internal_link'].includes(x.item.kind));
  const visitorItems=items.filter(x=>!technical.includes(x));
- const selected=evidence.selectReviewBatch(visitorItems.filter(x=>evidence.due(x.item.review_preflight,x.kind,identityFields(x))));
+ const selected=evidence.selectReviewBatch(visitorItems.filter(x=>evidence.discoveryRepairDue(x)||evidence.due(x.item.review_preflight,x.kind,identityFields(x))));
  if(!selected.length)return {status:'idle',processed:0,ready:0,technical_tasks:technical.length};
  const checked=await Promise.all(selected.map(check));
  const faq=new Map<ContentDraft,ContentDraft>(),editorial=new Map<EditorialItem,EditorialItem>();
@@ -154,7 +156,7 @@ export async function runReviewEvidenceBatch(){
  const saved=await getContent();
  const verified=checked.every(x=>{
   const records=x.kind==='faq'?saved.drafts.filter(i=>i.q===(x.item as ContentDraft).q):saved.editorialItems.filter(i=>i.id===(x.item as EditorialItem).id);
-  return records.some(i=>i.review_preflight?.digest===x.item.review_preflight?.digest&&i.review_preflight?.checked_at===x.item.review_preflight?.checked_at&&i.status==='pending');
+  return records.some(i=>i.review_preflight?.digest===x.item.review_preflight?.digest&&i.review_preflight?.checked_at===x.item.review_preflight?.checked_at&&i.review_preflight?.source_discovery_version===evidence.SOURCE_DISCOVERY_VERSION&&i.status==='pending');
  });
  if(!verified)throw Error('review_evidence_readback_unverified');
  return {status:'saved_verified',processed:checked.length,ready:checked.filter(readyForHuman).length,technical_tasks:technical.length};
