@@ -1,0 +1,55 @@
+name: Cinematic homepage browser review
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/components/CinematicHero.tsx'
+      - 'scripts/cinematic-homepage.browser.cjs'
+      - '.github/workflows/cinematic-homepage-review.yml'
+permissions:
+  contents: read
+jobs:
+  browser-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+      NODE_ENV: development
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install locked app dependencies
+        run: npm ci --include=dev
+      - name: Install isolated browser test tools (no app dependency changes)
+        run: |
+          npm install --no-save --package-lock=false playwright@1.51.1 axe-core@4.10.3
+          npx playwright install --with-deps chromium
+          sudo apt-get install -y fonts-noto-cjk fonts-noto-core
+      - name: Run static and navigation checks
+        run: |
+          node scripts/cinematic-homepage.test.cjs
+          node scripts/mobile-header-contract.test.cjs
+          npm run test:packages
+          npm run test:whatsapp
+      - name: Start isolated development fixture
+        run: |
+          (npm run dev -- -p 3000 > /tmp/cinematic-dev.log 2>&1 &)
+          ready=0
+          for i in $(seq 1 45); do
+            if curl -fsS --max-time 15 http://127.0.0.1:3000/ >/dev/null 2>&1; then ready=1; break; fi
+            sleep 2
+          done
+          if [ "$ready" != "1" ]; then tail -80 /tmp/cinematic-dev.log; exit 1; fi
+      - name: Capture and check actual rendered Next.js pages
+        run: node scripts/cinematic-homepage.browser.cjs
+      - name: Upload screenshots and browser results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cinematic-homepage-screenshots
+          path: cinematic-screenshots/
+          retention-days: 7
+          if-no-files-found: warn
