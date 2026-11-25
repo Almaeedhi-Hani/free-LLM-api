@@ -1,3 +1,4 @@
+import ResidencyAssessment from "./ResidencyAssessment";
 import ArrowUpRight from "@/components/ArrowUpRight";
 import {getLocale,localizedPath} from "@/lib/site-language";
 import {getContent} from "@/lib/content-store";
@@ -35,13 +36,16 @@ export async function PremiumResidencyPage(){
   return <article className={"service-detail service-editorial section-wrap "+styles.page}>
     <script type="application/ld+json" dangerouslySetInnerHTML={{__html:JSON.stringify(schema).replace(/</g,"\\u003c")}}/>
     <a className="breadcrumb" href={localizedPath(lang)+"#services"}>{lang==="ar"?"خدمات المستثمرين":lang==="zh"?"投资者服务":"Investor services"} / {l.title[lang]}</a>
+    <header className={styles.hero}>
     <p className="eyebrow">SAUDI ARABIA · {lang==="ar"?"الإقامة المميزة":lang==="zh"?"高级居留":"PREMIUM RESIDENCY"}</p>
     <h1>{l.title[lang]}</h1>
     <p className="detail-lead">{l.lead[lang]}</p>
     <div className={styles.actions}>
-      {whatsapp&&<a className="action-primary" href={whatsapp} target="_blank" rel="noopener noreferrer">{l.cta[lang]} <ArrowUpRight/></a>}
-      <a className="action-secondary" href="#products">{copy.explore}</a>
+      <a className="action-primary" href="#assessment">{lang==="ar"?"ابدأ تقييم مسارك":lang==="zh"?"开始路径评估":"Start your assessment"} <ArrowUpRight/></a>
+      {whatsapp&&<a className={styles.secondary} href={whatsapp} target="_blank" rel="noopener noreferrer">{lang==="ar"?"تواصل مع مستشار متخصص":lang==="zh"?"联系专业顾问":"Contact a specialist"}</a>}
     </div>
+    </header>
+    <ResidencyAssessment lang={lang} whatsapp={whatsapp}/>
     <nav className="service-quick-nav" aria-label={lang==="ar"?"أقسام الصفحة":lang==="zh"?"页面目录":"Page sections"}>{sections.map(([id,label])=><a key={id} href={"#"+id}>{label[lang]}</a>)}</nav>
     <section id="products" className={styles.section}>
       <h2>{l.products[lang]}</h2>
