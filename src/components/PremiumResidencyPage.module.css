@@ -63,3 +63,14 @@
 .page .assessment :is(button,a,select):focus-visible {outline:3px solid #6b7280;outline-offset:4px}
 .page .assessmentForm button:focus-visible,.page .assessmentForm select:focus-visible {outline-color:#ffffff}
 @media(max-width:700px){.page .assessmentResult .actions>*{width:100%;justify-content:center}}
+
+/* Shared public soft corners: retain approved dark assessment and gold controls. */
+.hero,.product,.tableWrap,.assessment {border-radius:var(--discovery-card-radius)}
+.product {background:radial-gradient(ellipse at 100% 100%,rgba(184,134,11,.045),transparent 68%),var(--reference-white)}
+.product:nth-child(even){background:radial-gradient(ellipse at 0% 100%,rgba(184,134,11,.055),transparent 68%),var(--reference-white)}
+.hero {background:radial-gradient(ellipse at 100% 100%,rgba(184,134,11,.08),transparent 65%),var(--reference-paper)}
+.page .assessment {border-radius:var(--discovery-card-radius)}
+.page .assessmentForm select {border-radius:14px}
+.page .assessmentForm button,.page .assessmentResult a,.page .assessmentResult button,.secondary,.product .actions a,.hero .actions a {border-radius:var(--discovery-card-radius)}
+.page .assessmentResult {border-radius:var(--discovery-card-radius)}
+.references a {border-radius:14px}

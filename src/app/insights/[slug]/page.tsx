@@ -3,7 +3,7 @@ import {notFound} from "next/navigation";
 import ArrowUpRight from "@/components/ArrowUpRight";
 import {DiscoveryLink} from "@/components/discovery/DiscoveryCard";
 import {getLocale,localizedPath} from "@/lib/site-language";
-import {getContent} from "@/lib/content-store";
+import {getPublicContent as getContent} from "@/lib/public-content";
 import {publicGuide,approvedEditorial} from "@/lib/editorial-workflow";
 import {siteUrl} from "@/lib/site-seo";
 import {getCompetitorDomains} from "@/lib/source-policy-store";
@@ -36,12 +36,12 @@ export default async function InsightDetail({params}:{params:{slug:string}}){
   {"@type":"ListItem",position:3,name:page.title,item:url},
  ]};
  const schema={"@context":"https://schema.org","@graph":[article,breadcrumbs]};
- return <article className="service-detail service-editorial section-wrap">
+ return <article className="service-detail service-editorial section-wrap investor-article">
   <script type="application/ld+json" dangerouslySetInnerHTML={{__html:JSON.stringify(schema).replace(/</g,"\\u003c")}}/>
   <a className="breadcrumb" href={localizedPath(lang,"/insights")}>{lang==="ar"?"الأدلة":lang==="zh"?"指南":"Guides"} <ArrowUpRight /></a>
   <p className="eyebrow">{page.kind==="comparison"?(lang==="ar"?"مقارنة عملية":lang==="zh"?"实用对比":"PRACTICAL COMPARISON"):(lang==="ar"?"دليل المستثمر":lang==="zh"?"投资者指南":"INVESTOR GUIDE")}</p>
   <h1>{page.title}</h1><p className="detail-lead">{page.summary}</p>
-  <div className="detail-columns"><section>
+  <div className="detail-columns"><section className="investor-guide-body">
    {page.body.split(/\n\s*\n/).filter(Boolean).map((paragraph,i)=><p key={i}>{paragraph}</p>)}
    {(page.sections||[]).map((section,i)=><section key={i}><h2>{section.h2}</h2><p>{section.body}</p>{(section.subsections||[]).map((sub,j)=><div key={j}><h3>{sub.h3}</h3><p>{sub.body}</p></div>)}</section>)}
    {(page.internal_links?.length||page.topic_node_id)&&<nav aria-label={lang==="ar"?"مواضيع مرتبطة":lang==="zh"?"相关主题":"Related investor topics"}>

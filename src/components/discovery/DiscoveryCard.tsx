@@ -4,7 +4,7 @@ export function serviceDiscoveryIcon(slug:string):DiscoveryIcon {
   const icons:Record<string,DiscoveryIcon>={"misa-license":"registration","company-formation":"company","corporate-banking":"bank","contract-drafting":"contract","premium-residency":"residency","investment-funds":"funds"};
   return icons[slug]||"guide";
 }
-function DiscoveryIcon({icon}:{icon:DiscoveryIcon}){
+export function DiscoveryIcon({icon}:{icon:DiscoveryIcon}){
   const paths:Record<DiscoveryIcon,string>={
     services:"M3 7h18v13H3zM8 7V4h8v3M3 12l9 3 9-3M12 13v3",
     trading:"M3 8h18l-2-5H5L3 8ZM4 12v9h16v-9M9 21v-6h6v6M3 8v2a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0V8",

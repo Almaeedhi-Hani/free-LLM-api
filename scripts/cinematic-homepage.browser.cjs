@@ -210,8 +210,15 @@ const viewports=[{width:320,height:640},{width:390,height:844},{width:768,height
             await page.locator('.license-offer').nth(1).and(page.locator('[aria-pressed="true"]')).waitFor();
             assert.equal(await next.getAttribute('aria-pressed'),'true');
           }
+          const compare=page.locator(".investor-package-compare");
+          await compare.locator("summary").click();
+          assert.equal(await compare.locator("tbody tr").count(),4);
+          await compare.locator("tbody button").nth(2).click();
+          assert.equal(await page.locator(".license-offer").nth(2).getAttribute("aria-pressed"),"true");
+          await compare.locator("summary").click();
           await page.locator('.license-detail>button').click();
           await page.locator('.package-form button[type="submit"]').waitFor();
+          assert.equal(await page.locator(".investor-wizard-steps li[aria-current=step]").count(),1);
           assert.equal(await page.locator('.package-form .package-secondary svg.package-arrow[data-direction="back"]').count(),1);
           assert.equal(await page.locator('.package-form button[type="submit"] svg.package-arrow[data-direction="forward"]').count(),1);
           await page.screenshot({path:path.join(output,name+'-package.png'),fullPage:true,animations:'disabled'});

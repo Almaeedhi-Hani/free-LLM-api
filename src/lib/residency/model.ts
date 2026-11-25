@@ -1,5 +1,5 @@
 import {getLocale,localizedPath} from "@/lib/site-language";
-import {getContent} from "@/lib/content-store";
+import {getPublicContent as getContent} from "@/lib/public-content";
 import {whatsAppUrlForLanguage} from "@/lib/whatsapp-contacts";
 import {siteUrl} from "@/lib/site-seo";
 import {products,benefits,documents,steps,faqs,labels,sources} from "@/lib/premium-residency-content";
