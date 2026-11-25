@@ -1,0 +1,14 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {verifiedGoalPublication,publicationMetric}=require('../.growth-test-build/lib/geo-growth-context.js');
+const id='00000000-0000-0000-0000-000000000001';
+const goal={id,status:'open',created_at:'2026-11-20T00:00:00Z',success_metrics:[{metric:publicationMetric,target:'1',measurement:'/en/insights/growth-fixture'}]};
+const item={id:'ed-fixture',lang:'en',kind:'guide',slug:'growth-fixture',status:'approved',reviewedAt:'2026-11-21T00:00:00Z',approval_method:'automated',evidence_ids:['goal_'+id]};
+const event={id:'published-fixture',item_id:item.id,status:'published',target_path:'/en/insights/growth-fixture',language:'en',published_at:'2026-11-21T00:00:00Z'};
+assert.equal(verifiedGoalPublication(goal,{editorialItems:[item]},[event]),event);
+for(const invalid of [{...goal,success_metrics:[]},{...goal,success_metrics:[...goal.success_metrics,{metric:'indexed',target:'true',measurement:'Google'}]},{...goal,status:'done'}])assert.equal(verifiedGoalPublication(invalid,{editorialItems:[item]},[event]),null);
+for(const invalid of [{...event,status:'rolled_back'},{...event,published_at:'2026-11-19T00:00:00Z'},{...event,target_path:'/en/insights/other'}])assert.equal(verifiedGoalPublication(goal,{editorialItems:[item]},[invalid]),null);
+assert.equal(verifiedGoalPublication(goal,{editorialItems:[{...item,evidence_ids:[]}]},[event]),null);
+assert.equal(verifiedGoalPublication(goal,{editorialItems:[{...item,status:'pending'}]},[event]),null);
+assert.equal(verifiedGoalPublication(goal,{editorialItems:[]},[event]),null);
+console.log('PASS only explicit, exact, current, linked publication evidence closes measurable goals; legacy goals stay open');

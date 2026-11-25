@@ -7,6 +7,9 @@ import {validateEditorialItem} from "@/lib/editorial-workflow";
 import { getSupabaseCredentials } from "@/lib/storage-mode";
 import { getGeoFeedbackIndex,isExcluded,containsRejectedKeyword,excludesOpportunity,excludesEditorial,excludesFaq } from "@/lib/geo-agent-feedback";
 import {editorialPath} from '@/lib/content-impact';
+import {canonicalImpactOrigin} from '@/lib/impact-attribution';
+import {publicationMetric,reconcileGrowthGoals} from '@/lib/geo-growth-context';
+import {listOpportunities} from '@/lib/market-intelligence';
 
 export const dynamic = "force-dynamic";
 // This route is authenticated separately from admin APIs; GEO_API_KEY is never sent to a browser.
@@ -55,9 +58,12 @@ export async function POST(req:NextRequest) {
    });
   },
   saveGoal:async g=>{
+   const target=canonicalImpactOrigin(g.publication_target);
+   const related=g.related_opportunity? (await listOpportunities()).filter(o=>o.title===g.related_opportunity&&['new','triaged','planned'].includes(o.status)&&!excludesOpportunity(memory,o)):[];
    await createGoal({
     title:g.title,priority:g.priority,description:g.description||"OpenCode candidate; human and evidence review required",
-    evidence:[],success_metrics:[],confidence:"low"
+    evidence:[],success_metrics:target?[{metric:publicationMetric,target:'1',measurement:target}]:[],confidence:"low",
+    ...(related.length===1?{related_opportunity_id:related[0].id}:{})
    });
   },
   saveDrafts:async drafts=>{
@@ -88,5 +94,7 @@ export async function POST(req:NextRequest) {
   }
  });
  if(!outcome.ok)console.error("GEO ingestion was partial",outcome.errors);
- return NextResponse.json({...outcome,reviewer_excluded:excluded},{status:outcome.ok?200:502});
+ const goal_reconciliation=batch.run_report&&outcome.ok?await reconcileGrowthGoals(memory):null;
+ if(goal_reconciliation)console.info('GEO goal reconciliation',JSON.stringify(goal_reconciliation));
+ return NextResponse.json({...outcome,reviewer_excluded:excluded,...(goal_reconciliation?{goal_reconciliation}:{})},{status:outcome.ok?200:502});
 }

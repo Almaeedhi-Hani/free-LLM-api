@@ -3,7 +3,7 @@
  * This module has no network or DB dependencies, so failed partial saves can be tested.
  */
 export type GeoOpportunity = {title:string;type:"gap"|"content"|"keyword";score:number;evidence_ids?:string[];description?:string};
-export type GeoGoal = {title:string;priority:"high"|"medium"|"low";description?:string;related_opportunity?:string};
+export type GeoGoal = {title:string;priority:"high"|"medium"|"low";description?:string;related_opportunity?:string;publication_target?:string};
 export type GeoEvidenceReference={id:string;label:string;source:string;kind:string;url?:string;observed_at?:string};
 import {normalizeClaimEvidence} from './geo-claim-evidence';
 import type {EditorialClaimEvidence} from './editorial-types';
@@ -62,6 +62,7 @@ export function normalizeGeoBatch(raw:unknown):GeoBatch{
      out.opportunities=items;
    }else if(key==="goals"){
      if(!items.every(g=>g&&textOk(g.title,500)&&["high","medium","low"].includes(g.priority)))throw new Error("Invalid goals");
+     if(!items.every(g=>g.publication_target===undefined||textOk(g.publication_target,180)))throw new Error('Invalid goal target');
      out.goals=items;
    }else if(key==="editorial_actions"){
      out.editorial_actions=items.map(d=>validateEditorialItem(d));

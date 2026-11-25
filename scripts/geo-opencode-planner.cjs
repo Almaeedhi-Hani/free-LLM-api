@@ -9,7 +9,7 @@ const manifest=require("../src/data/content-tree.json");
 // a path. Output specifications are skipped: the existing JSON contract wins.
 const fs=require('node:fs');
 const path=require('node:path');
-const DIRECT_SKILLS=Object.freeze(['evidence-verification','content-strategy','saudi-investment-expert','content-architecture','geo-ai-visibility','competitor-intelligence','keyword-research','technical-seo','conversion-optimization','performance-analytics']);
+const DIRECT_SKILLS=Object.freeze(['evidence-verification','content-strategy','saudi-investment-expert','content-architecture','geo-ai-visibility','competitor-intelligence','keyword-research','technical-seo','conversion-optimization','performance-analytics','growth-decision','statistical-analysis','human-behavior-communication','growth-learning']);
 function directSkillGuidance(name){
  if(!DIRECT_SKILLS.includes(name))throw Error('Unapproved GEO skill');
  const file=path.join(__dirname,'..','.opencode','skills',name,'SKILL.md');
@@ -21,7 +21,9 @@ function directSkillGuidance(name){
 }
 function selectDirectSkills(evidence){
  const kinds=new Set(evidence.map(e=>e.type));
- const result=['evidence-verification','content-strategy','saudi-investment-expert','content-architecture'];
+ const result=['evidence-verification','content-strategy'];
+ if([...kinds].some(k=>['goal','opportunity','gsc','performance','inventory'].includes(k)))result.push('growth-decision','statistical-analysis','human-behavior-communication','growth-learning');
+ result.push('saudi-investment-expert','content-architecture');
  if(kinds.has('competitor_candidate')||kinds.has('competitor'))result.push('competitor-intelligence');
  if(kinds.has('keyword')||kinds.has('keyword_suggestion'))result.push('keyword-research');
  if(kinds.has('technical_seo')||kinds.has('internal_link'))result.push('technical-seo');
@@ -67,6 +69,14 @@ function selectLocaleEvidence(items,lang,max=8){
  // local market discovery. Cross-language excerpts remain explicitly labeled.
  const official=[...own,...shared,...cross].filter(e=>e.type==='official_candidate'&&e.source==='official_live_html'&&e.snippet);
  for(const e of official){if(result.length>=Math.min(2,max))break;if(!seen.has(e.id)){result.push(e);seen.add(e.id)}}
+ // Reserve bounded locale-specific operational context, without displacing all research.
+ if(max>=4){
+  const cap=Math.min(4,max-2),picked=[];
+  for(const group of [['goal','opportunity'],['gsc'],['performance'],['inventory']]){
+   const e=own.find(x=>group.includes(x.type)&&!seen.has(x.id));
+   if(e&&picked.length<cap&&result.length<max-1){result.push(e);seen.add(e.id);picked.push(e)}
+  }
+ }
  for(const pool of [own,shared,cross]){
   // First select distinct evidence kinds; then fill from this same pool.
   for(const e of pool){
@@ -83,6 +93,7 @@ function promptForLocale(lang,evidence){
  if(!Array.isArray(evidence)||evidence.length===0||evidence.length>8)throw Error("Evidence must contain 1-8 records");
  const topics=manifest.nodes.map(n=>({id:n.id,parent:n.parent_id,status:n.route?"live":"planned",existing_url:n.route,kind:n.kind,intent:n.intent,primary_keyword:n.primary_keyword[lang],question:n.main_question[lang],related_nodes:n.related_nodes,schema_candidates:n.schema_candidates,official_source_candidates:n.official_sources}));
  const rules=[
+ "Stored goal, opportunity, gsc, performance and inventory evidence is operational context only, not legal proof. Use existing goals first, cite real goal_ IDs in editorial evidence_ids, avoid duplicates and do not claim completion from model output. Optional new publication goals may include publication_target as an exact valid public route.",
  "You are OpenCode operating as four expert roles: (1) source researcher (2) multilingual SEO/GEO architect (3) qualified service editor (4) technical SEO and link auditor.",
  "Load the content-architecture skill if available in your isolated OpenCode workspace, then follow its approved content tree and evidence publication constraints.",
  "Perform a sober evidence-based content gap assessment. DO NOT pretend a proposed site plan is a search ranking, traffic statistic, or verified legal requirement.",
@@ -159,10 +170,12 @@ function promptForDirectLocale(lang,evidence,repair){
   source:asText(e.source,60),title:asText(e.title||e.name||e.query,160),
   url:asText(e.url,330),summary:asText(e.snippet||e.description||e.content||e.text,290)
  }));
+ const hasGrowth=evidence.some(e=>['goal','opportunity','gsc','performance','inventory'].includes(e.type));
+ if(hasGrowth)rules.push('Operational records guide priority, not factual authority. Prefer existing goals/opportunities; cite exact goal_ evidence IDs in the editorial action when working on that goal. Avoid duplicate pending/live topics. Only a new explicit publication objective may include publication_target as a valid exact public path; no model may close goals. Use aggregate statistics without claiming causation, individual profiling, or filling missing measurements.');
  if(repair)rules.push('This is a single validation repair. Output replacements only for the listed rejected FAQ/editorial slots, in listed order. Leave opportunities, goals and unrelated arrays empty. Do not repeat accepted work or invent copy, routes or sources. If a replacement is not justified by the same evidence, omit it.');
  rules.push('Apply the repository-owned skill_guidance as supporting instructions. The existing output schema, official-source allowlist, evidence IDs, risk gates and free-provider limits take precedence. Do not execute tools, invent missing evidence or claim checks not performed.');
  const skillNames=selectDirectSkills(evidence);
- const required=skillNames.slice(0,2);
+ const required=skillNames.slice(0,hasGrowth?6:2);
  const skillGuidance=Object.fromEntries(required.map(name=>[name,directSkillGuidance(name)]));
  const encode=(n,guidance=skillGuidance)=>JSON.stringify({language:lang,instructions:rules,skill_guidance:guidance,
   editorial_kind_contract:{allowed_values:EDITORIAL_KINDS,optional:true,on_invalid:'omit_action_not_relabel'},

@@ -32,6 +32,7 @@ function prepareGoals(items){
   const item={title:g.title.trim(),priority};
   if(safeText(g.description,1,1000))item.description=g.description.trim();
   if(safeText(g.related_opportunity,1,500))item.related_opportunity=g.related_opportunity.trim();
+  if(typeof g.publication_target==='string'&&g.publication_target.length<=180&&/^\/(?:en\/|zh\/)?(?:insights\/[a-z0-9]+(?:-[a-z0-9]+)*|services\/[a-z0-9-]+|packages)?\/?$/.test(g.publication_target))item.publication_target=g.publication_target;
   accepted.push(item);
  }
  return {accepted,rejected,defaulted};
