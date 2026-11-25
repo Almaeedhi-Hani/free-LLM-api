@@ -1599,3 +1599,14 @@ html[lang="ar"] .cinematic-eyebrow,html[lang="zh-Hans"] .cinematic-eyebrow {lett
   .cinematic-actions a {transition:none;}
   .cinematic-actions a:hover {transform:none;}
 }
+
+/* Compact short mobile screens so the primary and secondary CTAs remain
+   clear of the fixed consultation control even when English wraps. */
+@media(max-width:760px) and (max-height:700px) {
+  .cinematic-inner {padding-top:calc(88px + env(safe-area-inset-top,0px));gap:16px;}
+  .cinematic-eyebrow {margin-bottom:8px;}
+  .cinematic-topic {margin-bottom:8px;}
+  .cinematic-hero h1 {margin-bottom:14px;}
+  .cinematic-intro {font-size:14px;line-height:1.65;}
+  .cinematic-actions {margin-top:16px;}
+}
