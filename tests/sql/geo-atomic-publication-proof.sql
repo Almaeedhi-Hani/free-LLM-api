@@ -76,18 +76,18 @@ UPDATE public.geo_publication_settings SET daily_limit=2;
 UPDATE proof_fixture SET item=jsonb_set(item,'{id}','"ed-fixture-67890"')||'{"slug":"second-guide","target":"second-guide"}' WHERE kind='editorial';
 UPDATE public.content_store SET content=jsonb_set(content,'{editorialItems}',(content->'editorialItems')||jsonb_build_array((SELECT item FROM proof_fixture WHERE kind='editorial'))) WHERE id=1;
 SET ROLE service_role;
-DO $ DECLARE e record; s text; BEGIN
+DO $$ DECLARE e record; s text; BEGIN
  SELECT * INTO e FROM proof_fixture WHERE kind='editorial';
  s:=public.geo_commit_auto_publication(e.item->>'id',e.urls,e.proofs,e.item)->>'status';
  IF s IS DISTINCT FROM 'quota_reached' THEN RAISE EXCEPTION 'combined quota bypass: %',s; END IF;
-END $;
+END $$;
 RESET ROLE;
 -- The verifier is tested directly as the database owner with synthetic receipts.
-DO $ DECLARE f record; BEGIN
+DO $$ DECLARE f record; BEGIN
  SELECT * INTO f FROM proof_fixture WHERE kind='faq';
  IF public.geo_publication_receipt_valid(f.item||'{"risk_level":"high"}',f.item||'{"risk_level":"high"}',f.proofs,'faq',now()) THEN RAISE EXCEPTION 'high risk allowed'; END IF;
  IF public.geo_publication_receipt_valid(f.item||'{"q":"How do I obtain a licence?"}',f.item||'{"q":"How do I obtain a licence?"}',f.proofs,'faq',now()) THEN RAISE EXCEPTION 'regulated question mislabeled low risk'; END IF;
  IF public.geo_publication_receipt_valid(f.item,f.item,jsonb_set(f.proofs,'{1,quote}','"Unrelated quotation"'),'faq',now()) THEN RAISE EXCEPTION 'unrelated quotation allowed'; END IF;
  IF public.geo_publication_receipt_valid(f.item,f.item,jsonb_set(f.proofs,'{1,url}','"https://misa.gov.sa.evil.example/"'),'faq',now()) THEN RAISE EXCEPTION 'lookalike hostname allowed'; END IF;
-END $;
+END $$;
 SELECT 'GEO_ATOMIC_PUBLICATION_PROOF_TESTS_PASSED' AS result;
