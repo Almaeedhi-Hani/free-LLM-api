@@ -47,9 +47,9 @@ let readCount=0;
 const storage=await readStorage('W02',{
  url:'https://example.supabase.co',key:'test-secret',fetchImpl:async (url,options)=>{
   readCount++;
-  assert(url.includes('/analysis_runs?select=finished_at'));
+  assert(url.includes('/analysis_runs?select=status,finished_at'));
   assert.equal(options.headers.apikey,'test-secret');
-  return {ok:true,json:async()=>[{finished_at:'2026-11-20T13:37:00Z'}]};
+  return {ok:true,json:async()=>[{status:'success',finished_at:'2026-11-20T13:37:00Z'}]};
  }});
 assert.equal(readCount,1);
 assert.equal(storage.status,'observed');
