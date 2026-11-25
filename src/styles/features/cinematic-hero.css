@@ -25,11 +25,11 @@ body:has(> #main .cinematic-hero) .site-header {
 .cinematic-hero .cinematic-art {
   position:absolute; inset:47% 0 0; display:block; pointer-events:none;
   overflow:hidden;
-  mask-image:linear-gradient(to bottom,transparent 0%,#ffffff 24%);
+  mask-image:linear-gradient(to bottom,transparent 0%,#ffffff 16%);
 }
 .cinematic-hero .cinematic-art img {
   width:100%; height:100%; display:block; object-fit:cover;
-  object-position:center 36%; filter:grayscale(1);
+  object-position:center top; filter:grayscale(1) brightness(1.22);
 }
 .cinematic-inner {
   position:relative; z-index:1; width:100%; max-width:1280px;
@@ -130,8 +130,8 @@ html[lang="ar"] .cinematic-eyebrow,html[lang="zh-Hans"] .cinematic-eyebrow {lett
   .cinematic-intro {font-size:18px;max-width:340px;}
   .cinematic-actions {margin-top:20px;gap:16px;}
   .cinematic-actions a {font-size:14px;}
-  .cinematic-hero .cinematic-art {inset:48% 0 0;mask-image:linear-gradient(to bottom,transparent 0%,#ffffff 20%);}
-  .cinematic-hero .cinematic-art img {object-position:center 45%;}
+  .cinematic-hero .cinematic-art {inset:48% 0 0;mask-image:linear-gradient(to bottom,transparent 0%,#ffffff 12%);}
+  .cinematic-hero .cinematic-art img {object-position:center top;}
 }
 @media(max-width:360px) {
   .cinematic-inner {padding-inline:12px;}
