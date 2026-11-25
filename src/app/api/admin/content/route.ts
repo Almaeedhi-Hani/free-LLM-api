@@ -164,7 +164,7 @@ export async function POST(req: NextRequest) {
       if (!Array.isArray(patch.drafts))return NextResponse.json({status:'error',message:'Invalid drafts payload'},{status:400});
       const previous=await getContent();
       const byQuestion=new Map(previous.drafts.map(d=>[d.q,d]));
-      for(const incoming of patch.drafts as Array<{q?:string;a?:string;status?:string}>){
+      for(const incoming of patch.drafts as Array<{q?:string;a?:string;status?:string;lang?:'ar'|'en'|'zh'}>){
         if(incoming?.status!=='approved')continue;
         const before=byQuestion.get(incoming.q||'');
         if(before?.status==='approved')continue;
@@ -183,7 +183,7 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({status:'error',message:'Approved FAQ must exactly match the reviewed draft answer'},{status:422});
         }
         const check=assessGeoDraftCopy(incoming.q||'',answer);
-        if(!check.publishable||!faqLocale(incoming))return NextResponse.json({status:'error',message:'Draft cannot be approved: its language or content quality is invalid'},{status:422});
+        if(!check.publishable||!faqLocale({q:incoming.q||'',a:answer,lang:incoming.lang}))return NextResponse.json({status:'error',message:'Draft cannot be approved: its language or content quality is invalid'},{status:422});
       }
     }
     if(patch.editorialItems!==undefined){

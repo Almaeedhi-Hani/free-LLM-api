@@ -210,7 +210,9 @@ export async function runReviewEvidenceBatch(){
   checked.push(...group);
  }
  // Reuse the existing free two-model review budget rather than add model calls.
- const repairSlots=checked.map((x,i)=>({x,i})).filter(({x,i})=>x.item.review_preflight?.status==='blocked'&&!x.item.review_preflight.archived&&selected[i].item.review_preflight?.repair_version!==REPAIR_VERSION).slice(0,4);
+ const repairDue=checked.map((x,i)=>({x,i})).filter(({x,i})=>x.item.review_preflight?.status==='blocked'&&!x.item.review_preflight.archived&&selected[i].item.review_preflight?.repair_version!==REPAIR_VERSION);
+ const repairSlots=[...repairDue.filter(({x})=>x.kind==='faq').slice(0,2),...repairDue.filter(({x})=>x.kind==='editorial').slice(0,2)];
+ for(const entry of repairDue)if(repairSlots.length<4&&!repairSlots.includes(entry))repairSlots.push(entry);
  const repairInputs=await Promise.all(repairSlots.map(async ({x,i})=>{
   const original=selected[i];
   if(!await reviewContentPolicy(original).catch(()=>false))return null;
@@ -219,7 +221,8 @@ export async function runReviewEvidenceBatch(){
    pages=await Promise.all((await discover(original)).map(async url=>({url,sentences:await evidence.page(url)})));
   }
   const text=original.kind==='faq'?original.item.q+' '+original.item.a:[original.item.title,original.item.summary,original.item.body].join(' ');
-  const excerpts=repair.snippets(text,[...pages,catalogFor(original)]);
+  const own=original.kind==='editorial'&&original.item.kind==='packages'||['commercial','mixed'].includes(evidenceLane(original));
+  const excerpts=repair.snippets(text,[...pages,...(own?[catalogFor(original)]:[])]);
   if(!excerpts.length)return null;
   return {i,original,pages,entry:{kind:original.kind,locale:localeFor(original),original:text.slice(0,2500),excerpts}};
  }));
@@ -244,7 +247,7 @@ export async function runReviewEvidenceBatch(){
    if(next.kind==='faq'&&(c.faqs.some(f=>f.q===next.item.q)||c.drafts.some(f=>f!==input.original.item&&f.q===next.item.q)||checked.some((f,j)=>j!==input.i&&f.kind==='faq'&&f.item.q===next.item.q)))continue;
    if(evidenceLane(next)==='implementation')continue;
    const verified=await check(next,undefined,undefined,input.pages);
-   if(!readyForHuman(verified))continue;
+   if(!readyForHuman(verified)||autoPublicationBlockReason(verified,true)!==null)continue;
    verified.item.review_preflight!.repair_version=REPAIR_VERSION;
    verified.item.review_preflight!.repair_attempted_at=new Date().toISOString();
    checked[input.i]=verified;used.add(proposal.slot);repaired++;
@@ -274,7 +277,7 @@ export async function runReviewEvidenceBatch(){
  const saved=await getContent();
  const verified=checked.every(x=>{
   const records=x.kind==='faq'?saved.drafts.filter(i=>i.q===(x.item as ContentDraft).q):saved.editorialItems.filter(i=>i.id===(x.item as EditorialItem).id);
-  return records.some(i=>i.review_preflight?.digest===x.item.review_preflight?.digest&&i.review_preflight?.checked_at===x.item.review_preflight?.checked_at&&i.review_preflight?.source_discovery_version===evidence.SOURCE_DISCOVERY_VERSION&&i.review_preflight?.evidence_lane===x.item.review_preflight?.evidence_lane&&i.review_preflight?.evidence_lane_version===lanes.VERSION&&shadowIdentity(i.review_preflight?.semantic_shadow)===shadowIdentity(x.item.review_preflight?.semantic_shadow)&&i.status==='pending');
+  return records.some(i=>i.review_preflight?.digest===x.item.review_preflight?.digest&&i.review_preflight?.checked_at===x.item.review_preflight?.checked_at&&i.review_preflight?.source_discovery_version===evidence.SOURCE_DISCOVERY_VERSION&&i.review_preflight?.evidence_lane===x.item.review_preflight?.evidence_lane&&i.review_preflight?.evidence_lane_version===lanes.VERSION&&i.review_preflight?.repair_version===x.item.review_preflight?.repair_version&&shadowIdentity(i.review_preflight?.semantic_shadow)===shadowIdentity(x.item.review_preflight?.semantic_shadow)&&i.status==='pending');
  });
  if(!verified)throw Error('review_evidence_readback_unverified');
  return {status:'saved_verified',processed:checked.length,repaired,repair_status:repairStatus,repair_requests:repairRequests,ready:checked.filter(readyForHuman).length,technical_tasks:technical.length,semantic_shadow:shadowStatus,evidence_lanes:laneCounts};

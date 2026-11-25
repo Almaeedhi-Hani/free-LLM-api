@@ -292,7 +292,7 @@ test('semantic shadow contract binds trilingual claim coverage to source passage
  assert.equal(f('Is it sunny?','Check the forecast.'),'unknown');
  const fs=require('node:fs'),worker=fs.readFileSync('src/lib/telegram-ops-advanced-evidence.ts','utf8');
  assert(worker.includes("if(lane==='implementation')"));
- assert(worker.indexOf("if(lane==='implementation')")<worker.indexOf("const urls=allowed&&lane!=='commercial'?await discover(candidate)"));
+ assert(worker.indexOf("if(lane==='implementation')")<worker.indexOf("const urls=allowed&&lane!=='commercial'?"));
  assert(worker.includes('evidence.matchPublication')&&worker.includes('first_party_catalog'));
  assert(worker.includes('catalogFor(candidate)'));
  assert(worker.includes("if(x.item.risk_level!=='low'&&!allowHighRisk)return 'sensitive_publication_disabled'"));
