@@ -41,3 +41,8 @@ Legacy global style order is intentionally preserved. Some responsive/shared leg
 
 ## Fourth migration slice — remaining admin tab views
 Content, agent status, FAQ reviews, settings, competitors, keywords, opportunities, goals and evidence each have a dedicated client component. The route retains the existing controller state and authenticated request functions; legacy inline event handlers are preserved verbatim pending focused extraction into domain hooks. view-contracts.ts provides typed view boundaries. All extracted JSX blocks are verified against the pinned original in CI; existing role checks, readback and confirm flows are not changed.
+
+## Fifth migration slice — public services and packages
+- ServicePage composes header, preparation, references, related guidance and next-step components; server model owns the original data and JSON-LD.
+- PackageRequest is now a thin compatibility entrypoint. Feature catalog/copy under src/lib/packages, selection and four form steps in src/components/packages, and a dedicated request state/submission hook. Original ten prices, markup, client state, honeypot, form validation and sourcePath preserved. Existing public routes and CSS unchanged.
+- GEO ingestion source contract follows the new admin review component while retaining its existing approval and evidence assertions.

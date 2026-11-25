@@ -23,6 +23,11 @@ for(const name of ["DashboardSidebar","DashboardHeader","DashboardOverview","Das
 assert(admin.includes('from "@/lib/admin/dashboard/navigation"'),'Dashboard registry is separate');
 for(const name of ["DashboardContent","DashboardAgentStatus","DashboardReviews","DashboardSettings","DashboardCompetitors","DashboardKeywords","DashboardOpportunities","DashboardGoals","DashboardEvidence"])assert(admin.includes('<'+name+' '),name+' mounted');
 assert(admin.split('\n').length<550,'Dashboard route orchestrates feature views');
+const service=read('src/components/ServicePage.tsx');
+for(const name of ["ServiceHeader","ServicePreparation","ServiceReferences","ServiceRelated","ServiceNextStep"])assert(service.includes('<'+name+' '),name+' mounted');
+assert(service.split('\n').length<50,'Service composition boundary');
+const packages=read('src/components/packages/PackageRequest.tsx');
+assert(packages.includes('usePackageRequest(lang)')&&packages.includes('<PackageSelection ')&&packages.includes('<PackageWizard '),'Package selection and submission separated');
 const manifest=read('src/app/globals.css');
 assert(!/\{[^}]*:[^}]*\}/s.test(manifest),'Global entrypoint only imports styles');
 const css=readGlobalStyles();
@@ -40,6 +45,16 @@ if(baseline){
   const adminOriginal=cp.execFileSync('git',['show',baseline+':src/app/admin/dashboard/page.tsx'],{encoding:'utf8'}).split('\n');
   for(const [name,start,end] of [["DashboardSidebar",523,565],["DashboardHeader",568,585],["DashboardOverview",593,630],["DashboardContact",635,685]])assert(read('src/components/admin/dashboard/'+name+'.tsx').includes(adminOriginal.slice(start-1,end).join('\n')),name+' original markup');
   for(const [name,start,end] of [["DashboardContent",689,733],["DashboardAgentStatus",740,778],["DashboardReviews",782,835],["DashboardSettings",866,872],["DashboardCompetitors",878,952],["DashboardKeywords",956,1025],["DashboardOpportunities",1029,1079],["DashboardGoals",1083,1145],["DashboardEvidence",1155,1230]])assert(read('src/components/admin/dashboard/'+name+'.tsx').includes(adminOriginal.slice(start-1,end).join('\n')),name+' original markup');
-  console.log('PASS exact baseline public CSS, homepage, shared shell, residency and all extracted admin views');
+  const serviceOriginal=cp.execFileSync('git',['show',baseline+':src/components/ServicePage.tsx'],{encoding:'utf8'}).split('\n');
+  for(const [name,start,end] of [["ServiceHeader",76,93],["ServicePreparation",95,121],["ServiceReferences",122,147],["ServiceRelated",149,168],["ServiceNextStep",169,177]])assert(read('src/components/services/'+name+'.tsx').includes(serviceOriginal.slice(start-1,end).join('\n')),name+' original markup');
+  const packageOriginal=cp.execFileSync('git',['show',baseline+':src/app/packages/PackageRequest.tsx'],{encoding:'utf8'}).split('\n');
+  const marker=':<section className="package-form">';
+  const split=packageOriginal[76].lastIndexOf(marker);
+  assert(read('src/components/packages/PackageSelection.tsx').includes(packageOriginal[76].slice('{step===0?'.length,split)),'Package selection original markup');
+  for(const [name,line] of [["PackageContactStep",78],["PackageInvestmentStep",79],["PackageReviewStep",80],["PackageSuccessStep",81]]){
+    const match=packageOriginal[line-1].match(/^\{step===(\d)\?([\s\S]*):null\}(?:<\/section>\})?$/);
+    assert(match&&read('src/components/packages/'+name+'.tsx').includes(match[2]),name+' original form markup');
+  }
+  console.log('PASS exact baseline CSS, public and admin feature markup, package selection and request steps');
 }
 console.log('PASS ordered CSS manifest and composed homepage architecture');

@@ -5,6 +5,13 @@ on:
     paths:
       - 'src/components/CinematicHero.tsx'
       - 'src/components/home/**'
+      - 'src/components/services/**'
+      - 'src/components/packages/**'
+      - 'src/components/ServicePage.tsx'
+      - 'src/components/PackagesLanding.tsx'
+      - 'src/app/packages/PackageRequest.tsx'
+      - 'src/lib/services/**'
+      - 'src/lib/packages/**'
       - 'src/components/layout/**'
       - 'src/components/admin/dashboard/**'
       - 'src/lib/admin/dashboard/**'

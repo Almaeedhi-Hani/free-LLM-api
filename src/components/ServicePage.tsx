@@ -1,70 +1,12 @@
-import ArrowUpRight from "@/components/ArrowUpRight";
-import { getLocale, localizedPath } from "@/lib/site-language";
-import { copy, services } from "@/lib/service-catalog";
-import { getContent } from "@/lib/content-store";
-import { EditorialBlock } from "@/components/EditorialBlock";
-import { approvedEditorial } from "@/lib/editorial-workflow";
-import { guides, guideLabels, decisionPrompts } from "@/lib/service-guides";
-import { siteUrl } from "@/lib/site-seo";
+import ServiceHeader from "./services/ServiceHeader";
+import ServicePreparation from "./services/ServicePreparation";
+import ServiceReferences from "./services/ServiceReferences";
+import ServiceRelated from "./services/ServiceRelated";
+import ServiceNextStep from "./services/ServiceNextStep";
+import {loadServiceModel} from "@/lib/services/model";
+
 export async function ServicePage({ slug }: { slug: string }) {
-  const lang = getLocale();
-  const content = await getContent();
-  const t = copy[lang];
-  const serviceList = services;
-  const s = serviceList.find((x) => x.slug === slug)!;
-  const { contact } = content;
-  const guide = guides[slug];
-  const labels = guideLabels[lang];
-  const relatedGuides=approvedEditorial(content.editorialItems,lang).filter(e=>(e.kind==='guide'||e.kind==='comparison')&&e.slug&&e.related_service===slug).slice(0,3);
-  const schema = {
-    "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "WebPage",
-        "@id": siteUrl + localizedPath(lang, `/services/${slug}`),
-        name: s.title[lang],
-        description: s.summary[lang],
-        inLanguage: lang,
-        citation: [s.source, ...guide.references.map((r) => r.url)],
-      },
-      {
-        "@type": "Service",
-        "@id": siteUrl + localizedPath(lang, `/services/${slug}`) + "#service",
-        name: s.title[lang],
-        description: s.summary[lang],
-        serviceType: s.title[lang],
-        areaServed: { "@type": "Country", name: "Saudi Arabia" },
-        url: siteUrl + localizedPath(lang, `/services/${slug}`),
-      },
-      {
-        "@type": "FAQPage",
-        mainEntity: [
-          {
-            "@type": "Question",
-            name: guide.q[lang],
-            acceptedAnswer: { "@type": "Answer", text: guide.a[lang] },
-          },
-        ],
-      },
-      {
-        "@type": "BreadcrumbList",
-        itemListElement: [
-          {
-            "@type": "ListItem",
-            position: 1,
-            name: t.brand,
-            item: siteUrl + localizedPath(lang),
-          },
-          {
-            "@type": "ListItem",
-            position: 2,
-            name: s.title[lang],
-            item: siteUrl + localizedPath(lang, `/services/${slug}`),
-          },
-        ],
-      },
-    ],
-  };
+  const {lang,content,t,s,contact,guide,labels,relatedGuides,schema}=await loadServiceModel(slug);
   return (
     <article className="service-detail service-editorial section-wrap">
       <script
@@ -73,108 +15,13 @@ export async function ServicePage({ slug }: { slug: string }) {
           __html: JSON.stringify(schema).replace(/</g, "\\u003c"),
         }}
       />
-      <a className="breadcrumb" href={localizedPath(lang) + "#services"}>
-        {t.back} / {s.authority}
-      </a>
-      <p className="eyebrow">{s.authority} · SAUDI ARABIA</p>
-      <h1>{s.title[lang]} {lang === 'ar' ? 'في السعودية' : lang === 'en' ? 'in Saudi Arabia' : '｜沙特阿拉伯'}</h1>
-      <p className="detail-lead">{s.summary[lang]}</p>
-      <nav className="service-quick-nav" aria-label={lang === "ar" ? "أقسام الدليل" : lang === "zh" ? "指南目录" : "Guide sections"}>
-        <a href="#service-preparation">{labels.prepare}</a>
-        <a href="#service-insight">{labels.insight}</a>
-        <a href="#service-budget">{labels.budget}</a>
-        <a href="#service-question">{labels.question}</a>
-        <a href="#service-decisions">{lang === "ar" ? "أسئلة القرار" : lang === "zh" ? "决策清单" : "Decision checklist"}</a>
-        <a href="#service-references">{t.sources}</a>
-      </nav>
-      <div className="service-context-band">
-        <span>{lang === "ar" ? "قبل البدء" : lang === "zh" ? "开始之前" : "BEFORE YOU BEGIN"}</span>
-        <p>{lang === "ar" ? "تختلف المتطلبات والمدة والتكلفة بحسب النشاط وصفة المستثمر والجهة المختصة. هذا الدليل يساعد على التحضير ولا يشكل موافقة مسبقة." : lang === "zh" ? "要求、时间和费用因业务活动、投资者身份及主管部门而异。本指南用于准备，不代表预先批准。" : "Requirements, timelines and costs vary by activity, investor profile and regulator. This guide helps you prepare; it is not an approval guarantee."}</p>
-      </div>
+      <ServiceHeader lang={lang} t={t} s={s} labels={labels} />
       <div className="detail-columns">
-        <section>
-          <h2 id="service-preparation">{labels.prepare}</h2>
-          <p>{labels.checklist}</p>
-          {guide.prepare.map((step, i) => (
-            <div className="detail-step" key={i}>
-              <span>0{i + 1}</span>
-              <div>
-                <p>{step[lang]}</p>
-              </div>
-            </div>
-          ))}
-          <h2 id="service-insight">{labels.insight}</h2>
-          <p>{guide.insight[lang]}</p>
-          <div className="guide-budget">
-            <h2 id="service-budget">{labels.budget}</h2>
-            <p>{guide.budget[lang]}</p>
-          </div>
-          <section id="service-decisions" className="service-decision-checklist">
-            <p className="eyebrow">{lang === "ar" ? "راجع قبل التقديم" : lang === "zh" ? "申请前核对" : "CHECK BEFORE APPLYING"}</p>
-            <h2>{lang === "ar" ? "ثلاثة أسئلة تستحق الإجابة" : lang === "zh" ? "三个值得回答的问题" : "Three questions worth answering"}</h2>
-            <ol>{decisionPrompts[slug].map((prompt, i) => <li key={i}><span>{String(i + 1).padStart(2, "0")}</span><p>{prompt[lang]}</p></li>)}</ol>
-            <p className="service-decision-disclaimer">{lang === "ar" ? "قائمة إرشادية للتحضير وليست قائمة متطلبات رسمية أو استشارة قانونية." : lang === "zh" ? "本清单仅供准备参考，不属于官方要求或法律意见。" : "Planning prompts only; not an official requirements list or legal advice."}</p>
-          </section>
-          <h2 id="service-question">{labels.question}</h2>
-          <h3>{guide.q[lang]}</h3>
-          <p>{guide.a[lang]}</p>
-        </section>
-        <aside id="service-references" className="source-panel service-reference-panel">
-          <h2>{t.sources}</h2>
-          <p>{t.sourceNote}</p>
-          <a href={s.source} target="_blank" rel="noopener noreferrer">
-            {s.authority} <ArrowUpRight />
-          </a>
-          {guide.references.map((ref) => (
-            <a
-              key={ref.url}
-              href={ref.url}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {ref.label} <ArrowUpRight />
-            </a>
-          ))}
-          <small>{t.verified}</small>
-          <a
-            className="action-primary"
-            href={contact.whatsapp}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {t.contact} <ArrowUpRight />
-          </a>
-        </aside>
+      <ServicePreparation lang={lang} labels={labels} guide={guide} slug={slug} />
+      <ServiceReferences lang={lang} t={t} s={s} guide={guide} contact={contact} />
       </div>
-      <EditorialBlock items={content.editorialItems} lang={lang} kind="service" target={slug} inside/>
-      {relatedGuides.length>0&&
-        <section className="service-related">
-          <h2>{lang==='ar'?'محتوى معرفي ذو صلة':lang==='zh'?'更多实用指南':'Further investor resources'}</h2>
-          {relatedGuides.map(e=>
-            <p key={e.id}><a href={localizedPath(lang,'/insights/'+e.slug)}>{e.title} <ArrowUpRight /></a></p>)}
-        </section>}
-      <section className="service-related" aria-labelledby="service-related-heading">
-        <p className="eyebrow">{lang === "ar" ? "استكشف خدماتنا" : lang === "zh" ? "探索其他服务" : "EXPLORE SERVICES"}</p>
-        <h2 id="service-related-heading">{lang === "ar" ? "خدمات مرتبطة بخطوتك التالية" : lang === "zh" ? "与下一步相关的服务" : "Related services for your next step"}</h2>
-        <div className="service-related-grid">
-          {services.filter((item) => item.slug !== slug).slice(0, 3).map((item) => (
-            <a key={item.slug} href={localizedPath(lang, `/services/${item.slug}`)}>
-              <span>{item.authority}</span>
-              <strong>{item.title[lang]}</strong>
-              <small>{lang === "ar" ? "عرض الدليل" : lang === "zh" ? "查看指南" : "View guide"} <ArrowUpRight /></small>
-            </a>
-          ))}
-        </div>
-      </section>
-      <div className="service-next-step">
-        <div>
-          <span>{lang === "ar" ? "الخطوة التالية" : lang === "zh" ? "下一步" : "NEXT STEP"}</span>
-          <h2>{lang === "ar" ? "حوّل الأسئلة إلى خطة واضحة." : lang === "zh" ? "将问题转化为清晰的计划。" : "Turn questions into a clear plan."}</h2>
-          <p>{lang === "ar" ? "شاركنا نشاطك وجنسية المستثمر والمرحلة الحالية لتحديد نقاط التحقق قبل بدء الإجراءات." : lang === "zh" ? "提供业务活动、投资者国籍及当前阶段，明确申请前需核实的事项。" : "Share your activity, investor nationality and current stage to identify the checks needed before you proceed."}</p>
-        </div>
-        <a className="action-primary" href={contact.whatsapp} target="_blank" rel="noopener noreferrer">{t.contact} <ArrowUpRight /></a>
-        <a className="action-text" href={localizedPath(lang, "/packages")}>{lang==="ar"?"قارن باقات التأسيس والأسعار":lang==="zh"?"比较设立套餐与费用":"Compare formation packages and fees"} <ArrowUpRight /></a>
-      </div>
+      <ServiceRelated lang={lang} content={content} slug={slug} relatedGuides={relatedGuides} />
+      <ServiceNextStep lang={lang} t={t} contact={contact} />
     </article>
   );
 }

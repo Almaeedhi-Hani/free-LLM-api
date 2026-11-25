@@ -26,7 +26,7 @@ const {normalizeGeoBatch,persistGeoBatch}=require('../.geo-ingest-test-build/lib
  assert.equal(provenance.drafts[0].evidence_refs[0].kind,'competitor_candidate');
  assert.throws(()=>normalizeGeoBatch({drafts:[{q:'What are the Saudi business requirements?',a:'Review registration requirements and financial obligations with the appropriate Saudi government sources before beginning your application, and consult a qualified adviser regarding activities and paperwork.',risk_level:'high',evidence_refs:[{id:'x',label:'Bad source',kind:'web',source:'search',url:'javascript:alert(1)'}]}]}),/Invalid GEO evidence URL/);
  const code=fs.readFileSync('scripts/opencode-geo-analysis.js','utf8');
- const admin=fs.readFileSync('src/app/admin/dashboard/page.tsx','utf8');
+ const admin=require('./support/admin-dashboard-source.cjs').readAdminDashboardSource();
  assert(code.includes('const byId=new Map('),'evidence links must be matched with retrieved evidence, not fabricated');
  assert(admin.includes('مصادر الرصد المستخدمة'),'dashboard must display research provenance');
  const report=normalizeGeoBatch({run_report:{run_at:new Date().toISOString(),status:'partial',last_result:'drafts:partial'}});
@@ -59,7 +59,7 @@ const {normalizeGeoBatch,persistGeoBatch}=require('../.geo-ingest-test-build/lib
  assert.equal(assessGeoDraftCopy(zhQ,englishA).publishable,false,'English Chinese answer must be rejected');
  assert.throws(()=>validateGeoDrafts([{q:zhQ,a:englishA}]),/quality failed/);
  validateGeoDrafts([{q:englishQ,a:englishA},{q:arQ,a:arA},{q:zhQ,a:zhA}]);
- const dashboard=fs.readFileSync('src/app/admin/dashboard/page.tsx','utf8');
+ const dashboard=require('./support/admin-dashboard-source.cjs').readAdminDashboardSource();
  const adminRoute=fs.readFileSync('src/app/api/admin/content/route.ts','utf8');
  assert(dashboard.includes('disabled={saving || !finalAssessment.publishable'),'invalid pending drafts cannot be approved in dashboard');
  assert(dashboard.includes('draftReviewEdits[draftReviewKey(existing)]??proposed.answer'),'final publish answer is an explicit operator review value');
