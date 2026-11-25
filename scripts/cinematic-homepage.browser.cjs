@@ -99,12 +99,20 @@ const viewports=[{width:320,height:640},{width:390,height:844},{width:768,height
         assert.equal(popup.url(),consultation,name+' direct consultation route');
         await popup.close();
         if(viewport.width===390||viewport.width===1440){
-          await page.goto(base+lang.packages,{waitUntil:'domcontentloaded'});
+          await page.goto(base+lang.packages,{waitUntil:'networkidle'});
           const category=page.locator('.license-category-card').first();
           await category.waitFor();
           assert.equal(await category.locator('.license-category-action').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(216, 182, 111)');
-          await category.click();
           const selected=page.locator('.license-offer[aria-pressed="true"]');
+          // Development SSR can display the button before React attaches handlers.
+          // Wait for network idle above, then retry a lost pre-hydration click only
+          // while the original category button remains present.
+          for(let attempt=0;attempt<3;attempt++){
+            if(await selected.count())break;
+            await category.click();
+            try{await selected.waitFor({state:'visible',timeout:2000});break;}catch(error){if(attempt===2)throw error;}
+          }
+          await page.mouse.move(0,0);
           assert.equal(await selected.evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(216, 182, 111)');
           if(await page.locator('.license-offer[aria-pressed="false"]').count()){
             const next=page.locator('.license-offer[aria-pressed="false"]').first();
@@ -114,7 +122,7 @@ const viewports=[{width:320,height:640},{width:390,height:844},{width:768,height
           await page.locator('.license-detail>button').click();
           assert(await page.locator('.package-form button[type="submit"]').isVisible());
           await page.screenshot({path:path.join(output,name+'-package.png'),fullPage:true,animations:'disabled'});
-          await page.goto(base+(lang.id==='ar'?'':'/'+lang.id)+'/services/premium-residency',{waitUntil:'domcontentloaded'});
+          await page.goto(base+(lang.id==='ar'?'':'/'+lang.id)+'/services/premium-residency',{waitUntil:'networkidle'});
           const assessment=page.locator('#assessment');
           await assessment.waitFor();
           assert.equal(await assessment.locator('select').count(),3);
