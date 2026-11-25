@@ -13,7 +13,7 @@ export async function PremiumResidencyPage(){
   const url=siteUrl+localizedPath(lang,"/services/premium-residency");
   const l=labels;
   const sections=[["products",l.products],["comparison",l.comparison],["benefits",l.benefits],["documents",l.documents],["steps",l.steps],["support",l.support],["faq",l.faq],["sources",l.refs]] as const;
-  const fee=(p:typeof products[number])=>p.fee.toLocaleString("en-US")+" "+l.sar[lang]+(p.annual?" / "+l.annual[lang]:"");
+  const fee=(p:typeof products[number])=>p.fee===null?l.feeNotDisplayed[lang]:p.fee.toLocaleString("en-US")+" "+l.sar[lang]+(p.annual?" / "+l.annual[lang]:"");
   const refs=Array.from(new Set([...sources.map(s=>s.url),...products.map(p=>p.source)]));
   const schema={"@context":"https://schema.org","@graph":[
     {"@type":"WebPage","@id":url,name:l.title[lang],description:l.lead[lang],inLanguage:lang==="zh"?"zh-Hans":lang,citation:refs},
@@ -36,7 +36,7 @@ export async function PremiumResidencyPage(){
       <p className={styles.note}>{l.feeNote[lang]}</p>
       <div className={styles.products}>{products.map((p,i)=><article key={p.id} data-residency-product={p.id} className={styles.product}>
         <span className="eyebrow">{String(i+1).padStart(2,"0")}</span>
-        <h3>{p.name[lang]}</h3><span className={styles.duration}>{l.fee[lang]}</span><strong className={styles.fee}>{fee(p)}</strong>
+        <h3>{p.name[lang]}</h3>{p.fee!==null&&<><span className={styles.duration}>{l.fee[lang]}</span><strong className={styles.fee}>{fee(p)}</strong></>}
         <p className={styles.duration}>{p.period[lang]}</p><p>{p.eligibility[lang]}</p>
         <a href={p.source} target="_blank" rel="noopener noreferrer">{l.source[lang]} <ArrowUpRight/></a>
       </article>)}</div>
