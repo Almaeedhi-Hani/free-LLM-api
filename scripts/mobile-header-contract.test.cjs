@@ -3,7 +3,7 @@ const assert=require("node:assert/strict");
 const fs=require("node:fs");
 const layout=fs.readFileSync("src/app/layout.tsx","utf8");
 const menu=fs.readFileSync("src/components/MobileFloatingNav.tsx","utf8");
-const css=fs.readFileSync("src/app/globals.css","utf8");
+const css=require('./support/global-styles.cjs').readGlobalStyles();
 
 assert(layout.includes('<MobileFloatingNav locale={lang} brand={t.brand} hasGuides={hasGuides} />'),
   "Mobile header must be shared across all trilingual public routes");

@@ -4,6 +4,13 @@ on:
     branches: [main]
     paths:
       - 'src/components/CinematicHero.tsx'
+      - 'src/components/home/**'
+      - 'src/styles/**'
+      - 'src/app/globals.css'
+      - 'src/app/page.tsx'
+      - 'src/lib/home/**'
+      - 'scripts/project-architecture.test.cjs'
+      - 'scripts/support/global-styles.cjs'
       - 'scripts/cinematic-homepage.browser.cjs'
       - '.github/workflows/cinematic-homepage-review.yml'
 permissions:
@@ -33,10 +40,16 @@ jobs:
           printf '%s\n' 'afb2873e2d42dcbbcd8a063e77491cc597ea6ab959ca9eb99497ed110aa7a8eb  public/media/riyadh-monochrome.webp' '42be2b340ec5932a28b21bf8ed95d13d6edec60bcb45edef5acf1c02b8f8c890  public/media/riyadh-monochrome-mobile.webp' | sha256sum -c -
       - name: Run static and navigation checks
         run: |
+          node scripts/project-architecture.test.cjs
           node scripts/cinematic-homepage.test.cjs
           node scripts/mobile-header-contract.test.cjs
           npm run test:packages
           npm run test:whatsapp
+      - name: Verify exact pre-refactor CSS and markup parity
+        if: github.head_ref == 'refactor/project-architecture-foundation'
+        run: |
+          git fetch --no-tags --depth=1 origin 169a8f7a1cf8ad0d794df29af8e9b8694c92d490
+          node scripts/project-architecture.test.cjs 169a8f7a1cf8ad0d794df29af8e9b8694c92d490
       - name: Start isolated development fixture
         run: |
           (npm run dev -- -p 3000 > /tmp/cinematic-dev.log 2>&1 &)

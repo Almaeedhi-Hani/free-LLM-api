@@ -32,7 +32,7 @@ assert(content.includes('...patch.contact?.whatsappNumbers'),'partial contact ed
 const app=fs.readFileSync('src/app/layout.tsx','utf8');
 assert(app.includes('<WhatsAppFloat locale={lang} contact={contact}/>'),'floating WhatsApp is mounted');
 assert(app.includes('whatsAppUrlForLanguage(contact,lang)'),'footer uses locale-specific URL');
-const home=fs.readFileSync('src/app/page.tsx','utf8');
+const home=fs.readFileSync('src/components/home/ContactSection.tsx','utf8');
 assert(home.includes('whatsAppUrlForLanguage(content.contact,lang)'),'home CTA uses locale-specific URL');
 const float=fs.readFileSync('src/components/WhatsAppFloat.tsx','utf8');
 for(const value of ['usePathname','pathname.startsWith(\'/admin/\')','aria-expanded={open}',

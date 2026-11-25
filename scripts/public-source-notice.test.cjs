@@ -2,7 +2,7 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const insight=fs.readFileSync('src/app/insights/[slug]/page.tsx','utf8');
-const home=fs.readFileSync('src/app/page.tsx','utf8');
+const home=fs.readFileSync('src/components/home/SourcesSection.tsx','utf8');
 for(const [name,source] of [['insight',insight],['home FAQ',home]]){
  for(const note of [
   'قد لا تكون مصادره متحققة استقلاليًا',
@@ -27,3 +27,5 @@ assert(admin.includes('autoStatus'),'admin publication data stays visible to adm
 console.log('PASS public source notes removed for articles and FAQs, neutral references and internal provenance retained');
 
 require('./cinematic-homepage.test.cjs');
+
+require('./project-architecture.test.cjs');
