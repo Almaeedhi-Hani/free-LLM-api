@@ -4,10 +4,11 @@ const fs=require('node:fs');
 const gateway=require('./geo-direct-model-providers.cjs');
 (async()=>{
  const {PROVIDERS,available,generate,parseAnswer}=gateway;
- assert.deepEqual(PROVIDERS.map(p=>p.id),['groq','gemini','nvidia','openrouter']);
+ assert.deepEqual(PROVIDERS.map(p=>p.id),['groq','gemini','openrouter']);
  const env=Object.fromEntries(PROVIDERS.map(p=>[p.key,'fictional-key-for-tests-'+p.id]));
  const ids=available(env);
- assert.equal(ids.length,4,'all four connected provider names should be eligible');
+ assert.equal(ids.length,3,'only the remaining three configured providers are eligible');
+ assert.deepEqual(available({NVIDIA_API_KEY:'test'}),[],'developer-only NVIDIA key cannot enable production inference');
  assert.deepEqual(available({GEMINI_API_KEY:'test'}),['gemini:gemini-3.1-flash-lite-preview']);
  assert.deepEqual(available({}),[],'missing secrets do not fall back to paid endpoints');
  assert(PROVIDERS.every(p=>p.endpoint.startsWith('https://')));
@@ -62,6 +63,9 @@ const gateway=require('./geo-direct-model-providers.cjs');
   }
  }
  const noNetwork=()=>{throw Error('unexpected request')};
+ for(const model of ['nvidia/nvidia-nemotron-nano-9b-v2','nvidia/nemotron-3.5-lightning-30b-a3b']){
+  assert.equal((await generate('public','nvidia:'+model,{env:{NVIDIA_API_KEY:'test'},fetchFn:noNetwork})).error,'model_not_allowlisted');
+ }
  assert.equal((await generate('public','groq:openai/gpt-oss-20b',
   {env:{},fetchFn:noNetwork})).error,'provider_not_configured');
  assert.equal((await generate('public','other:paid-model',
@@ -74,10 +78,11 @@ const gateway=require('./geo-direct-model-providers.cjs');
  const wf=fs.readFileSync('.github/workflows/geo-analysis.yml','utf8');
  const runner=fs.readFileSync('scripts/opencode-geo-analysis.js','utf8');
  for(const p of PROVIDERS)assert(wf.includes('secrets.'+p.key),'GitHub secret not wired: '+p.key);
+ assert(!wf.includes('secrets.NVIDIA_API_KEY'),'developer-only NVIDIA credentials not injected into production workflow');
  assert(wf.includes('GEO_LLM_MODE: direct'),'scheduled analysis must use direct providers');
  assert(!wf.includes('curl -fsSL https://opencode.ai'),'no unverified remote CLI install in schedule');
  assert(runner.includes("await direct.generate(prompt,model,{timeoutMs})"),'runner invokes direct HTTP providers');
  assert(runner.includes("if(direct&&!candidateModels.length)"),'no models is partial, never a fake success');
  assert(wf.includes("scheduled-event-slot.cjs --kind=geo"),'Saudi cadence must use nominal event time');
- console.log('PASS four direct-model provider contracts, immutable free-plan models, error handling, no secret leaks, cadence preserved');
+ console.log('PASS three direct-model provider contracts, immutable free-plan models, error handling, no secret leaks, cadence preserved');
 })().catch(e=>{console.error(e);process.exitCode=1});

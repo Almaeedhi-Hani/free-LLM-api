@@ -6,15 +6,14 @@ const quota=require('../src/lib/provider-usage-observer.cjs');
 // Prefer high *verified* no-charge account quotas, not discontinued models:
 // Groq active GPT-OSS-20B Free: up to 1K requests/day, 200K tokens/day.
 // Gemini Flash-Lite: published free-tier pricing, account/project limits vary.
-// NVIDIA NIM: developer preview access, quota and model availability vary.
+// NVIDIA Build free endpoints are reserved for development/evaluation;
+// never invoke them in the production GEO scheduler. Synthetic smoke remains separate.
 // OpenRouter free router: normally 50 requests/day without credit purchases.
 const PROVIDERS=Object.freeze([
  {id:'groq',key:'GROQ_API_KEY',model:'openai/gpt-oss-20b',
   endpoint:'https://api.groq.com/openai/v1/chat/completions'},
  {id:'gemini',key:'GEMINI_API_KEY',model:'gemini-3.1-flash-lite-preview',
   endpoint:'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent'},
- {id:'nvidia',key:'NVIDIA_API_KEY',model:'nvidia/nvidia-nemotron-nano-9b-v2',
-  endpoint:'https://integrate.api.nvidia.com/v1/chat/completions'},
  {id:'openrouter',key:'OPENROUTER_API_KEY',model:'openrouter/free',
   endpoint:'https://openrouter.ai/api/v1/chat/completions'}
 ]);
