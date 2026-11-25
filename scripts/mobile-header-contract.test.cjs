@@ -9,7 +9,9 @@ const css=require('./support/global-styles.cjs').readGlobalStyles();
 
 assert(header.includes('<MobileFloatingNav locale={lang} brand={t.brand} hasGuides={hasGuides} />'),
   "Mobile header must be shared across all trilingual public routes");
-assert(header.includes('<nav className="desktop-nav"'),"Desktop navigation remains unchanged");
+const desktop=fs.readFileSync("src/components/layout/DesktopNavigation.tsx","utf8");
+assert(header.includes('<DesktopNavigation ')&&desktop.includes('<nav className="desktop-nav"'),"Desktop navigation retained");
+assert(desktop.includes('aria-current={active===item.key?')&&desktop.includes('hashchange'),"Desktop selection follows route and anchor");
 assert(header.includes('<LanguageSwitcher locale={lang} />'),"Desktop language switcher is preserved");
 assert(layout.includes('body')&&css.includes('body:has(.admin-route) .site-header'),
   "Admin routes retain the existing header exclusion");

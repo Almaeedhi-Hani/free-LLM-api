@@ -19,9 +19,11 @@ assert(hero.includes("/media/riyadh-monochrome.webp") && hero.includes("/media/r
 assert(!hero.includes("tower-one"), "no geometric tower illustration");
 assert(css.includes("filter:grayscale(1)") && css.includes("text-align:center"), "monochrome centered editorial design");
 for(const term of ['تأسيس الشركات وخدمات المستثمرين في السعودية','Company formation & investor services in Saudi Arabia','沙特公司设立与投资者服务','اطلب استشارة','Request a Consultation','预约咨询','استعرض الباقات','Explore Packages','查看服务套餐']) assert(hero.includes(term),term);
-for(const href of ['href="#contact"','href="#services"','localizedPath(lang, "/packages")']) assert(hero.includes(href),href);
+for(const href of ['href={consultationHref || "#contact"}','href="#services"','localizedPath(lang, "/packages")']) assert(hero.includes(href),href);
 assert(contact.includes('id="contact"') && services.includes('id="services"'));
 assert(contact.includes('whatsAppUrlForLanguage(content.contact,lang)'));
+assert(home.includes('consultationHref={whatsAppUrlForLanguage(content.contact,lang)}'));
+assert(hero.includes('rel={consultationHref ? "noopener noreferrer" : undefined}'));
 assert(home.includes('pageMetadata()') && home.includes('JSON.stringify(schema)'));
 assert(sources.includes('id="sources"') && journey.includes('{t.note}'));
 assert(!/https?:\/\/|<video\b|<iframe\b|["']use client["']/.test(hero),'static server hero, no remote media');

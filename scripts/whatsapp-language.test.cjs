@@ -36,6 +36,10 @@ assert(app.includes('<SiteFooter lang={lang} contact={contact} whatsappHref={wha
 assert(fs.readFileSync('src/components/layout/SiteFooter.tsx','utf8').includes('href={whatsappHref}'),'footer uses localized URL');
 const home=fs.readFileSync('src/components/home/ContactSection.tsx','utf8');
 assert(home.includes('whatsAppUrlForLanguage(content.contact,lang)'),'home CTA uses locale-specific URL');
+const landing=fs.readFileSync('src/app/page.tsx','utf8');
+const hero=fs.readFileSync('src/components/CinematicHero.tsx','utf8');
+assert(landing.includes('consultationHref={whatsAppUrlForLanguage(content.contact,lang)}'),'hero resolves locale advisor using existing configuration');
+assert(hero.includes('href={consultationHref || "#contact"}'),'direct WhatsApp link with safe contact fallback');
 const float=fs.readFileSync('src/components/WhatsAppFloat.tsx','utf8');
 for(const value of ['usePathname','pathname.startsWith(\'/admin/\')','aria-expanded={open}',
  'options.map','target="_blank"','rel="noopener noreferrer"','Speak to our advisors','联系投资顾问',

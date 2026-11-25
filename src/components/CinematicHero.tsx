@@ -9,7 +9,7 @@ const heroCopy = {
 } as const;
 
 /** Monochrome editorial hero; real Riyadh architecture, locally hosted responsive poster. */
-export default function CinematicHero({lang}: {lang: Locale}) {
+export default function CinematicHero({lang, consultationHref}: {lang: Locale; consultationHref: string | null}) {
   const t = copy[lang];
   const h = heroCopy[lang];
   return (
@@ -29,7 +29,7 @@ export default function CinematicHero({lang}: {lang: Locale}) {
           </h1>
           <p className="cinematic-intro">{t.intro}</p>
           <div className="cinematic-actions">
-            <a className="cinematic-primary" href="#contact">{h.primary}<ArrowUpRight /></a>
+            <a className="cinematic-primary" href={consultationHref || "#contact"} target={consultationHref ? "_blank" : undefined} rel={consultationHref ? "noopener noreferrer" : undefined}>{h.primary}<ArrowUpRight /></a>
             <a className="cinematic-secondary" href={localizedPath(lang, "/packages")}>{h.secondary}<ArrowUpRight /></a>
           </div>
         </div>
