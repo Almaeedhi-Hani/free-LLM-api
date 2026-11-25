@@ -37,7 +37,7 @@ export async function getAutoPublicationStatus():Promise<{
 export async function saveAutoPublicationSettings(enabled:boolean,dailyLimit:number):Promise<{
  enabled:boolean;daily_limit:number
 }>{
- if(!Number.isInteger(dailyLimit)||dailyLimit<1||dailyLimit>3)throw Error('Invalid daily limit (1-3)');
+ if(!Number.isInteger(dailyLimit)||dailyLimit<1||dailyLimit>10)throw Error('Invalid daily limit (1-10)');
  const cfg=getSupabaseCredentials();
  if(!cfg)throw Error('storage_not_configured');
  const res=await fetch(cfg.url.replace(/\/$/,'')+'/rest/v1/geo_publication_settings?id=eq.1',{
