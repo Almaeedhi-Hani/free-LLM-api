@@ -140,7 +140,11 @@ const viewports=[{width:320,height:640},{width:390,height:844},{width:768,height
           }
           const category=page.locator('.license-category-card').first();
           await category.waitFor();
-          assert.equal(await category.locator('.discovery-arrow').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(32, 42, 54)');
+          await page.mouse.move(0,0);
+          assert.equal(await category.locator('.discovery-arrow').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(32, 42, 54)',name+' default charcoal arrow');
+          await category.hover();
+          assert.equal(await category.locator('.discovery-arrow').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(184, 134, 11)',name+' interactive gold arrow');
+          await page.mouse.move(0,0);
           assert.equal(await category.locator('.discovery-number').evaluate(e=>getComputedStyle(e).color),'rgb(184, 134, 11)');
           assert.equal(await page.locator('.license-category-card.discovery-card').count(),3);
           assert((await category.evaluate(e=>getComputedStyle(e).backgroundImage)).includes('radial-gradient'));
