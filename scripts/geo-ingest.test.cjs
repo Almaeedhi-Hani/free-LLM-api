@@ -61,7 +61,8 @@ const {normalizeGeoBatch,persistGeoBatch}=require('../.geo-ingest-test-build/lib
  validateGeoDrafts([{q:englishQ,a:englishA},{q:arQ,a:arA},{q:zhQ,a:zhA}]);
  const dashboard=require('./support/admin-dashboard-source.cjs').readAdminDashboardSource();
  const adminRoute=fs.readFileSync('src/app/api/admin/content/route.ts','utf8');
- assert(dashboard.includes('disabled={saving || !finalAssessment.publishable'),'invalid pending drafts cannot be approved in dashboard');
+ const publishedFaqUi=fs.readFileSync('src/components/admin/dashboard/DashboardReviews.tsx','utf8');
+ assert(!publishedFaqUi.includes('approveDraft')&&!publishedFaqUi.includes('اعتماد ونشر'),'Pending drafts cannot be manually published from the published-only screen');
  assert(dashboard.includes('draftReviewEdits[draftReviewKey(existing)]??proposed.answer'),'final publish answer is an explicit operator review value');
  assert(dashboard.includes('a:reviewedAnswer,status:\'approved\''),'approved draft saves exactly the reviewed answer');
  assert(dashboard.includes('{q:draft.q,a:reviewedAnswer}'),'published FAQ matches the reviewed answer');
