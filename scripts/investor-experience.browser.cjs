@@ -33,7 +33,7 @@ const langs=[{id:'ar',locale:'ar-SA',reject:'رفض الاختيارية',accept
     assert(await hero.locator('a.action-primary').count(),route+' consultation action');
     const dims=await page.evaluate(()=>({viewport:innerWidth,scroll:document.documentElement.scrollWidth,nav:performance.getEntriesByType('navigation').map(n=>({ttfb:n.responseStart-n.requestStart,domContentLoaded:n.domContentLoadedEventEnd,transferSize:n.transferSize}))[0]}));
     assert(dims.scroll<=width+1,route+' horizontal overflow '+JSON.stringify(dims));
-    assert.equal(await page.locator('.investor-footer-intro').count(),1);
+    assert.equal(await page.locator('.site-footer .investor-footer-intro').count(),1,route+' existing service footer card preserved');
     if(slug!=='premium-residency'){
      assert(await page.locator('.investor-preparation-list .detail-step').count(),route+' preparation');
      const link=page.locator('.investor-next-actions .discovery-compact');

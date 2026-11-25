@@ -32,7 +32,7 @@ export default async function HomePage() {
       <FormationPackagesBanner lang={lang} />
       <HomeEditorial lang={lang} content={content} />
       <ServicesSection lang={lang} t={t} serviceList={serviceList} />
-      <JourneySection t={t} />
+      <JourneySection t={t} lang={lang} content={content} />
       <SourcesSection lang={lang} t={t} content={content} />
       <ContactSection lang={lang} t={t} content={content} />
     </>

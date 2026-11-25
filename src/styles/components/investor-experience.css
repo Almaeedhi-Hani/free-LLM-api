@@ -62,3 +62,6 @@ body:not(:has(.admin-route)) .footer-top p {font-size:13px;line-height:1.8}
 }
 
 body:not(:has(.admin-route)) .investor-cookie-settings {font:inherit;text-decoration:underline;text-underline-offset:3px;cursor:pointer;min-height:32px;background:transparent;border:0;color:var(--reference-muted)}
+
+/* Same CTA card, relocated after the three journey stages on the home page. */
+body:not(:has(.admin-route)) #journey .investor-footer-intro {margin:45px auto 0;max-width:none}
