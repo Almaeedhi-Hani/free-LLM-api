@@ -166,9 +166,9 @@ export async function handleAdvanced(a:Action,cfg:Cfg,updateId:number):Promise<s
     const draft=x.item as ContentDraft;
     if(c.drafts.filter(d=>d.q===draft.q).length!==1||(approve&&c.faqs.some(f=>f.q===draft.q))){await closeIntent(cfg,code,'blocked','duplicate_question');return 'يوجد سؤال مكرر أو منشور مسبقًا؛ لم ينفذ القرار.';}
     patch.drafts=c.drafts.map(d=>d===draft?{...d,status:approve?'approved':'rejected'}:d);
-    if(approve)patch.faqs=[...c.faqs,{q:draft.q,a:draft.a.trim(),approval_method:'human',source_verification:'independently_checked'}];
+    if(approve)patch.faqs=[...c.faqs,{q:draft.q,a:draft.a.trim(),approval_method:'human',source_verification:'not_independently_checked'}];
    }else{
-    patch.editorialItems=c.editorialItems.map(d=>d===x.item?{...d,status:approve?'approved':'rejected',reviewedAt:new Date().toISOString(),...(approve?{approval_method:'human',verified_sources:Array.from(new Set((d.claim_evidence||[]).map(p=>p.url))),source_verification:'independently_checked'}:{})}:d);
+    patch.editorialItems=c.editorialItems.map(d=>d===x.item?{...d,status:approve?'approved':'rejected',reviewedAt:new Date().toISOString(),...(approve?{approval_method:'human',verified_sources:Array.from(new Set((d.claim_evidence||[]).map(p=>p.url))),source_verification:'not_independently_checked'}:{})}:d);
    }
    const secret=process.env.ADMIN_SECRET||process.env.REVALIDATION_SECRET;
    if(!secret){await closeIntent(cfg,code,'blocked','admin_config');return 'إعدادات الإدارة غير متاحة.';}

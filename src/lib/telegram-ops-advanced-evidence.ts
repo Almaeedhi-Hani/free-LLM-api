@@ -25,12 +25,16 @@ function fields(x:Candidate):string[]{
  const i=x.item;
  return [i.title,i.summary,i.body,...(i.sections||[]).flatMap(s=>[s.h2,s.body,...(s.subsections||[]).flatMap(h=>[h.h3,h.body])]),...(i.internal_links||[]).map(l=>l.anchor)];
 }
+// Bind the question, editorial identity, risk and visitor copy, not only the answer.
+function identityFields(x:Candidate):string[]{
+ return x.kind==='faq'?[x.item.q,x.item.risk_level||'',...fields(x)]:[x.item.id,x.item.kind,x.item.lang,x.item.target,x.item.risk_level,...fields(x)];
+}
 function quality(x:Candidate):boolean{
  if(x.kind==='faq')return !splitGeoDraftReviewText(x.item.a).note&&assessGeoDraftCopy(x.item.q,x.item.a).publishable&&!editorialPublicationIssues({kind:'guide',title:x.item.q,body:x.item.a}).length;
  try{return !editorialPublicationIssues(x.item).length&&!!editorialPath(x.item)&&!!validateEditorialItem(x.item)}catch{return false}
 }
 export function readyForHuman(x:Candidate){
- return quality(x)&&evidence.eligible(x.item.review_preflight,x.kind,fields(x))&&Boolean(x.item.claim_evidence?.length);
+ return quality(x)&&evidence.eligible(x.item.review_preflight,x.kind,identityFields(x))&&Boolean(x.item.claim_evidence?.length);
 }
 async function policy(x:Candidate){
  const [domains,feedback]=await Promise.all([getCompetitorDomains(),getGeoFeedbackIndex()]);
@@ -61,7 +65,7 @@ async function check(x:Candidate):Promise<Candidate>{
  const result=evidence.match(fields(candidate),pages);
  const ready=allowed&&result.complete&&quality(candidate);
  const original=ready?candidate:x;
- const meta:ReviewPreflight={status:ready?'ready':'blocked',digest:evidence.digest(x.kind,fields(original)),checked_at:new Date().toISOString(),matched:result.matched,total:result.total,reason:!allowed?'policy_unavailable_or_excluded':!urls.length?'no_official_candidates':!pages.some(p=>p.sentences.length)?'official_sources_unavailable':!result.complete?'exact_claim_coverage_incomplete':!quality(candidate)?'copy_quality_failed':'ready'};
+ const meta:ReviewPreflight={status:ready?'ready':'blocked',digest:evidence.digest(x.kind,identityFields(original)),checked_at:new Date().toISOString(),matched:result.matched,total:result.total,reason:!allowed?'policy_unavailable_or_excluded':!urls.length?'no_official_candidates':!pages.some(p=>p.sentences.length)?'official_sources_unavailable':!result.complete?'exact_claim_coverage_incomplete':!quality(candidate)?'copy_quality_failed':'ready'};
  if(!ready)return {...original,item:{...original.item,review_preflight:meta}} as Candidate;
  const refs:EditorialRef[]=Array.from(new Set(result.proofs.map(p=>p.url))).map(url=>({id:'official_'+createHash('sha256').update(url).digest('hex').slice(0,24),label:new URL(url).hostname,source:'official_live_html',kind:'official_candidate',url,observed_at:meta.checked_at}));
  const existing=(original.item.evidence_refs||[]).filter(r=>!refs.some(n=>n.id===r.id||n.url===r.url));
@@ -85,7 +89,7 @@ export async function runReviewEvidenceBatch(){
  if(!getSupabaseCredentials())return {status:'storage_unavailable',processed:0,ready:0};
  const c=await getContent();
  const items:Candidate[]=[...c.drafts.filter(i=>i.status==='pending').map(item=>({kind:'faq' as const,item})),...c.editorialItems.filter(i=>i.status==='pending').map(item=>({kind:'editorial' as const,item}))];
- const selected=items.filter(x=>evidence.due(x.item.review_preflight,x.kind,fields(x))).sort((a,b)=>(a.item.review_preflight?.checked_at||'').localeCompare(b.item.review_preflight?.checked_at||'')).slice(0,4);
+ const selected=items.filter(x=>evidence.due(x.item.review_preflight,x.kind,identityFields(x))).sort((a,b)=>(a.item.review_preflight?.checked_at||'').localeCompare(b.item.review_preflight?.checked_at||'')).slice(0,4);
  if(!selected.length)return {status:'idle',processed:0,ready:0};
  const checked=await Promise.all(selected.map(check));
  const faq=new Map<ContentDraft,ContentDraft>(),editorial=new Map<EditorialItem,EditorialItem>();
@@ -97,7 +101,10 @@ export async function runReviewEvidenceBatch(){
  const patch:Partial<SiteContent>={...(faq.size?{drafts:c.drafts.map(i=>faq.get(i)||i)}:{}),...(editorial.size?{editorialItems:c.editorialItems.map(i=>editorial.get(i)||i)}:{})};
  await setContent(patch,{replaceArrays:true,expectedUpdatedAt:c.updatedAt});
  const saved=await getContent();
- const verified=checked.every(x=>(x.kind==='faq'?saved.drafts.filter(i=>i.q===x.item.q):saved.editorialItems.filter(i=>i.id===x.item.id)).some(i=>i.review_preflight?.digest===x.item.review_preflight?.digest&&i.review_preflight?.checked_at===x.item.review_preflight?.checked_at&&i.status==='pending'));
+ const verified=checked.every(x=>{
+  const records=x.kind==='faq'?saved.drafts.filter(i=>i.q===(x.item as ContentDraft).q):saved.editorialItems.filter(i=>i.id===(x.item as EditorialItem).id);
+  return records.some(i=>i.review_preflight?.digest===x.item.review_preflight?.digest&&i.review_preflight?.checked_at===x.item.review_preflight?.checked_at&&i.status==='pending');
+ });
  if(!verified)throw Error('review_evidence_readback_unverified');
  return {status:'saved_verified',processed:checked.length,ready:checked.filter(readyForHuman).length};
 }

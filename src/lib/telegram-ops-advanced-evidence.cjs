@@ -4,7 +4,7 @@ const manifest=require('../data/content-tree.json');
 const configured=Array.from(new Set(manifest.nodes.flatMap(n=>n.official_sources||[])));
 const hosts=new Set(configured.map(u=>new URL(u).hostname));
 const norm=s=>String(s||'').normalize('NFC').replace(/\s+/gu,' ').trim();
-const parts=fields=>Array.from(new Set(fields.flatMap(s=>String(s||'').split(/[.!?。！？؟]+\s*|\n+/)).map(norm).filter(Boolean)));
+const parts=fields=>Array.from(new Set(fields.flatMap(s=>String(s||'').split(/[.!?]+(?:\s+|$)|[。！？؟]+\s*|\n+/)).map(norm).filter(Boolean)));
 const digest=(kind,fields)=>createHash('sha256').update(JSON.stringify([kind,fields])).digest('hex');
 function safeUrl(raw){
  try{const u=new URL(raw);return u.protocol==='https:'&&!u.username&&!u.password&&!u.port&&!u.hash&&hosts.has(u.hostname)?u.href:null}catch{return null}
