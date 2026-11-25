@@ -1,6 +1,7 @@
 'use strict';
 const assert=require('node:assert/strict');
-const store=require('../.market-test-build/market-intelligence.js');
+// Mock the owning module, not the read-only ES module re-export facade.
+const store=require('../.market-test-build/market/competitors.js');
 const rows=[];let writes=0;
 store.upsertCompetitor=async ({domain})=>({id:domain});
 store.findVerifiedSerpObservation=async input=>rows.find(o=>
