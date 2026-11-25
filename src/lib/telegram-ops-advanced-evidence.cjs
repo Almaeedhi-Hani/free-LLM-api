@@ -43,6 +43,7 @@ function eligible(meta,kind,fields,now=Date.now()){
 }
 function due(meta,kind,fields,now=Date.now()){
  if(!meta||meta.digest!==digest(kind,fields))return true;
+ if(meta.archived===true&&meta.status==='blocked')return false;
  const age=now-Date.parse(meta.checked_at);
  return !Number.isFinite(age)||age<0||age>=(meta.status==='ready'?86400000:7*86400000);
 }
