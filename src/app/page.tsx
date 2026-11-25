@@ -1,4 +1,5 @@
 import ArrowUpRight from "@/components/ArrowUpRight";
+import CinematicHero from "@/components/CinematicHero";
 import { pageMetadata, siteUrl } from "@/lib/site-seo";
 import { getLocale, localizedPath } from "@/lib/site-language";
 import {whatsAppUrlForLanguage} from "@/lib/whatsapp-contacts";
@@ -62,55 +63,7 @@ export default async function HomePage() {
           __html: JSON.stringify(schema).replace(/</g, "\\u003c"),
         }}
       />
-      <section className="hero">
-        <div className="hero-copy">
-          <p className="eyebrow">
-            <span />
-            {t.eyebrow}
-          </p>
-          <h1>
-            <small className="hero-topic">
-              {lang === "ar"
-                ? "تأسيس الشركات وخدمات المستثمرين في السعودية"
-                : lang === "zh"
-                  ? "沙特公司设立与投资者服务"
-                  : "Company formation & investor services in Saudi Arabia"}
-            </small>
-            {t.hero.split("\n").map((line, i) => (
-              <span key={line} className={i ? "hero-accent" : ""}>
-                {line}
-              </span>
-            ))}
-          </h1>
-          <p className="hero-intro">{t.intro}</p>
-          <div className="hero-actions">
-            <a className="action-primary" href={localizedPath(lang, "/packages")}>
-              {lang==="ar"?"قارن الباقات والأسعار":lang==="zh"?"比较方案与价格":"Compare packages and fees"}
-              <span><ArrowUpRight /></span>
-            </a>
-            <a className="action-text" href="#services">{t.explore} <span>←</span></a>
-            <a className="action-text" href="#contact">{t.contact} <span>←</span></a>
-          </div>
-          <div className="hero-bottom">
-            <span>01 — 06</span>
-            <span>{t.tagline}</span>
-          </div>
-        </div>
-        <div className="hero-art" aria-hidden="true">
-          <div className="art-orbit" />
-          <div className="art-sun" />
-          <div className="tower tower-one" />
-          <div className="tower tower-two" />
-          <div className="tower tower-three" />
-          <div className="tower tower-four" />
-          <div className="art-ground" />
-          <div className="art-caption">
-            <span>SAUDI ARABIA</span>
-            <strong>A NEW PERSPECTIVE.</strong>
-          </div>
-          <div className="art-coordinate">24.7136° N · 46.6753° E</div>
-        </div>
-      </section>
+      <CinematicHero lang={lang} />
       <section className="conversion-proof section-wrap" aria-labelledby="conversion-proof-title">
         <div className="conversion-proof-heading">
           <p className="eyebrow">{lang==="ar"?"قبل التقديم":lang==="zh"?"申请前":"BEFORE YOU APPLY"}</p>
