@@ -90,7 +90,7 @@ jobs:
           node scripts/project-architecture.test.cjs 169a8f7a1cf8ad0d794df29af8e9b8694c92d490
       - name: Start isolated development fixture
         run: |
-          (npm run dev -- -p 3000 > /tmp/cinematic-dev.log 2>&1 &)
+          (SITE_URL=http://127.0.0.1:3000 npm run dev -- -p 3000 > /tmp/cinematic-dev.log 2>&1 &)
           ready=0
           for i in $(seq 1 45); do
             if curl -fsS --max-time 15 http://127.0.0.1:3000/ >/dev/null 2>&1; then ready=1; break; fi

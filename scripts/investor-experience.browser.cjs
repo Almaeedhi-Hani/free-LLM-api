@@ -39,9 +39,17 @@ const langs=[{id:'ar',locale:'ar-SA',reject:'رفض الاختيارية',accept
    const headers={origin,'Content-Type':'application/json'};
    const rejected=await ctx.request.post(base+'/api/investor-events',{headers,data});assert.equal(rejected.status(),403);
    await page.locator('.investor-cookie-settings').click();
+   const pageView=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/investor-events'&&r.request().method()==='POST'&&r.request().postDataJSON()?.event==='page_view');
    await page.getByRole('button',{name:lang.accept,exact:true}).click();
    await page.locator('[aria-labelledby="cookie-title"]').waitFor({state:'hidden'});
-   const consent=await ctx.request.post(base+'/api/investor-events',{headers,data});assert.equal(consent.status(),204);
+   const cookie=(await ctx.cookies()).find(c=>c.name==='site-cookie-consent');
+   assert(cookie,'consent cookie was saved');
+   const saved=JSON.parse(decodeURIComponent(cookie.value));
+   assert.equal(saved.analytics,true,'explicit analytics opt-in recorded');
+   const automatic=await pageView;
+   assert.equal(automatic.status(),204,'real browser analytics accepted after opt-in');
+   assert.deepEqual(Object.keys(automatic.request().postDataJSON()).sort(),['event','locale','page']);
+   const consent=await ctx.request.post(base+'/api/investor-events',{headers,data});assert.equal(consent.status(),204,'fixture configured origin and consent accepted');
    assert.equal((await ctx.request.post(base+'/api/investor-events',{headers,data:{...data,phone:'fake'}})).status(),400);
    assert.equal((await ctx.request.post(base+'/api/investor-events',{headers:{...headers,origin:'https://example.invalid'},data})).status(),403);
    await page.locator('.investor-cookie-settings').click();await page.getByRole('button',{name:lang.reject,exact:true}).click();
