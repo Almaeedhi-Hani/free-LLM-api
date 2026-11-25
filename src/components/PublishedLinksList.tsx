@@ -1,5 +1,6 @@
 'use client';
 import React,{useEffect,useMemo,useState} from 'react';
+import AIKnowledgeReport from './AIKnowledgeReport';
 import type {EditorialItem} from '@/lib/editorial-types';
 import type {ContentFAQ,ContentDraft} from '@/lib/content-store';
 import {buildPublishedLinks,buildUnpublishedPreviews} from '@/lib/published-links';
@@ -68,6 +69,7 @@ export default function PublishedLinksList({editorialItems,faqs,drafts,adminSecr
    <p className="mt-2 text-xs text-slate-600" role="status">{eventState}</p>
    <p className="mt-1 text-xs text-slate-500">أسئلة FAQ تظهر ضمن الصفحة الرئيسية العربية وليست صفحات منفصلة. قد تشترك أكثر من مادة تحريرية في رابط صفحة واحدة. تاريخ النشر غير المثبت يظهر «غير معروف».</p>
   </header>
+  <AIKnowledgeReport adminSecret={adminSecret}/>
   <div className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-4">
    <label className="text-sm font-semibold text-slate-700">بحث
     <input aria-label="بحث في روابط المحتوى المنشور" value={search} onChange={e=>setSearch(e.target.value)}

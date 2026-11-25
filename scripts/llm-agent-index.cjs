@@ -94,6 +94,8 @@ function generateIndex(feed){
   '## Canonical detailed machine-readable version',
   '- '+FEED,
   '',
+  '## Direct text feeds (choose only the relevant scope)','',
+  ...require('../src/lib/llm-discovery.cjs').PATHS.filter(p=>p!=='/llms.txt'&&p!=='/api/llm-version').map(p=>'- '+SITE+p),'',
   '## General packages',
   '- '+SITE+'/packages',
   ''

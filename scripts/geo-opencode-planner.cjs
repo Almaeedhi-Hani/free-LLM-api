@@ -9,7 +9,7 @@ const manifest=require("../src/data/content-tree.json");
 // a path. Output specifications are skipped: the existing JSON contract wins.
 const fs=require('node:fs');
 const path=require('node:path');
-const DIRECT_SKILLS=Object.freeze(['evidence-verification','content-strategy','saudi-investment-expert','content-architecture','geo-ai-visibility','competitor-intelligence','keyword-research','technical-seo','conversion-optimization','performance-analytics','growth-decision','statistical-analysis','human-behavior-communication','growth-learning']);
+const DIRECT_SKILLS=Object.freeze(['evidence-verification','content-strategy','saudi-investment-expert','content-architecture','geo-ai-visibility','competitor-intelligence','keyword-research','technical-seo','conversion-optimization','performance-analytics','growth-decision','statistical-analysis','human-behavior-communication','growth-learning','ai-knowledge-optimization']);
 function directSkillGuidance(name){
  if(!DIRECT_SKILLS.includes(name))throw Error('Unapproved GEO skill');
  const file=path.join(__dirname,'..','.opencode','skills',name,'SKILL.md');
@@ -29,6 +29,7 @@ function selectDirectSkills(evidence){
  if(kinds.has('technical_seo')||kinds.has('internal_link'))result.push('technical-seo');
  if(kinds.has('gsc')||kinds.has('performance'))result.push('performance-analytics');
  if(kinds.has('conversion')||kinds.has('lead'))result.push('conversion-optimization');
+ if(kinds.has('performance')||kinds.has('inventory'))result.push('ai-knowledge-optimization');
  result.push('geo-ai-visibility');
  return result;
 }
@@ -176,6 +177,7 @@ function promptForDirectLocale(lang,evidence,repair){
  rules.push('Apply the repository-owned skill_guidance as supporting instructions. The existing output schema, official-source allowlist, evidence IDs, risk gates and free-provider limits take precedence. Do not execute tools, invent missing evidence or claim checks not performed.');
  const skillNames=selectDirectSkills(evidence);
  const required=skillNames.slice(0,hasGrowth?6:2);
+ if(hasGrowth&&skillNames.includes('ai-knowledge-optimization'))required.push('ai-knowledge-optimization');
  const skillGuidance=Object.fromEntries(required.map(name=>[name,directSkillGuidance(name)]));
  const encode=(n,guidance=skillGuidance)=>JSON.stringify({language:lang,instructions:rules,skill_guidance:guidance,
   editorial_kind_contract:{allowed_values:EDITORIAL_KINDS,optional:true,on_invalid:'omit_action_not_relabel'},
@@ -190,7 +192,7 @@ function promptForDirectLocale(lang,evidence,repair){
   if(encode(n).length>15500)continue;
   // Preserve the existing evidence sample before adding complete optional
   // skill bodies. Never silently truncate a skill or an evidence ID.
-  for(const name of skillNames.slice(required.length)){
+  for(const name of skillNames.filter(name=>!required.includes(name))){
    const candidate={...skillGuidance,[name]:directSkillGuidance(name)};
    if(encode(n,candidate).length<=15500)skillGuidance[name]=candidate[name];
   }

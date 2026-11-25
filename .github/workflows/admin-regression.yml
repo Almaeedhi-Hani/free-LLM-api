@@ -84,6 +84,10 @@ jobs:
         run: |
           npx --no-install tsc src/lib/investor-report.ts --outDir .investor-report-test-build --module commonjs --target es2020 --skipLibCheck --strict --types node
           node scripts/investor-report.test.cjs
+      - name: Knowledge gateway content and telemetry unit checks
+        run: |
+          npx tsc src/lib/llm-knowledge.ts src/lib/llm-knowledge-metrics.ts --resolveJsonModule --outDir .llm-knowledge-test-build --module commonjs --target es2022 --lib es2022,dom --moduleResolution node --esModuleInterop --skipLibCheck --strict --types node
+          node scripts/llm-knowledge.test.cjs
       - name: Production build
         run: npm run build
       - name: Validate rendered SEO metadata, visible offers and LLM feed (isolated file fixture)
@@ -102,6 +106,7 @@ jobs:
             exit 1
           fi
           SEO_TEST_BASE_URL=http://127.0.0.1:3000 node scripts/check-public-seo.cjs
+          SEO_TEST_BASE_URL=http://127.0.0.1:3000 node scripts/llm-knowledge-http.test.cjs
           curl -fsS http://127.0.0.1:3000/api/llm-version > /tmp/seo-llm.txt
           grep -q "Service fee: 27000 SAR" /tmp/seo-llm.txt
           grep -q "Service fee: 77000 SAR" /tmp/seo-llm.txt

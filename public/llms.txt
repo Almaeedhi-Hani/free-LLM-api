@@ -8,6 +8,18 @@
 ## Canonical detailed machine-readable version
 - https://free-llm-api-1-didl.onrender.com/api/llm-version
 
+## Direct text feeds (choose only the relevant scope)
+
+- https://free-llm-api-1-didl.onrender.com/llms-full.txt
+- https://free-llm-api-1-didl.onrender.com/llms/ar.txt
+- https://free-llm-api-1-didl.onrender.com/llms/en.txt
+- https://free-llm-api-1-didl.onrender.com/llms/zh.txt
+- https://free-llm-api-1-didl.onrender.com/llms/services.txt
+- https://free-llm-api-1-didl.onrender.com/llms/packages.txt
+- https://free-llm-api-1-didl.onrender.com/llms/faq.txt
+- https://free-llm-api-1-didl.onrender.com/llms/insights.txt
+- https://free-llm-api-1-didl.onrender.com/llms/updates.txt
+
 ## General packages
 - https://free-llm-api-1-didl.onrender.com/packages
 
