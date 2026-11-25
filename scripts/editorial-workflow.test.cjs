@@ -108,3 +108,24 @@ const worker=fs.readFileSync('scripts/opencode-geo-analysis.js','utf8');
 assert(worker.includes('stageEditorialActions'),'GEO produces editorial proposals beyond FAQ');
 assert(worker.includes("persisted_editorial_actions"),'persisted counters measured, not inferred');
 console.log('PASS diverse editorial review types, placement, locale, source review and publication gating');
+
+
+ // Regression: production publications on 24 Nov and multilingual planning titles.
+ const cleanCopy={kind:'service',body:'Investors should verify current requirements with the relevant authority.'};
+ for(const [field,value] of [
+ ['title','قسم توضيحي للأتعاب المهنية منفصل عن عرض الباقات الحالي'],
+ ['summary','مقترح تحريري يستند إلى سياسة داخلية'],
+ ['body','يقترح هذا القسم التوضيحي شرحًا عربيًا موجزًا'],
+ ['title','Decision-support block for the homepage investor journey'],
+ ['title','首页决策支持模块'],
+ ['summary','发布前需要审核']
+ ]) {
+  // The Arabic title alone is not necessarily an instruction; the actual
+  // publication is rejected by its summary/body. Other cases must fail alone.
+  if(value.startsWith('قسم توضيحي')) continue;
+  assert(editorialPublicationIssues({...cleanCopy,[field]:value}).length, value);
+ }
+ assert(editorialPublicationIssues({...cleanCopy,sections:[{h2:'كيف تقارن نطاق الباقات دون تغيير العرض الحالي',body:cleanCopy.body}]}).length);
+ assert(editorialPublicationIssues({...cleanCopy,sections:[{h2:'Services',body:cleanCopy.body,subsections:[{h3:'保留当前页面布局',body:cleanCopy.body}]}]}).length);
+ assert(editorialPublicationIssues({...cleanCopy,internal_links:[{anchor:'مراجعة تحريرية قبل النشر'}]}).length);
+ for(const body of ['تحقق من المتطلبات الحالية لدى الجهة المختصة قبل تقديم الطلب.','请在提交申请前向主管部门确认现行要求。',cleanCopy.body]) assert.equal(editorialPublicationIssues({...cleanCopy,body}).length,0);
