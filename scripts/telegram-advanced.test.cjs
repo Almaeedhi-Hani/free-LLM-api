@@ -144,3 +144,25 @@ test('official FAQ discovery uses approved service topics even without search re
  }
  assert.deepEqual(e.selectOfficialCandidates(e.faqTopicTargets('How is the weather?'),[],[]),[]);
 });
+
+test('automatic proof receipt rereads both approved authorities and binds every saved claim',async()=>{
+ const e=require('../src/lib/telegram-ops-advanced-evidence.cjs');
+ const a='This is a synthetic source sentence for automatic evidence testing';
+ const b='A separate synthetic sentence establishes a second source fixture';
+ const u='https://mc.gov.sa/en/Pages/Start-your-project.aspx',v='https://misa.gov.sa/activities/laws-regulations-copy/';
+ const claims=[{claim:a,quote:a,url:u},{claim:b,quote:b,url:v}];
+ const refs=[{kind:'official_candidate',url:u},{kind:'official_candidate',url:v}];
+ let calls=0;
+ const request=async(url,opts)=>{
+  calls++;assert.equal(opts.redirect,'manual');
+  return new Response('<p>'+(url===u?a:b)+'.</p>',{headers:{'content-type':'text/html'}});
+ };
+ const receipt=await e.liveProofReceipt([a,b],claims,refs,request);
+ assert(receipt);assert.equal(calls,2);assert.deepEqual(receipt.urls,[u,v].sort());
+ assert(receipt.proofs.every(p=>p.verified_by==='live_official_exact_quote'&&Number.isFinite(Date.parse(p.checked_at))));
+ assert.equal(await e.liveProofReceipt([a,b+' unsupported'],claims,refs,request),null);
+ assert.equal(await e.liveProofReceipt([a,b],claims.slice(0,1),refs,request),null);
+ assert.equal(await e.liveProofReceipt([a,b],claims,refs.slice(0,1),request),null);
+ assert.equal(await e.liveProofReceipt([a,b],claims,refs,async()=>new Response('<p>Unrelated source text.</p>',{headers:{'content-type':'text/html'}})),null);
+ assert.equal(await e.liveProofReceipt([a,b],claims,refs,async()=>new Response('',{status:302,headers:{location:'https://example.com'}})),null);
+});

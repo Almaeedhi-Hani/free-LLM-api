@@ -9,6 +9,7 @@ import {officialSourceQueries,officialResultsFromRss} from './editorial-official
 import {getSupabaseCredentials} from './storage-mode';
 import {getGeoFeedbackIndex,excludesEditorial,excludesFaq} from './geo-agent-feedback';
 import {editorialPath} from './content-impact';
+export type PublicationReceipt={urls:string[];proofs:Array<EditorialClaimEvidence&{checked_at:string;verified_by:'live_official_exact_quote'}>};
 type Kind='faq'|'editorial';
 type Candidate={kind:'faq';item:ContentDraft}|{kind:'editorial';item:EditorialItem};
 type Result={total:number;matched:number;proofs:EditorialClaimEvidence[];complete:boolean};
@@ -16,6 +17,7 @@ const evidence=require('./telegram-ops-advanced-evidence.cjs') as {
  digest:(kind:Kind,fields:string[])=>string;safeUrl:(s:unknown)=>string|null;topicUrls:(target:string)=>string[];
  readBounded:(r:Response,limit:number,mime:RegExp)=>Promise<string|null>;
  page:(url:string,request?:typeof fetch)=>Promise<string[]>;
+ liveProofReceipt:(fields:string[],claims:EditorialClaimEvidence[],refs:EditorialRef[],request?:typeof fetch)=>Promise<PublicationReceipt|null>;
  match:(fields:string[],pages:{url:string;sentences:string[]}[])=>Result;
  eligible:(meta:ReviewPreflight|undefined,kind:Kind,fields:string[])=>boolean;
  due:(meta:ReviewPreflight|undefined,kind:Kind,fields:string[])=>boolean;
@@ -27,7 +29,7 @@ const evidence=require('./telegram-ops-advanced-evidence.cjs') as {
 function fields(x:Candidate):string[]{
  if(x.kind==='faq')return [x.item.a.trim()];
  const i=x.item;
- return [i.title,i.summary,i.body,...(i.sections||[]).flatMap(s=>[s.h2,s.body,...(s.subsections||[]).flatMap(h=>[h.h3,h.body])]),...(i.internal_links||[]).map(l=>l.anchor)];
+ return [i.title,i.summary,i.body,...(i.h1_suggestion?[i.h1_suggestion]:[]),...(i.sections||[]).flatMap(s=>[s.h2,s.body,...(s.subsections||[]).flatMap(h=>[h.h3,h.body])]),...(i.internal_links||[]).map(l=>l.anchor)];
 }
 // Bind the question, editorial identity, risk and visitor copy, not only the answer.
 function identityFields(x:Candidate):string[]{
@@ -42,7 +44,7 @@ export function readyForHuman(x:Candidate){
 }
 export async function reviewContentPolicy(x:Candidate){
  const [domains,feedback]=await Promise.all([getCompetitorDomains(),getGeoFeedbackIndex()]);
- return domains!==null&&!auditBody(fields(x).join('\n'),domains).length&&
+ return domains!==null&&!auditBody([...(x.kind==='faq'?[x.item.q]:[]),...fields(x)].join('\n'),domains).length&&
   (x.kind==='faq'?!excludesFaq(feedback,x.item.q):!excludesEditorial(feedback,x.item,editorialPath(x.item)||undefined));
 }
 async function discover(x:Candidate){
@@ -90,6 +92,25 @@ export async function liveReadyForHuman(x:Candidate):Promise<boolean>{
  const pages=await Promise.all(urls.map(async url=>({url,sentences:await evidence.page(url)})));
  const result=evidence.match(fields(x),pages);
  return result.complete&&claims.length===result.proofs.length&&claims.every(p=>p.claim===p.quote&&result.proofs.some(q=>q.claim===p.claim&&q.url===p.url));
+}
+// Automated publication is stricter than human review. Exact quotations in
+// the same locale only; translated/paraphrased or regulated copy stays queued.
+export function canProbeAutoPublication(x:Candidate):boolean{
+ try{
+  if(x.item.status!=='pending'||x.item.risk_level!=='low'||x.item.review_preflight?.archived===true||!readyForHuman(x))return false;
+  if(x.kind==='editorial'){
+   if(detectGeoDraftLocale(x.item.title)!==x.item.lang||
+      !assessGeoDraftCopy(x.item.title,x.item.body).publishable)return false;
+  }
+  return true;
+ }catch{return false}
+}
+export async function liveAutoPublicationReceipt(x:Candidate,request:typeof fetch=fetch):Promise<PublicationReceipt|null>{
+ if(!canProbeAutoPublication(x)||!await reviewContentPolicy(x).catch(()=>false))return null;
+ const receipt=await evidence.liveProofReceipt(fields(x),x.item.claim_evidence||[],x.item.evidence_refs||[],request);
+ if(!receipt||receipt.proofs.length!==x.item.review_preflight?.matched||
+    receipt.proofs.length!==x.item.review_preflight?.total)return null;
+ return receipt;
 }
 // Existing signed tick only, at most four candidates and 3 source URLs each.
 // One version-checked save; conflicts are not retried blindly.

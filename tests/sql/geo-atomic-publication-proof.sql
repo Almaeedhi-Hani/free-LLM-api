@@ -10,6 +10,13 @@ CREATE TABLE public.geo_faq_publication_events(id uuid PRIMARY KEY DEFAULT gen_r
 CREATE FUNCTION public.geo_commit_auto_publication(text,jsonb,jsonb) RETURNS jsonb LANGUAGE sql AS $$ SELECT '{}'::jsonb $$;
 CREATE FUNCTION public.geo_commit_auto_faq(text) RETURNS jsonb LANGUAGE sql AS $$ SELECT '{}'::jsonb $$;
 \ir ../../supabase/prepared/geo_atomic_publication_proof.sql
+DO $$ BEGIN
+ IF has_function_privilege('anon','public.geo_publication_contract_version()','EXECUTE') OR
+ has_function_privilege('authenticated','public.geo_publication_contract_version()','EXECUTE') OR
+ NOT has_function_privilege('service_role','public.geo_publication_contract_version()','EXECUTE') OR
+ public.geo_publication_contract_version() IS DISTINCT FROM 'exact-proof-v1'
+ THEN RAISE EXCEPTION 'contract handshake ACL or version mismatch'; END IF;
+END $$;
 INSERT INTO public.geo_publication_settings VALUES(1,false,false,10);
 CREATE TEMP TABLE proof_fixture(kind text,item jsonb,proofs jsonb,urls jsonb);
 INSERT INTO proof_fixture

@@ -90,4 +90,19 @@ function selectReviewBatch(dueItems){
  for(const x of sorted){if(chosen.length>=4)break;if(!chosen.includes(x))chosen.push(x)}
  return chosen;
 }
-module.exports={parts,digest,safeUrl,topicUrls,readBounded,page,match,eligible,due,editorialIdentityFields,selectReviewBatch,faqTopicTargets,selectOfficialCandidates};
+// Verify each stored exact quotation against fresh official page text; never
+// substitute unrelated newly found quotes for the saved version's proof.
+async function liveProofReceipt(fields,claims,refs,request=fetch){
+ if(!Array.isArray(claims)||claims.length<2||claims.length>10||!Array.isArray(refs))return null;
+ const urls=Array.from(new Set(claims.map(p=>p?.url)));
+ if(urls.length<2||urls.length>3||urls.some(u=>safeUrl(u)!==u))return null;
+ if(claims.some(p=>typeof p.claim!=='string'||p.claim!==p.quote||
+  !refs.some(r=>['official_candidate','official-manual'].includes(r.kind)&&r.url===p.url)))return null;
+ const pages=await Promise.all(urls.map(async url=>({url,sentences:await page(url,request)})));
+ const result=match(fields,pages);
+ if(!result.complete||claims.length!==result.proofs.length||
+  !claims.every(p=>result.proofs.some(q=>q.claim===p.claim&&q.url===p.url)))return null;
+ const checked_at=new Date().toISOString();
+ return {urls:[...urls].sort(),proofs:claims.map(p=>({claim:p.claim,quote:p.quote,url:p.url,checked_at,verified_by:'live_official_exact_quote'}))};
+}
+module.exports={liveProofReceipt,parts,digest,safeUrl,topicUrls,readBounded,page,match,eligible,due,editorialIdentityFields,selectReviewBatch,faqTopicTargets,selectOfficialCandidates};

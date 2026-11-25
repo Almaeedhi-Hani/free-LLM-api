@@ -252,4 +252,11 @@ REVOKE ALL ON FUNCTION public.geo_commit_auto_publication(text,jsonb,jsonb,jsonb
 REVOKE ALL ON FUNCTION public.geo_commit_auto_faq(text,jsonb,jsonb) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.geo_commit_auto_publication(text,jsonb,jsonb,jsonb) TO service_role;
 GRANT EXECUTE ON FUNCTION public.geo_commit_auto_faq(text,jsonb,jsonb) TO service_role;
+-- Read-only contract handshake; never expose publisher readiness publicly.
+CREATE OR REPLACE FUNCTION public.geo_publication_contract_version() RETURNS text
+ LANGUAGE sql STABLE SECURITY INVOKER SET search_path='' AS $version$
+ SELECT 'exact-proof-v1'::text
+$version$;
+REVOKE ALL ON FUNCTION public.geo_publication_contract_version() FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.geo_publication_contract_version() TO service_role;
 COMMIT;
