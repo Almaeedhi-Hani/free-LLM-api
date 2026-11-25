@@ -210,12 +210,11 @@ const viewports=[{width:320,height:640},{width:390,height:844},{width:768,height
             await page.locator('.license-offer').nth(1).and(page.locator('[aria-pressed="true"]')).waitFor();
             assert.equal(await next.getAttribute('aria-pressed'),'true');
           }
-          const compare=page.locator(".investor-package-compare");
-          await compare.locator("summary").click();
-          assert.equal(await compare.locator("tbody tr").count(),4);
-          await compare.locator("tbody button").nth(2).click();
+          assert.equal(await page.locator(".investor-package-compare").count(),0,"duplicate comparison removed");
+          assert.equal(await page.locator(".license-offer").count(),4,"all four service choices remain");
+          await page.locator(".license-offer").nth(2).click();
           assert.equal(await page.locator(".license-offer").nth(2).getAttribute("aria-pressed"),"true");
-          await compare.locator("summary").click();
+          assert(await page.locator(".license-detail .license-big-price").isVisible(),"selected price remains visible");
           await page.locator('.license-detail>button').click();
           await page.locator('.package-form button[type="submit"]').waitFor();
           assert.equal(await page.locator(".investor-wizard-steps li[aria-current=step]").count(),1);

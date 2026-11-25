@@ -39,14 +39,6 @@ body:not(:has(.admin-route)) #main .investor-wizard-steps li span {display:grid;
 body:not(:has(.admin-route)) #main .investor-wizard-steps li[aria-current="step"] {border-color:var(--conversion-gold);font-weight:700}
 body:not(:has(.admin-route)) #main .investor-wizard-steps li[aria-current="step"] span {background:var(--conversion-gold);color:var(--reference-heading)}
 body:not(:has(.admin-route)) #main .investor-wizard-steps li[data-complete="true"] span {background:var(--reference-ink);color:var(--reference-white)}
-body:not(:has(.admin-route)) #main .investor-package-compare {max-width:760px;border:1px solid var(--reference-line);border-radius:var(--discovery-card-radius);padding:16px;margin-block:18px;background:var(--reference-paper)}
-body:not(:has(.admin-route)) #main .investor-package-compare summary {cursor:pointer;font-weight:600;min-height:28px}
-body:not(:has(.admin-route)) #main .investor-package-compare p {font-size:12px;line-height:1.8;margin-block:14px}
-body:not(:has(.admin-route)) #main .investor-compare-scroll {overflow-x:auto;max-width:100%;border-radius:12px;background:var(--reference-white)}
-body:not(:has(.admin-route)) #main .investor-compare-scroll table {border-collapse:collapse;min-width:640px;width:100%;font-size:13px;text-align:start}
-body:not(:has(.admin-route)) #main .investor-compare-scroll :is(th,td) {padding:12px;text-align:start;vertical-align:top;border-bottom:1px solid var(--reference-line);line-height:1.7}
-body:not(:has(.admin-route)) #main .investor-compare-scroll button {padding:8px 10px;min-height:44px;border-radius:12px;background:var(--reference-white);border:1px solid var(--reference-line);color:var(--reference-ink);font:inherit;cursor:pointer}
-body:not(:has(.admin-route)) #main .investor-compare-scroll button[aria-pressed="true"] {border-color:var(--conversion-gold);font-weight:700}
 body:not(:has(.admin-route)) .investor-footer-intro {max-width:1300px;margin:0 auto 32px;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:clamp(20px,3vw,36px);border:1px solid var(--reference-line);border-radius:var(--discovery-card-radius);background:radial-gradient(ellipse at 100% 100%,rgba(184,134,11,.07),transparent 64%),var(--reference-paper)}
 body:not(:has(.admin-route)) .investor-footer-intro h2 {font-size:clamp(20px,2.5vw,32px);line-height:1.5;margin:8px 0 0}
 body:not(:has(.admin-route)) .investor-footer-cta {display:inline-flex;align-items:center;justify-content:center;gap:12px;min-height:44px;padding:12px 18px;white-space:nowrap;background:var(--conversion-gold);color:var(--reference-heading);border-radius:var(--discovery-card-radius);font-weight:600;font-size:14px}
@@ -65,8 +57,8 @@ body:not(:has(.admin-route)) .footer-top p {font-size:13px;line-height:1.8}
  body:not(:has(.admin-route)) #main .investor-hero-actions {gap:8px}
 }
 @media(prefers-reduced-motion:no-preference){
- body:not(:has(.admin-route)) #main :is(.investor-secondary,.investor-compare-scroll button) {transition:border-color .18s ease,box-shadow .18s ease}
- body:not(:has(.admin-route)) #main :is(.investor-secondary,.investor-compare-scroll button):hover {border-color:var(--conversion-gold)}
+ body:not(:has(.admin-route)) #main .investor-secondary {transition:border-color .18s ease,box-shadow .18s ease}
+ body:not(:has(.admin-route)) #main .investor-secondary:hover {border-color:var(--conversion-gold)}
 }
 
 body:not(:has(.admin-route)) .investor-cookie-settings {font:inherit;text-decoration:underline;text-underline-offset:3px;cursor:pointer;min-height:32px;background:transparent;border:0;color:var(--reference-muted)}

@@ -43,4 +43,5 @@ for(const marker of ["license-category-grid","license-offer-grid","license-detai
 assert(!historicalUI.includes("package-offer-card"),"do not replace restored license tiles with SEO card grid");
 for(const field of ["audience[lang]","pitch[lang]","requirements[lang]","exclusions[lang]","features.map"]) assert(historicalUI.includes(field),"rich original offer content rendered in existing detail panel: "+field);
 assert(historicalUI.includes("packageGroups.find"),"localized investor route narrative");
+assert(!historicalUI.includes("PackageCompare")&&!historicalUI.includes("investor-package-compare"),"duplicate comparison must remain removed");
 console.log("PASS original interactive design + restored original trilingual editorial copy + ten separately discounted service fees");
