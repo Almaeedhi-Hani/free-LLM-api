@@ -1,11 +1,12 @@
 import type {EditorialItem} from "../../editorial-types";
+import {exactClaimCoverage} from '../../geo-claim-evidence';
 import {editorialPublicationIssues} from "../../editorial-workflow";
 import {assessGeoDraftCopy} from "../../geo-draft-quality";
 import {auditBody} from "../../source-policy";
 import {officialCandidateUrls,checkOfficialUrlReachable,lowRiskEditorialCopy,verifyHighRiskOfficialClaims} from "./official-evidence";
 
 export type SourceCheck="not_checked"|"no_official_candidates"|"unreachable"|"reachable_only"|"exact_quotes_found"|"quote_check_failed";
-export type CandidatePreflight={reason:string;sourceCheck:SourceCheck;candidateCount:number};
+export type CandidatePreflight={reason:string;sourceCheck:SourceCheck;candidateCount:number;coverage?:{total:number;matched:number;complete:boolean}};
 export const publicEditorialFields=(item:EditorialItem)=>[item.title,item.summary,item.body,...(Array.isArray(item.sections)?item.sections.flatMap(s=>[s.h2,s.body,...(s.subsections||[]).flatMap(h=>[h.h3,h.body])]):[]),...(item.internal_links||[]).map(l=>l.anchor)].join("\n");
 export async function assessEditorialCandidate(item:EditorialItem,domains:string[]|null,checkSources=false,request:typeof fetch=fetch):Promise<CandidatePreflight>{
  const result=(reason:string,sourceCheck:SourceCheck="not_checked",candidateCount=0)=>({reason,sourceCheck,candidateCount});
@@ -26,11 +27,12 @@ export async function assessEditorialCandidate(item:EditorialItem,domains:string
  // every sentence. Until the coverage and atomic content-version gates are
  // implemented, this path remains closed to unattended publication.
  if(item.risk_level!=="low"||!lowRiskEditorialCopy(item))return result("regulated_copy_not_cleared","exact_quotes_found",urls.length);
- return result("full_claim_coverage_not_verified","exact_quotes_found",urls.length);
+ const coverage=exactClaimCoverage(publicEditorialFields(item).split("\n"),proof.proofs);
+ return {...result(coverage.complete?"version_bound_publication_not_ready":"full_claim_coverage_not_verified","exact_quotes_found",urls.length),coverage};
 }
-export function assessFaqCandidate(draft:{q:string;a:string}):string{
+export function assessFaqCandidate(draft:{q:string;a:string;claim_evidence?:unknown[]}):string{
  if(!assessGeoDraftCopy(draft.q,draft.a).publishable||editorialPublicationIssues({kind:"guide",body:draft.a,title:draft.q}).length)return "invalid_faq_visitor_copy";
  // The current FAQ schema has no claim-to-source proof contract. Do not
  // publish an answer merely because it is long enough or has a URL.
- return "faq_claim_evidence_missing";
+ return draft.claim_evidence?.length?"faq_claim_evidence_not_independently_verified":"faq_claim_evidence_missing";
 }

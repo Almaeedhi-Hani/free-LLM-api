@@ -2,6 +2,9 @@ name: GEO PR regression checks
 on:
   pull_request:
     paths:
+      - 'scripts/geo-official-evidence.cjs'
+      - 'scripts/geo-official-evidence.test.cjs'
+      - 'src/lib/geo-claim-evidence.ts'
       - 'scripts/geo-opencode-planner.cjs'
       - 'scripts/opencode-geo-analysis.js'
       - 'scripts/geo-discovery-sources.cjs'
@@ -59,6 +62,8 @@ jobs:
         run: node scripts/geo-secret-weapon-schedule.test.cjs
       - name: Adaptive fallback and keyword attribution regression
         run: node scripts/geo-autopilot-reliability.test.cjs
+      - name: Bounded official source collection and source-claim binding
+        run: node scripts/geo-official-evidence.test.cjs
       - name: Multilingual editorial prompt
         run: node scripts/geo-editorial-prompt.test.cjs
       - name: Free-model fallback safety
