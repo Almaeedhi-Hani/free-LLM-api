@@ -70,3 +70,22 @@ test('diagnostics use exact keys, no approval or voice shortcut for blocked cont
  }
  assert(!c.inline_keyboard.flat().some(b=>b.callback_data?.startsWith('approve:')));
 });
+
+test('evidence gate refuses partial or unrelated claims, unsafe hosts and stale results',()=>{
+ const e=require('../src/lib/telegram-ops-advanced-evidence.cjs');
+ const a='This fictional exact sentence is only a fixture for the source matcher';
+ const b='This different fictional exact sentence is another fixture for the source matcher';
+ const u='https://mc.gov.sa/en/Pages/Start-your-project.aspx',v='https://misa.gov.sa/activities/laws-regulations-copy/';
+ const pages=[{url:u,sentences:[a]},{url:v,sentences:[b]}];
+ assert.equal(e.match([a,b],pages).complete,true);
+ assert.equal(e.match([a,b+' unsupported'],pages).complete,false);
+ assert.equal(e.match([a,b],[{url:u,sentences:[a,b]}]).complete,false);
+ assert.equal(e.safeUrl('https://mc.gov.sa.example.org/'),null);
+ assert.equal(e.safeUrl('https://unlisted.gov.sa/'),null);
+ const now=Date.now(),meta={status:'ready',digest:e.digest('faq',[a,b]),checked_at:new Date(now).toISOString()};
+ assert.equal(e.eligible(meta,'faq',[a,b],now),true);
+ assert.equal(e.eligible(meta,'faq',[a],now),false);
+ assert.equal(e.eligible(meta,'faq',[a,b],now+86400000),false);
+ assert.equal(e.due({...meta,status:'blocked'},'faq',[a,b],now),false);
+ assert.equal(e.due({...meta,status:'blocked'},'faq',[a,b],now+7*86400000),true);
+});

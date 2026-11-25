@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContent, setContent } from '@/lib/content-store';
-import {validateEditorialBatch,officialSourceCandidates,editorialPublicationIssues} from '@/lib/editorial-workflow';
+import {validateEditorialBatch,validateEditorialItem,officialSourceCandidates,editorialPublicationIssues} from '@/lib/editorial-workflow';
 import { assessGeoDraftCopy, splitGeoDraftReviewText } from "@/lib/geo-draft-quality";
 import { StorageConflictError, StorageUnavailableError } from '@/lib/storage-mode';
 import {normalizeWhatsAppNumber,validWhatsAppAdvisorField} from '@/lib/whatsapp-contacts';
@@ -127,9 +127,23 @@ export async function POST(req: NextRequest) {
     }
     if(patch.editorialItems!==undefined){
       if(!expectedUpdatedAt)return NextResponse.json({status:'error',message:'Editorial changes require a versioned admin request'},{status:400});
-      try{validateEditorialBatch(patch.editorialItems)}catch(e){return NextResponse.json({status:'error',message:e instanceof Error?e.message:'Invalid editorial content'},{status:422})}
       const before=await getContent();
       const previous=new Map((before.editorialItems||[]).map(x=>[x.id,x]));
+      try{
+        if(!Array.isArray(patch.editorialItems))throw Error('Invalid editorial batch');
+        if(patch.editorialItems.length<=50)validateEditorialBatch(patch.editorialItems);
+        else{
+          // A versioned update may preserve a pre-existing large backlog but
+          // cannot grow it; validate every changed item and all identities.
+          if(patch.editorialItems.length>previous.size)throw Error('Invalid editorial batch');
+          const ids=new Set<string>();
+          for(const raw of patch.editorialItems){
+            if(!raw||typeof raw.id!=='string'||ids.has(raw.id))throw Error('Invalid editorial identity');
+            ids.add(raw.id);
+            if(JSON.stringify(previous.get(raw.id))!==JSON.stringify(raw))validateEditorialItem(raw);
+          }
+        }
+      }catch(e){return NextResponse.json({status:'error',message:e instanceof Error?e.message:'Invalid editorial content'},{status:422})}
       for(const e of patch.editorialItems as Array<{id:string;status:string;title:string;summary:string;body:string}>){
         const p=previous.get(e.id);
         if(!p){
