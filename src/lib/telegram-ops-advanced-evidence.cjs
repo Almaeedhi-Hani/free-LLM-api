@@ -100,11 +100,23 @@ function assessPublicationRisk(kind,item,copyFields,result){
  if(item.risk_level!=='low'||!result?.complete||result.matched!==result.total||result.total<2)return 'high';
  return 'low';
 }
+// Reopen only the old missing-candidate outcome when a new deterministic
+// topic mapping now produces actual allowlisted candidates. One attempt per
+// discovery version, never reopen an archived record or bypass evidence gates.
+const SOURCE_DISCOVERY_VERSION='manifest-topic-recovery-v1';
+function discoveryRepairDue(x){
+ const m=x?.item?.review_preflight;
+ if(!m||m.status!=='blocked'||m.archived===true||m.reason!=='no_official_candidates'||m.source_discovery_version===SOURCE_DISCOVERY_VERSION)return false;
+ const i=x.item;
+ if(x.kind==='editorial'&&['technical_seo','internal_link'].includes(i.kind))return false;
+ const targets=x.kind==='faq'?faqTopicTargets(i.q):[i.related_service||i.target,...faqTopicTargets([i.title,i.primary_keyword||''].join(' '))];
+ return targets.some(t=>topicUrls(t).length>0);
+}
 function selectReviewBatch(dueItems){
  // Exact duplicates only: retain every record and never merge similar
  // questions, translated content, different destinations or changed answers.
  const seen=new Set();
- const sorted=[...dueItems].sort((a,b)=>(a.item.review_preflight?.checked_at||'').localeCompare(b.item.review_preflight?.checked_at||'')).filter(x=>{
+ const sorted=[...dueItems].sort((a,b)=>Number(discoveryRepairDue(b))-Number(discoveryRepairDue(a))||(a.item.review_preflight?.checked_at||'').localeCompare(b.item.review_preflight?.checked_at||'')).filter(x=>{
   if(x.kind==='editorial'&&['technical_seo','internal_link'].includes(x.item.kind))return false;
   const i=x.item;
   const key=x.kind==='faq'?JSON.stringify(['faq',norm(i.q),norm(i.a),i.risk_level]):
@@ -133,4 +145,4 @@ async function liveProofReceipt(fields,claims,refs,request=fetch){
  const checked_at=new Date().toISOString();
  return {urls:[...urls].sort(),proofs:claims.map(p=>({claim:p.claim,quote:p.quote,url:p.url,checked_at,verified_by:'live_official_exact_quote'}))};
 }
-module.exports={assessPublicationRisk,liveProofReceipt,parts,digest,safeUrl,topicUrls,readBounded,page,match,eligible,due,editorialIdentityFields,selectReviewBatch,faqTopicTargets,selectOfficialCandidates};
+module.exports={SOURCE_DISCOVERY_VERSION,discoveryRepairDue,assessPublicationRisk,liveProofReceipt,parts,digest,safeUrl,topicUrls,readBounded,page,match,eligible,due,editorialIdentityFields,selectReviewBatch,faqTopicTargets,selectOfficialCandidates};

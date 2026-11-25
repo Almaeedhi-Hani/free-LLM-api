@@ -243,3 +243,24 @@ test('semantic shadow contract binds trilingual claim coverage to source passage
  assert(!ui.includes('دون اشتراط مصدرين')&&!ui.includes('لا يلزم مصدران'));
  assert(ui.includes('مصدرين رسميين مستقلين')&&ui.includes('changeSensitive(false)'));
  });
+
+ test('changed official topic mapping rechecks historical no-candidate records once within the existing batch',()=>{
+ const e=require('../src/lib/telegram-ops-advanced-evidence.cjs');
+ const meta={status:'blocked',reason:'no_official_candidates',checked_at:new Date().toISOString()};
+ const recovered=['How should a foreign investor compare Saudi company formation support options?','What should be checked before relying on a corporate bank account document checklist?','外国投资者在沙特设立公司前通常需要确认哪些事项？'].map(q=>({kind:'faq',item:{q,a:'Fixture answer',risk_level:'high',review_preflight:meta}}));
+ assert(recovered.every(e.discoveryRepairDue));
+ const x=recovered[0];
+ for(const patch of [{source_discovery_version:e.SOURCE_DISCOVERY_VERSION},{archived:true},{reason:'exact_claim_coverage_incomplete'},{status:'ready'}])assert.equal(e.discoveryRepairDue({...x,item:{...x.item,review_preflight:{...meta,...patch}}}),false);
+ assert.equal(e.discoveryRepairDue({...x,item:{...x.item,q:'Unrelated weather question'}}),false);
+ const unrelated={kind:'faq',item:{q:'Are professional package fees the same as Saudi government fees?',a:'Fixture',review_preflight:meta}};
+ assert.equal(e.discoveryRepairDue(unrelated),false);
+ const technical={kind:'editorial',item:{kind:'technical_seo',target:'company-formation',review_preflight:meta}};
+ assert.equal(e.discoveryRepairDue(technical),false);
+ const fresh=Array.from({length:8},(_,i)=>({kind:i<4?'faq':'editorial',item:{id:'new'+i}}));
+ const selected=e.selectReviewBatch([...fresh,...recovered]);
+ assert.equal(selected.length,4);assert(selected.includes(recovered[0])&&selected.includes(recovered[1]));
+ assert.equal(selected.filter(x=>x.kind==='editorial').length,2);
+ const source=require('node:fs').readFileSync('src/lib/telegram-ops-advanced-evidence.ts','utf8');
+ assert(source.includes('evidence.discoveryRepairDue(x)||evidence.due('));
+ assert(source.includes('source_discovery_version:evidence.SOURCE_DISCOVERY_VERSION'));
+ });
