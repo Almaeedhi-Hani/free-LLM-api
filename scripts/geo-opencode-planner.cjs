@@ -4,6 +4,33 @@
  * site topology. The helper reads no API secrets and makes no paid calls.
  */
 const manifest=require("../src/data/content-tree.json");
+// Reuse repository-owned OpenCode instructions, not a second agent or model.
+// Only reviewed local skill names may be read. External evidence never selects
+// a path. Output specifications are skipped: the existing JSON contract wins.
+const fs=require('node:fs');
+const path=require('node:path');
+const DIRECT_SKILLS=Object.freeze(['evidence-verification','content-strategy','saudi-investment-expert','content-architecture','geo-ai-visibility','competitor-intelligence','keyword-research','technical-seo','conversion-optimization','performance-analytics']);
+function directSkillGuidance(name){
+ if(!DIRECT_SKILLS.includes(name))throw Error('Unapproved GEO skill');
+ const file=path.join(__dirname,'..','.opencode','skills',name,'SKILL.md');
+ if(!fs.lstatSync(file).isFile()||fs.statSync(file).size>16000)throw Error('Invalid GEO skill: '+name);
+ const raw=fs.readFileSync(file,'utf8').replace(/\r\n/g,'\n');
+ const body=raw.replace(/^---\n[\s\S]*?\n---\n/,'').split(/^## Output(?: specification)?\s*$/im)[0].trim();
+ if(!body||body.length>6000)throw Error('Invalid GEO skill guidance: '+name);
+ return body;
+}
+function selectDirectSkills(evidence){
+ const kinds=new Set(evidence.map(e=>e.type));
+ const result=['evidence-verification','content-strategy','saudi-investment-expert','content-architecture'];
+ if(kinds.has('competitor_candidate')||kinds.has('competitor'))result.push('competitor-intelligence');
+ if(kinds.has('keyword')||kinds.has('keyword_suggestion'))result.push('keyword-research');
+ if(kinds.has('technical_seo')||kinds.has('internal_link'))result.push('technical-seo');
+ if(kinds.has('gsc')||kinds.has('performance'))result.push('performance-analytics');
+ if(kinds.has('conversion')||kinds.has('lead'))result.push('conversion-optimization');
+ result.push('geo-ai-visibility');
+ return result;
+}
+
 const LANGS=["ar","en","zh"];
 const SCHEMA_TYPES=Object.freeze(["Article","BreadcrumbList","Service","WebPage","FAQPage","CollectionPage"]);
 const {EDITORIAL_KINDS,EDITORIAL_TEXT_MINIMA,isValidTechnicalTarget}=require('./geo-generated-output-guard.cjs');
@@ -133,7 +160,11 @@ function promptForDirectLocale(lang,evidence,repair){
   url:asText(e.url,330),summary:asText(e.snippet||e.description||e.content||e.text,290)
  }));
  if(repair)rules.push('This is a single validation repair. Output replacements only for the listed rejected FAQ/editorial slots, in listed order. Leave opportunities, goals and unrelated arrays empty. Do not repeat accepted work or invent copy, routes or sources. If a replacement is not justified by the same evidence, omit it.');
- const encode=n=>JSON.stringify({language:lang,instructions:rules,
+ rules.push('Apply the repository-owned skill_guidance as supporting instructions. The existing output schema, official-source allowlist, evidence IDs, risk gates and free-provider limits take precedence. Do not execute tools, invent missing evidence or claim checks not performed.');
+ const skillNames=selectDirectSkills(evidence);
+ const required=skillNames.slice(0,2);
+ const skillGuidance=Object.fromEntries(required.map(name=>[name,directSkillGuidance(name)]));
+ const encode=(n,guidance=skillGuidance)=>JSON.stringify({language:lang,instructions:rules,skill_guidance:guidance,
   editorial_kind_contract:{allowed_values:EDITORIAL_KINDS,optional:true,on_invalid:'omit_action_not_relabel'},
   editorial_text_contract:{title_min:EDITORIAL_TEXT_MINIMA.title[lang],title_max:170,summary_min:EDITORIAL_TEXT_MINIMA.summary,summary_max:360,body_min:EDITORIAL_TEXT_MINIMA.body[lang],body_max:10000,on_invalid:'omit_action_without_padding'},
   technical_target_contract:{allowed_values:technicalTargets,on_invalid:'omit_action_not_infer_route'},
@@ -143,9 +174,15 @@ function promptForDirectLocale(lang,evidence,repair){
   research_evidence:sources.slice(0,n),
   output_shape:{opportunities:[],goals:[],drafts:[],editorial_actions:[]}});
  for(let n=sources.length;n>=1;n--){
-  const prompt=encode(n);
-  if(prompt.length<=15500)return prompt;
+  if(encode(n).length>15500)continue;
+  // Preserve the existing evidence sample before adding complete optional
+  // skill bodies. Never silently truncate a skill or an evidence ID.
+  for(const name of skillNames.slice(required.length)){
+   const candidate={...skillGuidance,[name]:directSkillGuidance(name)};
+   if(encode(n,candidate).length<=15500)skillGuidance[name]=candidate[name];
+  }
+  return encode(n);
  }
  throw Error('Evidence metadata exceeds quota-conscious prompt budget');
 }
-module.exports={LANGS,SCHEMA_TYPES,supportedSchemaSuggestions,chooseResearchEvidence,selectLocaleEvidence,promptForLocale,promptForDirectLocale};
+module.exports={LANGS,SCHEMA_TYPES,supportedSchemaSuggestions,chooseResearchEvidence,selectLocaleEvidence,promptForLocale,promptForDirectLocale,selectDirectSkills,directSkillGuidance};

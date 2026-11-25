@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
-const {promptForDirectLocale}=require('./geo-opencode-planner.cjs');
+const {promptForDirectLocale,selectDirectSkills,directSkillGuidance}=require('./geo-opencode-planner.cjs');
 const {EDITORIAL_KINDS,screenEditorial,eligibleEditorial,EDITORIAL_TEXT_MINIMA,isValidTechnicalTarget}=require('./geo-generated-output-guard.cjs');
 const langs=['ar','en','zh'];
 for(const lang of langs){
@@ -14,6 +14,12 @@ for(const lang of langs){
  assert(prompt.length<=15500,'Free model token budget exceeded for '+lang);
  const parsed=JSON.parse(prompt);
  assert.equal(parsed.language,lang);
+ assert.equal(parsed.skill_guidance['evidence-verification'],directSkillGuidance('evidence-verification'));
+ assert.equal(parsed.skill_guidance['content-strategy'],directSkillGuidance('content-strategy'));
+ assert(!Object.values(parsed.skill_guidance).some(s=>/^## Output/m.test(s)));
+ assert(parsed.instructions.some(x=>x.includes('take precedence')));
+ assert(Object.keys(parsed.skill_guidance).every(name=>selectDirectSkills(evidence).includes(name)));
+ assert.equal(parsed.skill_guidance['skill-improvement'],undefined);
  assert.equal(parsed.research_evidence.length,8,'Preserve sourced evidence');
  assert.deepEqual(parsed.research_evidence.map(e=>e.id),evidence.map(e=>e.id));
  assert(parsed.instructions.some(x=>x.includes('government agency')),'Official identity disclaimer');
@@ -62,6 +68,8 @@ for(const lang of langs){
  const repairPrompt=JSON.parse(promptForDirectLocale(lang,evidence,{
    editorial_actions:[{index:0,reason:'unknown_kind'}],drafts:[]
  }));
+ assert.equal(repairPrompt.skill_guidance['evidence-verification'],parsed.skill_guidance['evidence-verification']);
+ assert.equal(repairPrompt.skill_guidance['content-strategy'],parsed.skill_guidance['content-strategy']);
  assert.deepEqual(repairPrompt.editorial_text_contract,parsed.editorial_text_contract,
    'Existing single repair must reuse the same exact text minima');
  assert.deepEqual(repairPrompt.technical_target_contract,parsed.technical_target_contract,
@@ -77,3 +85,8 @@ for(const lang of langs){
 assert.throws(()=>promptForDirectLocale('es',[{id:'1'}]),/Unsupported/);
 assert.throws(()=>promptForDirectLocale('ar',[]),/Evidence/);
 console.log('PASS compact 3-language grounded prompt with real evidence IDs and free-tier token budget');
+
+assert.throws(()=>directSkillGuidance('../secrets'),/Unapproved/);
+assert(selectDirectSkills([{type:'technical_seo'}]).includes('technical-seo'));
+assert(selectDirectSkills([{type:'keyword_suggestion'}]).includes('keyword-research'));
+assert(selectDirectSkills([{type:'conversion'}]).includes('conversion-optimization'));
