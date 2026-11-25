@@ -4,7 +4,8 @@ export type EditorialStatus = 'pending'|'approved'|'rejected';
 export type EditorialRef={id:string;label:string;source:string;kind:string;url?:string;observed_at?:string};
 /** Claim must appear in the candidate; quote must occur verbatim on live official page. */
 export type SemanticShadowReceipt={version_digest:string;packet_digest:string;checked_at:string;status:'openrouter_shadow_pass'|'blocked';reason:string;reviewed_claims:number;requests:number;reviewers:Array<{model:string;provider:string;cost:0}>;publication_authorized:false;independent_gateway_verified:false};
-export type ReviewPreflight={semantic_shadow?:SemanticShadowReceipt;status:'ready'|'blocked';digest:string;checked_at:string;matched:number;total:number;reason:string;attempts?:number;archived?:boolean;source_discovery_version?:string};
+export type EvidenceLane='implementation'|'commercial'|'mixed'|'regulatory'|'unknown';
+export type ReviewPreflight={evidence_lane?:EvidenceLane;evidence_lane_version?:string;semantic_shadow?:SemanticShadowReceipt;status:'ready'|'blocked';digest:string;checked_at:string;matched:number;total:number;reason:string;attempts?:number;archived?:boolean;source_discovery_version?:string};
 export type EditorialClaimEvidence={claim:string;quote:string;url:string};
 export type EditorialItem={
  id:string;kind:EditorialKind;lang:EditorialLocale;target:string;slug?:string;related_service?:string;

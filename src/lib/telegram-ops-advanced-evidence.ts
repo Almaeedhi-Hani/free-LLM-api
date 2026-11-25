@@ -1,6 +1,6 @@
 import {createHash} from 'node:crypto';
 import {getContent,setContent,type ContentDraft,type SiteContent} from './content-store';
-import type {EditorialItem,EditorialClaimEvidence,EditorialRef,ReviewPreflight,SemanticShadowReceipt} from './editorial-types';
+import type {EditorialItem,EditorialClaimEvidence,EditorialRef,ReviewPreflight,SemanticShadowReceipt,EvidenceLane} from './editorial-types';
 import {assessGeoDraftCopy,detectGeoDraftLocale,splitGeoDraftReviewText} from './geo-draft-quality';
 import {editorialPublicationIssues,validateEditorialItem} from './editorial-workflow';
 import {getCompetitorDomains} from './source-policy-store';
@@ -9,6 +9,8 @@ import {officialSourceQueries,officialResultsFromRss} from './editorial-official
 import {getSupabaseCredentials} from './storage-mode';
 import {getGeoFeedbackIndex,excludesEditorial,excludesFaq} from './geo-agent-feedback';
 import {editorialPath} from './content-impact';
+import {packageOffers} from './package-offers';
+const lanes=require('./geo-evidence-lanes.cjs') as {classify:(kind:Kind,item:ContentDraft|EditorialItem,fields:string[],planning?:boolean)=>EvidenceLane;VERSION:string};
 export type PublicationReceipt={urls:string[];proofs:Array<EditorialClaimEvidence&{checked_at:string;verified_by:'live_official_exact_quote'}>};
 type Kind='faq'|'editorial';
 type Candidate={kind:'faq';item:ContentDraft}|{kind:'editorial';item:EditorialItem};
@@ -36,6 +38,9 @@ function fields(x:Candidate):string[]{
  if(x.kind==='faq')return [x.item.a.trim()];
  const i=x.item;
  return [i.title,i.summary,i.body,...(i.h1_suggestion?[i.h1_suggestion]:[]),...(i.sections||[]).flatMap(s=>[s.h2,s.body,...(s.subsections||[]).flatMap(h=>[h.h3,h.body])]),...(i.internal_links||[]).map(l=>l.anchor)];
+}
+export function evidenceLane(x:Candidate):EvidenceLane{
+ try{return lanes.classify(x.kind,x.item,fields(x),x.kind==='editorial'&&editorialPublicationIssues(x.item).length>0)}catch{return 'unknown'}
 }
 // Bind the question, editorial identity, risk and visitor copy, not only the answer.
 function identityFields(x:Candidate):string[]{
@@ -72,10 +77,26 @@ async function check(x:Candidate,collectPacket?:(packet:SemanticPacket)=>void):P
  // copy passes all checks and has live exact coverage. No legal paraphrase.
  const candidate:Candidate=x.kind==='faq'?{kind:'faq',item:{...x.item,a:splitGeoDraftReviewText(x.item.a).answer}}:x;
  const allowed=await reviewContentPolicy(candidate).catch(()=>false);
+ const lane=evidenceLane(x);
+ // Internal content is evaluated against our own approved catalog, not a
+ // government website. Mixed claims still need both kinds of evidence.
+ // These results are diagnostic only until the atomic contract supports
+ // first-party proof; never label a package claim an official quotation.
+ if(lane==='implementation'||lane==='commercial'){
+  const prior=x.item.review_preflight;
+  const locale=x.kind==='faq'?detectGeoDraftLocale(x.item.q):x.item.lang;
+  const source=packageOffers.flatMap(p=>[p.title[locale],p.audience[locale],p.pitch[locale],p.requirements[locale],p.exclusions[locale],...p.features.map(f=>f[locale])]);
+  const parts=(s:string[])=>Array.from(new Set(s.flatMap(v=>v.split(/[.!?]+(?:\s+|$)|[。！？؟]+\s*|\n+/)).map(v=>v.normalize('NFC').replace(/\s+/gu,' ').trim()).filter(Boolean)));
+  const claims=parts(fields(x));
+  const approved=new Set(parts(source));
+  const matched=lane==='commercial'?claims.filter(v=>approved.has(v)).length:0;
+  const meta:ReviewPreflight={status:'blocked',digest:evidence.digest(x.kind,identityFields(x)),checked_at:new Date().toISOString(),matched,total:claims.length,reason:lane==='implementation'?'implementation_handoff':!allowed?'policy_unavailable_or_excluded':matched===claims.length&&claims.length>0?'first_party_copy_matched_contract_required':'first_party_scope_not_fully_verified',attempts:(prior?.attempts||0)+1,archived:false,source_discovery_version:evidence.SOURCE_DISCOVERY_VERSION,evidence_lane:lane,evidence_lane_version:lanes.VERSION};
+  return {...x,item:{...x.item,review_preflight:meta}} as Candidate;
+ }
  const urls=allowed?await discover(candidate):[];
  const pages=await Promise.all(urls.map(async url=>({url,sentences:await evidence.page(url)})));
  const result=evidence.match(fields(candidate),pages);
- const ready=allowed&&result.complete&&reviewCopyQuality(candidate);
+ const ready=allowed&&lane!=='mixed'&&result.complete&&reviewCopyQuality(candidate);
  const reviewed=ready?candidate:x;
  // Preserve existing high-risk classifications; detect mislabeled sensitive
  // copy before saving the digest. Never grant low risk from missing evidence.
@@ -86,7 +107,7 @@ async function check(x:Candidate,collectPacket?:(packet:SemanticPacket)=>void):P
  const same=prior?.digest===evidence.digest(x.kind,identityFields(x));
  const attempts=(same?(prior?.attempts||0):0)+1;
  const exhausted=allowed&&pages.some(p=>p.sentences.length)&&(!result.complete||!reviewCopyQuality(candidate))&&attempts>=3;
- const meta:ReviewPreflight={status:ready?'ready':'blocked',source_discovery_version:evidence.SOURCE_DISCOVERY_VERSION,attempts,archived:!ready&&exhausted,digest:evidence.digest(x.kind,identityFields(original)),checked_at:new Date().toISOString(),matched:result.matched,total:result.total,reason:!allowed?'policy_unavailable_or_excluded':!urls.length?'no_official_candidates':!pages.some(p=>p.sentences.length)?'official_sources_unavailable':!result.complete?'exact_claim_coverage_incomplete':!reviewCopyQuality(candidate)?'copy_quality_failed':'ready'};
+ const meta:ReviewPreflight={evidence_lane:lane,evidence_lane_version:lanes.VERSION,status:ready?'ready':'blocked',source_discovery_version:evidence.SOURCE_DISCOVERY_VERSION,attempts,archived:!ready&&exhausted,digest:evidence.digest(x.kind,identityFields(original)),checked_at:new Date().toISOString(),matched:result.matched,total:result.total,reason:!allowed?'policy_unavailable_or_excluded':!urls.length?'no_official_candidates':!pages.some(p=>p.sentences.length)?'official_sources_unavailable':!result.complete?'exact_claim_coverage_incomplete':!reviewCopyQuality(candidate)?'copy_quality_failed':lane==='mixed'?'first_party_and_official_proof_required':'ready'};
  // Preserve only version-bound shadow diagnostics; they are never exact proof.
  if(prior?.semantic_shadow?.version_digest===meta.digest)meta.semantic_shadow=prior.semantic_shadow;
  if(collectPacket&&!ready&&allowed&&reviewCopyQuality(original)&&!meta.archived&&!meta.semantic_shadow){
@@ -117,6 +138,9 @@ export async function liveReadyForHuman(x:Candidate):Promise<boolean>{
 export function autoPublicationBlockReason(x:Candidate):string|null{
  try{
   if(x.item.status!=='pending')return 'not_pending';
+  const lane=evidenceLane(x);
+  if(lane==='implementation')return 'implementation_handoff';
+  if(lane==='commercial'||lane==='mixed')return 'first_party_publication_contract_required';
   if(x.item.risk_level!=='low')return 'risk_not_low';
   if(x.item.review_preflight?.archived===true)return 'review_archived';
   if(!reviewCopyQuality(x))return 'requires_finished_visitor_copy';
@@ -157,8 +181,15 @@ export async function runReviewEvidenceBatch(){
  const items:Candidate[]=[...c.drafts.filter(i=>i.status==='pending').map(item=>({kind:'faq' as const,item})),...c.editorialItems.filter(i=>i.status==='pending').map(item=>({kind:'editorial' as const,item}))];
  const technical=items.filter(x=>x.kind==='editorial'&&['technical_seo','internal_link'].includes(x.item.kind));
  const visitorItems=items.filter(x=>!technical.includes(x));
- const selected=evidence.selectReviewBatch(visitorItems.filter(x=>evidence.discoveryRepairDue(x)||evidence.due(x.item.review_preflight,x.kind,identityFields(x))));
- if(!selected.length)return {status:'idle',processed:0,ready:0,technical_tasks:technical.length};
+ const laneCounts:Record<string,number>={};
+ for(const item of items){const lane=evidenceLane(item);laneCounts[lane]=(laneCounts[lane]||0)+1;}
+ const selected=evidence.selectReviewBatch(visitorItems.filter(x=>{
+  const lane=evidenceLane(x),meta=x.item.review_preflight;
+  if(meta?.evidence_lane_version!==lanes.VERSION&&['commercial','implementation','mixed'].includes(lane))return true;
+  if(lane==='implementation'&&meta?.digest===evidence.digest(x.kind,identityFields(x)))return false;
+  return evidence.discoveryRepairDue(x)||evidence.due(x.item.review_preflight,x.kind,identityFields(x));
+ }));
+ if(!selected.length)return {status:'idle',processed:0,ready:0,technical_tasks:technical.length,evidence_lanes:laneCounts};
  const packets=new Map<number,SemanticPacket>();
  const checked=await Promise.all(selected.map((x,i)=>check(x,p=>packets.set(i,p))));
  // At most one real candidate per existing tick, with live verified zero-cost
@@ -185,8 +216,8 @@ export async function runReviewEvidenceBatch(){
  const saved=await getContent();
  const verified=checked.every(x=>{
   const records=x.kind==='faq'?saved.drafts.filter(i=>i.q===(x.item as ContentDraft).q):saved.editorialItems.filter(i=>i.id===(x.item as EditorialItem).id);
-  return records.some(i=>i.review_preflight?.digest===x.item.review_preflight?.digest&&i.review_preflight?.checked_at===x.item.review_preflight?.checked_at&&i.review_preflight?.source_discovery_version===evidence.SOURCE_DISCOVERY_VERSION&&shadowIdentity(i.review_preflight?.semantic_shadow)===shadowIdentity(x.item.review_preflight?.semantic_shadow)&&i.status==='pending');
+  return records.some(i=>i.review_preflight?.digest===x.item.review_preflight?.digest&&i.review_preflight?.checked_at===x.item.review_preflight?.checked_at&&i.review_preflight?.source_discovery_version===evidence.SOURCE_DISCOVERY_VERSION&&i.review_preflight?.evidence_lane===x.item.review_preflight?.evidence_lane&&i.review_preflight?.evidence_lane_version===lanes.VERSION&&shadowIdentity(i.review_preflight?.semantic_shadow)===shadowIdentity(x.item.review_preflight?.semantic_shadow)&&i.status==='pending');
  });
  if(!verified)throw Error('review_evidence_readback_unverified');
- return {status:'saved_verified',processed:checked.length,ready:checked.filter(readyForHuman).length,technical_tasks:technical.length,semantic_shadow:shadowStatus};
+ return {status:'saved_verified',processed:checked.length,ready:checked.filter(readyForHuman).length,technical_tasks:technical.length,semantic_shadow:shadowStatus,evidence_lanes:laneCounts};
 }
