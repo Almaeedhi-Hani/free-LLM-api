@@ -35,3 +35,4 @@ jobs:
         run: |
           psql -X -v ON_ERROR_STOP=1 -f tests/sql/investor-report.sql
           psql -X -v ON_ERROR_STOP=1 -f tests/sql/phase2-security.sql
+          psql -X -v ON_ERROR_STOP=1 -f tests/sql/geo-atomic-publication-proof.sql
