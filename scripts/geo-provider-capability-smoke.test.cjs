@@ -48,7 +48,10 @@ const {PROVIDERS,freeOpenRouterModels,capability,statusClass,probe,run}=require(
  const workflow=fs.readFileSync('.github/workflows/geo-provider-capability-smoke.yml','utf8');
  assert(workflow.includes("geo-provider-capability-smoke.cjs"));
  assert(workflow.includes('secrets.NVIDIA_API_KEY')&&workflow.includes('secrets.OPENROUTER_API_KEY'));
- assert(!workflow.includes('GEO_API_KEY')&&!workflow.includes('SUPABASE_SERVICE_ROLE_KEY'));
+ assert(!workflow.includes('SUPABASE_SERVICE_ROLE_KEY'));
+ assert(!workflow.split('Run isolated semantic benchmark')[0].includes('GEO_API_KEY'));
+ assert(workflow.includes("github.event_name == 'workflow_dispatch' && inputs.semantic_review && inputs.free_accounts_verified"));
+ assert(!/^  push:/m.test(workflow),'Never run credentialed capability probes just because a commit merged');
  assert(!workflow.includes('schedule:')&&!workflow.includes('geo-analysis.js'));
  assert(workflow.includes('workflow_dispatch'));
  console.log('PASS: NVIDIA and OpenRouter safe models, strict zero pricing, no writes, no secret leaks, bounded calls');

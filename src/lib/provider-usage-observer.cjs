@@ -108,21 +108,25 @@ async function saveObservation(observation,{env=process.env,fetchFn=fetch}={}){
   return res.status===200;
  }catch{return false}
 }
-async function preflight(provider,{env=process.env,fetchFn=fetch}={}){
+async function preflight(provider,{env=process.env,fetchFn=fetch,strict=false}={}){
  if(!PROVIDERS.includes(provider))return {blocked:true,reason:'invalid_provider'};
  const url=reporterUrl(env);
- if(!url)return {blocked:false,reason:'monitor_unconfigured'};
+ if(!url)return {blocked:strict,reason:'monitor_unconfigured'};
  try{
   const res=await fetchFn(url+'?provider='+provider,{
    method:'GET',redirect:'error',signal:AbortSignal.timeout(3500),
    headers:{'x-geo-api-key':env.GEO_API_KEY}
   });
-  if(!res.ok)return {blocked:false,reason:'monitor_unavailable'};
+  if(!res.ok)return {blocked:strict,reason:'monitor_unavailable'};
   const data=await res.json();
   if(data?.provider!==provider||typeof data?.blocked!=='boolean')
-   return {blocked:false,reason:'monitor_unverified'};
+   return {blocked:strict,reason:'monitor_unverified'};
+  if(strict&&!data.blocked){
+   const limit=data.confirmed_daily_limit,remaining=data.confirmed_daily_remaining;
+   if(data.reason!=='none'||data.day_limit_evidence!=='explicit_provider_response_header'||data.history_may_be_truncated!==false||!Number.isSafeInteger(limit)||limit<=0||!Number.isSafeInteger(remaining)||remaining>limit||remaining-1<Math.ceil(limit*.20))return {blocked:true,reason:'verified_daily_budget_missing'};
+  }
   return {blocked:data.blocked,reason:data.reason||'unknown'};
- }catch{return {blocked:false,reason:'monitor_unavailable'}}
+ }catch{return {blocked:strict,reason:'monitor_unavailable'}}
 }
 module.exports={PROVIDERS,ROOT,integer,duration,retrySeconds,tokens,makeObservation,
  reporterUrl,saveObservation,preflight};

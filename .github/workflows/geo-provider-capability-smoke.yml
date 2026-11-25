@@ -6,11 +6,19 @@ on:
       - '.github/workflows/geo-provider-capability-smoke.yml'
       - 'scripts/geo-provider-capability-smoke.cjs'
       - 'scripts/geo-provider-capability-smoke.test.cjs'
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/geo-provider-capability-smoke.yml' # Rerun one production-safe smoke after catalog/deprecated-model fix
+      - 'scripts/geo-semantic-review-smoke.cjs'
+      - 'scripts/geo-semantic-review-smoke.test.cjs'
+      - 'src/lib/geo-semantic-review.cjs'
   workflow_dispatch:
+    inputs:
+      semantic_review:
+        description: 'Run the trilingual synthetic semantic benchmark instead of the old capability probe'
+        type: boolean
+        default: false
+      free_accounts_verified:
+        description: 'Both configured accounts are verified no-charge; never bypass quota guard'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -36,9 +44,10 @@ jobs:
         run: |
           node --check scripts/geo-provider-capability-smoke.cjs
           node scripts/geo-provider-capability-smoke.test.cjs
+          node scripts/geo-semantic-review-smoke.test.cjs
 
       - name: Probe NVIDIA free-hosted prototypes and live zero-priced OpenRouter models
-        if: github.event_name != 'pull_request'
+        if: github.event_name == 'workflow_dispatch' && !inputs.semantic_review
         env:
           NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
@@ -46,10 +55,28 @@ jobs:
           node scripts/geo-provider-capability-smoke.cjs
 
       - name: Upload sanitized result (no prompt or key values)
-        if: always() && github.event_name != 'pull_request'
+        if: always() && github.event_name == 'workflow_dispatch' && !inputs.semantic_review
         uses: actions/upload-artifact@v4
         with:
           name: geo-provider-capability-probe
           path: market-intel/model-capability-smoke.json
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Run isolated semantic benchmark with verified no-charge accounts
+        if: github.event_name == 'workflow_dispatch' && inputs.semantic_review && inputs.free_accounts_verified
+        env:
+          GEO_SEMANTIC_FREE_ACCOUNTS_VERIFIED: 'true'
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GEO_API_KEY: ${{ secrets.GEO_API_KEY }}
+        run: node scripts/geo-semantic-review-smoke.cjs
+
+      - name: Upload sanitized semantic benchmark
+        if: always() && github.event_name == 'workflow_dispatch' && inputs.semantic_review && inputs.free_accounts_verified
+        uses: actions/upload-artifact@v4
+        with:
+          name: geo-semantic-review-smoke
+          path: market-intel/semantic-review-smoke.json
           retention-days: 7
           if-no-files-found: ignore

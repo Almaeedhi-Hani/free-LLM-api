@@ -80,7 +80,7 @@ function errorName(status){
  if(status===404||status===410)return 'model_unavailable';
  return status>=500?'provider_unavailable':'http_'+status;
 }
-async function generate(prompt,selected,{env=process.env,fetchFn=fetch,timeoutMs=60000}={}){
+async function generate(prompt,selected,{env=process.env,fetchFn=fetch,timeoutMs=60000,strictQuota=false}={}){
  const provider=PROVIDERS.find(p=>p.id+':'+p.model===selected);
  if(!provider)return {error:'model_not_allowlisted',model:selected};
  const key=env[provider.key];
@@ -88,7 +88,7 @@ async function generate(prompt,selected,{env=process.env,fetchFn=fetch,timeoutMs
  if(typeof prompt!=='string'||!prompt.trim()||prompt.length>MAX_PROMPT_CHARS)
   return {error:'invalid_prompt_size',model:selected};
  const request=requestSpec(provider,prompt,key.trim());
- const quotaCheck=await quota.preflight(provider.id,{env});
+ const quotaCheck=await quota.preflight(provider.id,{env,...(strictQuota?{strict:true,fetchFn}:{})});
  if(quotaCheck.blocked)return {error:'provider_quota_cooldown',model:selected};
  // No retry or dynamic URL; fixed HTTPS allowlist only. No secrets in logs.
  try{
@@ -107,7 +107,7 @@ async function generate(prompt,selected,{env=process.env,fetchFn=fetch,timeoutMs
    :safeContent(payload?.choices?.[0]?.message?.content);
   const data=parseAnswer(answer);
   if(!data)return {error:'invalid_model_response',model:selected};
-  return {data,model:selected,provider:provider.id};
+  return {data,model:selected,provider:provider.id,...(strictQuota?{actual_model:typeof payload.model==='string'&&/^[a-zA-Z0-9_.:/-]{1,120}$/.test(payload.model)?payload.model:null}:{})};
  }catch(e){
   await quota.saveObservation(quota.makeObservation(provider.id,{status:0}),{env});
   const error=e?.name==='TimeoutError'?'timeout':
