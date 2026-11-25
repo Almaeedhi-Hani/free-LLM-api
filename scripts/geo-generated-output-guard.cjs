@@ -88,7 +88,14 @@ function canonicalGuideFields(item){
  const missing=v=>v===undefined||v===null||v==='';
  const read=v=>{
   if(typeof v!=='string')return null;
-  const slug=v.replace(/^\/insights\//,'');
+  // Only ASCII words and separators in an explicitly supplied slug or the
+  // exact /insights/ alias. Normalize spelling, not the meaning or destination.
+  const prefix=item.lang==='ar'?'/insights/':'/'+item.lang+'/insights/';
+  let raw=v.trim();
+  if(raw.startsWith(prefix))raw=raw.slice(prefix.length).replace(/\/$/,'');
+  else if(raw.startsWith('/insights/'))raw=raw.slice('/insights/'.length).replace(/\/$/,'');
+  if(raw.length>180||!(/^[A-Za-z0-9]+(?:[-_ ]+[A-Za-z0-9]+)*$/).test(raw))return null;
+  const slug=raw.toLowerCase().replace(/[-_ ]+/g,'-');
   return slug.length<=90&&/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)?slug:null;
  };
  const a=read(item.target),b=read(item.slug);

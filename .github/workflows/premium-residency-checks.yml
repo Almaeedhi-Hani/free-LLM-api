@@ -1,0 +1,25 @@
+name: Premium residency page checks
+on:
+  pull_request:
+    paths:
+      - 'src/lib/premium-residency-content.ts'
+      - 'src/components/PremiumResidencyPage*'
+      - 'src/app/services/premium-residency/page.tsx'
+      - 'scripts/premium-residency-content.test.cjs'
+      - '.github/workflows/premium-residency-checks.yml'
+permissions:
+  contents: read
+jobs:
+  residency:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx tsc src/lib/premium-residency-content.ts --outDir .residency-test-build --module commonjs --target es2020 --strict --skipLibCheck && node --test scripts/premium-residency-content.test.cjs
+      - run: npx tsc --noEmit
+      - run: npm run build

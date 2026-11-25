@@ -1,5 +1,6 @@
 'use strict';
 const {createHash}=require('node:crypto');
+const {gscCoverage}=require('./v3-central-health.cjs');
 const fmt=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Riyadh',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hourCycle:'h23'});
 function localParts(now){
  const p=Object.fromEntries(fmt.formatToParts(new Date(now)).map(x=>[x.type,x.value]));
@@ -17,7 +18,7 @@ function classify(name,record,field,now,maxHours){
 }
 function health(d){
  return [classify('Market Radar',d.radar,'finished_at',d.now,7),
- classify('GEO',d.geo,'lastRun',d.now,7),classify('GSC',d.gsc,'checked_at',d.now,8),
+ classify('GEO',d.geo,'lastRun',d.now,7),{name:'GSC',...(d.gsc?.metric_date?gscCoverage(d.gsc,d.now):classify('GSC',d.gsc,'checked_at',d.now,8))},
  classify('Watchdog',d.watchdog,'finished_at',d.now,7)];
 }
 function issueKey(issue){return 'alert:watchdog:'+issue.number+':'+String(issue.created_at||'').slice(0,40);}
@@ -32,7 +33,9 @@ function alerts(d){
  return out;
 }
 function healthText(d){
- const labels={recent:'نتيجة ناجحة حديثة',failed:'فشل في آخر نتيجة',stale:'النتيجة قديمة',unknown:'غير مؤكد'};
- return health(d).map(x=>x.name+': '+labels[x.state]).join('\n')+'\nبلاغات Watchdog المفتوحة: '+(Array.isArray(d.watchdogIssues)?d.watchdogIssues.length+(d.watchdogIssues.length===100?' أو أكثر':''):'غير متاح')+'\nنجاح تشغيل Watchdog لا يعني غياب الأعطال.';
+ const labels={recent:'نتيجة ناجحة حديثة',failed:'فشل في آخر نتيجة',stale:'النتيجة قديمة',unknown:'غير مؤكد',pending:'بانتظار دورة مزامنة اليوم'};
+ const names={'Market Radar':'استخبارات السوق','GEO':'المحتوى والظهور التوليدي (GEO)','GSC':'محركات البحث (GSC)','Watchdog':'مراقب الأنظمة'};
+ const date=v=>v?new Intl.DateTimeFormat('ar-SA',{calendar:'gregory',timeZone:'Asia/Riyadh',dateStyle:'short',timeStyle:'short'}).format(new Date(v)):'غير مؤكد';
+ return health(d).map(x=>names[x.name]+': '+labels[x.state]+' — '+date(x.when)).join('\n')+'\nبلاغات Watchdog المفتوحة: '+(Array.isArray(d.watchdogIssues)?d.watchdogIssues.length+(d.watchdogIssues.length===100?' أو أكثر':''):'غير متاح')+'\nنجاح تشغيل Watchdog لا يعني غياب الأعطال.';
 }
 module.exports={dailyKey,classify,health,alerts,healthText};

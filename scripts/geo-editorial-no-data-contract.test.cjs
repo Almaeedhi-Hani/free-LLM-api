@@ -21,6 +21,15 @@ const guard=require('./geo-generated-output-guard.cjs');
  assert.equal(publicationDecision({pipeline_ok:true,stages:{...noData,ghost:{status:'success'}}}),'blocked');
  assert.equal(publicationDecision({pipeline_ok:true,stages:null}),'blocked');
 
+ const partial={...base,editorial_actions:{status:'partial',records_processed:1,validation_only:true}};
+ assert.equal(contract.classifyGeoOutcome(base),'success');
+ assert.equal(contract.classifyGeoOutcome(noData),'success');
+ assert.equal(contract.classifyGeoOutcome(partial),'partial_success');
+ assert.equal(contract.classifyGeoOutcome({...partial,editorial_actions:{status:'partial'}}),'failed');
+ assert.equal(contract.classifyGeoOutcome({...partial,drafts:{status:'partial'}}),'failed');
+ assert.equal(contract.classifyGeoOutcome({...partial,evidence:{status:'blocked'}}),'blocked');
+ assert.equal(contract.classifyGeoOutcome({}),'failed');
+ assert.equal(publicationDecision({pipeline_ok:true,stages:partial}),'blocked');
  const source=fs.readFileSync('scripts/opencode-geo-analysis.js','utf8');
  const start=source.indexOf('async function stageEditorialActions()');
  const end=source.indexOf('\n// --- Main pipeline ---',start);
@@ -63,6 +72,7 @@ const guard=require('./geo-generated-output-guard.cjs');
 
  const invalid=fixture([{kind:'unapproved_kind',lang:'en',title:'fake'}]);
  const bad=await invalid.handleEditorial();
+ assert.equal(bad.validation_only,true);
  assert.equal(bad.status,'partial','a rejected model suggestion cannot pass as no-data');
  assert.equal(invalid.stageResults.editorial_actions.no_data,false);
  assert.equal(persistCalls,0);

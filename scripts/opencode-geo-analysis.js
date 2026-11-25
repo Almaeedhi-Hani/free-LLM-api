@@ -407,6 +407,7 @@ async function stageGeoAnalysis() {
   let failed=0,calls=0;
   const unavailableModels=new Set();
   const quotaLimitedModels=new Set();
+  const modelCalls=new Map();
   const repairable=[];
   const outputFields=['drafts','editorial_actions'];
   const checkOutputs=(data,lang,limits)=>{
@@ -447,6 +448,7 @@ async function stageGeoAnalysis() {
     const fallbackOrder=(freshModels.length?freshModels:recovery?[recovery]:[]).slice(0,3);
     for(const [index,model] of fallbackOrder.entries()){
       calls++;
+      modelCalls.set(model,(modelCalls.get(model)||0)+1);
       const recovered=freshModels.length===0;
       const evidence=selectLocaleEvidence(all,lang,recovered?2:index===0?8:index===1?4:2);
       const timeoutMs=recovered?45000:index===0?90000:index===1?60000:45000;
@@ -459,7 +461,7 @@ async function stageGeoAnalysis() {
       if(valid){response=trial;responseEvidence=evidence;break}
       const reason=String(trial.error||(data?'invalid_model_response':'unparseable JSON')).slice(0,70);
       attempts.push({model,reason});
-      if(reason==='rate_limited'||reason==='quota_exhausted')quotaLimitedModels.add(model);
+      if(reason==='rate_limited'||reason==='quota_exhausted'||reason==='provider_quota_cooldown')quotaLimitedModels.add(model);
       if(direct||reason==='timeout'||reason==='rate_limited'||reason.startsWith('Command failed'))
         unavailableModels.add(model);
       logStage('GEO_ANALYSIS',lang+' free model unavailable: '+model+' '+reason);
@@ -475,17 +477,24 @@ async function stageGeoAnalysis() {
   }
   // Give every locale its normal analysis before spending one unused direct-model
   // attempt for format repair. A repair never gets its own fallback chain.
-  const repair=direct&&repairable.find(item=>item.hasBudget&&!unavailableModels.has(item.model)&&
-    candidateModels.includes(item.model)&&outputFields.some(field=>item.checks[field].rejected.length));
+  const eligibleRepairModels=candidateModels.filter(m=>!unavailableModels.has(m)&&!quotaLimitedModels.has(m));
+  const repair=direct&&eligibleRepairModels.length&&repairable.find(item=>item.hasBudget&&
+    outputFields.some(field=>item.checks[field].rejected.length));
   if(repair){
     const errors=Object.fromEntries(outputFields.map(field=>[field,repair.checks[field].rejected]));
-    const report=result.languages[repair.lang].validation_repair={attempted:true,outcome:'no_valid_replacements'};
+    // Reserve the single existing repair attempt for the least-used eligible
+    // provider when the original provider has handled the other locales too.
+    // Prefer its original model for ties and the explicitly free router for
+    // unused alternatives; do not retry even if the repair fails.
+    const repairModel=eligibleRepairModels.includes(repair.model)&&(modelCalls.get(repair.model)||0)<=1?repair.model:[...eligibleRepairModels].sort((a,b)=>(modelCalls.get(a)||0)-(modelCalls.get(b)||0)||
+      Number(b===repair.model)-Number(a===repair.model)||Number(b==='openrouter:openrouter/free')-Number(a==='openrouter:openrouter/free'))[0];
+    const report=result.languages[repair.lang].validation_repair={attempted:true,outcome:'no_valid_replacements',model:repairModel};
     try{
       const prompt=promptForDirectLocale(repair.lang,repair.evidence,errors);
       calls++;
-      const trial=await direct.generate(prompt,repair.model,{timeoutMs:45000});
+      const trial=await direct.generate(prompt,repairModel,{timeoutMs:45000});
       if(!trial.data){
-        report.outcome=['rate_limited','quota_exhausted'].includes(trial.error)?'quota_reached':'model_unavailable';
+        report.outcome=['rate_limited','quota_exhausted','provider_quota_cooldown'].includes(trial.error)?'quota_reached':'model_unavailable';
       }else{
         const limits=Object.fromEntries(outputFields.map(field=>[field,errors[field].length]));
         const replacements=checkOutputs(trial.data,repair.lang,limits);
@@ -604,7 +613,7 @@ async function updateGEOAgentRun(outcome) {
     const statuses=outcome.stage_results?.geo_analysis?.languages||{};
     const localeSummary=['ar','en','zh'].map(lang=>lang+':'+(statuses[lang]?.status||'not_run')).join(',');
     const last_result=['discovery','evidence','geo_analysis','opportunities','goals','drafts','editorial_actions'].map(stage=>stage+':'+(outcome.stages[stage]?.status||'not_run')).join(' | ')+
-      ' | locales='+localeSummary;
+      ' | locales='+localeSummary+' | execution_outcome='+outcome.execution_outcome;
     const response=await fetch(base.replace(/\/$/,'')+'/api/geo/results',{
       method:'POST',headers:{'Content-Type':'application/json','x-geo-api-key':key},
       body:JSON.stringify({run_report:{run_at:outcome.pipeline_run,status,last_result}}),
@@ -688,7 +697,7 @@ async function stageEditorialActions() {
   console.log('[EDITORIAL] No valid evidence-backed cross-site proposals to persist'+
     (cleanNoData?' (verified no-data)':' (rejected/partial)'));
   if(cleanNoData)return {records_processed:0,status:'success_no_data',error:null};
-  return {records_processed:0,status:'partial',
+  return {records_processed:0,status:'partial',validation_only:unresolved>0,
     error:initialCount
       ?'Rejected '+unresolved+' malformed editorial proposal(s)'
       :'Editorial suggestions rejected/partial; review the validation log'};
@@ -717,7 +726,7 @@ async function stageEditorialActions() {
   rejected_count:rejected+screened.rejected.length,repaired_count:repaired,reviewer_excluded:saved.reviewer_excluded||0,status,error:error||null};
  console.log('[EDITORIAL] Generated',initialCount,'eligible',proposed.length,
   'rejected',rejected+screened.rejected.length,'repaired',repaired,'persisted',saved.saved,status);
- return {records_processed:saved.saved,status,error};
+ return {records_processed:saved.saved,status,error,validation_only:unresolved>0&&saved.status==='success'};
 }
 
 // --- Main pipeline ---
@@ -766,8 +775,8 @@ async function runFullPipeline() {
     pipeline_run: new Date().toISOString(),
     model: FREE_MODEL_ALLOWLIST.includes(MODEL)?MODEL:'unknown',
     elapsed_seconds: parseFloat(elapsed),
-    stages: Object.fromEntries(Object.entries(results).map(([stage,{status,records_processed}])=>
-      [stage,{status,records_processed}])),
+    stages: Object.fromEntries(Object.entries(results).map(([stage,{status,records_processed,validation_only}])=>
+      [stage,{status,records_processed,...(validation_only===true?{validation_only:true}:{})}])),
     summary: {
       discovery: stageResults.discovery?.count || 0,
       evidence: stageResults.evidence?.total || 0,
@@ -811,8 +820,9 @@ async function runFullPipeline() {
   output.summary.persisted_drafts=stageResults.drafts?.persisted||0;
   output.summary.persisted_editorial_actions=stageResults.editorial_actions?.persisted||0;
   output.pipeline_ok=require('./geo-editorial-no-data-contract.cjs').completeGeoPipeline(results);
+  output.execution_outcome=require('./geo-editorial-no-data-contract.cjs').classifyGeoOutcome(results);
   output.dashboard_synced=await updateGEOAgentRun(output);
-  if(!output.dashboard_synced)output.pipeline_ok=false;
+  if(!output.dashboard_synced){output.pipeline_ok=false;output.execution_outcome='failed';}
   // Update the persisted workflow artifact with the verified remote outcome.
   fs.writeFileSync(outFile,JSON.stringify(output,null,2));
   return output;

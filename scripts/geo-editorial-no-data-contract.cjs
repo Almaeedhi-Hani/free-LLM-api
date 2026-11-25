@@ -21,6 +21,16 @@ function completeGeoPipeline(stages){
       stage.status==='success_no_data'&&stage.records_processed===0));
  });
 }
+// Reporting only: never grant publication on a partial outcome.
+function classifyGeoOutcome(stages){
+ if(completeGeoPipeline(stages))return 'success';
+ if(!stages||Object.keys(stages).length!==STAGES.length)return 'failed';
+ if(STAGES.some(id=>stages[id]?.status==='blocked'))return 'blocked';
+ if(STAGES.filter(id=>id!=='editorial_actions').every(id=>stages[id]?.status==='success') &&
+    stages.editorial_actions?.status==='partial' &&
+    stages.editorial_actions?.validation_only===true)return 'partial_success';
+ return 'failed';
+}
 function publicationDecision(report){
  if(!report||report.pipeline_ok!==true||!completeGeoPipeline(report.stages))
    return 'blocked';
@@ -44,4 +54,4 @@ if(require.main===module){
   process.exitCode=1;
  }
 }
-module.exports={STAGES,cleanEditorialNoData,completeGeoPipeline,publicationDecision};
+module.exports={classifyGeoOutcome,STAGES,cleanEditorialNoData,completeGeoPipeline,publicationDecision};

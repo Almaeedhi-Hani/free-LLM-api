@@ -42,7 +42,7 @@ export async function POST(req:NextRequest){
   if(existing?.url&&existing.url!==endpoint)return json({error:'existing_webhook_conflict'},409);
   const sent=await api('sendMessage',{chat_id:cfg.chat,text:'تم التحقق من حساب المالك. غرفة عمليات Invest in Saudi — رسالة اختبار آمنة.'});
   if(String(sent?.chat?.id)!==cfg.chat||sent?.chat?.type!=='private'||!Number.isSafeInteger(sent?.message_id))return json({error:'test_delivery_unconfirmed'},503);
-  await api('setWebhook',{url:endpoint,secret_token:cfg.secret,allowed_updates:['message'],drop_pending_updates:false});
+  await api('setWebhook',{url:endpoint,secret_token:cfg.secret,allowed_updates:['message','callback_query'],drop_pending_updates:false});
   const info=await api('getWebhookInfo',{});
   if(info?.url!==endpoint)return json({error:'webhook_unconfirmed',test_delivered:true},503);
   return json({ok:true,bot:'@'+me.username,test_delivered:true,webhook_verified:true,next:'أرسل /status إلى البوت للتحقق من الأوامر'});

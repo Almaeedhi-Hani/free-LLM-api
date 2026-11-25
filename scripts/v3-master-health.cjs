@@ -2,6 +2,7 @@
 // Safety Monitor's independent watchdog for the Master itself.
 // No external providers, code publication, database mutation, or secret logging.
 const fs=require('node:fs');
+const {centralRun,centralState}=require('../src/lib/v3-central-health.cjs');
 const {createClient,issueKey}=require('./v3-phase2-monitor.cjs');
 const MASTER_FILE='v3-production-orchestrator.yml';
 const MASTER_ISSUE=issueKey('watchdog','Master Workflow schedule stale or failed');
@@ -25,15 +26,15 @@ function masterState(runs,now){
  if(age>GRACE_MS)return {status:'stale',reason:'master_last_schedule_too_old',...record};
  return {status:'unknown',reason:'unverified_master_result',...record};
 }
-function trustedCompletion(event){
+function trustedCompletion(event,central=false){
  const r=event?.workflow_run;
- return Boolean(r&&r.event==='schedule'&&r.head_branch==='main'&&
+ return Boolean(r&&(central?centralRun(r,'master'):r.event==='schedule')&&r.head_branch==='main'&&
    typeof r.path==='string'&&r.path.endsWith('/'+MASTER_FILE)&&
    r.head_repository?.full_name===event.repository?.full_name&&
    typeof r.id==='number'&&r.id>0);
 }
-async function reconcile(client,{mode='watchdog',event=null,now=Date.now()}={}){
- if(mode==='on-completion'&&!trustedCompletion(event))
+async function reconcile(client,{mode='watchdog',event=null,now=Date.now(),central=false}={}){
+ if(mode==='on-completion'&&!trustedCompletion(event,central))
   return {result:'ignored_non_master_or_untrusted_completion'};
  if(!['watchdog','on-completion'].includes(mode))throw Error('Unrecognized monitor mode');
  const pause=await client.pauseStatus('W01');
@@ -44,25 +45,25 @@ async function reconcile(client,{mode='watchdog',event=null,now=Date.now()}={}){
   return {...issue,health:'paused'};
  }
  let state;
- try{state=masterState(await client.workflowRuns(MASTER_FILE),now);}
+ try{const runs=await client.workflowRuns(MASTER_FILE,central);state=central?centralState(runs,now,'master'):masterState(runs,now);}
  catch{state={status:'unknown',reason:'github_read_unavailable'};}
  const body=[
   'Independent Safety Monitor at '+new Date(now).toISOString(),
   'Master: '+MASTER_FILE,
   'Current state: '+state.status,
   'Reason: '+state.reason,
-  'Most recent scheduled run ID: '+(state.runId||'none'),
+  'Most recent relevant run ID: '+(state.runId||'none'),
   'UTC created_at: '+(state.createdAt||'unknown'),
   'Elapsed minutes: '+(state.ageMinutes??'unknown'),
-  'Only GitHub event=schedule on main is considered. Push and workflow_dispatch are not substitutes.',
-  'Master automatically schedules real bounded W02/W01/W03/W05/W06 work, due-gated to the existing four-hour provider cadence.',
-  'GSC, Safety and Quality run on their own schedules and do not depend on this Master.',
+  central?'Supabase central-tagged workflow_dispatch on main is expected; arbitrary manual dispatch and push are excluded. The source tag is not cryptographic proof.':'Only GitHub event=schedule on main is considered. Push and workflow_dispatch are not substitutes.',
+  central?'One three-hour Supabase clock; Radar is owned by the central bridge, Master handles W01/W03/W05/W06.':'Master automatically schedules real bounded W02/W01/W03/W05/W06 work, due-gated to the existing four-hour provider cadence.',
+  central?'GSC, Safety and Quality are independently dispatched by the same central clock.':'GSC, Safety and Quality run on their own schedules and do not depend on this Master.',
   'No forced production run, paid model, credential readout or database write was made by the watchdog.'
  ].join('\n');
  if(state.status==='failed'||state.status==='stale')
   return {...await client.upsertIssue({title:MASTER_ISSUE,body,label:'watchdog'}),health:state.status};
  if(state.status==='healthy')
-  return {...await client.resolveIssue(MASTER_ISSUE,body+'\nA genuine scheduled Master run succeeded.'),health:'healthy'};
+  return {...await client.resolveIssue(MASTER_ISSUE,body+'\nA verified relevant Master run succeeded.'),health:'healthy'};
  return {result:'unknown_or_in_progress',health:state.status,reason:state.reason};
 }
 if(require.main===module){
@@ -79,7 +80,7 @@ if(require.main===module){
     AUTODEV_PAUSED:process.env.AUTODEV_PAUSED??''
    }
   });
-  const answer=await reconcile(client,{mode,event,now:Date.now()});
+  const answer=await reconcile(client,{mode,event,now:Date.now(),central:true});
   console.log('[V3_MASTER_WATCHDOG] '+JSON.stringify(answer));
  })().catch(e=>{
   console.error('[V3_MASTER_WATCHDOG] '+String(e.message).slice(0,120));process.exitCode=1;

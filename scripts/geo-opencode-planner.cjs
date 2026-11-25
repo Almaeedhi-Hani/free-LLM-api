@@ -135,6 +135,7 @@ function promptForDirectLocale(lang,evidence,repair){
   editorial_kind_contract:{allowed_values:EDITORIAL_KINDS,optional:true,on_invalid:'omit_action_not_relabel'},
   editorial_text_contract:{title_min:EDITORIAL_TEXT_MINIMA.title[lang],title_max:170,summary_min:EDITORIAL_TEXT_MINIMA.summary,summary_max:360,body_min:EDITORIAL_TEXT_MINIMA.body[lang],body_max:10000,on_invalid:'omit_action_without_padding'},
   technical_target_contract:{allowed_values:technicalTargets,on_invalid:'omit_action_not_infer_route'},
+  guide_slug_contract:{example_only:{target:'example-investor-guide',slug:'example-investor-guide'},on_conflict:'omit_action',max_length:90},
   live_site_routes:liveRoutes,
   ...(repair?{validation_errors:repair}:{}),
   research_evidence:sources.slice(0,n),

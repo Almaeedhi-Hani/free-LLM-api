@@ -1,7 +1,7 @@
 import {getSupabaseCredentials} from '@/lib/storage-mode';
 import {getContent} from '@/lib/content-store';
 import {buildPublishedLinks} from '@/lib/published-links';
-const core=require('./telegram-ops-core.cjs') as {config:(env:NodeJS.ProcessEnv)=>{token:string;secret:string;chat:string;owner:string}|null;render:(cmd:string,d:Record<string,unknown>)=>string;chunks:(text:string)=>string[]};
+const core=require('./telegram-ops-core.cjs') as {config:(env:NodeJS.ProcessEnv)=>{token:string;secret:string;chat:string;owner:string}|null;render:(cmd:string,d:Record<string,unknown>)=>string;chunks:(text:string)=>string[];reconcileReviewWebhook:(cfg:{token:string;secret:string;chat:string;owner:string},username:string,api:(method:string,body:object)=>Promise<unknown>)=>Promise<string>};
 const phase=require('./telegram-ops-phase2.cjs') as {dailyKey:(now:string)=>string|null;alerts:(d:Record<string,unknown>)=>{key:string;text:string}[];healthText:(d:Record<string,unknown>)=>string};
 type Row=Record<string,unknown>;
 const repo='https://api.github.com/repos/Almaeedhi-Hani/free-LLM-api';
@@ -25,7 +25,7 @@ async function snapshot(now:string){
  const d:Record<string,unknown>={now};
  await Promise.all([
   rows('analysis_runs?select=status,finished_at&run_type=eq.radar&order=started_at.desc&limit=1').then(x=>{d.radar=x?.[0]??null;}),
-  rows('gsc_sync_day_outcomes?select=status,checked_at&order=checked_at.desc&limit=1').then(x=>{d.gsc=x?.[0]??null;}),
+  rows('gsc_sync_day_outcomes?select=status,checked_at,metric_date,rows_fetched&order=metric_date.desc,checked_at.desc&limit=1&property=eq.'+encodeURIComponent(process.env.GSC_PROPERTY_URL||'https://free-llm-api-1-didl.onrender.com/')+'').then(x=>{d.gsc=x?.[0]??null;}),
   rows('geo_publication_events?select=status,published_at&order=published_at.desc&limit=1').then(x=>{d.publication=x?.[0]??null;}),
   rows('impact_ai_observations?select=verification_status,observed_at&order=observed_at.desc&limit=1').then(x=>{d.ai=x?.[0]??null;}),
   rows('weekly_reports?select=week_key,verified_at&order=week_key.desc&limit=1').then(x=>{d.weekly=x?.[0]??null;}),
@@ -54,13 +54,27 @@ async function sendOne(cfg:NonNullable<ReturnType<typeof core.config>>,message:s
  const r=await fetch('https://api.telegram.org/bot'+cfg.token+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:cfg.chat,text:message.slice(0,3800),link_preview_options:{is_disabled:true}}),signal:AbortSignal.timeout(5000),redirect:'error',cache:'no-store'});
  const j=await r.json();if(!r.ok||j?.ok!==true||String(j.result?.chat?.id)!==cfg.chat||!Number.isSafeInteger(j.result?.message_id))throw Error('telegram_delivery_unconfirmed');return Number(j.result.message_id);
 }
+async function reconcileReviewSubscription(cfg:NonNullable<ReturnType<typeof core.config>>,now:string){
+ if(process.env.TELEGRAM_OPS_ADVANCED_ENABLED!=='true')return 'disabled';
+ const key='webhook-check:'+now.slice(0,10);
+ try{
+  if(!await claimDelivery(key,'command'))return 'already_checked';
+  const status=await core.reconcileReviewWebhook(cfg,process.env.TELEGRAM_BOT_USERNAME||'',async(method,body)=>{
+   const r=await fetch('https://api.telegram.org/bot'+cfg.token+'/'+method,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(4500),redirect:'error',cache:'no-store'});
+   const j=await r.json();if(!r.ok||j?.ok!==true)throw Error('telegram_request_failed');return j.result;
+  });
+  await markDelivery(key,status==='verified'||status==='repaired_verified'?'sent':'uncertain');
+  return status;
+ }catch{return 'subscription_unverified';}
+}
 export async function runTelegramTick(now:string){
  if(!telegramPhase2Enabled())return {status:'disabled'};
  const cfg=core.config(process.env);if(!cfg)return {status:'configuration_incomplete'};
+ const subscription=reconcileReviewSubscription(cfg,now);
  const d=await snapshot(now);
  const day=phase.dailyKey(now);
- const candidates=[...(day?[{key:day,kind:'daily' as const,text:'الإحاطة اليومية\n'+core.render('/brief',d).replace('Watchdog: غير متحقق من مصدر مستقل في هذه النسخة','')+'\n\n'+phase.healthText(d)}]:[]),...phase.alerts(d).map(x=>({...x,kind:'alert' as const}))];
- if(!candidates.length)return {status:'no_alerts',sent:0};
+ const candidates=[...(day?[{key:day,kind:'daily' as const,text:'الإحاطة اليومية\n'+core.render('/brief',{...d,healthSummary:phase.healthText(d)})}]:[]),...phase.alerts(d).map(x=>({...x,kind:'alert' as const}))];
+ if(!candidates.length)return {status:'no_alerts',sent:0,review_subscription:await subscription};
  // One read of bounded candidate keys, then atomic claims to handle concurrent invocations.
  const keys=candidates.slice(0,105).map(x=>'"'+x.key+'"').join(',');
  const known=await ledger('?select=delivery_key&delivery_key=in.'+encodeURIComponent('('+keys+')'),'GET');
@@ -72,5 +86,5 @@ export async function runTelegramTick(now:string){
   try{const id=await sendOne(cfg,item.text);await markDelivery(item.key,'sent',id);sent++;}
   catch{uncertain++;try{await markDelivery(item.key,'uncertain');}catch{}}
  }
- return {status:uncertain?'delivery_uncertain':'checked',sent,uncertain};
+ return {status:uncertain?'delivery_uncertain':'checked',sent,uncertain,review_subscription:await subscription};
 }
