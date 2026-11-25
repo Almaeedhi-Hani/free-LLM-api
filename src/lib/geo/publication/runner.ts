@@ -8,7 +8,6 @@ import {getGeoFeedbackIndex,excludesEditorial,excludesFaq} from '../../geo-agent
 import {appendPublicationAudit,UNATTRIBUTED_PUBLICATION_ORIGIN} from '../../geo-publication-audit';
 import type {PublicationOrigin,AuditPhase} from '../../geo-publication-audit';
 import {getAutoPublicationStatus,restCall} from './policy-store';
-import {assessEditorialCandidate,assessFaqCandidate} from './preflight';
 import type {PublicationReceipt} from '../../telegram-ops-advanced-evidence';
 import type {AutoPublishReport} from './types';
 
@@ -34,29 +33,29 @@ export async function runGuardedAutoPublishing(dryRun=false,origin:PublicationOr
  const faqDrafts=(content.drafts||[]).filter(d=>d.status==='pending');
  report.examined=editorial.length+faqDrafts.length;
  const publishable=editorial.filter(e=>publishableKinds.has(e.kind));
+ const verifier=await import('../../telegram-ops-advanced-evidence');
  if(dryRun){
-  // Read-only even while the emergency pause is active. Limit live source
-  // probes to one candidate per request; report the remainder as unchecked.
+  // Use exactly the stored-version gate of the actual worker. No external
+  // source requests or writes; a candidate still needs live proof and RPC.
   const reasons:Record<string,number>={};
-  const checks:Record<string,number>={};
-  let probed=false;
+  let readyForProbe=0;
+  const count=(reason:string|null)=>{if(reason)reasons[reason]=(reasons[reason]||0)+1;else readyForProbe++;};
   for(const item of publishable){
    const path=editorialPath(item);
-   if(!path||excludesEditorial(feedback,item,path)){reasons.reviewer_excluded=(reasons.reviewer_excluded||0)+1;continue}
-   let result=await assessEditorialCandidate(item,competitorDomains,false);
-   if(!probed&&result.reason==='source_check_required'){
-    probed=true;result=await assessEditorialCandidate(item,competitorDomains,true);
-   }
-   reasons[result.reason]=(reasons[result.reason]||0)+1;
-   checks[result.sourceCheck]=(checks[result.sourceCheck]||0)+1;
+   count(!path||unfinished(item)?'requires_finished_visitor_copy':excludesEditorial(feedback,item,path)?'reviewer_excluded':
+    competitorDomains===null?'source_policy_unavailable':verifier.autoPublicationBlockReason({kind:'editorial',item}));
   }
-  for(const draft of faqDrafts){const reason=excludesFaq(feedback,draft.q)?'reviewer_excluded':assessFaqCandidate(draft);reasons[reason]=(reasons[reason]||0)+1}
-  return {...report,status:'dry_run',message:JSON.stringify({
+  for(const draft of faqDrafts){
+   count(excludesFaq(feedback,draft.q)?'reviewer_excluded':
+    typeof draft.q!=='string'||typeof draft.a!=='string'||draft.q.trim().length<5||draft.a.trim().length<30?'invalid_faq_structure':
+    competitorDomains===null?'source_policy_unavailable':verifier.autoPublicationBlockReason({kind:'faq',item:draft}));
+  }
+  return {...report,status:'dry_run',skipped:publishable.length+faqDrafts.length-readyForProbe,message:JSON.stringify({
    pending_editorial:editorial.length,pending_faq:faqDrafts.length,
    visitor_page_candidates:publishable.length,technical_tasks:editorial.length-publishable.length,
    source_requirement:'automated_verification_required',publication_enabled:state.enabled,
-   high_risk_permission:state.allow_high_risk,blocked_by_reason:reasons,source_checks:checks,
-   eligible_to_publish:0,dry_run_only:true
+   high_risk_permission:state.allow_high_risk,blocked_by_reason:reasons,
+   ready_for_live_probe:readyForProbe,eligible_to_publish:0,dry_run_only:true
   })};
  }
  // A legacy RPC cannot receive an unversioned fallback. This read-only
@@ -83,7 +82,6 @@ export async function runGuardedAutoPublishing(dryRun=false,origin:PublicationOr
  // At most two fresh probes per queue (four total) per invocation. The
  // shared rolling DB quota still caps successful publications at ten.
  let editorialProbes=0,faqProbes=0;
- const verifier=await import('../../telegram-ops-advanced-evidence');
  for(const candidate of publishable){
   const path=editorialPath(candidate);
   if(path&&excludesEditorial(feedback,candidate,path)){
@@ -95,7 +93,7 @@ export async function runGuardedAutoPublishing(dryRun=false,origin:PublicationOr
    continue;
   }
   if(competitorDomains===null||!verifier.canProbeAutoPublication({kind:'editorial',item:candidate})){
-   if(!(await recordSkip('editorial',candidate.id,'version_or_evidence_not_ready')))return storageAuditFailure();
+   if(!(await recordSkip('editorial',candidate.id,competitorDomains===null?'source_policy_unavailable':verifier.autoPublicationBlockReason({kind:'editorial',item:candidate})||'version_or_evidence_not_ready')))return storageAuditFailure();
    continue;
   }
   if(editorialProbes>=2){if(!(await recordSkip('editorial',candidate.id,'live_probe_budget_reached')))return storageAuditFailure();continue;}
@@ -157,7 +155,7 @@ export async function runGuardedAutoPublishing(dryRun=false,origin:PublicationOr
    continue;
   }
   if(competitorDomains===null||!verifier.canProbeAutoPublication({kind:'faq',item:draft})){
-   if(!(await recordSkip('faq',draft.q,'version_or_evidence_not_ready')))return storageAuditFailure();continue;
+   if(!(await recordSkip('faq',draft.q,competitorDomains===null?'source_policy_unavailable':verifier.autoPublicationBlockReason({kind:'faq',item:draft})||'version_or_evidence_not_ready')))return storageAuditFailure();continue;
   }
   if(faqProbes>=2){if(!(await recordSkip('faq',draft.q,'live_probe_budget_reached')))return storageAuditFailure();continue;}
   faqProbes++;
