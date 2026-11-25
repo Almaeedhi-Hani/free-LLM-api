@@ -51,7 +51,9 @@ const {PROVIDERS,freeOpenRouterModels,capability,statusClass,probe,run}=require(
  assert(!workflow.includes('SUPABASE_SERVICE_ROLE_KEY'));
  assert(!workflow.split('Run isolated semantic benchmark')[0].includes('GEO_API_KEY'));
  assert(workflow.includes("github.event_name == 'workflow_dispatch' && inputs.semantic_review && inputs.free_accounts_verified"));
- assert(!/^  push:/m.test(workflow),'Never run credentialed capability probes just because a commit merged');
+ assert.match(workflow,/push:\n    branches: \[main\]\n    paths:\n      - 'scripts\/geo-openrouter-account-benchmark\.cjs'/,'Only the explicit commissioning script may trigger a main push check');
+ assert(workflow.includes("github.event_name == 'workflow_dispatch' && !inputs.semantic_review"));
+ assert(workflow.includes("github.event_name == 'push' && github.ref == 'refs/heads/main' && github.run_attempt == 1"));
  assert(!workflow.includes('schedule:')&&!workflow.includes('geo-analysis.js'));
  assert(workflow.includes('workflow_dispatch'));
  console.log('PASS: NVIDIA and OpenRouter safe models, strict zero pricing, no writes, no secret leaks, bounded calls');

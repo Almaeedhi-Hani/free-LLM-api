@@ -9,6 +9,12 @@ on:
       - 'scripts/geo-semantic-review-smoke.cjs'
       - 'scripts/geo-semantic-review-smoke.test.cjs'
       - 'src/lib/geo-semantic-review.cjs'
+      - 'scripts/geo-openrouter-account-benchmark.cjs'
+      - 'scripts/geo-openrouter-account-benchmark.test.cjs'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/geo-openrouter-account-benchmark.cjs'
   workflow_dispatch:
     inputs:
       semantic_review:
@@ -45,6 +51,7 @@ jobs:
           node --check scripts/geo-provider-capability-smoke.cjs
           node scripts/geo-provider-capability-smoke.test.cjs
           node scripts/geo-semantic-review-smoke.test.cjs
+          node scripts/geo-openrouter-account-benchmark.test.cjs
 
       - name: Probe NVIDIA free-hosted prototypes and live zero-priced OpenRouter models
         if: github.event_name == 'workflow_dispatch' && !inputs.semantic_review
@@ -78,5 +85,22 @@ jobs:
         with:
           name: geo-semantic-review-smoke
           path: market-intel/semantic-review-smoke.json
+          retention-days: 7
+          if-no-files-found: ignore
+
+      # One bounded commissioning check on this explicit implementation path.
+      # No recurring schedule, no publishing, no Groq or NVIDIA inference.
+      - name: Verify OpenRouter account and run bounded free-only synthetic review
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.run_attempt == 1
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: node scripts/geo-openrouter-account-benchmark.cjs
+
+      - name: Upload sanitized OpenRouter commissioning report
+        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main' && github.run_attempt == 1
+        uses: actions/upload-artifact@v4
+        with:
+          name: geo-openrouter-account-benchmark
+          path: market-intel/openrouter-account-benchmark.json
           retention-days: 7
           if-no-files-found: ignore
