@@ -4,8 +4,9 @@ import SiteHeader from "@/components/layout/SiteHeader";
 import SiteFooter from "@/components/layout/SiteFooter";
 import {WhatsAppFloat} from "@/components/WhatsAppFloat";
 import {whatsAppUrlForLanguage} from "@/lib/whatsapp-contacts";
+import InvestorAnalytics from "@/components/InvestorAnalytics";
 import { CookieConsent } from "@/components/CookieConsent";
-import { getContent } from "@/lib/content-store";
+import { getPublicContent as getContent } from "@/lib/public-content";
 import { approvedEditorial } from "@/lib/editorial-workflow";
 import { getLocale } from "@/lib/site-language";
 export const dynamic = "force-dynamic";
@@ -55,6 +56,7 @@ export default async function RootLayout({
         <SiteFooter lang={lang} contact={contact} whatsappHref={whatsappHref} />
         <WhatsAppFloat locale={lang} contact={contact}/>
         <CookieConsent locale={lang} policy={content.cookiePolicy} />
+        <InvestorAnalytics locale={lang} enabled={content.cookiePolicy.analyticsAvailable} />
       </body>
     </html>
   );

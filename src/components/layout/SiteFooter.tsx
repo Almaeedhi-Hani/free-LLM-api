@@ -1,4 +1,5 @@
 import {localizedPath, type Locale} from "@/lib/site-language";
+import CookieSettingsButton from "@/components/CookieSettingsButton";
 import ArrowUpRight from "@/components/ArrowUpRight";
 import {copy,services} from "@/lib/service-catalog";
 import type {getContent} from "@/lib/content-store";
@@ -42,7 +43,7 @@ export default function SiteFooter({lang,contact,whatsappHref}:{lang:Locale;cont
             <span>
               © {new Date().getFullYear()} {t.brand}
             </span>
-            <span>{t.foot}</span>
+            <span>{t.foot}</span><CookieSettingsButton lang={lang}/>
           </div>
         </footer>
   );

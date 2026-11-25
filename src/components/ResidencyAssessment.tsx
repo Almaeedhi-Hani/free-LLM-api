@@ -15,7 +15,7 @@ const when=timing==="soon"?t.soon:timing==="later"?t.later:t.research;
 let href:string|undefined;
 if(whatsapp&&product){const u=new URL(whatsapp);u.searchParams.set("text",[t.message,t.goal+" "+product.name[lang],t.location+" "+place,t.timing+" "+when,t.ready].join("\n"));href=u.toString();}
 return <section id="assessment" className={styles.assessment}><h2>{t.title}</h2><p>{t.intro}</p>
-{!show?<form onSubmit={e=>{e.preventDefault();if(product&&location&&timing)setShow(true);}} className={styles.assessmentForm}>
+{!show?<form onSubmit={e=>{e.preventDefault();if(product&&location&&timing){setShow(true);window.dispatchEvent(new Event("investor-assessment-complete"));}}} className={styles.assessmentForm}>
 <label>{t.goal}<select required value={goal} onChange={e=>setGoal(e.target.value)}><option value="">{t.choose}</option>{products.map(p=><option key={p.id} value={p.id}>{p.name[lang]}</option>)}</select></label>
 <label>{t.location}<select required value={location} onChange={e=>setLocation(e.target.value)}><option value="">{t.choose}</option><option value="inside">{t.inside}</option><option value="outside">{t.outside}</option></select></label>
 <label>{t.timing}<select required value={timing} onChange={e=>setTiming(e.target.value)}><option value="">{t.choose}</option><option value="soon">{t.soon}</option><option value="later">{t.later}</option><option value="research">{t.research}</option></select></label>
