@@ -4,7 +4,7 @@ import type {EditorialItem,EditorialClaimEvidence,EditorialRef,ReviewPreflight} 
 import {assessGeoDraftCopy,detectGeoDraftLocale,splitGeoDraftReviewText} from './geo-draft-quality';
 import {editorialPublicationIssues,validateEditorialItem} from './editorial-workflow';
 import {getCompetitorDomains} from './source-policy-store';
-import {auditBody} from './source-policy';
+import {auditBody,isDisplayable} from './source-policy';
 import {officialSourceQueries,officialResultsFromRss} from './editorial-official-source-search';
 import {getSupabaseCredentials} from './storage-mode';
 import {getGeoFeedbackIndex,excludesEditorial,excludesFaq} from './geo-agent-feedback';
@@ -107,6 +107,10 @@ export function canProbeAutoPublication(x:Candidate):boolean{
 }
 export async function liveAutoPublicationReceipt(x:Candidate,request:typeof fetch=fetch):Promise<PublicationReceipt|null>{
  if(!canProbeAutoPublication(x)||!await reviewContentPolicy(x).catch(()=>false))return null;
+ // The authority allowlist does not override the current competitor registry.
+ // Check stored proof URLs against the registry before any official fetch.
+ const domains=await getCompetitorDomains().catch(()=>null);
+ if(domains===null||!(x.item.claim_evidence||[]).every(p=>isDisplayable(p.url,domains)))return null;
  const receipt=await evidence.liveProofReceipt(fields(x),x.item.claim_evidence||[],x.item.evidence_refs||[],request);
  if(!receipt||receipt.proofs.length!==x.item.review_preflight?.matched||
     receipt.proofs.length!==x.item.review_preflight?.total)return null;
