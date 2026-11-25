@@ -13,6 +13,32 @@ function topicUrls(target){
  const relevant=manifest.nodes.filter(n=>n.route==='/services/'+target||n.id===target);
  return Array.from(new Set(relevant.flatMap(n=>n.official_sources||[]).map(safeUrl).filter(Boolean)));
 }
+// Infer only recognized service topics from multilingual FAQ titles.
+// Unknown questions do not receive unrelated government references.
+function faqTopicTargets(title){
+ const s=norm(title);
+ const rules=[
+  ['corporate-banking',/corporate bank|bank account|banking|\bkyc\b|حساب.{0,16}(?:بنكي|مصرفي)|البنك المركزي|银行|开户/iu],
+  ['misa-license',/investment registration|investment licen[cs]|\bmisa\b|التسجيل الاستثماري|ترخيص الاستثمار|وزارة الاستثمار|投资登记|投资许可|投资部/iu],
+  ['premium-residency',/premium residency|الإقامة المميزة|高级居留|优质居留/iu],
+  ['investment-funds',/investment funds?|صناديق الاستثمار|صندوق استثماري|投资基金/iu],
+  ['contract-drafting',/articles of association|corporate contracts?|governance|عقد التأسيس|عقود الشركات|الحوكمة|公司章程|公司合同|治理/iu],
+  ['company-formation',/company formation|company incorporation|establish.{0,24}compan|set up.{0,24}compan|تأسيس.{0,15}شرك|إنشاء.{0,15}شرك|设立公司|公司设立|公司注册|注册公司/iu]
+ ];
+ return rules.filter(([,rx])=>rx.test(s)).map(([target])=>target);
+}
+function selectOfficialCandidates(targets,saved,discovered){
+ const primary=targets.flatMap(topicUrls);
+ const nodes=manifest.nodes.filter(n=>targets.includes(n.id)||targets.some(t=>n.route==='/services/'+t));
+ const related=nodes.flatMap(n=>(n.related_nodes||[]).flatMap(topicUrls));
+ // Prioritize relevant manifest sources, then observed/search candidates,
+ // then explicitly related manifest nodes. All remain unverified candidates.
+ const urls=Array.from(new Set([...primary,...saved,...discovered,...related].map(safeUrl).filter(Boolean)));
+ const chosen=[],seen=new Set();
+ for(const url of urls){const host=new URL(url).hostname;if(!seen.has(host)){chosen.push(url);seen.add(host)}if(chosen.length===3)return chosen}
+ for(const url of urls){if(!chosen.includes(url))chosen.push(url);if(chosen.length===3)break}
+ return chosen;
+}
 async function readBounded(res,limit,mime){
  if(!res.ok||!mime.test(res.headers.get('content-type')||'')||Number(res.headers.get('content-length')||0)>limit||!res.body)return null;
  const reader=res.body.getReader(),dec=new TextDecoder();let bytes=0,out='';
@@ -64,4 +90,4 @@ function selectReviewBatch(dueItems){
  for(const x of sorted){if(chosen.length>=4)break;if(!chosen.includes(x))chosen.push(x)}
  return chosen;
 }
-module.exports={parts,digest,safeUrl,topicUrls,readBounded,page,match,eligible,due,editorialIdentityFields,selectReviewBatch};
+module.exports={parts,digest,safeUrl,topicUrls,readBounded,page,match,eligible,due,editorialIdentityFields,selectReviewBatch,faqTopicTargets,selectOfficialCandidates};

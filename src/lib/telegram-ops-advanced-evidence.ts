@@ -21,6 +21,8 @@ const evidence=require('./telegram-ops-advanced-evidence.cjs') as {
  due:(meta:ReviewPreflight|undefined,kind:Kind,fields:string[])=>boolean;
  editorialIdentityFields:(item:EditorialItem,copyFields:string[])=>string[];
  selectReviewBatch:(items:Candidate[])=>Candidate[];
+ faqTopicTargets:(title:string)=>string[];
+ selectOfficialCandidates:(targets:string[],saved:string[],discovered:string[])=>string[];
 };
 function fields(x:Candidate):string[]{
  if(x.kind==='faq')return [x.item.a.trim()];
@@ -46,7 +48,8 @@ export async function reviewContentPolicy(x:Candidate){
 async function discover(x:Candidate){
  const title=x.kind==='faq'?x.item.q:x.item.title;
  const lang=x.kind==='faq'?detectGeoDraftLocale(title):x.item.lang;
- const query=officialSourceQueries({title,lang,...(x.kind==='editorial'?{primary_keyword:x.item.primary_keyword,target:x.item.related_service||x.item.target}:{})})[0];
+ const targets=x.kind==='editorial'?[x.item.related_service||x.item.target]:evidence.faqTopicTargets(title);
+ const query=officialSourceQueries({title,lang,target:targets[0],...(x.kind==='editorial'?{primary_keyword:x.item.primary_keyword}:{})})[0];
  const saved=(x.item.evidence_refs||[]).map(r=>evidence.safeUrl(r.url)).filter((u):u is string=>!!u);
  let discovered:string[]=[];
  if(query)try{
@@ -54,8 +57,7 @@ async function discover(x:Candidate){
   const xml=await evidence.readBounded(r,250000,/(?:rss|xml)/i);
   if(xml)discovered=officialResultsFromRss(xml,5).map(r=>evidence.safeUrl(r.url)).filter((u):u is string=>!!u);
  }catch{}
- const target=x.kind==='editorial'?x.item.related_service||x.item.target:'';
- return Array.from(new Set([...saved,...discovered,...evidence.topicUrls(target)])).slice(0,3);
+ return evidence.selectOfficialCandidates(targets,saved,discovered);
 }
 async function check(x:Candidate):Promise<Candidate>{
  // Only a trailing procedural note may be removed, and only if remaining

@@ -124,3 +124,23 @@ test('bounded evidence batch gives both queues capacity and fills spare slots',(
  const later={kind:'faq',item:{id:'late',review_preflight:{checked_at:'2026-11-25T00:00:00Z'}}};
  assert(!selectReviewBatch([later,...faq,...ed]).includes(later));
 });
+
+
+test('official FAQ discovery uses approved service topics even without search results',()=>{
+ const e=require('../src/lib/telegram-ops-advanced-evidence.cjs');
+ const cases=[
+  ['How should a foreign investor compare Saudi company formation support options?','company-formation','mc.gov.sa'],
+  ['What should be checked before relying on a corporate bank account document checklist?','corporate-banking','rulebook.sama.gov.sa'],
+  ['How can I check the current Saudi investment registration requirements before I apply?','misa-license','misa.gov.sa'],
+  ['外国投资者在沙特设立公司前通常需要确认哪些事项？','company-formation','mc.gov.sa'],
+  ['ما شروط فتح حساب بنكي للشركة؟','corporate-banking','rulebook.sama.gov.sa']
+ ];
+ for(const [q,topic,host] of cases){
+  assert(e.faqTopicTargets(q).includes(topic),q);
+  const urls=e.selectOfficialCandidates(e.faqTopicTargets(q),['https://competitor.example/'],[]);
+  assert(urls.some(u=>new URL(u).hostname===host),q);
+  assert(urls.length<=3);assert(urls.every(u=>e.safeUrl(u)===u));
+  assert.equal(e.match(['Unsupported legal claim that must never be published'],urls.map(url=>({url,sentences:[]}))).complete,false);
+ }
+ assert.deepEqual(e.selectOfficialCandidates(e.faqTopicTargets('How is the weather?'),[],[]),[]);
+});
