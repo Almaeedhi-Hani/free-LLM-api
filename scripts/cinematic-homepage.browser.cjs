@@ -40,7 +40,13 @@ const viewports=[{width:320,height:640},{width:390,height:844},{width:768,height
         assert.equal(await page.locator('html').getAttribute('dir'),lang.dir,name);
         assert.equal(await page.locator('h1').count(),1,name);
         assert.equal(await page.locator('.cinematic-secondary').getAttribute('href'),lang.packages,name);
-        assert.equal(await page.locator('.cinematic-primary').getAttribute('href'),'#contact',name);
+        const consultation=await page.locator('.cinematic-primary').getAttribute('href');
+        assert.match(consultation,/^https:\/\/wa\.me\/[1-9]\d{7,14}$/,name+' valid locale WhatsApp URL');
+        assert.equal(consultation,await page.locator('#contact .action-primary').getAttribute('href'),name+' same locale advisor');
+        assert.equal(await page.locator('.cinematic-primary').getAttribute('target'),'_blank');
+        assert.equal(await page.locator('.cinematic-primary').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(216, 182, 111)',name+' gold CTA');
+        assert.equal(await page.locator('.cinematic-primary').evaluate(e=>getComputedStyle(e).color),'rgb(32, 42, 54)');
+        assert.notEqual(await page.locator('.cinematic-secondary').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(216, 182, 111)',name+' neutral secondary');
         assert.equal(await page.locator('#contact').count(),1,name);
         assert.equal(await page.locator('#services').count(),1,name);
         const geometry=await page.evaluate(()=>{
@@ -86,8 +92,43 @@ const viewports=[{width:320,height:640},{width:390,height:844},{width:768,height
           await page.keyboard.press('Escape');
           assert.equal(await toggle.getAttribute('aria-expanded'),'false',name);
         }
-        await page.locator('.cinematic-primary').click();
-        assert.equal(new URL(page.url()).hash,'#contact',name+' consultation route');
+        // Intercept the navigation locally: no real WhatsApp traffic or messages.
+        await context.route(consultation,route=>route.fulfill({status:200,contentType:'text/plain',body:'WhatsApp fixture'}));
+        const [popup]=await Promise.all([page.waitForEvent('popup'),page.locator('.cinematic-primary').click()]);
+        await popup.waitForLoadState('domcontentloaded');
+        assert.equal(popup.url(),consultation,name+' direct consultation route');
+        await popup.close();
+        if(viewport.width===390||viewport.width===1440){
+          await page.goto(base+lang.packages,{waitUntil:'domcontentloaded'});
+          const category=page.locator('.license-category-card').first();
+          await category.waitFor();
+          assert.equal(await category.locator('.license-category-action').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(216, 182, 111)');
+          await category.click();
+          const selected=page.locator('.license-offer[aria-pressed="true"]');
+          assert.equal(await selected.evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(216, 182, 111)');
+          if(await page.locator('.license-offer[aria-pressed="false"]').count()){
+            const next=page.locator('.license-offer[aria-pressed="false"]').first();
+            await next.click();
+            assert.equal(await next.getAttribute('aria-pressed'),'true');
+          }
+          await page.locator('.license-detail>button').click();
+          assert(await page.locator('.package-form button[type="submit"]').isVisible());
+          await page.screenshot({path:path.join(output,name+'-package.png'),fullPage:true,animations:'disabled'});
+          await page.goto(base+(lang.id==='ar'?'':'/'+lang.id)+'/services/premium-residency',{waitUntil:'domcontentloaded'});
+          const assessment=page.locator('#assessment');
+          await assessment.waitFor();
+          assert.equal(await assessment.locator('select').count(),3);
+          for(const select of await assessment.locator('select').all())assert.equal(await select.evaluate(e=>getComputedStyle(e).borderTopColor),'rgb(216, 182, 111)');
+          assert.equal(await assessment.locator('button[type="submit"]').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(216, 182, 111)');
+          await assessment.locator('select').nth(0).selectOption('investor');
+          await assessment.locator('select').nth(1).selectOption('inside');
+          await assessment.locator('select').nth(2).selectOption('soon');
+          await assessment.locator('button[type="submit"]').click();
+          assert(await assessment.locator('a.action-primary').isVisible());
+          assert.equal(await assessment.locator('a.action-primary').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(216, 182, 111)');
+          await assessment.scrollIntoViewIfNeeded();
+          await page.screenshot({path:path.join(output,name+'-residency.png'),fullPage:true,animations:'disabled'});
+        }
         console.log('PASS',name);
       }finally{await context.close();}
     }

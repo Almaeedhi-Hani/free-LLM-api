@@ -1,4 +1,5 @@
 import CinematicHero from "@/components/CinematicHero";
+import {whatsAppUrlForLanguage} from "@/lib/whatsapp-contacts";
 import { pageMetadata } from "@/lib/site-seo";
 import { loadHomeModel } from "@/lib/home/model";
 import ConversionProof from "@/components/home/ConversionProof";
@@ -22,7 +23,7 @@ export default async function HomePage() {
           __html: JSON.stringify(schema).replace(/</g, "\\u003c"),
         }}
       />
-      <CinematicHero lang={lang} />
+      <CinematicHero lang={lang} consultationHref={whatsAppUrlForLanguage(content.contact,lang)} />
       <ConversionProof lang={lang} />
       <AuthorityStrip t={t} />
       <MarketEntry lang={lang} t={t} />

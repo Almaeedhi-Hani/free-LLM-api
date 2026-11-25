@@ -1,0 +1,48 @@
+/* Owner-approved gold accent: exclusively actionable public conversion controls.
+   Neutral surfaces, typography, navigation, secondary actions and admin remain untouched. */
+body:not(:has(.admin-route)) {
+  --conversion-gold: #d8b66f;
+  --conversion-gold-hover: #c9a25b;
+  --conversion-gold-border: #8a682f;
+}
+body:not(:has(.admin-route)) #main :is(.cinematic-primary,.action-primary,.license-detail>button,.package-card button,.package-buttons button:not(.package-secondary)):not(:disabled),
+body:not(:has(.admin-route)) .conversion-chat-toggle {
+  background:var(--conversion-gold);
+  color:var(--reference-ink);
+  border-color:var(--conversion-gold-border);
+}
+body:not(:has(.admin-route)) #main :is(.cinematic-primary,.action-primary,.license-detail>button,.package-card button,.package-buttons button:not(.package-secondary)):not(:disabled):hover,
+body:not(:has(.admin-route)) .conversion-chat-toggle:hover {
+  background:var(--conversion-gold-hover);
+  color:var(--reference-ink);
+  border-color:var(--conversion-gold-border);
+}
+/* Choices: highlight the existing action affordance, not the full category card. */
+body:not(:has(.admin-route)) #main .license-category-action {
+  background:var(--conversion-gold);
+  color:var(--reference-ink);
+  border-radius:999px;
+  padding:6px 12px;
+}
+body:not(:has(.admin-route)) #main .license-category-card:hover .license-category-action {
+  background:var(--conversion-gold-hover);
+}
+body:not(:has(.admin-route)) #main :is(.license-category-card,.license-offer,.license-tabs button):is(:hover,:focus-visible),
+body:not(:has(.admin-route)) #main :is(.license-offer.active,.license-tabs button.active) {
+  border-color:var(--conversion-gold-border);
+}
+body:not(:has(.admin-route)) #main :is(.license-offer.active,.license-tabs button.active) {
+  background:var(--conversion-gold);
+  color:var(--reference-ink);
+  box-shadow:inset 0 0 0 1px var(--conversion-gold-border);
+}
+/* The three required residency choices stand out on the existing dark assessment. */
+body:not(:has(.admin-route)) #main #assessment select {
+  border-color:var(--conversion-gold);
+}
+body:not(:has(.admin-route)) #main :is(.license-offer,.license-category-card,.license-tabs button,.package-form select,.package-form input,.package-form textarea):focus-visible {
+  outline-color:var(--conversion-gold-border);
+}
+body:not(:has(.admin-route)) #main #assessment select:focus-visible {
+  outline-color:var(--conversion-gold);
+}
