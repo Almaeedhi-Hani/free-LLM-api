@@ -58,3 +58,7 @@ The former 1,616-line market-intelligence.ts now re-exports the exact original p
 - GSC: cron route keeps its constant-time authorization and delegates existing synchronization to a dedicated service.
 - Telegram: webhook retains authentication, delivery ledger and dispatch; data reads, transport, configuration and voice processing are separate modules. Existing commands and scopes remain unchanged.
 - No new schedules, migration, credentials, external request or publication behavior. Static source contracts follow the owning modules. The pinned baseline checks exact moved implementation bodies.
+
+## Ninth migration slice — admin publication controls and reports
+- Report export UI delegates report assembly, encoding, Excel and PDF generation to separate client-compatible modules; original layout, colors, data and download behavior preserved.
+- Content impact center delegates the existing publication controls and their authenticated state/actions to a dedicated view and hook; shared publication status remains available to the parent without duplicate requests. Confirmation, readback, rollback, and risk gates remain unchanged. Existing test assertions follow the new owning modules.

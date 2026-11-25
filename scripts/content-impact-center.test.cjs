@@ -76,7 +76,7 @@ assert(route.includes("if(!authorized(req))")&&route.includes("return NextRespon
 assert(route.includes('dimension:\'eq.page\''));
 assert(route.includes("rows.length>=5000"),'truncated metrics fail closed');
 assert(!route.includes("method:'POST'"),'metrics API read-only');
-const center=fs.readFileSync('src/components/ContentImpactCenter.tsx','utf8');
+const center=['src/components/ContentImpactCenter.tsx','src/components/admin/impact/PublicationControls.tsx','src/components/admin/impact/usePublicationControls.ts'].map(path=>fs.readFileSync(path,'utf8')).join('\n');
 assert(center.includes('معاينة وتفاصيل')&&center.includes('حذف نهائي')&&center.includes('إلغاء النشر / أرشفة'));
 assert(center.includes("counted?number(sumViews):'—'"),'missing GSC data must never render zero');
 assert(center.includes('النشر الآلي للمحتوى الحساس وعالي المخاطر')&&center.includes('ENABLE_AUTONOMOUS_SENSITIVE_CONTENT'),'separate sensitive auto-publication permission shown');

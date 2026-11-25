@@ -44,6 +44,10 @@ assert(cronGsc.split('\n').length<30&&cronGsc.includes('if (!authorized(req))')&
 const telegram=read('src/app/api/telegram/operations/route.ts');
 assert(telegram.split('\n').length<65&&telegram.includes('core.authentic')&&telegram.includes('await claimDelivery'),'Telegram auth and idempotency stay at route boundary');
 assert(read('src/lib/telegram/transport.ts').includes('length>65536'),'Telegram request size bound');
+const reportExport=read('src/components/DashboardReportExport.tsx');
+assert(reportExport.split('\n').length<40&&reportExport.includes("from '@/lib/admin/reports/pdf'")&&reportExport.includes("from '@/lib/admin/reports/xlsx'"),'Report view delegates format generation');
+const impactCenter=read('src/components/ContentImpactCenter.tsx');
+assert(impactCenter.includes('usePublicationControls(adminSecret)')&&impactCenter.includes('<PublicationControls '),'Publication control state and view separated');
 const manifest=read('src/app/globals.css');
 assert(!/\{[^}]*:[^}]*\}/s.test(manifest),'Global entrypoint only imports styles');
 const css=readGlobalStyles();
@@ -87,6 +91,14 @@ if(baseline){
   assert(read('src/lib/telegram/operations-data.ts').replace('export async function dataFor(','async function dataFor(').includes(tgOriginal.slice(22,64).join('\n')),'original Telegram data collection');
   assert(read('src/lib/telegram/transport.ts').replace('export async function send(','async function send(').replace('export async function boundedBody(','async function boundedBody(').includes(tgOriginal.slice(64,83).join('\n')),'original Telegram transport and body bounds');
   assert(telegram.includes(tgOriginal.slice(83,120).join('\n')),'original Telegram webhook security and dispatch');
-  console.log('PASS exact baseline CSS, public/admin markup, package steps and backend implementations');
+  const exportOriginal=cp.execFileSync('git',['show',baseline+':src/components/DashboardReportExport.tsx'],{encoding:'utf8'}).split('\n');
+  for(const [name,start,end] of [['model',5,55],['xlsx',59,89],['pdf',90,163]]){
+    const normalized=read('src/lib/admin/reports/'+name+'.ts').replace('export function build(','function build(').replace('export function excel(','function excel(').replace('export async function pdf(','async function pdf(');
+    assert(normalized.includes(exportOriginal.slice(start-1,end).join('\n')),name+' original report implementation');
+  }
+  const impactOriginal=cp.execFileSync('git',['show',baseline+':src/components/ContentImpactCenter.tsx'],{encoding:'utf8'}).split('\n');
+  assert(read('src/components/admin/impact/usePublicationControls.ts').includes(impactOriginal.slice(40,91).join('\n')),'original publication control state and confirmation flow');
+  assert(read('src/components/admin/impact/PublicationControls.tsx').includes(impactOriginal.slice(148,195).join('\n')),'original publication control markup');
+  console.log('PASS exact baseline CSS, public/admin markup, package steps, reports and backend implementations');
 }
 console.log('PASS ordered CSS manifest and composed homepage architecture');
