@@ -1490,7 +1490,7 @@ html[lang="ar"] .cinematic-eyebrow,html[lang="zh-Hans"] .cinematic-eyebrow {lett
 .cinematic-footer {
   display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
   border-top:1px solid #ffffff70;padding-top:12px;color:#fff;
-  padding-left:clamp(170px,16vw,240px);text-shadow:0 1px 6px #111;
+  padding-left:280px;text-shadow:0 1px 6px #111;
 }
 .cinematic-discover {display:inline-flex;align-items:center;gap:10px;min-height:44px;font-size:13px;}
 .cinematic-discover span {font-size:19px;}
