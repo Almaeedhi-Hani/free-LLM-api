@@ -17,12 +17,13 @@ function sourceButtons(refs){
 function card({key,title,kind,body,refs,eligible,index,total,previous,next,full,preflight,autoReady}){
  const type=kind==='faq'?'سؤال شائع FAQ':'محتوى تحريري';
  const sources=sourceButtons(refs);
- const text='📋 طلب مراجعة محتوى — '+(index+1)+' من '+total+'\n\n'+title+'\n\nالنوع: '+type+'\nالحالة: '+(preflight?.archived?'مؤرشف للمراجعة البشرية':autoReady?'اجتاز الفحص الحرفي':'بانتظار المعالجة أو المراجعة البشرية')+'\n\n'+(full?'المحتوى المقترح:\n'+body:'النص طويل؛ اقرأ المحتوى الكامل من لوحة الإدارة قبل اتخاذ أي قرار.')+'\n\nالأدلة المحفوظة: '+(refs||[]).length+ ' — وجود روابط لا يعني التحقق المستقل منها.\n'+(preflight?'آخر فحص: '+preflight.matched+' من '+preflight.total+' — '+(autoReady?'مطابقة حرفية مكتملة؛ لا تثبت السياق القانوني وحدها.':'لم يجتز التحقق الآلي.')+'\n':'')+(eligible&&full?'يمكنك اعتماد النص كما هو بعد مراجعة الأدلة؛ يلزم تأكيد بشري منفصل.':'الاعتماد غير متاح هنا؛ يلزم استكمال شروط المراجعة في لوحة الإدارة.');
+ const lane={implementation:'مهمة تطوير — لا تنشر كمحتوى',commercial:'تجاري — مرجع الباقات والخدمات المعتمد',mixed:'مختلط — أدلة رسمية وتجارية',regulatory:'نظامي — مصادر رسمية',unknown:'غير محدد — لا يعتمد تلقائياً'}[preflight?.evidence_lane];
+ const text='📋 طلب مراجعة محتوى — '+(index+1)+' من '+total+'\n\n'+title+'\n\nالنوع: '+type+(lane?'\nمسار التحقق: '+lane:'')+'\nالحالة: '+(preflight?.archived?'مؤرشف للمراجعة البشرية':autoReady?'اجتاز الفحص الحرفي':'بانتظار المعالجة أو المراجعة البشرية')+'\n\n'+(full?'المحتوى المقترح:\n'+body:'النص طويل؛ اقرأ المحتوى الكامل من لوحة الإدارة قبل اتخاذ أي قرار.')+'\n\nالأدلة المحفوظة: '+(refs||[]).length+ ' — وجود روابط لا يعني التحقق المستقل منها.\n'+(preflight?'آخر فحص: '+preflight.matched+' من '+preflight.total+' — '+(autoReady?'مطابقة حرفية مكتملة؛ لا تثبت السياق القانوني وحدها.':'لم يجتز التحقق الآلي.')+'\n':'')+(eligible&&full?'يمكنك اعتماد النص كما هو بعد مراجعة الأدلة؛ يلزم تأكيد بشري منفصل.':'الاعتماد غير متاح هنا؛ يلزم استكمال شروط المراجعة في لوحة الإدارة.');
  const rows=full&&text.length<=3500?[...sources]:[];
  if(full&&text.length<=3500){
   rows.push([...(eligible?[button('✅ اعتماد كما هو','approve:'+key)]:[]),button('❌ طلب الرفض','reject:'+key)]);
  }
- rows.push([button('🔍 التحقق من المصادر الرسمية','verify:'+key)]);
+ if(!['implementation','commercial'].includes(preflight?.evidence_lane))rows.push([button('🔍 التحقق من المصادر الرسمية','verify:'+key)]);
  rows.push([button('✏️ اقتراح تصحيح المحتوى','revise:'+key)]);
  rows.push([button('📋 أسباب منع الاعتماد','reasons:'+key)]);
  rows.push([urlButton('✏️ تعديل النص والمصادر',dashboard)]);

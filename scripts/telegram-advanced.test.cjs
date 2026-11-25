@@ -276,3 +276,24 @@ test('semantic shadow contract binds trilingual claim coverage to source passage
  assert(worker.includes('shadowIdentity(i.review_preflight?.semantic_shadow)'));
  assert(worker.includes('prior?.semantic_shadow?.version_digest===meta.digest'));
  });
+
+ test('evidence routing separates real historical planning, commercial, mixed, and legal items without granting publication',()=>{
+ const {classify}=require('../src/lib/geo-evidence-lanes.cjs');
+ const f=(q,a)=>classify('faq',{q},[a]);
+ assert.equal(classify('editorial',{kind:'home',title:'Homepage decision support for Saudi market entry'},['The homepage should act as a decision hub rather than a brochure.']),'implementation');
+ assert.equal(classify('editorial',{kind:'packages',title:'Price-explanation content for /packages'},['The /packages page should make professional scope and fee boundaries explicit.']),'implementation');
+ assert.equal(classify('editorial',{kind:'technical_seo'},['Improve page metadata']),'implementation');
+ assert.equal(f('What is our package scope?','Ask for a written scope and service deliverables.'),'commercial');
+ assert.equal(f('Are professional package fees the same as Saudi government fees?','Professional service fees and statutory charges are separate.'),'mixed');
+ assert.equal(f('What should be checked before relying on a corporate bank account document checklist?','Confirm ownership and signatory documents with the bank.'),'regulatory');
+ assert.equal(f('外国投资者在沙特设立公司前通常需要确认哪些事项？','请核实银行开户和投资登记要求。'),'regulatory');
+ assert.equal(f('ما نطاق الباقة؟','تواصل معنا لمعرفة نطاق الخدمة.'),'commercial');
+ assert.equal(f('服务套餐价格是否包含政府规费和第三方支出？','专业服务费与政府规费分列。'),'mixed');
+ assert.equal(f('Is it sunny?','Check the forecast.'),'unknown');
+ const fs=require('node:fs'),worker=fs.readFileSync('src/lib/telegram-ops-advanced-evidence.ts','utf8');
+ assert(worker.includes("if(lane==='implementation'||lane==='commercial')"));
+ assert(worker.indexOf("if(lane==='implementation'||lane==='commercial')")<worker.indexOf("const urls=allowed?await discover(candidate)"));
+ assert(worker.includes("first_party_publication_contract_required"));
+ assert(worker.includes("lane!=='mixed'"));
+ assert(worker.includes("if(x.item.risk_level!=='low')return 'risk_not_low'"));
+ });

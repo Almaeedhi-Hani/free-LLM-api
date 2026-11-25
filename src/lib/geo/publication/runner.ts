@@ -52,6 +52,7 @@ export async function runGuardedAutoPublishing(dryRun=false,origin:PublicationOr
   }
   return {...report,status:'dry_run',skipped:publishable.length+faqDrafts.length-readyForProbe,message:JSON.stringify({
    pending_editorial:editorial.length,pending_faq:faqDrafts.length,
+   evidence_lanes:[...editorial.map(item=>({kind:'editorial' as const,item})),...faqDrafts.map(item=>({kind:'faq' as const,item}))].reduce((counts,x)=>{const lane=verifier.evidenceLane(x);counts[lane]=(counts[lane]||0)+1;return counts;},{} as Record<string,number>),
    visitor_page_candidates:publishable.length,technical_tasks:editorial.length-publishable.length,
    source_requirement:'automated_verification_required',publication_enabled:state.enabled,
    high_risk_permission:state.allow_high_risk,blocked_by_reason:reasons,
