@@ -178,14 +178,14 @@ test('editorial guide without a service slug can discover approved official topi
  assert(source.includes("evidence.faqTopicTargets([title,x.item.primary_keyword||''].join(' '))"));
 });
 
- test('risk assessment preserves high-risk records and rejects sensitive copy even with exact evidence',()=>{
+ test('risk assessment reclassifies independently supported neutral copy and preserves sensitive classification',()=>{
  const e=require('../src/lib/telegram-ops-advanced-evidence.cjs');
  const ready={complete:true,matched:2,total:2};
  const item={status:'pending',risk_level:'low',q:'How can I find information on a website?'};
  const neutral=['A separate fictional source sentence for testing','Another fictional source sentence for testing'];
  assert.equal(e.assessPublicationRisk('faq',item,neutral,ready),'low');
  for(const q of ['What is the investment license fee?','ما متطلبات فتح حساب مصرفي؟','公司注册需要哪些文件？','How do I obtain a visa?'])assert.equal(e.assessPublicationRisk('faq',{...item,q},neutral,ready),'high');
- assert.equal(e.assessPublicationRisk('faq',{...item,risk_level:'high'},neutral,ready),'high');
+ assert.equal(e.assessPublicationRisk('faq',{...item,risk_level:'high'},neutral,ready),'low');
  assert.equal(e.assessPublicationRisk('faq',item,neutral,{...ready,complete:false}),'high');
  assert.equal(e.assessPublicationRisk('editorial',{...item,target:'company-formation'},neutral,ready),'high');
  assert.equal(e.assessPublicationRisk('faq',item,['Unverified bank account details'],ready),'high');
@@ -236,12 +236,12 @@ test('semantic shadow contract binds trilingual claim coverage to source passage
  const dry=runner.slice(runner.indexOf(' if(dryRun){'),runner.indexOf(' // A legacy RPC'));
  assert(dry.includes('autoPublicationBlockReason')&&dry.includes('ready_for_live_probe:readyForProbe'));
  assert(!dry.includes('liveAutoPublicationReceipt')&&!dry.includes('restCall('));
- assert(gate.includes("if(x.item.risk_level!=='low')return 'risk_not_low'"));
- assert(gate.includes('return autoPublicationBlockReason(x)===null'));
+ assert(gate.includes("if(x.item.risk_level!=='low'&&!allowHighRisk)return 'sensitive_publication_disabled'"));
+ assert(gate.includes('return autoPublicationBlockReason(x,allowHighRisk)===null'));
  assert(runner.includes('verifier.canProbeAutoPublication')&&runner.includes('verifier.liveAutoPublicationReceipt'));
  const ui=fs.readFileSync('src/components/admin/impact/PublicationControls.tsx','utf8');
  assert(!ui.includes('دون اشتراط مصدرين')&&!ui.includes('لا يلزم مصدران'));
- assert(ui.includes('مصدرين رسميين مستقلين')&&ui.includes('changeSensitive(false)'));
+ assert(ui.includes('الكتالوج المعتمد')&&ui.includes('changeSensitive(!autoStatus?.allow_high_risk)'));
  });
 
  test('changed official topic mapping rechecks historical no-candidate records once within the existing batch',()=>{
@@ -291,9 +291,28 @@ test('semantic shadow contract binds trilingual claim coverage to source passage
  assert.equal(f('服务套餐价格是否包含政府规费和第三方支出？','专业服务费与政府规费分列。'),'mixed');
  assert.equal(f('Is it sunny?','Check the forecast.'),'unknown');
  const fs=require('node:fs'),worker=fs.readFileSync('src/lib/telegram-ops-advanced-evidence.ts','utf8');
- assert(worker.includes("if(lane==='implementation'||lane==='commercial')"));
- assert(worker.indexOf("if(lane==='implementation'||lane==='commercial')")<worker.indexOf("const urls=allowed?await discover(candidate)"));
- assert(worker.includes("first_party_publication_contract_required"));
- assert(worker.includes("lane!=='mixed'"));
- assert(worker.includes("if(x.item.risk_level!=='low')return 'risk_not_low'"));
+ assert(worker.includes("if(lane==='implementation')"));
+ assert(worker.indexOf("if(lane==='implementation')")<worker.indexOf("const urls=allowed&&lane!=='commercial'?await discover(candidate)"));
+ assert(worker.includes('evidence.matchPublication')&&worker.includes('first_party_catalog'));
+ assert(worker.includes('catalogFor(candidate)'));
+ assert(worker.includes("if(x.item.risk_level!=='low'&&!allowHighRisk)return 'sensitive_publication_disabled'"));
  });
+
+test('routed exact proof: catalog scope, one official authority, mixed sources, no unsupported claims',async()=>{
+ const e=require('../src/lib/telegram-ops-advanced-evidence.cjs');
+ const own='https://free-llm-api-1-didl.onrender.com/en/packages',url='https://mc.gov.sa/en/Pages/Start-your-project.aspx';
+ const catalog={url:own,sentences:['Investor status and activity review','Authority fees, sector licences and residency are excluded']};
+ const law='A synthetic regulation sentence for testing the approved official evidence route';
+ const pages=[{url,sentences:[law]}],scope=catalog.sentences[0];
+ const first=e.matchPublication([scope],[],'commercial',catalog);assert(first.complete);assert.equal(first.proofs[0].url,own);
+ assert(!e.matchPublication([scope],[],'regulatory',catalog).complete);
+ assert(!e.matchPublication([scope+' and guaranteed approval'],[],'commercial',catalog).complete);
+ assert(e.matchPublication([law],pages,'regulatory',catalog).complete);
+ const mixed=e.matchPublication([scope,law],pages,'mixed',catalog);assert(mixed.complete);
+ const refs=[{kind:'first_party_catalog',url:own},{kind:'official_candidate',url}];
+ const fetcher=async()=>new Response('<p>'+law+'.</p>',{headers:{'content-type':'text/html'}});
+ const receipt=await e.livePublicationReceipt([scope,law],mixed.proofs,refs,'mixed',catalog,fetcher);
+ assert(receipt);assert(receipt.proofs.some(p=>p.verified_by==='first_party_catalog_exact'));assert(receipt.proofs.some(p=>p.verified_by==='live_official_exact_quote'));
+ assert.equal(await e.livePublicationReceipt([scope,law],mixed.proofs,refs,'mixed',{...catalog,sentences:[]},fetcher),null);
+ assert.equal(await e.livePublicationReceipt([scope,law],mixed.proofs,refs,'mixed',catalog,async()=>new Response('<p>Changed source</p>',{headers:{'content-type':'text/html'}})),null);
+});

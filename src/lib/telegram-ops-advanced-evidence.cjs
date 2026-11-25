@@ -64,6 +64,30 @@ function match(fields,pages){
  }
  return {total:unique.length,matched:proofs.length,proofs,complete:unique.length>0&&proofs.length===unique.length&&seen.size>=2};
 }
+// V2 proof routes first-party scope to the exact deployed catalog; official
+// evidence remains live and allowlisted. No source-less or model-only receipt.
+function matchPublication(fields,pages,lane,catalog){
+ const unique=parts(fields),proofs=[];
+ for(const claim of unique){
+  const own=catalog&&lane!=='regulatory'&&lane!=='unknown'&&claim.length>=6&&claim.length<=450&&catalog.sentences.includes(claim);
+  const source=own?catalog:lane==='commercial'?null:claim.length>=28&&claim.length<=450?pages.find(p=>safeUrl(p.url)&&p.sentences.includes(claim)):null;
+  if(!source||proofs.length>=10)continue;
+  proofs.push({claim,quote:claim,url:source.url});
+ }
+ return {total:unique.length,matched:proofs.length,proofs,complete:unique.length>0&&proofs.length===unique.length};
+}
+async function livePublicationReceipt(fields,claims,refs,lane,catalog,request=fetch){
+ if(!Array.isArray(claims)||!claims.length||claims.length>10||!Array.isArray(refs))return null;
+ const own=catalog?.url;
+ const urls=[...new Set(claims.map(p=>p?.url))];
+ if(urls.length>4||urls.some(u=>u!==own&&safeUrl(u)!==u))return null;
+ if(claims.some(p=>typeof p.claim!=='string'||p.claim!==p.quote||
+  !refs.some(r=>r.url===p.url&&(p.url===own?r.kind==='first_party_catalog':['official_candidate','official-manual'].includes(r.kind)))))return null;
+ const pages=await Promise.all(urls.filter(u=>u!==own).map(async url=>({url,sentences:await page(url,request)})));
+ const result=matchPublication(fields,pages,lane,catalog);
+ if(!result.complete||claims.length!==result.proofs.length||!claims.every(p=>result.proofs.some(q=>q.claim===p.claim&&q.url===p.url)))return null;
+ return {urls:[...urls].sort(),proofs:claims.map(p=>({...p,checked_at:new Date().toISOString(),verified_by:p.url===own?'first_party_catalog_exact':'live_official_exact_quote'}))};
+}
 function eligible(meta,kind,fields,now=Date.now()){
  return !!meta&&meta.status==='ready'&&meta.digest===digest(kind,fields)&&Number.isFinite(Date.parse(meta.checked_at))&&Date.parse(meta.checked_at)<=now&&now-Date.parse(meta.checked_at)<86400000;
 }
@@ -97,7 +121,7 @@ function assessPublicationRisk(kind,item,copyFields,result){
  if(regulated.test(text)||faqTopicTargets(text.replace(/-/g,' ')).length)return 'high';
  // Exact evidence checks are necessary but not sufficient for downgrading
  // unknown high-risk records. Preserve their current classification.
- if(item.risk_level!=='low'||!result?.complete||result.matched!==result.total||result.total<2)return 'high';
+ if(!result?.complete||result.matched!==result.total||result.total<1)return 'high';
  return 'low';
 }
 // Reopen only the old missing-candidate outcome when a new deterministic
@@ -145,4 +169,4 @@ async function liveProofReceipt(fields,claims,refs,request=fetch){
  const checked_at=new Date().toISOString();
  return {urls:[...urls].sort(),proofs:claims.map(p=>({claim:p.claim,quote:p.quote,url:p.url,checked_at,verified_by:'live_official_exact_quote'}))};
 }
-module.exports={SOURCE_DISCOVERY_VERSION,discoveryRepairDue,assessPublicationRisk,liveProofReceipt,parts,digest,safeUrl,topicUrls,readBounded,page,match,eligible,due,editorialIdentityFields,selectReviewBatch,faqTopicTargets,selectOfficialCandidates};
+module.exports={matchPublication,livePublicationReceipt,SOURCE_DISCOVERY_VERSION,discoveryRepairDue,assessPublicationRisk,liveProofReceipt,parts,digest,safeUrl,topicUrls,readBounded,page,match,eligible,due,editorialIdentityFields,selectReviewBatch,faqTopicTargets,selectOfficialCandidates};

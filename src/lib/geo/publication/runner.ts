@@ -43,12 +43,12 @@ export async function runGuardedAutoPublishing(dryRun=false,origin:PublicationOr
   for(const item of publishable){
    const path=editorialPath(item);
    count(!path||unfinished(item)?'requires_finished_visitor_copy':excludesEditorial(feedback,item,path)?'reviewer_excluded':
-    competitorDomains===null?'source_policy_unavailable':verifier.autoPublicationBlockReason({kind:'editorial',item}));
+    competitorDomains===null?'source_policy_unavailable':verifier.autoPublicationBlockReason({kind:'editorial',item},state.allow_high_risk));
   }
   for(const draft of faqDrafts){
    count(excludesFaq(feedback,draft.q)?'reviewer_excluded':
     typeof draft.q!=='string'||typeof draft.a!=='string'||draft.q.trim().length<5||draft.a.trim().length<30?'invalid_faq_structure':
-    competitorDomains===null?'source_policy_unavailable':verifier.autoPublicationBlockReason({kind:'faq',item:draft}));
+    competitorDomains===null?'source_policy_unavailable':verifier.autoPublicationBlockReason({kind:'faq',item:draft},state.allow_high_risk));
   }
   return {...report,status:'dry_run',skipped:publishable.length+faqDrafts.length-readyForProbe,message:JSON.stringify({
    pending_editorial:editorial.length,pending_faq:faqDrafts.length,
@@ -63,7 +63,7 @@ export async function runGuardedAutoPublishing(dryRun=false,origin:PublicationOr
  // handshake keeps deployment safe while the prepared DB migration is pending.
  try{
   const contract=await restCall('rpc/geo_publication_contract_version');
-  if(contract!=='exact-proof-v1')throw Error('unexpected_publication_contract');
+  if(contract!=='routed-proof-v2')throw Error('unexpected_publication_contract');
  }catch{return {...report,status:'storage_unavailable',message:'Version-bound publication contract not installed; nothing published'}}
  // One append-only audit trail for both schedulers. RPCs fail closed if
  // their pre-attempt audit cannot be durably saved.
@@ -93,13 +93,13 @@ export async function runGuardedAutoPublishing(dryRun=false,origin:PublicationOr
    if(!(await recordSkip('editorial',candidate.id,'requires_finished_visitor_copy')))return storageAuditFailure();
    continue;
   }
-  if(competitorDomains===null||!verifier.canProbeAutoPublication({kind:'editorial',item:candidate})){
-   if(!(await recordSkip('editorial',candidate.id,competitorDomains===null?'source_policy_unavailable':verifier.autoPublicationBlockReason({kind:'editorial',item:candidate})||'version_or_evidence_not_ready')))return storageAuditFailure();
+  if(competitorDomains===null||!verifier.canProbeAutoPublication({kind:'editorial',item:candidate},state.allow_high_risk)){
+   if(!(await recordSkip('editorial',candidate.id,competitorDomains===null?'source_policy_unavailable':verifier.autoPublicationBlockReason({kind:'editorial',item:candidate},state.allow_high_risk)||'version_or_evidence_not_ready')))return storageAuditFailure();
    continue;
   }
   if(editorialProbes>=2){if(!(await recordSkip('editorial',candidate.id,'live_probe_budget_reached')))return storageAuditFailure();continue;}
   editorialProbes++;
-  const receipt:PublicationReceipt|null=await verifier.liveAutoPublicationReceipt({kind:'editorial',item:candidate}).catch(()=>null);
+  const receipt:PublicationReceipt|null=await verifier.liveAutoPublicationReceipt({kind:'editorial',item:candidate},fetch,state.allow_high_risk).catch(()=>null);
   if(!receipt){if(!(await recordSkip('editorial',candidate.id,'live_exact_proof_not_verified')))return storageAuditFailure();continue;}
   const cited=receipt.urls;
   if(auditBody([candidate.title,candidate.summary,candidate.body,candidate.h1_suggestion||''].join('\n'),competitorDomains).length){
@@ -155,12 +155,12 @@ export async function runGuardedAutoPublishing(dryRun=false,origin:PublicationOr
    if(!(await recordSkip('faq',String(draft.q||'unknown'),'invalid_faq_structure')))return storageAuditFailure();
    continue;
   }
-  if(competitorDomains===null||!verifier.canProbeAutoPublication({kind:'faq',item:draft})){
-   if(!(await recordSkip('faq',draft.q,competitorDomains===null?'source_policy_unavailable':verifier.autoPublicationBlockReason({kind:'faq',item:draft})||'version_or_evidence_not_ready')))return storageAuditFailure();continue;
+  if(competitorDomains===null||!verifier.canProbeAutoPublication({kind:'faq',item:draft},state.allow_high_risk)){
+   if(!(await recordSkip('faq',draft.q,competitorDomains===null?'source_policy_unavailable':verifier.autoPublicationBlockReason({kind:'faq',item:draft},state.allow_high_risk)||'version_or_evidence_not_ready')))return storageAuditFailure();continue;
   }
   if(faqProbes>=2){if(!(await recordSkip('faq',draft.q,'live_probe_budget_reached')))return storageAuditFailure();continue;}
   faqProbes++;
-  const receipt=await verifier.liveAutoPublicationReceipt({kind:'faq',item:draft}).catch(()=>null);
+  const receipt=await verifier.liveAutoPublicationReceipt({kind:'faq',item:draft},fetch,state.allow_high_risk).catch(()=>null);
   if(!receipt){if(!(await recordSkip('faq',draft.q,'live_exact_proof_not_verified')))return storageAuditFailure();continue;}
   let startedAuditId:string;
   try{startedAuditId=await audit('faq',draft.q,'rpc_started')}

@@ -6,7 +6,7 @@ export default function PublicationControls({autoStatus,autoBusy,autoNotice,auto
   <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6" aria-label="التحكم بالنشر الآلي">
    <div className="flex flex-wrap items-center justify-between gap-3">
     <div><h3 className="font-bold text-navy-900">النشر الآلي المحكوم بالمصادر</h3>
-     <p className="mt-1 text-sm text-slate-600">النشر التلقائي الحالي يقتصر على المحتوى منخفض المخاطر بعد التحقق المباشر من جميع الادعاءات ومصدرين رسميين مستقلين، مع مطابقة النسخة المحفوظة وسجل للإصدارات والتراجع.</p></div>
+     <p className="mt-1 text-sm text-slate-600">النشر الآلي لجميع أصناف المحتوى الموجه للزوار وفق تصنيف مستقل. يتحقق النظام من المعلومات النظامية عبر المصادر الرسمية ومن نطاق الباقات عبر الكتالوج المعتمد، مع مطابقة النسخة وسجل التراجع.</p></div>
     <span className={autoStatus?.enabled?'text-sm font-bold text-emerald-800':'text-sm font-bold text-amber-800'}>
      {autoStatus?.enabled?'مفعّل':'متوقف'}
     </span>
@@ -30,10 +30,10 @@ export default function PublicationControls({autoStatus,autoBusy,autoNotice,auto
    <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
     <div className="min-w-0 flex-1">
      <p className="text-sm font-semibold text-amber-950">النشر الآلي للمحتوى الحساس وعالي المخاطر</p>
-     <p className="text-xs text-amber-900">المحتوى الحساس غير مؤهل للنشر الآلي في عقد التحقق الحالي، حتى عند تفعيل الإذن السابق.</p>
+     <p className="text-xs text-amber-900">عند تفعيل الإذن، يمكن نشر المحتوى الحساس بعد التحقق الآلي من أدلته دون اعتماد يدوي.</p>
     </div>
-    <button className="btn-secondary text-xs" disabled={!autoStatus?.available||autoBusy||!autoStatus?.allow_high_risk}
-     onClick={()=>void changeSensitive(false)}>
+    <button className="btn-secondary text-xs" disabled={!autoStatus?.available||autoBusy}
+     onClick={()=>void changeSensitive(!autoStatus?.allow_high_risk)}>
      {autoStatus?.allow_high_risk?'تعطيل نشر المحتوى الحساس':'السماح بالنشر الآلي للحساس'}
     </button>
    </div>

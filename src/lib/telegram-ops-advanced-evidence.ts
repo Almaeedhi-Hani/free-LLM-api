@@ -9,9 +9,9 @@ import {officialSourceQueries,officialResultsFromRss} from './editorial-official
 import {getSupabaseCredentials} from './storage-mode';
 import {getGeoFeedbackIndex,excludesEditorial,excludesFaq} from './geo-agent-feedback';
 import {editorialPath} from './content-impact';
-import {packageOffers} from './package-offers';
+import {catalogProofPage,isCatalogProofUrl} from './geo-publication-catalog';
 const lanes=require('./geo-evidence-lanes.cjs') as {classify:(kind:Kind,item:ContentDraft|EditorialItem,fields:string[],planning?:boolean)=>EvidenceLane;VERSION:string};
-export type PublicationReceipt={urls:string[];proofs:Array<EditorialClaimEvidence&{checked_at:string;verified_by:'live_official_exact_quote'}>};
+export type PublicationReceipt={urls:string[];proofs:Array<EditorialClaimEvidence&{checked_at:string;verified_by:'live_official_exact_quote'|'first_party_catalog_exact'}>};
 type Kind='faq'|'editorial';
 type Candidate={kind:'faq';item:ContentDraft}|{kind:'editorial';item:EditorialItem};
 type SemanticPacket={packetDigest:string;versionDigest:string;claims:unknown[]};
@@ -24,6 +24,8 @@ const evidence=require('./telegram-ops-advanced-evidence.cjs') as {
  page:(url:string,request?:typeof fetch)=>Promise<string[]>;
  liveProofReceipt:(fields:string[],claims:EditorialClaimEvidence[],refs:EditorialRef[],request?:typeof fetch)=>Promise<PublicationReceipt|null>;
  match:(fields:string[],pages:{url:string;sentences:string[]}[])=>Result;
+ matchPublication:(fields:string[],pages:{url:string;sentences:string[]}[],lane:EvidenceLane,catalog:{url:string;sentences:string[]})=>Result;
+ livePublicationReceipt:(fields:string[],claims:EditorialClaimEvidence[],refs:EditorialRef[],lane:EvidenceLane,catalog:{url:string;sentences:string[]},request?:typeof fetch)=>Promise<PublicationReceipt|null>;
  eligible:(meta:ReviewPreflight|undefined,kind:Kind,fields:string[])=>boolean;
  due:(meta:ReviewPreflight|undefined,kind:Kind,fields:string[])=>boolean;
  editorialIdentityFields:(item:EditorialItem,copyFields:string[])=>string[];
@@ -49,6 +51,14 @@ function identityFields(x:Candidate):string[]{
 export function reviewCopyQuality(x:Candidate):boolean{
  if(x.kind==='faq')return !splitGeoDraftReviewText(x.item.a).note&&assessGeoDraftCopy(x.item.q,x.item.a).publishable&&!editorialPublicationIssues({kind:'guide',title:x.item.q,body:x.item.a}).length;
  try{return !editorialPublicationIssues(x.item).length&&!!editorialPath(x.item)&&!!validateEditorialItem(x.item)}catch{return false}
+}
+function catalogFor(x:Candidate){return catalogProofPage(x.kind==='faq'?detectGeoDraftLocale(x.item.q):x.item.lang)}
+function riskFor(x:Candidate,result:Result):'low'|'medium'|'high'{
+ const lane=evidenceLane(x);
+ if(lane==='regulatory'||lane==='mixed'||lane==='implementation')return 'high';
+ if(!result.complete||result.matched!==result.total)return 'high';
+ if(lane==='commercial')return 'medium';
+ return evidence.assessPublicationRisk(x.kind,x.item,fields(x),result);
 }
 export function readyForHuman(x:Candidate){
  return reviewCopyQuality(x)&&evidence.eligible(x.item.review_preflight,x.kind,identityFields(x))&&Boolean(x.item.claim_evidence?.length);
@@ -78,36 +88,25 @@ async function check(x:Candidate,collectPacket?:(packet:SemanticPacket)=>void):P
  const candidate:Candidate=x.kind==='faq'?{kind:'faq',item:{...x.item,a:splitGeoDraftReviewText(x.item.a).answer}}:x;
  const allowed=await reviewContentPolicy(candidate).catch(()=>false);
  const lane=evidenceLane(x);
- // Internal content is evaluated against our own approved catalog, not a
- // government website. Mixed claims still need both kinds of evidence.
- // These results are diagnostic only until the atomic contract supports
- // first-party proof; never label a package claim an official quotation.
- if(lane==='implementation'||lane==='commercial'){
+ // Technical proposals never become visitor copy. Approved commercial
+ // scope is checked against the deployed catalog, not a government website.
+ if(lane==='implementation'){
   const prior=x.item.review_preflight;
-  const locale=x.kind==='faq'?detectGeoDraftLocale(x.item.q):x.item.lang;
-  const source=packageOffers.flatMap(p=>[p.title[locale],p.audience[locale],p.pitch[locale],p.requirements[locale],p.exclusions[locale],...p.features.map(f=>f[locale])]);
-  const parts=(s:string[])=>Array.from(new Set(s.flatMap(v=>v.split(/[.!?]+(?:\s+|$)|[。！？؟]+\s*|\n+/)).map(v=>v.normalize('NFC').replace(/\s+/g,' ').trim()).filter(Boolean)));
-  const claims=parts(fields(x));
-  const approved=new Set(parts(source));
-  const matched=lane==='commercial'?claims.filter(v=>approved.has(v)).length:0;
-  const meta:ReviewPreflight={status:'blocked',digest:evidence.digest(x.kind,identityFields(x)),checked_at:new Date().toISOString(),matched,total:claims.length,reason:lane==='implementation'?'implementation_handoff':!allowed?'policy_unavailable_or_excluded':matched===claims.length&&claims.length>0?'first_party_copy_matched_contract_required':'first_party_scope_not_fully_verified',attempts:(prior?.attempts||0)+1,archived:false,source_discovery_version:evidence.SOURCE_DISCOVERY_VERSION,evidence_lane:lane,evidence_lane_version:lanes.VERSION};
+  const meta:ReviewPreflight={status:'blocked',digest:evidence.digest(x.kind,identityFields(x)),checked_at:new Date().toISOString(),matched:0,total:0,reason:'implementation_handoff',attempts:(prior?.attempts||0)+1,archived:false,source_discovery_version:evidence.SOURCE_DISCOVERY_VERSION,evidence_lane:lane,evidence_lane_version:lanes.VERSION};
   return {...x,item:{...x.item,review_preflight:meta}} as Candidate;
  }
- const urls=allowed?await discover(candidate):[];
+ const urls=allowed&&lane!=='commercial'?await discover(candidate):[];
  const pages=await Promise.all(urls.map(async url=>({url,sentences:await evidence.page(url)})));
- const result=evidence.match(fields(candidate),pages);
- const ready=allowed&&lane!=='mixed'&&result.complete&&reviewCopyQuality(candidate);
+ const result=evidence.matchPublication(fields(candidate),pages,lane,catalogFor(candidate));
+ const ready=allowed&&result.complete&&reviewCopyQuality(candidate);
  const reviewed=ready?candidate:x;
- // Preserve existing high-risk classifications; detect mislabeled sensitive
- // copy before saving the digest. Never grant low risk from missing evidence.
- const classified=evidence.assessPublicationRisk(reviewed.kind,reviewed.item,fields(reviewed),result);
- const original:Candidate=classified==='high'&&reviewed.item.risk_level==='low'
-  ?({...reviewed,item:{...reviewed.item,risk_level:'high'}} as Candidate):reviewed;
+ const classified=riskFor(reviewed,result);
+ const original={...reviewed,item:{...reviewed.item,risk_level:classified}} as Candidate;
  const prior=x.item.review_preflight;
  const same=prior?.digest===evidence.digest(x.kind,identityFields(x));
  const attempts=(same?(prior?.attempts||0):0)+1;
  const exhausted=allowed&&pages.some(p=>p.sentences.length)&&(!result.complete||!reviewCopyQuality(candidate))&&attempts>=3;
- const meta:ReviewPreflight={evidence_lane:lane,evidence_lane_version:lanes.VERSION,status:ready?'ready':'blocked',source_discovery_version:evidence.SOURCE_DISCOVERY_VERSION,attempts,archived:!ready&&exhausted,digest:evidence.digest(x.kind,identityFields(original)),checked_at:new Date().toISOString(),matched:result.matched,total:result.total,reason:!allowed?'policy_unavailable_or_excluded':!urls.length?'no_official_candidates':!pages.some(p=>p.sentences.length)?'official_sources_unavailable':!result.complete?'exact_claim_coverage_incomplete':!reviewCopyQuality(candidate)?'copy_quality_failed':lane==='mixed'?'first_party_and_official_proof_required':'ready'};
+ const meta:ReviewPreflight={evidence_lane:lane,evidence_lane_version:lanes.VERSION,status:ready?'ready':'blocked',source_discovery_version:evidence.SOURCE_DISCOVERY_VERSION,attempts,archived:!ready&&exhausted,digest:evidence.digest(x.kind,identityFields(original)),checked_at:new Date().toISOString(),matched:result.matched,total:result.total,reason:!allowed?'policy_unavailable_or_excluded':!result.complete?(lane==='commercial'?'first_party_scope_not_fully_verified':!urls.length?'no_official_candidates':!pages.some(p=>p.sentences.length)?'official_sources_unavailable':'exact_claim_coverage_incomplete'):!reviewCopyQuality(candidate)?'copy_quality_failed':'ready'};
  // Preserve only version-bound shadow diagnostics; they are never exact proof.
  if(prior?.semantic_shadow?.version_digest===meta.digest)meta.semantic_shadow=prior.semantic_shadow;
  if(collectPacket&&!ready&&allowed&&reviewCopyQuality(original)&&!meta.archived&&!meta.semantic_shadow){
@@ -117,7 +116,7 @@ async function check(x:Candidate,collectPacket?:(packet:SemanticPacket)=>void):P
   if(packet)collectPacket(packet);
  }
  if(!ready)return {...original,item:{...original.item,review_preflight:meta}} as Candidate;
- const refs:EditorialRef[]=Array.from(new Set(result.proofs.map(p=>p.url))).map(url=>({id:'official_'+createHash('sha256').update(url).digest('hex').slice(0,24),label:new URL(url).hostname,source:'official_live_html',kind:'official_candidate',url,observed_at:meta.checked_at}));
+ const refs:EditorialRef[]=Array.from(new Set(result.proofs.map(p=>p.url))).map(url=>({id:'official_'+createHash('sha256').update(url).digest('hex').slice(0,24),label:new URL(url).hostname,source:isCatalogProofUrl(url)?'approved_package_catalog':'official_live_html',kind:isCatalogProofUrl(url)?'first_party_catalog':'official_candidate',url,observed_at:meta.checked_at}));
  const existing=(original.item.evidence_refs||[]).filter(r=>!refs.some(n=>n.id===r.id||n.url===r.url));
  const evidence_refs=[...refs,...existing].slice(0,12);
  return {...original,item:{...original.item,evidence_refs,evidence_ids:evidence_refs.map(r=>r.id),claim_evidence:result.proofs,review_preflight:meta}} as Candidate;
@@ -126,47 +125,37 @@ async function check(x:Candidate,collectPacket?:(packet:SemanticPacket)=>void):P
 // and policy at confirmation, before the existing versioned admin mutation.
 export async function liveReadyForHuman(x:Candidate):Promise<boolean>{
  if(!readyForHuman(x)||!await reviewContentPolicy(x).catch(()=>false))return false;
- const claims=x.item.claim_evidence||[];
- const urls=Array.from(new Set(claims.map(p=>p.url)));
- if(urls.length>3||urls.some(u=>!evidence.safeUrl(u)))return false;
- const pages=await Promise.all(urls.map(async url=>({url,sentences:await evidence.page(url)})));
- const result=evidence.match(fields(x),pages);
- return result.complete&&claims.length===result.proofs.length&&claims.every(p=>p.claim===p.quote&&result.proofs.some(q=>q.claim===p.claim&&q.url===p.url));
+ const receipt=await evidence.livePublicationReceipt(fields(x),x.item.claim_evidence||[],x.item.evidence_refs||[],evidenceLane(x),catalogFor(x));
+ return !!receipt;
 }
-// Automated publication is stricter than human review. Exact quotations in
-// the same locale only; translated/paraphrased or regulated copy stays queued.
-export function autoPublicationBlockReason(x:Candidate):string|null{
+// Risk is metadata, not a blanket publication ban. Sensitive content requires
+// the owner policy plus the same fresh, version-bound evidence as other copy.
+export function autoPublicationBlockReason(x:Candidate,allowHighRisk=false):string|null{
  try{
   if(x.item.status!=='pending')return 'not_pending';
   const lane=evidenceLane(x);
   if(lane==='implementation')return 'implementation_handoff';
-  if(lane==='commercial'||lane==='mixed')return 'first_party_publication_contract_required';
-  if(x.item.risk_level!=='low')return 'risk_not_low';
+  if(!['low','medium','high'].includes(x.item.risk_level||''))return 'risk_unclassified';
+  if(x.item.risk_level!=='low'&&!allowHighRisk)return 'sensitive_publication_disabled';
   if(x.item.review_preflight?.archived===true)return 'review_archived';
   if(!reviewCopyQuality(x))return 'requires_finished_visitor_copy';
   const meta=x.item.review_preflight;
-  if(!meta)return 'review_not_checked';
+  if(!meta||meta.evidence_lane_version!==lanes.VERSION)return 'review_not_checked';
   if(meta.status!=='ready')return 'review_blocked';
   if(!evidence.eligible(meta,x.kind,identityFields(x)))return 'review_version_or_freshness_invalid';
   if(!x.item.claim_evidence?.length)return 'claim_evidence_missing';
-  if(evidence.assessPublicationRisk(x.kind,x.item,fields(x),{complete:true,total:meta.total,matched:meta.matched,proofs:x.item.claim_evidence||[]})!=='low')return 'independent_risk_check_failed';
-  if(x.kind==='editorial'){
-   if(detectGeoDraftLocale(x.item.title)!==x.item.lang||
-      !assessGeoDraftCopy(x.item.title,x.item.body).publishable)return 'editorial_locale_or_copy_invalid';
-  }
+  if(riskFor(x,{complete:true,total:meta.total,matched:meta.matched,proofs:x.item.claim_evidence||[]})!==x.item.risk_level)return 'independent_risk_check_failed';
+  if(x.kind==='editorial'&&(detectGeoDraftLocale(x.item.title)!==x.item.lang||!assessGeoDraftCopy(x.item.title,x.item.body).publishable))return 'editorial_locale_or_copy_invalid';
   return null;
  }catch{return 'invalid_candidate'}
 }
-export function canProbeAutoPublication(x:Candidate):boolean{return autoPublicationBlockReason(x)===null;}
-export async function liveAutoPublicationReceipt(x:Candidate,request:typeof fetch=fetch):Promise<PublicationReceipt|null>{
- if(!canProbeAutoPublication(x)||!await reviewContentPolicy(x).catch(()=>false))return null;
- // The authority allowlist does not override the current competitor registry.
- // Check stored proof URLs against the registry before any official fetch.
+export function canProbeAutoPublication(x:Candidate,allowHighRisk=false):boolean{return autoPublicationBlockReason(x,allowHighRisk)===null;}
+export async function liveAutoPublicationReceipt(x:Candidate,request:typeof fetch=fetch,allowHighRisk=false):Promise<PublicationReceipt|null>{
+ if(!canProbeAutoPublication(x,allowHighRisk)||!await reviewContentPolicy(x).catch(()=>false))return null;
  const domains=await getCompetitorDomains().catch(()=>null);
  if(domains===null||!(x.item.claim_evidence||[]).every(p=>isDisplayable(p.url,domains)))return null;
- const receipt=await evidence.liveProofReceipt(fields(x),x.item.claim_evidence||[],x.item.evidence_refs||[],request);
- if(!receipt||receipt.proofs.length!==x.item.review_preflight?.matched||
-    receipt.proofs.length!==x.item.review_preflight?.total)return null;
+ const receipt=await evidence.livePublicationReceipt(fields(x),x.item.claim_evidence||[],x.item.evidence_refs||[],evidenceLane(x),catalogFor(x),request);
+ if(!receipt||receipt.proofs.length!==x.item.review_preflight?.matched||receipt.proofs.length!==x.item.review_preflight?.total)return null;
  return receipt;
 }
 // Existing signed tick only, at most four candidates and 3 source URLs each.
@@ -185,7 +174,7 @@ export async function runReviewEvidenceBatch(){
  for(const item of items){const lane=evidenceLane(item);laneCounts[lane]=(laneCounts[lane]||0)+1;}
  const selected=evidence.selectReviewBatch(visitorItems.filter(x=>{
   const lane=evidenceLane(x),meta=x.item.review_preflight;
-  if(meta?.evidence_lane_version!==lanes.VERSION&&['commercial','implementation','mixed'].includes(lane))return true;
+  if(meta?.evidence_lane_version!==lanes.VERSION)return true;
   if(lane==='implementation'&&meta?.digest===evidence.digest(x.kind,identityFields(x)))return false;
   return evidence.discoveryRepairDue(x)||evidence.due(x.item.review_preflight,x.kind,identityFields(x));
  }));

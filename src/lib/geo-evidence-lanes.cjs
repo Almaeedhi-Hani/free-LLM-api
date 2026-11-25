@@ -16,5 +16,5 @@ function classify(kind,item,fields,planning=false){
  if(o)return 'regulatory';
  return 'unknown';
 }
-const VERSION='evidence-lanes-v1';
+const VERSION='evidence-lanes-v2';
 module.exports={classify,VERSION};
