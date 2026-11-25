@@ -25,3 +25,5 @@ assert(home.includes('<p>{f.a}</p>'),'FAQ answer remains unchanged');
 const admin=fs.readFileSync('src/components/ContentImpactCenter.tsx','utf8');
 assert(admin.includes('autoStatus'),'admin publication data stays visible to administrators');
 console.log('PASS public source notes removed for articles and FAQs, neutral references and internal provenance retained');
+
+require('./cinematic-homepage.test.cjs');

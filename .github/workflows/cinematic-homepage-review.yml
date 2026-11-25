@@ -1,0 +1,58 @@
+name: Cinematic homepage browser review
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/components/CinematicHero.tsx'
+      - 'scripts/cinematic-homepage.browser.cjs'
+      - '.github/workflows/cinematic-homepage-review.yml'
+permissions:
+  contents: read
+jobs:
+  browser-review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+      NODE_ENV: development
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install locked app dependencies
+        run: npm ci --include=dev
+      - name: Install isolated browser test tools (no app dependency changes)
+        run: |
+          npm install --prefix /tmp/cinematic-tools --no-save --package-lock=false playwright@1.51.1 axe-core@4.10.3
+          /tmp/cinematic-tools/node_modules/.bin/playwright install --with-deps chromium
+          sudo apt-get install -y fonts-noto-cjk fonts-noto-core
+      - name: Verify committed local poster bytes
+        run: |
+          printf '%s\n' 'afb2873e2d42dcbbcd8a063e77491cc597ea6ab959ca9eb99497ed110aa7a8eb  public/media/riyadh-monochrome.webp' '42be2b340ec5932a28b21bf8ed95d13d6edec60bcb45edef5acf1c02b8f8c890  public/media/riyadh-monochrome-mobile.webp' | sha256sum -c -
+      - name: Run static and navigation checks
+        run: |
+          node scripts/cinematic-homepage.test.cjs
+          node scripts/mobile-header-contract.test.cjs
+          npm run test:packages
+          npm run test:whatsapp
+      - name: Start isolated development fixture
+        run: |
+          (npm run dev -- -p 3000 > /tmp/cinematic-dev.log 2>&1 &)
+          ready=0
+          for i in $(seq 1 45); do
+            if curl -fsS --max-time 15 http://127.0.0.1:3000/ >/dev/null 2>&1; then ready=1; break; fi
+            sleep 2
+          done
+          if [ "$ready" != "1" ]; then tail -80 /tmp/cinematic-dev.log; exit 1; fi
+      - name: Capture and check actual rendered Next.js pages
+        run: NODE_PATH=/tmp/cinematic-tools/node_modules node scripts/cinematic-homepage.browser.cjs
+      - name: Upload screenshots and browser results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cinematic-homepage-screenshots
+          path: cinematic-screenshots/
+          retention-days: 7
+          if-no-files-found: warn
