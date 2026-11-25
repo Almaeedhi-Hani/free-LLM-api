@@ -2,6 +2,7 @@ import { siteUrl } from "@/lib/site-seo";
 import { getLocale, localizedPath } from "@/lib/site-language";
 import { copy, services } from "@/lib/service-catalog";
 import {getPublicContent as getContent} from "@/lib/public-content";
+import {faqsForLocale} from "@/lib/geo-draft-quality";
 
 /** Server-only homepage data preparation and structured data. */
 export async function loadHomeModel() {
@@ -11,9 +12,7 @@ export async function loadHomeModel() {
   const serviceList = services;
   const faqItems = [
     { q: t.q, a: t.a },
-    ...(lang === "ar"
-      ? content.faqs.filter((f) => !/^STORAGE_TEST_/i.test(f.q))
-      : []),
+    ...faqsForLocale(content.faqs,lang),
   ];
   const schema = {
     "@context": "https://schema.org",

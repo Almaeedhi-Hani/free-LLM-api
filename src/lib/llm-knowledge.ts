@@ -1,4 +1,5 @@
 import type {SiteContent} from './content-store';
+import {faqLocale,faqsForLocale} from './geo-draft-quality';
 import type {EditorialItem} from './editorial-types';
 import {approvedEditorial} from './editorial-workflow';
 import {services} from './service-catalog';
@@ -11,7 +12,6 @@ export type KnowledgeLocale=typeof LOCALES[number];
 const TOPICS=['services','packages','faq','insights','updates'] as const;
 type Topic=typeof TOPICS[number];
 const prefix=(lang:KnowledgeLocale)=>lang==='ar'?'':'/'+lang;
-const localeOf=(q:string):KnowledgeLocale=>/[\u3400-\u9fff]/.test(q)?'zh':/[\u0600-\u06ff]/.test(q)?'ar':'en';
 const publicItems=(c:SiteContent,l:KnowledgeLocale)=>approvedEditorial(c.editorialItems,l).filter(e=>!!editorialPath(e));
 const safeCitations=(urls:string[]|undefined,domains:string[]|null)=>domains===null?[]:Array.from(new Set((urls||[]).filter(u=>isDisplayable(u,domains))));
 const validDate=(s:unknown):s is string=>typeof s==='string'&&Number.isFinite(Date.parse(s));
@@ -58,7 +58,7 @@ function packageText(l:KnowledgeLocale,siteUrl:string){
  ...packageOffers.map(o=>['### '+o.title[l],'Service fee: '+o.price+' SAR (professional services only)',o.audience[l],o.pitch[l],o.features.map(f=>f[l]).join('; '),o.requirements[l],o.exclusions[l],'Public offer: '+siteUrl+localPath(l,'/packages')+'#'+o.slug].join('\n'))];
 }
 function faqText(c:SiteContent,l:KnowledgeLocale,siteUrl:string){
- return c.faqs.filter(f=>!/^STORAGE_TEST_/i.test(f.q)&&localeOf(f.q)===l).map(f=>['Q: '+f.q,'A: '+f.a,'Source status: '+(f.source_verification||'not independently checked'),'Public FAQ location: '+siteUrl+'/'].join('\n'));
+ return faqsForLocale(c.faqs,l).map(f=>['Q: '+f.q,'A: '+f.a,'Source status: '+(f.source_verification||'not independently checked'),'Public FAQ location: '+siteUrl+(l==='ar'?'/':'/'+l)].join('\n'));
 }
 function editorials(c:SiteContent,l:KnowledgeLocale,siteUrl:string,domains:string[]|null,predicate:(e:EditorialItem)=>boolean){
  return publicItems(c,l).filter(predicate).map(e=>article(e,siteUrl,domains));
@@ -141,7 +141,7 @@ export function renderFull(c:SiteContent,siteUrl:string,domains:string[]|null=nu
     "WhatsApp: " + content.contact.whatsapp,
     "## Additional Arabic editorial material (legacy FAQs are not independently verified in this feed)",
     content.goldenParagraph,
-    ...content.faqs.filter(f=>!/^STORAGE_TEST_/i.test(f.q)).map(f=>"Q: "+f.q+"\nA: "+f.a),
+    ...content.faqs.filter(f=>faqLocale(f)!==null).map(f=>"Q: "+f.q+"\nA: "+f.a),
     "Latest dated public editorial revision: " + (languages.flatMap(l=>publicItems(content,l).map(dateOf)).filter(validDate).sort().pop()||'unknown'),
   ].join("\n\n");
 
@@ -162,7 +162,7 @@ export function renderKnowledge(c:SiteContent,sel:KnowledgeSelection,siteUrl:str
  if(sel.kind==='page'&&sel.locale&&sel.page){
   const l=sel.locale,p=sel.page,path=localPath(l,p);
   let body:string[]=[];
-  if(p==='/')body=[...(l==='ar'?[c.goldenParagraph]:[]),...editorials(c,l,siteUrl,domains,e=>e.kind==='home'||e.kind==='trust'),...(l==='ar'?LOCALES.flatMap(locale=>faqText(c,locale,siteUrl)):[])];
+  if(p==='/')body=[...(l==='ar'?[c.goldenParagraph]:[]),...editorials(c,l,siteUrl,domains,e=>e.kind==='home'||e.kind==='trust'),...faqText(c,l,siteUrl)];
   else if(p==='/packages')body=[...packageText(l,siteUrl),...editorials(c,l,siteUrl,domains,e=>e.kind==='packages')];
   else if(p.startsWith('/services/'))body=[...serviceText(l,siteUrl,p.slice(10)),...editorials(c,l,siteUrl,domains,e=>editorialPath(e)===path)];
   else if(p.startsWith('/insights/')){body=editorials(c,l,siteUrl,domains,e=>editorialPath(e)===path);if(!body.length)return null}

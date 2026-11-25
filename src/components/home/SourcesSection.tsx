@@ -1,4 +1,5 @@
 import {faqAnchor} from "@/lib/publication-anchors";
+import {faqsForLocale} from "@/lib/geo-draft-quality";
 import ArrowUpRight from "@/components/ArrowUpRight";
 import { services } from "@/lib/service-catalog";
 import type { HomeModel } from "@/lib/home/model";
@@ -14,9 +15,7 @@ export default function SourcesSection({lang, t, content}: Pick<HomeModel, "lang
             <summary>{t.q}</summary>
             <p>{t.a}</p>
           </details>
-          {lang === "ar" &&
-            content.faqs
-              .filter((f) => !/^STORAGE_TEST_/i.test(f.q))
+          {faqsForLocale(content.faqs,lang)
               .map((f, i) => (
                 <details key={`${f.q}-${i}`} id={faqAnchor(f.q)}>
                   <summary>{f.q}</summary>

@@ -7,7 +7,7 @@ export type GeoGoal = {title:string;priority:"high"|"medium"|"low";description?:
 export type GeoEvidenceReference={id:string;label:string;source:string;kind:string;url?:string;observed_at?:string};
 import {normalizeClaimEvidence} from './geo-claim-evidence';
 import type {EditorialClaimEvidence} from './editorial-types';
-export type GeoDraft = {q:string;a:string;risk_level:"low"|"medium"|"high";evidence_ids?:string[];evidence_refs?:GeoEvidenceReference[];claim_evidence?:EditorialClaimEvidence[]};
+export type GeoDraft = {q:string;a:string;lang?:'ar'|'en'|'zh';risk_level:"low"|"medium"|"high";evidence_ids?:string[];evidence_refs?:GeoEvidenceReference[];claim_evidence?:EditorialClaimEvidence[]};
 export type GeoReport = {run_at:string;status:"success"|"partial"|"error";last_result:string};
 import { type EditorialItem,validateEditorialItem } from './editorial-workflow';
 export type GeoBatch = {opportunities?:GeoOpportunity[];goals?:GeoGoal[];drafts?:GeoDraft[];editorial_actions?:EditorialItem[];run_report?:GeoReport};
@@ -73,8 +73,9 @@ export function normalizeGeoBatch(raw:unknown):GeoBatch{
        if(!textOk(d.q||d.question,1000))throw invalid("invalid_question");
        if(!textOk(d.a||d.answer,5000))throw invalid("invalid_answer");
        if(!["high","medium","low"].includes(d.risk_level))throw invalid("invalid_risk_level");
+       if(d.lang!==undefined&&!['ar','en','zh'].includes(d.lang))throw invalid('invalid_language');
        const refs=normalizeReferences(d.evidence_refs);const claims=normalizeClaimEvidence(d.claim_evidence,d.a||d.answer,refs);
-       return {q:d.q||d.question,a:d.a||d.answer,risk_level:d.risk_level,evidence_ids:Array.isArray(d.evidence_ids)?d.evidence_ids.filter((id:unknown)=>textOk(id,150)).slice(0,12):[],evidence_refs:refs,...(claims!==undefined?{claim_evidence:claims}:{})};
+       return {q:d.q||d.question,a:d.a||d.answer,...(d.lang?{lang:d.lang}:{}),risk_level:d.risk_level,evidence_ids:Array.isArray(d.evidence_ids)?d.evidence_ids.filter((id:unknown)=>textOk(id,150)).slice(0,12):[],evidence_refs:refs,...(claims!==undefined?{claim_evidence:claims}:{})};
      });
    }
  }

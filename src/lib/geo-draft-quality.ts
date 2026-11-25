@@ -69,8 +69,8 @@ export function splitGeoDraftReviewText(value:unknown):{answer:string;note:strin
  return {answer,note:original.slice(match.index).trim()};
 }
 
-export function validateGeoDrafts(drafts:readonly {q:string;a:string}[]):void{
- const errors=drafts.flatMap((d,i)=>assessGeoDraftCopy(d.q,d.a).issues.map(issue=>'draft '+(i+1)+': '+issue));
+export function validateGeoDrafts(drafts:readonly {q:string;a:string;lang?:GeoDraftLocale}[]):void{
+ const errors=drafts.flatMap((d,i)=>[...assessGeoDraftCopy(d.q,d.a).issues,...(faqLocale(d)?[]:['Question and answer must match the intended locale.'])].map(issue=>'draft '+(i+1)+': '+issue));
  // Also detect recycled identical answers across differently localized questions.
  const normalized=new Map<string,number>();
  for(let i=0;i<drafts.length;i++){
@@ -79,4 +79,15 @@ export function validateGeoDrafts(drafts:readonly {q:string;a:string}[]):void{
   else normalized.set(text,i);
  }
  if(errors.length)throw new Error('GEO draft quality failed: '+errors.join(' | ').slice(0,920));
+}
+
+/** Public route language check; explicit destinations never override mismatching text. */
+export function faqLocale(f:{q:string;a:string;lang?:GeoDraftLocale}):GeoDraftLocale|null{
+ if(!f||typeof f.q!=='string'||typeof f.a!=='string'||!f.q.trim()||!f.a.trim()||/^STORAGE_TEST_/i.test(f.q))return null;
+ const lang=f.lang||detectGeoDraftLocale(f.q);
+ const fits=(v:ReturnType<typeof ratios>)=>v.total>0&&(lang==='ar'?v.arRatio>=.65:lang==='zh'?v.zhRatio>=.48:lang==='en'?v.enRatio>=.85:false);
+ return fits(ratios(f.q))&&fits(ratios(f.a))?lang:null;
+}
+export function faqsForLocale<T extends {q:string;a:string;lang?:GeoDraftLocale}>(items:readonly T[],lang:GeoDraftLocale):T[]{
+ return items.filter(f=>faqLocale(f)===lang);
 }

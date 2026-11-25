@@ -51,7 +51,7 @@ export default function PublishedLinksList({editorialItems,faqs,drafts,adminSecr
   const e=target.kind==='editorial'?editorialItems.find(x=>x.id===target.id):undefined;
   return f?wasReviewed(reviewMarks,faqReviewIdentity(f)):e?wasReviewed(reviewMarks,editorialReviewIdentity(e)):false;
  };
- const hrefFor=(item:PublishedLink)=>item.kind==='faq'?'/#'+faqAnchor(item.title):['guide','comparison'].includes(item.kind)?item.path:item.path+'#'+editorialAnchor(item.id.slice('editorial:'.length));
+ const hrefFor=(item:PublishedLink)=>item.kind==='faq'?item.path+'#'+faqAnchor(item.title):['guide','comparison'].includes(item.kind)?item.path:item.path+'#'+editorialAnchor(item.id.slice('editorial:'.length));
  const visible=published.filter(item=>
   (showReviewed||!reviewed(item))&&
   (language==='all'||item.language===language)&&
@@ -67,7 +67,7 @@ export default function PublishedLinksList({editorialItems,faqs,drafts,adminSecr
     عدد العناصر المنشورة المؤكدة في المصدر: {published.length} — نتائج التصفية: {visible.length}
    </p>
    <p className="mt-2 text-xs text-slate-600" role="status">{eventState}</p>
-   <p className="mt-1 text-xs text-slate-500">أسئلة FAQ تظهر ضمن الصفحة الرئيسية العربية وليست صفحات منفصلة. قد تشترك أكثر من مادة تحريرية في رابط صفحة واحدة. تاريخ النشر غير المثبت يظهر «غير معروف».</p>
+   <p className="mt-1 text-xs text-slate-500">تظهر الأسئلة الشائعة في الصفحة الرئيسية المطابقة للغتها وليست صفحات منفصلة. قد تشترك أكثر من مادة تحريرية في رابط صفحة واحدة. تاريخ النشر غير المثبت يظهر «غير معروف».</p>
   </header>
   <AIKnowledgeReport adminSecret={adminSecret}/>
   <div className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-4">

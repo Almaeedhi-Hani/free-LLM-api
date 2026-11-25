@@ -30,11 +30,11 @@ const events=[
 ];
 const links=buildPublishedLinks(editorial,faqs,events);
 assert.equal(links.length,3,'2 valid route-backed editorial items and 1 live FAQ');
-assert.deepEqual(new Set(links.map(x=>x.path)),new Set(['/en/services/misa-license','/zh/insights/valid-guide','/']));
+assert.deepEqual(new Set(links.map(x=>x.path)),new Set(['/en/services/misa-license','/zh/insights/valid-guide','/en']));
 assert(links.every(x=>x.id!=='editorial:d'&&x.id!=='editorial:c'&&x.id!=='editorial:e'),'No invalid or draft article');
 assert(links.some(x=>x.id==='editorial:b'&&x.publicationSource==='آلي'),'Real automatic publication attribution');
 assert(links.some(x=>x.id==='editorial:a'&&x.publicationSource==='يدوي'),'Rolled-back event cannot claim an automatic publication');
-assert(links.some(x=>x.kind==='faq'&&x.language==='ar'&&x.publicationSource==='يدوي'),'FAQ manual attribution and Arabic route');
+assert(links.some(x=>x.kind==='faq'&&x.language==='en'&&x.publicationSource==='يدوي'),'FAQ manual attribution and language-matched route');
 const previews=buildUnpublishedPreviews(editorial,drafts);
 assert.equal(previews.length,2,'Pending editorial and FAQ drafts remain separate');
 assert(previews.every(x=>!('path' in x)&&!('url' in x)),'Unpublished drafts never receive a public URL');
@@ -52,3 +52,6 @@ assert(ui.includes('role="status"')&&ui.includes("cache:'no-store'"),'Fresh auth
  }
  console.log('PASS PublishedLinksList: confirmed source count, safe paths, provenance, rollback, unpublished isolation and RTL navigation');
 })().catch(error=>{console.error(error);process.exitCode=1;});
+
+assert.equal(buildPublishedLinks([],[{q:'English question?',a:'English answer',lang:'ar'}]).length,0,'wrong explicit destination never becomes public');
+assert.equal(buildPublishedLinks([],[{q:'هل توجد خدمة مناسبة؟',a:'نعم، يمكن مراجعة نطاق الخدمة.',lang:'ar'}])[0].path,'/');

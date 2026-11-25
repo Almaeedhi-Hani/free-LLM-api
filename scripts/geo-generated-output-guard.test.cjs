@@ -107,3 +107,6 @@ for(const marker of ['مقترح تحريري','编辑提案','editorial proposa
  for(const field of ['title','summary','body'])assert.equal(screenEditorial([{...candidate,[field]:marker+' '+candidate[field]}]).rejected[0].reason,'requires_finished_visitor_copy');
  assert.equal(screenEditorial([{...candidate,sections:[{h2:marker,body:candidate.body}]}]).rejected[0].reason,'requires_finished_visitor_copy');
 }
+
+assert.equal(screenDrafts([{q:enQ,a:enA}], 'ar').accepted.length,0,'wrong locale is rejected');
+assert.equal(screenDrafts([{q:enQ,a:enA}], 'en').accepted[0].lang,'en');
