@@ -130,3 +130,45 @@ DO $$ DECLARE f record; s text; BEGIN
 END $$;
 RESET ROLE;
 SELECT 'GEO_ATOMIC_PUBLICATION_PROOF_TESTS_PASSED' AS result;
+
+-- V2 tests run after the immutable v1 regression above.
+\ir ../../supabase/prepared/geo_routed_publication_proof.sql
+DO $$ DECLARE f record; x jsonb; y jsonb; u text:='https://free-llm-api-1-didl.onrender.com/en/packages'; c text:='Investor status and activity review'; BEGIN
+ SELECT * INTO f FROM proof_fixture WHERE kind='faq';
+ x:=f.item||'{"risk_level":"high"}'::jsonb;
+ x:=jsonb_set(x,'{review_preflight}',(x->'review_preflight')||'{"evidence_lane_version":"evidence-lanes-v2","evidence_lane":"regulatory"}'::jsonb);
+ IF NOT public.geo_publication_receipt_valid(x,x,f.proofs,'faq',now()) THEN RAISE EXCEPTION 'verified high-risk content still blocked'; END IF;
+ IF public.geo_publication_receipt_valid(x,x||'{"q":"changed"}',f.proofs,'faq',now()) THEN RAISE EXCEPTION 'version bypass'; END IF;
+ y:=jsonb_build_array(jsonb_build_object('claim',c,'quote',c,'url',u,'checked_at',now(),'verified_by','first_party_catalog_exact'));
+ x:=jsonb_build_object('q','What is included in the package scope?','a',c,'status','pending','risk_level','medium',
+ 'review_preflight',jsonb_build_object('status','ready','digest',repeat('a',64),'checked_at',now(),'matched',1,'total',1,'evidence_lane_version','evidence-lanes-v2','evidence_lane','commercial'),
+ 'claim_evidence',jsonb_build_array(jsonb_build_object('claim',c,'quote',c,'url',u)),
+ 'evidence_refs',jsonb_build_array(jsonb_build_object('kind','first_party_catalog','url',u)));
+ IF NOT public.geo_publication_receipt_valid(x,x,y,'faq',now()) THEN RAISE EXCEPTION 'catalog receipt blocked'; END IF;
+ IF public.geo_publication_receipt_valid(x,x,'[]','faq',now()) THEN RAISE EXCEPTION 'empty proof accepted'; END IF;
+ IF public.geo_publication_receipt_valid(x,x,jsonb_set(y,'{0,url}','"https://evil.example/packages"'),'faq',now()) THEN RAISE EXCEPTION 'fake catalog accepted'; END IF;
+ IF public.geo_publication_receipt_valid(x||'{"risk_level":"low"}',x||'{"risk_level":"low"}',y,'faq',now()) THEN RAISE EXCEPTION 'commercial mislabeled low'; END IF;
+ IF public.geo_publication_contract_version()<>'routed-proof-v2' THEN RAISE EXCEPTION 'version mismatch'; END IF;
+END $$;
+-- Existing transactional owner permission remains binding on sensitive publication.
+UPDATE public.geo_publication_settings SET allow_high_risk=false,daily_limit=10;
+UPDATE proof_fixture SET item=jsonb_set(item||'{"risk_level":"high","id":"ed-v2-sensitive-123","kind":"guide","target":"v2-sensitive","slug":"v2-sensitive"}','{review_preflight}',(item->'review_preflight')||'{"evidence_lane_version":"evidence-lanes-v2","evidence_lane":"regulatory"}') WHERE kind='editorial';
+UPDATE public.content_store SET content=jsonb_set(content,'{editorialItems}',(content->'editorialItems')||jsonb_build_array((SELECT item FROM proof_fixture WHERE kind='editorial'))) WHERE id=1;
+SET ROLE service_role;
+DO $$ DECLARE e record; s text; BEGIN
+ SELECT * INTO e FROM proof_fixture WHERE kind='editorial';
+ s:=public.geo_commit_auto_publication(e.item->>'id',e.urls,e.proofs,e.item)->>'status';
+ IF s IS DISTINCT FROM 'sensitive_publication_disabled' THEN RAISE EXCEPTION 'sensitive permission bypass: %',s; END IF;
+END $$;
+RESET ROLE;
+UPDATE public.geo_publication_settings SET allow_high_risk=true;
+UPDATE public.geo_publication_events SET published_at=now()-interval '25 hours';
+UPDATE public.geo_faq_publication_events SET published_at=now()-interval '25 hours';
+SET ROLE service_role;
+DO $$ DECLARE e record; s text; BEGIN
+ SELECT * INTO e FROM proof_fixture WHERE kind='editorial';
+ s:=public.geo_commit_auto_publication(e.item->>'id',e.urls,e.proofs,e.item)->>'status';
+ IF s IS DISTINCT FROM 'published' THEN RAISE EXCEPTION 'owner-approved verified high-risk item blocked: %',s; END IF;
+END $$;
+RESET ROLE;
+SELECT 'GEO_ROUTED_PUBLICATION_PROOF_TESTS_PASSED' AS result;
