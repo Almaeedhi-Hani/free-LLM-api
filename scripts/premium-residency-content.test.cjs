@@ -33,3 +33,15 @@ test('page keeps public FAQs consistent with schema and avoids editorial proposa
  const route=fs.readFileSync('src/app/services/premium-residency/page.tsx','utf8');
  assert.match(route,/<PremiumResidencyPage\/>/);assert.match(route,/pageMetadata\("premium-residency"\)/);
 });
+
+test('Premium Residency is discoverable through localized desktop and mobile menus',()=>{
+ const layout=fs.readFileSync('src/app/layout.tsx','utf8');
+ const mobile=fs.readFileSync('src/components/MobileFloatingNav.tsx','utf8');
+ assert.equal(layout.split('localizedPath(lang,"/services/premium-residency")').length-1,2);
+ assert.match(layout,/الإقامة المميزة/);
+ assert.match(layout,/Premium Residency/);
+ assert.match(layout,/高级居留/);
+ for(const label of ['الإقامة المميزة','Premium Residency','高级居留'])assert.ok(mobile.includes('residency:"'+label+'"'));
+ assert.ok(mobile.includes('label:t.residency,href:pathFor(locale,"/services/premium-residency")'));
+ assert.ok(mobile.indexOf('return "residency"')>0 && mobile.indexOf('return "residency"')<mobile.indexOf('if(localPath.startsWith("/services"))'));
+});
