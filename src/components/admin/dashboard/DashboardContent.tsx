@@ -1,9 +1,14 @@
 'use client';
+import {useState} from 'react';
+import {faqReviewIdentity,wasReviewed} from '@/lib/admin-content-review';
+import type {ReviewTarget} from '@/lib/admin-content-review';
+import {faqAnchor} from '@/lib/publication-anchors';
 import type {DashboardViewContracts} from "@/lib/admin/dashboard/view-contracts";
 
-type Props=Pick<DashboardViewContracts,"content"|"goldenDraft"|"setGoldenDraft"|"saveGolden"|"saving"|"setTab"|"editingFaq"|"setEditingFaq"|"updateFaq"|"deleteFaq"|"newFaq"|"setNewFaq"|"addFaq">;
+type Props=Pick<DashboardViewContracts,"content"|"goldenDraft"|"setGoldenDraft"|"saveGolden"|"saving"|"setTab"|"editingFaq"|"setEditingFaq"|"updateFaq"|"deleteFaq"|"newFaq"|"setNewFaq"|"addFaq">&{onReview:(target:ReviewTarget)=>Promise<boolean>};
 
-export default function DashboardContent({content,goldenDraft,setGoldenDraft,saveGolden,saving,setTab,editingFaq,setEditingFaq,updateFaq,deleteFaq,newFaq,setNewFaq,addFaq}:Props) {
+export default function DashboardContent({content,goldenDraft,setGoldenDraft,saveGolden,saving,setTab,editingFaq,setEditingFaq,updateFaq,deleteFaq,newFaq,setNewFaq,addFaq,onReview}:Props) {
+  const [showReviewed,setShowReviewed]=useState(false);
   return <>
               <div className="space-y-6">
                 <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
@@ -18,8 +23,9 @@ export default function DashboardContent({content,goldenDraft,setGoldenDraft,sav
 
                 <section className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
                   <h2 className="text-xl font-bold mb-4">الأسئلة الشائعة</h2>
+                  <label className="mb-3 flex gap-2 text-xs text-slate-600"><input type="checkbox" checked={showReviewed} onChange={e=>setShowReviewed(e.target.checked)}/> إظهار ما تمت مراجعته</label>
                   <ul className="space-y-3">
-                    {content.faqs.map((f: any, i: number) => (
+                    {content.faqs.map((f: any, i: number) => (!showReviewed&&wasReviewed(content.adminReviewedContent,faqReviewIdentity(f))?null:(
                       <li key={i} className="bg-slate-50 rounded-lg p-4">
                         {editingFaq?.index === i ? (
                           <div className="space-y-2">
@@ -36,12 +42,14 @@ export default function DashboardContent({content,goldenDraft,setGoldenDraft,sav
                             <p className="text-slate-600 text-sm mt-1">{f.a}</p>
                             <div className="flex gap-2 mt-2">
                               <button onClick={() => setEditingFaq({ index: i, q: f.q, a: f.a })} className="text-xs text-emerald-700 hover:underline">تعديل</button>
+                              <a href={'/#'+faqAnchor(f.q)} target="_blank" rel="noopener noreferrer" className="text-xs underline">معاينة المنشور</a>
                               <button onClick={() => deleteFaq(i)} className="text-xs text-red-600 hover:underline">حذف</button>
+                              {!wasReviewed(content.adminReviewedContent,faqReviewIdentity(f))?<button disabled={saving} onClick={()=>void onReview({kind:'faq',question:f.q})} className="text-xs underline">مُراجَع</button>:<span className="text-xs">تمت المراجعة</span>}
                             </div>
                           </>
                         )}
                       </li>
-                    ))}
+                    )))}
                   </ul>
                   <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <input className="border border-slate-300 rounded-lg px-4 py-2" placeholder="السؤال" value={newFaq.q} onChange={(e) => setNewFaq({ ...newFaq, q: e.target.value })} />

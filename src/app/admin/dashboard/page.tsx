@@ -1,5 +1,6 @@
 ﻿'use client';
 
+import type {ReviewTarget} from '@/lib/admin-content-review';
 import EditorialReviewPanel from '@/components/EditorialReviewPanel';
 import ContentImpactCenter from '@/components/ContentImpactCenter';
 import PackageRequestsAdmin from '@/components/PackageRequestsAdmin';
@@ -56,6 +57,8 @@ export default function AdminDashboard() {
     return <div className="min-h-screen flex flex-col gap-3 items-center justify-center text-slate-600" dir="rtl"><p>{error||'جاري التحميل...'}</p><button className="btn-secondary" onClick={fetchContent}>إعادة المحاولة</button><button className="text-sm underline" onClick={logout}>تسجيل الخروج</button></div>;
   }
 
+  const markReviewed=(target:ReviewTarget)=>save({markGeoReviewed:target});
+  const deletePublished=(target:ReviewTarget)=>save({deleteGeoContent:target});
   const {uniqueCorrectionCandidates,pendingDrafts,competitorBackedOpps,keywordDerivedOpps}=deriveDashboardSummary(content,competitors,keywords,opportunities);
 
   return (
@@ -81,7 +84,7 @@ export default function AdminDashboard() {
             )}
 
             {tab === 'content' && (
-            <DashboardContent content={content} goldenDraft={goldenDraft} setGoldenDraft={setGoldenDraft} saveGolden={saveGolden} saving={saving} setTab={setTab} editingFaq={editingFaq} setEditingFaq={setEditingFaq} updateFaq={updateFaq} deleteFaq={deleteFaq} newFaq={newFaq} setNewFaq={setNewFaq} addFaq={addFaq} />
+            <DashboardContent content={content} goldenDraft={goldenDraft} setGoldenDraft={setGoldenDraft} saveGolden={saveGolden} saving={saving} setTab={setTab} editingFaq={editingFaq} setEditingFaq={setEditingFaq} updateFaq={updateFaq} deleteFaq={deleteFaq} newFaq={newFaq} setNewFaq={setNewFaq} addFaq={addFaq} onReview={markReviewed} />
             )}
 
             {tab === 'agent' && <GeoEngineMonitor secret={secret} runs={runs} competitors={competitors} keywords={keywords} opportunities={opportunities} goals={goals} sources={marketSources} loading={marketLoading} refresh={() => { void refreshMarket(); void fetchMarketSources(); }} />}
@@ -92,10 +95,10 @@ export default function AdminDashboard() {
             )}
 
             {tab === 'reviews' && (
-            <DashboardReviews content={content} pendingDrafts={pendingDrafts} draftReviewEdits={draftReviewEdits} setDraftReviewEdits={setDraftReviewEdits} saving={saving} approveDraft={approveDraft} rejectDraft={rejectDraft} />
+            <DashboardReviews content={content} saving={saving} onDeleteFaq={q=>save({deleteGeoContent:{kind:'faq',question:q}})} onReview={markReviewed} />
             )}
 
-            {tab === 'published_links' && ADMIN_PUBLISHED_LINKS_ENABLED && <PublishedLinksList editorialItems={content.editorialItems||[]} faqs={content.faqs||[]} drafts={content.drafts||[]} adminSecret={secret} />}
+            {tab === 'published_links' && ADMIN_PUBLISHED_LINKS_ENABLED && <PublishedLinksList editorialItems={content.editorialItems||[]} faqs={content.faqs||[]} drafts={content.drafts||[]} adminSecret={secret} saving={saving} reviewMarks={content.adminReviewedContent} onReview={markReviewed} onDelete={deletePublished} />}
 
             {tab === 'impact' && <GeoFeedbackMemory adminSecret={secret} initial={feedbackTarget} candidates={uniqueCorrectionCandidates} />}
             {tab === 'impact' && (
@@ -105,6 +108,7 @@ export default function AdminDashboard() {
                 drafts={content.drafts||[]}
                 adminSecret={secret}
                 saving={saving}
+                reviewMarks={content.adminReviewedContent} onReview={markReviewed} onDelete={deletePublished}
                 onSaveItems={async items=>await save({editorialItems:items})}
                 onSaveDrafts={async drafts=>await save({drafts})}
                 onNavigate={section=>setTab(section)}
@@ -114,11 +118,10 @@ export default function AdminDashboard() {
 
             {tab === 'editorial' && (
               <EditorialReviewPanel
-                adminSecret={secret}
                 items={content.editorialItems||[]}
                 saving={saving}
-                onSaveItems={async items=>await save({editorialItems:items})}
-                onOpenPublishedLinks={ADMIN_PUBLISHED_LINKS_ENABLED?()=>setTab('published_links'):undefined}
+                reviewMarks={content.adminReviewedContent} onReview={markReviewed}
+                onDeleteItem={id=>save({deleteGeoContent:{kind:'editorial',id}})}
               />
             )}
 

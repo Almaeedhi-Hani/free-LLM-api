@@ -1,3 +1,4 @@
+import {editorialAnchor} from "@/lib/publication-anchors";
 import type { EditorialItem,EditorialKind,EditorialLocale } from "@/lib/editorial-workflow";
 import {approvedEditorial} from "@/lib/editorial-workflow";
 import {topicRelatedLiveNodes,siteTopicPath} from "@/lib/content-tree";
@@ -8,7 +9,7 @@ export function EditorialBlock({items,lang,kind,target,inside=false}:{items:Edit
  const active=approvedEditorial(items,lang,kind,target);
  if(active.length===0)return null;
  return <section className={inside?"service-context-band":"editorial-note section-wrap"} aria-label={lang==='ar'?'محتوى تحريري وإرشادي':lang==='zh'?'编辑与参考资料':'Editorial guidance'}>
-  {active.map(e=><article key={e.id}>
+  {active.map(e=><article key={e.id} id={editorialAnchor(e.id)}>
    <p className="eyebrow">{lang==='ar'?'دليل عملي':lang==='zh'?'实用指南':'PRACTICAL GUIDANCE'}</p>
    <h2>{e.title}</h2><p>{e.summary}</p>
    {e.body.split(/\n\s*\n/).filter(Boolean).map((p,i)=><p key={i}>{p}</p>)}

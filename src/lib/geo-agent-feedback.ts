@@ -1,4 +1,4 @@
-import {getSupabaseCredentials,resolveStorageMode} from './storage-mode';
+import {getSupabaseCredentials,resolveStorageMode,StorageUnavailableError} from './storage-mode';
 
 /** Persistent, append-only operator corrections, not training-data fine-tuning. */
 export type FeedbackSubject='keyword'|'competitor'|'opportunity'|'editorial'|'publication'|'faq';
@@ -66,6 +66,7 @@ export function excludesEditorial(index:FeedbackIndex,item:{
 },path?:string):boolean{
  const route=path||('/insights/'+(item.slug||''));
  return (!!item.id&&isExcluded(index,'editorial',item.id,item.lang))||
+  (!!item.title&&isExcluded(index,'editorial','title:'+item.title,item.lang))||
   isExcluded(index,'publication',route,item.lang)||
   containsRejectedKeyword(index,[item.title||'',item.primary_keyword||'',...(item.secondary_keywords||[])])||
   (item.evidence_refs||[]).some(ref=>!!ref.url&&isExcluded(index,'competitor',ref.url,item.lang));
@@ -142,4 +143,30 @@ export async function undoGeoFeedback(id:string):Promise<GeoFeedback>{
  const saved=await feedbackFetch('','POST',{subject_type,subject_key,language,decision:'valid',reason:undoPrefix+id,source:'admin'});
  if(saved.length!==1||!isUndo(saved[0]))throw Error('Feedback undo unconfirmed');
  return saved[0];
+}
+
+/** Preserve the exact removed record before deletion. This is reusable feedback,
+ * not model fine-tuning. The existing ingestion and publication guards consume it. */
+export async function rememberGeoDeletion(kind:'editorial'|'faq',key:string,language:'ar'|'en'|'zh',snapshot:unknown,exclusions:Array<{subject_type:FeedbackSubject;subject_key:string}>){
+ const cfg=getSupabaseCredentials();
+ if(!cfg)throw new StorageUnavailableError('Deletion requires persistent feedback storage');
+ const reason='Removed by the administrator; do not regenerate this exact content or republish the removed item. The removal does not establish factual inaccuracy.';
+ const audit=await fetch(cfg.url+'/rest/v1/audit_logs?select=id',{
+  method:'POST',cache:'no-store',signal:AbortSignal.timeout(15000),
+  headers:{apikey:cfg.key,Authorization:'Bearer '+cfg.key,'Content-Type':'application/json',Accept:'application/json',Prefer:'return=representation'},
+  body:JSON.stringify({action:'geo_content_deleted_feedback',entity_type:kind==='faq'?'geo_faq':'geo_editorial',entity_id:key,actor:'admin',metadata:{snapshot,language,reason,phase:'before_deletion'}})
+ });
+ if(!audit.ok)throw new StorageUnavailableError('Deletion snapshot was not saved');
+ const saved=await audit.json();
+ if(!Array.isArray(saved)||saved.length!==1||typeof saved[0]?.id!=='string')throw new StorageUnavailableError('Deletion snapshot unconfirmed');
+ let index=await getGeoFeedbackIndex();
+ for(const exclusion of exclusions){
+  if(isExcluded(index,exclusion.subject_type,exclusion.subject_key,language))continue;
+  const row=validateFeedback({...exclusion,language,decision:'irrelevant',reason});
+  const receipt=await feedbackFetch('','POST',row);
+  if(receipt.length!==1||receipt[0].subject_key!==row.subject_key||receipt[0].decision!==row.decision)throw new StorageUnavailableError('Deletion feedback unconfirmed');
+  index=await getGeoFeedbackIndex();
+  if(!isExcluded(index,row.subject_type,row.subject_key,language))throw new StorageUnavailableError('Deletion feedback readback failed');
+ }
+ return saved[0].id as string;
 }

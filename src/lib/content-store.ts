@@ -1,4 +1,5 @@
 import fs from 'fs';
+import type {AdminReview} from './admin-content-review';
 import { type EditorialItem,type ReviewPreflight } from './editorial-types';
 import path from 'path';
 import {
@@ -64,6 +65,7 @@ export interface SiteContent {
   keywords: string[];
   drafts: ContentDraft[];
   editorialItems: EditorialItem[];
+  adminReviewedContent?: AdminReview[];
   contact: ContactInfo;
   agent: AgentStatus;
   cookiePolicy: CookiePolicy;

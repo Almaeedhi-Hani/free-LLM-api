@@ -28,7 +28,7 @@ const {normalizeGeoBatch,persistGeoBatch}=require('../.geo-ingest-test-build/lib
  const code=fs.readFileSync('scripts/opencode-geo-analysis.js','utf8');
  const admin=require('./support/admin-dashboard-source.cjs').readAdminDashboardSource();
  assert(code.includes('const byId=new Map('),'evidence links must be matched with retrieved evidence, not fabricated');
- assert(admin.includes('مصادر الرصد المستخدمة'),'dashboard must display research provenance');
+ assert(admin.includes('معاينة المنشور'),'published-only screens link to real content; research provenance remains stored and accessible through evidence/impact screens');
  const report=normalizeGeoBatch({run_report:{run_at:new Date().toISOString(),status:'partial',last_result:'drafts:partial'}});
  const reported=await persistGeoBatch(report,{saveOpportunity:async()=>{},saveGoal:async()=>{},saveDrafts:async()=>0,saveReport:async()=>{calls.r++}});
  assert.equal(reported.ok,true);assert.equal(reported.saved.run_report,1);
@@ -61,7 +61,8 @@ const {normalizeGeoBatch,persistGeoBatch}=require('../.geo-ingest-test-build/lib
  validateGeoDrafts([{q:englishQ,a:englishA},{q:arQ,a:arA},{q:zhQ,a:zhA}]);
  const dashboard=require('./support/admin-dashboard-source.cjs').readAdminDashboardSource();
  const adminRoute=fs.readFileSync('src/app/api/admin/content/route.ts','utf8');
- assert(dashboard.includes('disabled={saving || !finalAssessment.publishable'),'invalid pending drafts cannot be approved in dashboard');
+ const publishedFaqUi=fs.readFileSync('src/components/admin/dashboard/DashboardReviews.tsx','utf8');
+ assert(!publishedFaqUi.includes('approveDraft')&&!publishedFaqUi.includes('اعتماد ونشر'),'Pending drafts cannot be manually published from the published-only screen');
  assert(dashboard.includes('draftReviewEdits[draftReviewKey(existing)]??proposed.answer'),'final publish answer is an explicit operator review value');
  assert(dashboard.includes('a:reviewedAnswer,status:\'approved\''),'approved draft saves exactly the reviewed answer');
  assert(dashboard.includes('{q:draft.q,a:reviewedAnswer}'),'published FAQ matches the reviewed answer');

@@ -91,3 +91,41 @@ assert(paths.market.includes('isExcluded(feedback,\'keyword\',term,lang)')&&
 assert(paths.admin.includes('timingSafeEqual')&&paths.admin.includes('appendGeoFeedback'));
 assert(paths.ui.includes('GeoFeedbackMemory')&&paths.ui.includes('تعليم الوكيل'));
 console.log('PASS feedback memory: exact match, undo, domain block, opportunity triage, publication gates, audit RLS and UI wiring');
+
+const titleMemory=effectiveFeedback([{...a,subject_type:'editorial',subject_key:'title:deleted example',language:'en'}]);
+assert(excludesEditorial(titleMemory,{id:'new-id',title:'Deleted Example',lang:'en'},'/en/services/company-formation'));
+assert(!excludesEditorial(titleMemory,{id:'another',title:'Different example',lang:'en'},'/en/services/company-formation'));
+assert(!excludesEditorial(titleMemory,{id:'new-id',title:'Deleted Example',lang:'ar'},'/services/company-formation'));
+
+(async()=>{
+ const {rememberGeoDeletion}=require('../.geo-ingest-test-build/lib/geo-agent-feedback.js');
+ const orig=global.fetch, oldUrl=process.env.SUPABASE_URL,oldKey=process.env.SUPABASE_SERVICE_ROLE_KEY;
+ const snapshot={title:'Deleted fixture',body:'Exact fixture text'};
+ const records=[],events=[];
+ process.env.SUPABASE_URL='https://fixture.invalid';process.env.SUPABASE_SERVICE_ROLE_KEY='fixture-not-secret';
+ try{
+  global.fetch=async(url,init={})=>{
+   const body=init.body?JSON.parse(init.body):null;
+   if(String(url).includes('/audit_logs?')){
+    events.push('snapshot');assert.deepEqual(body.metadata.snapshot,snapshot);
+    return new Response(JSON.stringify([{id:'fixture-audit'}]),{status:201});
+   }
+   if(String(url).includes('/geo_agent_feedback')){
+    if(init.method==='POST'){events.push('feedback');const row={...body,id:'feedback-'+records.length,created_at:new Date().toISOString()};records.push(row);return new Response(JSON.stringify([row]),{status:201});}
+    events.push('readback');return new Response(JSON.stringify(String(url).includes('offset=0')?records:[]),{status:200});
+   }
+   throw Error('Unexpected mocked request');
+  };
+  const id=await rememberGeoDeletion('editorial','fixture-id','en',snapshot,[{subject_type:'editorial',subject_key:'title:Deleted fixture'}]);
+  assert.equal(id,'fixture-audit');
+  assert.equal(events[0],'snapshot');assert(events.indexOf('feedback')>events.indexOf('snapshot'));assert.equal(events.at(-1),'readback');
+  assert(excludesEditorial(effectiveFeedback(records),{id:'new-id',title:'Deleted fixture',lang:'en'},'/en/packages'));
+  global.fetch=async()=>new Response('{}',{status:503});
+  await assert.rejects(()=>rememberGeoDeletion('editorial','fixture-id','en',snapshot,[]),/snapshot was not saved/);
+ }finally{
+  global.fetch=orig;
+  if(oldUrl===undefined)delete process.env.SUPABASE_URL;else process.env.SUPABASE_URL=oldUrl;
+  if(oldKey===undefined)delete process.env.SUPABASE_SERVICE_ROLE_KEY;else process.env.SUPABASE_SERVICE_ROLE_KEY=oldKey;
+ }
+ console.log('PASS deletion snapshot, exclusion write and confirmation before removal; unavailable audit fails closed (mocked)');
+})().catch(e=>{console.error(e);process.exitCode=1});
