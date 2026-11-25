@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import {CONSENT_NAME,allowsLanguagePreference} from "@/lib/investor-events";
 type Locale = "ar" | "en" | "zh";
 const supported = new Set<Locale>(["ar", "en", "zh"]);
 function preferredLanguage(header: string | null): Locale {
@@ -16,7 +17,7 @@ function preferredLanguage(header: string | null): Locale {
 }
 function preferred(req: NextRequest): Locale {
   const saved = req.cookies.get("site-language")?.value as Locale | undefined;
-  if (saved && supported.has(saved)) return saved;
+  if (saved && supported.has(saved) && allowsLanguagePreference(req.cookies.get(CONSENT_NAME)?.value)) return saved;
   return preferredLanguage(req.headers.get("accept-language"));
 }
 export function middleware(req: NextRequest) {

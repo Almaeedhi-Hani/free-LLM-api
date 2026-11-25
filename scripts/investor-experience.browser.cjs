@@ -18,7 +18,15 @@ const langs=[{id:'ar',locale:'ar-SA',reject:'رفض الاختيارية',accept
    for(const slug of slugs){
     const route=prefix+'/services/'+slug;
     const response=await page.goto(base+route,{waitUntil:'networkidle',timeout:90000});assert.equal(response.status(),200,route);
-    const reject=page.getByRole('button',{name:lang.reject,exact:true});if(await reject.isVisible())await reject.click();
+    const reject=page.getByRole('button',{name:lang.reject,exact:true});if(await reject.isVisible()){
+     const dialog=page.getByRole('dialog',{name:lang.id==='ar'?'خصوصيتك تهمنا':lang.id==='en'?'Your privacy matters':'您的隐私很重要'});
+     assert.equal(await dialog.getByRole('button').count(),2);
+     assert.equal(await dialog.locator('input').count(),0);
+     await reject.click();
+     const rejectedCookie=(await ctx.cookies()).find(c=>c.name==='site-cookie-consent');
+     const choice=JSON.parse(decodeURIComponent(rejectedCookie.value));
+     assert.equal(choice.analytics,false);assert.equal(choice.marketing,false);assert.equal(choice.preferences,false);
+    }
     assert.equal(await page.locator('h1').count(),1);
     const hero=page.locator(slug==='premium-residency'?'#main article > header':'#main .investor-service-hero');
     await hero.waitFor();
@@ -46,6 +54,7 @@ const langs=[{id:'ar',locale:'ar-SA',reject:'رفض الاختيارية',accept
    assert(cookie,'consent cookie was saved');
    const saved=JSON.parse(decodeURIComponent(cookie.value));
    assert.equal(saved.analytics,true,'explicit analytics opt-in recorded');
+   assert.equal(saved.preferences,true,'optional language persistence consent recorded');
    const automatic=await pageView;
    assert.equal(automatic.status(),204,'real browser analytics accepted after opt-in');
    assert.deepEqual(Object.keys(automatic.request().postDataJSON()).sort(),['event','locale','page']);
@@ -54,6 +63,9 @@ const langs=[{id:'ar',locale:'ar-SA',reject:'رفض الاختيارية',accept
    assert.equal((await ctx.request.post(base+'/api/investor-events',{headers:{...headers,origin:'https://example.invalid'},data})).status(),403);
    await page.locator('.investor-cookie-settings').click();await page.getByRole('button',{name:lang.reject,exact:true}).click();
    assert.equal((await ctx.request.post(base+'/api/investor-events',{headers,data})).status(),403);
+   const denied=JSON.parse(decodeURIComponent((await ctx.cookies()).find(c=>c.name==='site-cookie-consent').value));
+   assert.equal(denied.analytics,false);assert.equal(denied.marketing,false);assert.equal(denied.preferences,false);
+   assert(!(await ctx.cookies()).some(c=>c.name==='site-language'));
    console.log('PASS investor experience and consent',lang.id,width);
   }finally{await ctx.close()}
  }
