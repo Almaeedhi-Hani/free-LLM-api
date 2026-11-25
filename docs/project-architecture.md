@@ -30,3 +30,7 @@ Legacy global style order is intentionally preserved. Some responsive/shared leg
 2. Admin: extract tab registry, types, server API adapters, state hooks and tab components one bounded PR at a time. Keep auth and write semantics unchanged.
 3. Backend: split market, GEO, GSC and Telegram internals by domain behind stable interfaces, after mapping imports and scheduled consumers. Do not move API routes or SQL migrations prematurely.
 4. Verify static contracts, build, fixture/browser coverage, and review before each merge; rollback by reverting each isolated PR. No production deploy in this foundation PR.
+
+## Second migration slice
+- Shared layout delegates identical header/footer markup to src/components/layout/SiteHeader.tsx and SiteFooter.tsx; keeps HTML, metadata, content access, client widgets and main landmark in root layout.
+- Premium residency delegates five original section groups to src/components/residency/, with a server model in src/lib/residency/model.ts. Assessment component, original CSS Module, data, fee logic, official sources and schema preserved. Existing tests read the actual owning modules.

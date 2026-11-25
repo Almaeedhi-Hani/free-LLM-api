@@ -5,6 +5,11 @@ on:
     paths:
       - 'src/components/CinematicHero.tsx'
       - 'src/components/home/**'
+      - 'src/components/layout/**'
+      - 'src/components/residency/**'
+      - 'src/components/PremiumResidencyPage.tsx'
+      - 'src/lib/residency/**'
+      - 'src/app/layout.tsx'
       - 'src/styles/**'
       - 'src/app/globals.css'
       - 'src/app/page.tsx'
@@ -45,6 +50,8 @@ jobs:
           node scripts/mobile-header-contract.test.cjs
           npm run test:packages
           npm run test:whatsapp
+          npx --no-install tsc src/lib/premium-residency-content.ts --outDir .residency-test-build --module commonjs --target es2020 --lib es2020,dom --moduleResolution node --esModuleInterop --skipLibCheck --strict --types node
+          node --test scripts/premium-residency-content.test.cjs
       - name: Verify exact pre-refactor CSS and markup parity
         if: github.head_ref == 'refactor/project-architecture-foundation'
         run: |

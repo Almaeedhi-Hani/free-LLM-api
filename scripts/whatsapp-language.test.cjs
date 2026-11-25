@@ -31,7 +31,9 @@ assert(content.includes('...patch.contact?.whatsappAdvisors'),'other language ad
 assert(content.includes('...patch.contact?.whatsappNumbers'),'partial contact edits retain independently assigned numbers');
 const app=fs.readFileSync('src/app/layout.tsx','utf8');
 assert(app.includes('<WhatsAppFloat locale={lang} contact={contact}/>'),'floating WhatsApp is mounted');
-assert(app.includes('whatsAppUrlForLanguage(contact,lang)'),'footer uses locale-specific URL');
+assert(app.includes('whatsAppUrlForLanguage(contact,lang)'),'layout resolves locale-specific URL');
+assert(app.includes('<SiteFooter lang={lang} contact={contact} whatsappHref={whatsappHref} />'),'footer receives localized URL');
+assert(fs.readFileSync('src/components/layout/SiteFooter.tsx','utf8').includes('href={whatsappHref}'),'footer uses localized URL');
 const home=fs.readFileSync('src/components/home/ContactSection.tsx','utf8');
 assert(home.includes('whatsAppUrlForLanguage(content.contact,lang)'),'home CTA uses locale-specific URL');
 const float=fs.readFileSync('src/components/WhatsAppFloat.tsx','utf8');
