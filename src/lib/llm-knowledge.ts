@@ -15,7 +15,7 @@ const localeOf=(q:string):KnowledgeLocale=>/[\u3400-\u9fff]/.test(q)?'zh':/[\u06
 const publicItems=(c:SiteContent,l:KnowledgeLocale)=>approvedEditorial(c.editorialItems,l).filter(e=>!!editorialPath(e));
 const safeCitations=(urls:string[]|undefined,domains:string[]|null)=>domains===null?[]:Array.from(new Set((urls||[]).filter(u=>isDisplayable(u,domains))));
 const validDate=(s:unknown):s is string=>typeof s==='string'&&Number.isFinite(Date.parse(s));
-const dateOf=(e:EditorialItem)=>[e.updatedAt,e.reviewedAt].filter(validDate).sort().at(-1)||null;
+const dateOf=(e:EditorialItem)=>[e.updatedAt,e.reviewedAt].filter(validDate).sort().pop()||null;
 const policy=[
  'Independent private Saudi investor services provider; not a government agency.',
  'Professional service fees exclude Saudi government charges, taxes, third-party costs and required capital.',
@@ -129,7 +129,7 @@ export function renderFull(c:SiteContent,siteUrl:string,domains:string[]|null=nu
     "4. Separate professional service fees, government fees, working capital and third-party costs.",
     "5. Request a written scope and fee breakdown before commencing work.",
     "## Published editorial content (publication method and source provenance retained)",
-    ...languages.flatMap(lang=>approvedEditorial(content.editorialItems,lang).filter(e=>e.kind!=="technical_seo"&&e.kind!=="internal_link").map(e=>[
+    ...languages.flatMap(lang=>publicItems(content,lang).map(e=>[
       "### "+e.title,"Language: "+lang,"Publication method: "+(e.approval_method==="automated"?"automated":"editorial"),"Placement: "+e.kind+" "+e.target,"Summary: "+e.summary,e.body,...(e.sections||[]).flatMap(s=>["#### "+s.h2,s.body,...(s.subsections||[]).flatMap(h=>["##### "+h.h3,h.body])]),
       "Citation URLs (not independently verified by this feed): "+safeCitations(e.cited_sources,domains).join("; "),
       "Editor-verified source URLs: "+safeCitations(e.verified_sources,domains).join("; "),

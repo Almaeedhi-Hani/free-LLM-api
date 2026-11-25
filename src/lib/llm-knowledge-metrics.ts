@@ -3,7 +3,7 @@
 type Counter={requests:number;botRequests:number;bytes:number;ms:number;notModified:number;errors:number};
 type State={since:number;hours:Map<number,Map<string,Counter>>;referrals:Map<number,number>;logMinute:number;logs:number};
 const G=globalThis as typeof globalThis&{__aiKnowledgeMetricsV1?:State};
-const state=()=>G.__aiKnowledgeMetricsV1??=( {since:Date.now(),hours:new Map(),referrals:new Map(),logMinute:-1,logs:0} );
+const state=():State=>G.__aiKnowledgeMetricsV1??=( {since:Date.now(),hours:new Map<number,Map<string,Counter>>(),referrals:new Map<number,number>(),logMinute:-1,logs:0} );
 export function botFamily(ua:string){
  const families=[['OpenAI',/\b(?:GPTBot|OAI-SearchBot|ChatGPT-User)\b/i],['Anthropic',/\b(?:ClaudeBot|Claude-Web|Claude-User|Claude-SearchBot|Anthropic-AI)\b/i],['Perplexity',/\b(?:PerplexityBot|Perplexity-User)\b/i],['Google',/\b(?:Googlebot|Google-Extended)\b/i],['Bing',/\bbingbot\b/i],['Other AI',/\b(?:Bytespider|CCBot|Meta-ExternalAgent|Applebot-Extended|Cohere-AI|GrokBot|DeepSeekBot)\b/i]] as const;
  return families.find(([,rx])=>rx.test(ua))?.[0]||null;
@@ -13,7 +13,7 @@ function prune(s:State,hour:number){for(const k of Array.from(s.hours.keys()))if
 export function recordFeed(path:string,ua:string,status:number,bytes:number,ms:number){
  const s=state(),now=Date.now(),hour=Math.floor(now/3600000);prune(s,hour);
  const family=botFamily(ua),key=keyOf(path);
- const bucket=s.hours.get(hour)||new Map<string,Counter>();s.hours.set(hour,bucket);
+ const bucket:Map<string,Counter>=s.hours.get(hour)||new Map<string,Counter>();s.hours.set(hour,bucket);
  const old=bucket.get(key)||{requests:0,botRequests:0,bytes:0,ms:0,notModified:0,errors:0};
  old.requests++;old.botRequests+=Number(!!family);old.bytes+=bytes;old.ms+=ms;old.notModified+=Number(status===304);old.errors+=Number(status>=400);bucket.set(key,old);
  const minute=Math.floor(now/60000);if(s.logMinute!==minute){s.logMinute=minute;s.logs=0}
