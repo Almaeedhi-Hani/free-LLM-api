@@ -50,7 +50,7 @@ export async function reviewContentPolicy(x:Candidate){
 async function discover(x:Candidate){
  const title=x.kind==='faq'?x.item.q:x.item.title;
  const lang=x.kind==='faq'?detectGeoDraftLocale(title):x.item.lang;
- const targets=x.kind==='editorial'?[x.item.related_service||x.item.target]:evidence.faqTopicTargets(title);
+ const targets=x.kind==='editorial'?Array.from(new Set([x.item.related_service||x.item.target,...evidence.faqTopicTargets([title,x.item.primary_keyword||''].join(' '))])):evidence.faqTopicTargets(title);
  const query=officialSourceQueries({title,lang,target:targets[0],...(x.kind==='editorial'?{primary_keyword:x.item.primary_keyword}:{})})[0];
  const saved=(x.item.evidence_refs||[]).map(r=>evidence.safeUrl(r.url)).filter((u):u is string=>!!u);
  let discovered:string[]=[];

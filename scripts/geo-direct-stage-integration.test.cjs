@@ -25,6 +25,7 @@ const vm=require('node:vm');
   }
  };
  const scope={
+  Date:{now:()=>0},
   process:{env:{GEO_LLM_MODE:'direct'}},
   stageResults:{evidence:{items:evidence}},
   logStage:()=>{},
@@ -114,6 +115,23 @@ const vm=require('node:vm');
  const repairQuota=await analyzeRepair(({model})=>({model,error:'quota_exhausted'}));
  assert.equal(repairQuota.calls.length,4,'quota failure during repair cannot produce a fallback call');
  assert.equal(repairQuota.result.languages.ar.validation_repair.outcome,'quota_reached');
+ // Three adjacent production slots share first access fairly, even when
+ // only one provider succeeds before it reaches its quota.
+ for(const [slot,first] of ['ar','en','zh'].entries()){
+  const attempts=[];
+  const rotated={...scope,Date:{now:()=>slot*10800000},stageResults:{evidence:{items:evidence}},
+   require:p=>p==='./geo-direct-model-providers.cjs'?{available:()=>[models[0]],
+    generate:async(prompt,model)=>{
+     attempts.push(JSON.parse(prompt).lang);
+     return attempts.length===1?{model,data:{opportunities:[],goals:[],drafts:[],editorial_actions:[]}}:{model,error:'rate_limited'};
+    }}:scope.require(p)};
+  vm.runInNewContext(runner.slice(start,end)+'\nthis.analyze=stageGeoAnalysis;',rotated);
+  const outcome=await rotated.analyze();
+  assert.equal(attempts[0],first);
+  assert.equal(attempts.length,2,'quota-limited provider must not be retried');
+  assert.equal(rotated.stageResults.geo_analysis.languages[first].status,'analyzed');
+  assert.equal(outcome.status,'partial');
+ }
  const normalQuota=await analyzeRepair(null,{exhaustFirst:true});
  assert.equal(normalQuota.calls.length,1,'a quota-limited provider is not called again by a later locale');
  assert.equal(normalQuota.outcome.status,'partial');
