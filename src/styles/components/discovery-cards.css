@@ -1,0 +1,143 @@
+/* Owner-approved shared discovery system. All mesh colors are transparent
+   mixtures of the existing metallic gold, white, and charcoal. Public navigation only. */
+body:not(:has(.admin-route)) #main .discovery-grid {
+  gap:16px;
+  border:0;
+}
+body:not(:has(.admin-route)) #main .discovery-card {
+  --discovery-mesh:radial-gradient(ellipse at 100% 100%,rgba(184,134,11,.085),transparent 64%);
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  justify-content:flex-start;
+  gap:10px;
+  min-width:0;
+  min-height:0;
+  padding:clamp(18px,2.4vw,28px);
+  border:1px solid var(--reference-line);
+  border-radius:20px;
+  background:var(--discovery-mesh),var(--reference-white);
+  color:var(--reference-ink);
+  box-shadow:0 5px 18px rgba(32,42,54,.035);
+  text-align:start;
+  text-decoration:none;
+  font:inherit;
+  cursor:pointer;
+  transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease;
+}
+body:not(:has(.admin-route)) #main .discovery-card:nth-child(3n+2) {
+  --discovery-mesh:radial-gradient(ellipse at 0% 100%,rgba(32,42,54,.035),transparent 70%),radial-gradient(ellipse at 100% 100%,rgba(184,134,11,.04),transparent 60%);
+}
+body:not(:has(.admin-route)) #main .discovery-card:nth-child(3n+3) {
+  --discovery-mesh:radial-gradient(ellipse at 0% 92%,rgba(184,134,11,.065),transparent 63%),radial-gradient(ellipse at 100% 100%,rgba(184,134,11,.035),transparent 52%);
+}
+body:not(:has(.admin-route)) #main .discovery-card:hover {
+  background:var(--discovery-mesh),var(--reference-white);
+  border-color:var(--conversion-gold);
+  box-shadow:0 9px 24px rgba(32,42,54,.07);
+  transform:translateY(-2px);
+}
+body:not(:has(.admin-route)) #main .discovery-card:focus-visible {
+  outline:2px solid var(--reference-ink);
+  outline-offset:3px;
+  border-color:var(--conversion-gold);
+}
+body:not(:has(.admin-route)) #main .discovery-top {
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  min-height:44px;margin-bottom:2px;
+}
+body:not(:has(.admin-route)) #main .discovery-icon {
+  display:inline-grid;place-items:center;width:46px;height:46px;flex:0 0 46px;
+  border-radius:13px;background:var(--reference-paper);color:var(--conversion-gold);
+  border:1px solid rgba(184,134,11,.12);
+}
+body:not(:has(.admin-route)) #main .discovery-number {
+  display:inline-flex;align-items:center;gap:7px;direction:ltr;
+  font-size:24px;font-weight:600;line-height:1.2;letter-spacing:.01em;
+  color:var(--conversion-gold);background:var(--reference-white);border-radius:3px;
+  font-variant-numeric:tabular-nums;
+}
+body:not(:has(.admin-route)) #main .discovery-number i {
+  display:inline-block;width:18px;height:1px;background:var(--conversion-gold);
+}
+body:not(:has(.admin-route)) #main .discovery-eyebrow {
+  color:var(--reference-muted);font-size:11px;line-height:1.45;letter-spacing:.025em;
+  overflow-wrap:anywhere;
+}
+body:not(:has(.admin-route)) #main .discovery-title {
+  display:block;font-size:clamp(17px,1.7vw,22px);font-weight:600;
+  color:var(--reference-ink);line-height:1.5;letter-spacing:normal;
+  overflow-wrap:anywhere;margin:0;
+}
+body:not(:has(.admin-route)) #main .discovery-description {
+  display:block;color:var(--reference-muted);font-size:13px;
+  line-height:1.8;margin:0;overflow-wrap:anywhere;
+}
+body:not(:has(.admin-route)) #main .discovery-footer {
+  display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;
+  border-top:1px solid var(--reference-line);
+  padding-top:12px;margin-top:auto;
+}
+body:not(:has(.admin-route)) #main .discovery-meta {
+  color:var(--reference-muted);font-size:12px;line-height:1.5;
+}
+body:not(:has(.admin-route)) #main .discovery-action {
+  display:inline-flex;align-items:center;gap:9px;max-width:100%;
+  margin-inline-start:auto;margin-top:0;padding:0;background:transparent;
+  font-size:13px;font-weight:600;line-height:1.5;color:var(--reference-ink);
+}
+body:not(:has(.admin-route)) #main .discovery-arrow {
+  display:inline-grid;place-items:center;
+  width:35px;height:35px;flex:0 0 35px;border-radius:50%;
+  background:var(--reference-ink);color:var(--reference-white);
+}
+body:not(:has(.admin-route)) #main .discovery-arrow svg {width:18px;height:18px;}
+body:not(:has(.admin-route)) #main .discovery-card:hover .discovery-arrow {
+  background:var(--conversion-gold);color:var(--reference-heading);
+}
+body:not(:has(.admin-route)) #main .discovery-compact {
+  flex-direction:row;align-items:center;gap:12px;
+  padding:14px 16px;margin-block:10px;
+}
+body:not(:has(.admin-route)) #main .discovery-compact-copy {
+  display:flex;flex-direction:column;gap:4px;flex:1;min-width:0;
+}
+body:not(:has(.admin-route)) #main .discovery-compact .discovery-title {font-size:15px;}
+/* Price choices retain native button selection, with a gold outline instead of
+   a full gold fill. The actual purchase/consultation CTA remains gold. */
+body:not(:has(.admin-route)) #main .license-offer.discovery-choice {
+  background:var(--reference-white);
+  color:var(--reference-ink);border-color:var(--reference-line);
+  border-radius:14px;box-shadow:0 3px 12px rgba(32,42,54,.035);
+  min-width:0;gap:6px;padding:14px;
+}
+body:not(:has(.admin-route)) #main .license-offer.discovery-choice[aria-pressed="true"] {
+  background:radial-gradient(ellipse at 100% 100%,rgba(184,134,11,.10),transparent 80%),var(--reference-white);
+  border-color:var(--conversion-gold);
+  box-shadow:inset 0 0 0 1px var(--conversion-gold);
+}
+body:not(:has(.admin-route)) #main .license-offer.discovery-choice:hover {border-color:var(--conversion-gold);}
+body:not(:has(.admin-route)) #main .discovery-choice-head {
+  width:100%;display:flex;align-items:flex-start;justify-content:space-between;gap:6px;
+}
+body:not(:has(.admin-route)) #main .discovery-choice-marker {
+  display:grid;place-items:center;width:16px;height:16px;flex:0 0 16px;
+  border:1.5px solid var(--reference-muted);border-radius:50%;
+}
+body:not(:has(.admin-route)) #main .discovery-choice[aria-pressed="true"] .discovery-choice-marker {
+  border-color:var(--conversion-gold);background:var(--conversion-gold);
+}
+body:not(:has(.admin-route)) #main .discovery-choice[aria-pressed="true"] .discovery-choice-marker::after {
+  content:"";width:6px;height:6px;background:var(--reference-heading);border-radius:50%;
+}
+@media(max-width:700px){
+  body:not(:has(.admin-route)) #main .discovery-grid {grid-template-columns:1fr;gap:12px;}
+  body:not(:has(.admin-route)) #main .discovery-card:not(.discovery-compact) {padding:18px;gap:9px;}
+  body:not(:has(.admin-route)) #main .discovery-title {font-size:18px;}
+  body:not(:has(.admin-route)) #main .license-offer.discovery-choice {padding:11px;min-height:96px;}
+}
+@media(prefers-reduced-motion:reduce){
+  body:not(:has(.admin-route)) #main .discovery-card {transition:none;}
+  body:not(:has(.admin-route)) #main .discovery-card:hover {transform:none;}
+}

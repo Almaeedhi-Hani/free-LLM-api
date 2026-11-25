@@ -2,6 +2,7 @@ import type { EditorialItem,EditorialKind,EditorialLocale } from "@/lib/editoria
 import {approvedEditorial} from "@/lib/editorial-workflow";
 import {topicRelatedLiveNodes,siteTopicPath} from "@/lib/content-tree";
 import {localizedPath} from "@/lib/site-language";
+import {DiscoveryLink} from "@/components/discovery/DiscoveryCard";
 /** Editorial placements reuse existing site classes and do not alter original cards. */
 export function EditorialBlock({items,lang,kind,target,inside=false}:{items:EditorialItem[]|undefined;lang:EditorialLocale;kind:EditorialKind;target:string;inside?:boolean}){
  const active=approvedEditorial(items,lang,kind,target);
@@ -17,8 +18,8 @@ export function EditorialBlock({items,lang,kind,target,inside=false}:{items:Edit
      if(!route||route===target||route==='/services/'+target||all.findIndex(other=>other.node_id===link.node_id)!==index)return false;
      if(route==='/insights'&&!approvedEditorial(items,lang).some(a=>a.kind==='guide'||a.kind==='comparison'))return false;
      return true;
-   }).slice(0,4).map(link=><p key={link.node_id}><a href={localizedPath(lang,siteTopicPath(link.node_id)!)}>{link.anchor}</a></p>)}
-   {(!e.internal_links||e.internal_links.length===0)&&e.topic_node_id&&topicRelatedLiveNodes(e.topic_node_id).filter(node=>node.route!==target&&node.route!=='/services/'+target&&(node.route!=='/insights'||approvedEditorial(items,lang).some(a=>a.kind==='guide'||a.kind==='comparison'))).slice(0,3).map(node=><p key={node.id}><a href={localizedPath(lang,node.route!)}>{node.primary_keyword[lang]}</a></p>)}
+   }).slice(0,4).map(link=><DiscoveryLink key={link.node_id} href={localizedPath(lang,siteTopicPath(link.node_id)!)} title={link.anchor}/>)}
+   {(!e.internal_links||e.internal_links.length===0)&&e.topic_node_id&&topicRelatedLiveNodes(e.topic_node_id).filter(node=>node.route!==target&&node.route!=='/services/'+target&&(node.route!=='/insights'||approvedEditorial(items,lang).some(a=>a.kind==='guide'||a.kind==='comparison'))).slice(0,3).map(node=><DiscoveryLink key={node.id} href={localizedPath(lang,node.route!)} title={node.primary_keyword[lang]}/>)}
    <p><small>{e.approval_method==='automated'?
     (lang==='ar'?'نُشر هذا المحتوى آليًا، وقد لا تكون مصادره متحققة استقلاليًا. تحقّق من الجهات الرسمية قبل اتخاذ أي قرار استثماري.':lang==='zh'?'本文由自动系统发布，参考资料可能未经独立核实；决策前请咨询主管机关。':'Automatically published; references may not be independently verified. Check with official authorities before investment decisions.'):
     (lang==='ar'?'مراجع تمت مراجعتها قبل النشر؛ تحقّق من المتطلبات الحالية لدى الجهة المختصة.':lang==='zh'?'发布前已审核相关参考资料；请再次核对主管部门的现行要求。':'References reviewed before publishing; verify current rules with the competent authority.')}</small></p>

@@ -5,6 +5,9 @@ on:
     paths:
       - 'src/components/CinematicHero.tsx'
       - 'src/components/home/**'
+      - 'src/components/discovery/**'
+      - 'src/components/EditorialBlock.tsx'
+      - 'src/app/insights/**'
       - 'src/components/services/**'
       - 'src/components/packages/**'
       - 'src/components/ServicePage.tsx'

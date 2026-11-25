@@ -120,6 +120,12 @@ const viewports=[{width:320,height:640},{width:390,height:844},{width:768,height
         assert.equal(popup.url(),consultation,name+' direct consultation route');
         await popup.close();
         if(viewport.width===390||viewport.width===1440){
+          const serviceCards=page.locator('#services .service-card.discovery-card');
+          assert.equal(await serviceCards.count(),6);
+          assert.equal(await page.locator('.entry-route-card.discovery-card').count(),3);
+          assert((await serviceCards.first().evaluate(e=>getComputedStyle(e).backgroundImage)).includes('radial-gradient'));
+          assert(await serviceCards.first().locator('.discovery-arrow svg').count());
+          await page.locator('#services .discovery-grid').screenshot({path:path.join(output,name+'-discovery-services.png'),animations:'disabled'});
           await banner.scrollIntoViewIfNeeded();
           await banner.screenshot({path:path.join(output,name+'-formation-banner.png'),animations:'disabled'});
           const bannerAxe=await page.evaluate(async()=>await window.axe.run('#formation-packages-banner',{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']}}));
@@ -134,7 +140,15 @@ const viewports=[{width:320,height:640},{width:390,height:844},{width:768,height
           }
           const category=page.locator('.license-category-card').first();
           await category.waitFor();
-          assert.equal(await category.locator('.license-category-action').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(184, 134, 11)');
+          await page.mouse.move(0,0);
+          assert.equal(await category.locator('.discovery-arrow').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(32, 42, 54)',name+' default charcoal arrow');
+          await category.hover();
+          assert.equal(await category.locator('.discovery-arrow').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(184, 134, 11)',name+' interactive gold arrow');
+          await page.mouse.move(0,0);
+          assert.equal(await category.locator('.discovery-number').evaluate(e=>getComputedStyle(e).color),'rgb(184, 134, 11)');
+          assert.equal(await page.locator('.license-category-card.discovery-card').count(),3);
+          assert((await category.evaluate(e=>getComputedStyle(e).backgroundImage)).includes('radial-gradient'));
+          await page.locator('.license-category-grid').screenshot({path:path.join(output,name+'-discovery-categories.png'),animations:'disabled'});
           const selected=page.locator('.license-offer[aria-pressed="true"]');
           // Development SSR can display the button before React attaches handlers.
           // Wait for network idle above, then retry a lost pre-hydration click only
@@ -156,7 +170,10 @@ const viewports=[{width:320,height:640},{width:390,height:844},{width:768,height
           await category.click();
           await selected.waitFor();
           if(viewport.width===390)await page.screenshot({path:path.join(output,name+'-package-selection.png'),fullPage:true,animations:'disabled'});
-          assert.equal(await selected.evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(184, 134, 11)');
+          assert.equal(await selected.evaluate(e=>getComputedStyle(e).borderTopColor),'rgb(184, 134, 11)');
+          assert.equal(await selected.evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(255, 255, 255)');
+          assert.equal(await selected.locator('.discovery-choice-marker').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(184, 134, 11)');
+          assert.equal(await page.locator('.license-detail>button').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(184, 134, 11)');
           if(await page.locator('.license-offer[aria-pressed="false"]').count()){
             // Use a stable index: the previous aria-pressed=false locator
             // changed identity as soon as the selected state updated.
@@ -170,6 +187,13 @@ const viewports=[{width:320,height:640},{width:390,height:844},{width:768,height
           assert.equal(await page.locator('.package-form .package-secondary svg.package-arrow[data-direction="back"]').count(),1);
           assert.equal(await page.locator('.package-form button[type="submit"] svg.package-arrow[data-direction="forward"]').count(),1);
           await page.screenshot({path:path.join(output,name+'-package.png'),fullPage:true,animations:'disabled'});
+          await page.goto(base+(lang.id==='ar'?'':'/'+lang.id)+'/services/company-formation',{waitUntil:'networkidle'});
+          const related=page.locator('.service-related-grid .discovery-card');
+          assert.equal(await related.count(),3);
+          assert((await related.first().evaluate(e=>getComputedStyle(e).backgroundImage)).includes('radial-gradient'));
+          await page.locator('.service-related-grid').screenshot({path:path.join(output,name+'-discovery-related.png'),animations:'disabled'});
+          const target=await related.first().getAttribute('href');
+          await Promise.all([page.waitForURL(base+target),related.first().click()]);
           await page.goto(base+(lang.id==='ar'?'':'/'+lang.id)+'/services/premium-residency',{waitUntil:'networkidle'});
           const assessment=page.locator('#assessment');
           await assessment.waitFor();

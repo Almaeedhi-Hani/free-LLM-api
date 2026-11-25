@@ -1,4 +1,4 @@
-import ArrowUpRight from "@/components/ArrowUpRight";
+import { DiscoveryContent, serviceDiscoveryIcon } from "@/components/discovery/DiscoveryCard";
 import { localizedPath } from "@/lib/site-language";
 import type { HomeModel } from "@/lib/home/model";
 
@@ -23,7 +23,7 @@ export default function MarketEntry({lang, t}: Pick<HomeModel, "lang" | "t">) {
           </div>
           <p>{lang === "ar" ? "هذه مسارات إرشادية وليست باقات ثابتة؛ تختلف الأهلية والإجراءات حسب النشاط والجهة المختصة." : lang === "zh" ? "以下为指导性路径，并非固定套餐。要求因业务及主管部门而异。" : "These are guidance routes, not fixed-price packages. Eligibility and steps vary by activity and regulator."}</p>
         </div>
-        <div className="entry-route-grid">
+        <div className="entry-route-grid discovery-grid">
           {[
             {
               num:"01", tag:{ar:"لديك شركة خارج السعودية",en:"EXISTING FOREIGN BUSINESS",zh:"已有境外企业"},
@@ -44,10 +44,8 @@ export default function MarketEntry({lang, t}: Pick<HomeModel, "lang" | "t">) {
               slug:"corporate-banking"
             }
           ].map((route) => (
-            <a className="entry-route-card" key={route.num} href={localizedPath(lang, `/services/${route.slug}`)}>
-              <div className="entry-route-meta"><span>{route.num}</span><span>{route.tag[lang]}</span></div>
-              <div className="entry-route-content"><h3>{route.title[lang]}</h3><p>{route.desc[lang]}</p></div>
-              <span className="entry-route-link">{t.detail} <span aria-hidden="true"><ArrowUpRight /></span></span>
+            <a className="entry-route-card discovery-card" key={route.num} href={localizedPath(lang, `/services/${route.slug}`)}>
+              <DiscoveryContent icon={serviceDiscoveryIcon(route.slug)} number={Number(route.num)} eyebrow={route.tag[lang]} title={route.title[lang]} description={route.desc[lang]} action={t.detail} heading/>
             </a>
           ))}
         </div>

@@ -67,7 +67,7 @@ const slugs = [
         assert(!/href="\/ai-readable"/.test(html), path + " AI button");
         assert(html.includes("application/ld+json"));
         if (route === "/packages") {
-          assert((html.match(/class="license-category-card"/g)||[]).length === 3, path+" original three license-category cards");
+          assert((html.match(/class="(?:[^"]*\s)?license-category-card(?:\s[^"]*)?"/g)||[]).length === 3, path+" original three license-category cards");
           assert(html.includes("services-branch") && html.includes("professional-scratch"),path+" all ten package offers available in JSON-LD");
           assert(html.includes("schema.org") && html.includes("priceCurrency"),path+" Service Offer JSONLD");
           assert(html.includes(lang==="ar"?"باقات التراخيص الاستثمارية":lang==="zh"?"投资登记套餐":"Investment license packages"),path+" restored heading");

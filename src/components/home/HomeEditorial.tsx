@@ -1,4 +1,4 @@
-import ArrowUpRight from "@/components/ArrowUpRight";
+import {DiscoveryLink} from "@/components/discovery/DiscoveryCard";
 import { localizedPath } from "@/lib/site-language";
 import { EditorialBlock } from "@/components/EditorialBlock";
 import { approvedEditorial } from "@/lib/editorial-workflow";
@@ -13,7 +13,7 @@ export default function HomeEditorial({lang, content}: Pick<HomeModel, "lang" | 
         <section className="section-wrap editorial-note">
           <h2>{lang==='ar'?'أدلة المستثمرين المتخصصة':lang==='zh'?'投资者专题指南':'In-depth investor guides'}</h2>
           <p>{lang==='ar'?'أدلة ومقارنات لمساعدتك على اتخاذ قرار مدروس.':lang==='zh'?'实用指南和比较，帮助您规划下一步。':'Original guides and comparisons for informed decisions.'}</p>
-          <a href={localizedPath(lang,'/insights')}>{lang==='ar'?'تصفح الأدلة':lang==='zh'?'查看指南':'Browse guides'} <ArrowUpRight /></a>
+          <DiscoveryLink href={localizedPath(lang,'/insights')} title={lang==='ar'?'تصفح الأدلة':lang==='zh'?'查看指南':'Browse guides'}/>
         </section>}
     </>
   );
