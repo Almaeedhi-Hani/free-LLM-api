@@ -39,7 +39,7 @@ const viewports=[{width:320,height:640},{width:390,height:844},{width:768,height
         assert.equal(await page.locator('html').getAttribute('lang'),lang.html,name);
         assert.equal(await page.locator('html').getAttribute('dir'),lang.dir,name);
         assert.equal(await page.locator('h1').count(),1,name);
-        assert.equal(await page.locator('.cinematic-secondary').getAttribute('href'),lang.packages,name);
+        assert.equal(await page.locator('.cinematic-secondary').getAttribute('href'),'#services',name);
         assert.equal(await page.locator('.cinematic-primary').getAttribute('href'),'#contact',name);
         assert.equal(await page.locator('#contact').count(),1,name);
         assert.equal(await page.locator('#services').count(),1,name);
@@ -48,8 +48,9 @@ const viewports=[{width:320,height:640},{width:390,height:844},{width:768,height
           const title=hero.querySelector('h1');
           const cta=hero.querySelector('.cinematic-primary');
           const secondary=hero.querySelector('.cinematic-secondary');
+          const style=e=>{const s=getComputedStyle(e);return {color:s.color,background:s.backgroundColor,fontSize:s.fontSize,fontWeight:s.fontWeight,fontStyle:s.fontStyle,fontFamily:s.fontFamily,lineHeight:s.lineHeight,letterSpacing:s.letterSpacing,borderRadius:s.borderRadius,padding:s.padding};};
           const rect=e=>{const r=e.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height}};
-          return {viewport:innerWidth,hero:rect(hero),title:rect(title),cta:rect(cta),secondary:rect(secondary),heroScroll:hero.scrollWidth,heroClient:hero.clientWidth,documentScroll:document.documentElement.scrollWidth,header:rect(document.querySelector('.site-header')),transition:getComputedStyle(cta).transitionDuration};
+          return {viewport:innerWidth,hero:rect(hero),title:rect(title),cta:rect(cta),secondary:rect(secondary),heroScroll:hero.scrollWidth,heroClient:hero.clientWidth,documentScroll:document.documentElement.scrollWidth,header:rect(document.querySelector('.site-header')),transition:getComputedStyle(cta).transitionDuration,headline:style(hero.querySelector('.cinematic-headline')),accent:style(hero.querySelector('.cinematic-accent')),primary:style(cta),secondaryStyle:style(secondary),art:rect(hero.querySelector('.cinematic-art')),headerStyle:style(document.querySelector('.site-header'))};
         });
         if(viewport.width===390||viewport.width===1440){
           await page.screenshot({path:path.join(output,name+'-hero.png'),animations:'disabled'});
@@ -61,6 +62,16 @@ const viewports=[{width:320,height:640},{width:390,height:844},{width:768,height
         assert(geometry.cta.height>=44&&geometry.secondary.height>=44,name+' CTA target size');
         assert(geometry.title.top>=geometry.header.bottom-1,name+' heading obscured by navigation');
         assert.equal(geometry.transition,'0s',name+' reduced motion');
+        assert.equal(geometry.headline.color,'rgb(107, 114, 128)',name+' exact first headline color');
+        assert.equal(geometry.accent.color,'rgb(32, 42, 54)',name+' exact second headline color');
+        assert.equal(geometry.accent.fontStyle,'normal',name+' no italic');
+        assert.equal(geometry.headline.fontWeight,'400',name+' regular weight');
+        assert.equal(geometry.primary.background,'rgb(32, 42, 54)',name+' primary reference');
+        assert.equal(geometry.secondaryStyle.background,'rgb(209, 213, 219)',name+' secondary reference');
+        assert.equal(geometry.headerStyle.background,'rgba(0, 0, 0, 0)',name+' transparent navbar');
+        assert(geometry.art.top>=geometry.hero.height*.45,name+' low architectural subject');
+        if(lang.id==='en'&&viewport.width>=1440)assert.equal(geometry.headline.fontSize,'96px');
+        if(lang.id==='en'&&viewport.width===768)assert.equal(geometry.headline.fontSize,'72px');
         const overlap=await page.evaluate(()=>{
           const floating=[...document.querySelectorAll('button[aria-controls]')].find(el=>el.classList.contains('bg-[#202a36]'));
           if(!floating)return [];
@@ -86,6 +97,8 @@ const viewports=[{width:320,height:640},{width:390,height:844},{width:768,height
           await page.keyboard.press('Escape');
           assert.equal(await toggle.getAttribute('aria-expanded'),'false',name);
         }
+        await page.locator('.cinematic-secondary').click();
+        assert.equal(new URL(page.url()).hash,'#services',name+' services route');
         await page.locator('.cinematic-primary').click();
         assert.equal(new URL(page.url()).hash,'#contact',name+' consultation route');
         console.log('PASS',name);

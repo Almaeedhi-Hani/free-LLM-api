@@ -30,6 +30,7 @@ on:
       - 'scripts/project-architecture.test.cjs'
       - 'scripts/support/global-styles.cjs'
       - 'scripts/cinematic-homepage.browser.cjs'
+      - 'scripts/cinematic-homepage.test.cjs'
       - 'scripts/reference-color-contract.test.cjs'
       - 'src/components/WhatsAppFloat.tsx'
       - 'src/components/CookieConsent.tsx'
