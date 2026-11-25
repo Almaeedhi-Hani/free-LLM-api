@@ -10,7 +10,7 @@ CREATE TABLE public.geo_faq_publication_events(id uuid PRIMARY KEY DEFAULT gen_r
 CREATE FUNCTION public.geo_commit_auto_publication(text,jsonb,jsonb) RETURNS jsonb LANGUAGE sql AS $$ SELECT '{}'::jsonb $$;
 CREATE FUNCTION public.geo_commit_auto_faq(text) RETURNS jsonb LANGUAGE sql AS $$ SELECT '{}'::jsonb $$;
 \ir ../../supabase/prepared/geo_atomic_publication_proof.sql
-INSERT INTO public.geo_publication_settings VALUES(1,false,false,3);
+INSERT INTO public.geo_publication_settings VALUES(1,false,false,10);
 CREATE TEMP TABLE proof_fixture(kind text,item jsonb,proofs jsonb,urls jsonb);
 INSERT INTO proof_fixture
 SELECT 'faq',jsonb_build_object('q','How can a visitor organize research notes?','a',a||'. '||b||'.','status','pending','risk_level','low',
@@ -90,4 +90,36 @@ DO $$ DECLARE f record; BEGIN
  IF public.geo_publication_receipt_valid(f.item,f.item,jsonb_set(f.proofs,'{1,quote}','"Unrelated quotation"'),'faq',now()) THEN RAISE EXCEPTION 'unrelated quotation allowed'; END IF;
  IF public.geo_publication_receipt_valid(f.item,f.item,jsonb_set(f.proofs,'{1,url}','"https://misa.gov.sa.evil.example/"'),'faq',now()) THEN RAISE EXCEPTION 'lookalike hostname allowed'; END IF;
 END $$;
+-- A cross-kind comparison and guide must not compete for the same route.
+UPDATE public.geo_publication_settings SET daily_limit=10;
+UPDATE proof_fixture SET item=item||'{"id":"ed-conflict-12345","kind":"comparison","slug":"fixture-guide","target":"fixture-guide"}' WHERE kind='editorial';
+UPDATE public.content_store SET content=jsonb_set(content,'{editorialItems}',(content->'editorialItems')||jsonb_build_array((SELECT item FROM proof_fixture WHERE kind='editorial'))) WHERE id=1;
+SET ROLE service_role;
+DO $$ DECLARE e record; s text; BEGIN
+ SELECT * INTO e FROM proof_fixture WHERE kind='editorial';
+ s:=public.geo_commit_auto_publication(e.item->>'id',e.urls,e.proofs,e.item)->>'status';
+ IF s IS DISTINCT FROM 'route_conflict' THEN RAISE EXCEPTION 'cross-kind route conflict: %',s; END IF;
+END $$;
+RESET ROLE;
+-- Seven historical fixture events plus the two successful publications = nine.
+INSERT INTO public.geo_faq_publication_events(item_id,content_fingerprint,question,risk_level,published_at)
+SELECT 'quota-fixture-'||n,'quota-'||n,'Synthetic question '||n,'low',now()-interval '1 hour' FROM generate_series(1,7) n;
+UPDATE proof_fixture SET item=item||'{"id":"ed-tenth-12345","kind":"guide","slug":"tenth-guide","target":"tenth-guide"}' WHERE kind='editorial';
+UPDATE public.content_store SET content=jsonb_set(content,'{editorialItems}',(content->'editorialItems')||jsonb_build_array((SELECT item FROM proof_fixture WHERE kind='editorial'))) WHERE id=1;
+SET ROLE service_role;
+DO $$ DECLARE e record; s text; BEGIN
+ SELECT * INTO e FROM proof_fixture WHERE kind='editorial';
+ s:=public.geo_commit_auto_publication(e.item->>'id',e.urls,e.proofs,e.item)->>'status';
+ IF s IS DISTINCT FROM 'published' THEN RAISE EXCEPTION 'tenth publication rejected: %',s; END IF;
+END $$;
+RESET ROLE;
+UPDATE proof_fixture SET item=item||'{"q":"How can a visitor arrange reading notes?"}' WHERE kind='faq';
+UPDATE public.content_store SET content=jsonb_set(content,'{drafts}',(content->'drafts')||jsonb_build_array((SELECT item FROM proof_fixture WHERE kind='faq'))) WHERE id=1;
+SET ROLE service_role;
+DO $$ DECLARE f record; s text; BEGIN
+ SELECT * INTO f FROM proof_fixture WHERE kind='faq';
+ s:=public.geo_commit_auto_faq(f.item->>'q',f.item,f.proofs)->>'status';
+ IF s IS DISTINCT FROM 'quota_reached' THEN RAISE EXCEPTION 'eleventh shared publication not blocked: %',s; END IF;
+END $$;
+RESET ROLE;
 SELECT 'GEO_ATOMIC_PUBLICATION_PROOF_TESTS_PASSED' AS result;
