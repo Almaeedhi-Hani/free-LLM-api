@@ -86,7 +86,7 @@ async function check(x:Candidate,collectPacket?:(packet:SemanticPacket)=>void):P
   const prior=x.item.review_preflight;
   const locale=x.kind==='faq'?detectGeoDraftLocale(x.item.q):x.item.lang;
   const source=packageOffers.flatMap(p=>[p.title[locale],p.audience[locale],p.pitch[locale],p.requirements[locale],p.exclusions[locale],...p.features.map(f=>f[locale])]);
-  const parts=(s:string[])=>Array.from(new Set(s.flatMap(v=>v.split(/[.!?]+(?:\s+|$)|[。！？؟]+\s*|\n+/)).map(v=>v.normalize('NFC').replace(/\s+/gu,' ').trim()).filter(Boolean)));
+  const parts=(s:string[])=>Array.from(new Set(s.flatMap(v=>v.split(/[.!?]+(?:\s+|$)|[。！？؟]+\s*|\n+/)).map(v=>v.normalize('NFC').replace(/\s+/g,' ').trim()).filter(Boolean)));
   const claims=parts(fields(x));
   const approved=new Set(parts(source));
   const matched=lane==='commercial'?claims.filter(v=>approved.has(v)).length:0;
