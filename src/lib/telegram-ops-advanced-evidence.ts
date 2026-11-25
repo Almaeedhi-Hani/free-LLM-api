@@ -1,6 +1,6 @@
 import {createHash} from 'node:crypto';
 import {getContent,setContent,type ContentDraft,type SiteContent} from './content-store';
-import type {EditorialItem,EditorialClaimEvidence,EditorialRef,ReviewPreflight} from './editorial-types';
+import type {EditorialItem,EditorialClaimEvidence,EditorialRef,ReviewPreflight,SemanticShadowReceipt} from './editorial-types';
 import {assessGeoDraftCopy,detectGeoDraftLocale,splitGeoDraftReviewText} from './geo-draft-quality';
 import {editorialPublicationIssues,validateEditorialItem} from './editorial-workflow';
 import {getCompetitorDomains} from './source-policy-store';
@@ -12,6 +12,9 @@ import {editorialPath} from './content-impact';
 export type PublicationReceipt={urls:string[];proofs:Array<EditorialClaimEvidence&{checked_at:string;verified_by:'live_official_exact_quote'}>};
 type Kind='faq'|'editorial';
 type Candidate={kind:'faq';item:ContentDraft}|{kind:'editorial';item:EditorialItem};
+type SemanticPacket={packetDigest:string;versionDigest:string;claims:unknown[]};
+const semantic=require('./geo-semantic-review.cjs') as {prepare:(input:{kind:Kind;locale:string;versionDigest:string;context:string;fields:string[];pages:{url:string;sentences:string[]}[]})=>SemanticPacket|null};
+const shadow=require('./geo-openrouter-review.cjs') as {reviewCandidate:(packet:SemanticPacket)=>Promise<{status:'openrouter_shadow_pass'|'blocked';reason:string;reviewedClaims?:number;requests:number;reviewers:Array<{model:string;provider:string;cost:0}>}>};
 type Result={total:number;matched:number;proofs:EditorialClaimEvidence[];complete:boolean};
 const evidence=require('./telegram-ops-advanced-evidence.cjs') as {
  digest:(kind:Kind,fields:string[])=>string;safeUrl:(s:unknown)=>string|null;topicUrls:(target:string)=>string[];
@@ -64,7 +67,7 @@ async function discover(x:Candidate){
  }catch{}
  return evidence.selectOfficialCandidates(targets,saved,discovered);
 }
-async function check(x:Candidate):Promise<Candidate>{
+async function check(x:Candidate,collectPacket?:(packet:SemanticPacket)=>void):Promise<Candidate>{
  // Only a trailing procedural note may be removed, and only if remaining
  // copy passes all checks and has live exact coverage. No legal paraphrase.
  const candidate:Candidate=x.kind==='faq'?{kind:'faq',item:{...x.item,a:splitGeoDraftReviewText(x.item.a).answer}}:x;
@@ -84,6 +87,14 @@ async function check(x:Candidate):Promise<Candidate>{
  const attempts=(same?(prior?.attempts||0):0)+1;
  const exhausted=allowed&&pages.some(p=>p.sentences.length)&&(!result.complete||!reviewCopyQuality(candidate))&&attempts>=3;
  const meta:ReviewPreflight={status:ready?'ready':'blocked',source_discovery_version:evidence.SOURCE_DISCOVERY_VERSION,attempts,archived:!ready&&exhausted,digest:evidence.digest(x.kind,identityFields(original)),checked_at:new Date().toISOString(),matched:result.matched,total:result.total,reason:!allowed?'policy_unavailable_or_excluded':!urls.length?'no_official_candidates':!pages.some(p=>p.sentences.length)?'official_sources_unavailable':!result.complete?'exact_claim_coverage_incomplete':!reviewCopyQuality(candidate)?'copy_quality_failed':'ready'};
+ // Preserve only version-bound shadow diagnostics; they are never exact proof.
+ if(prior?.semantic_shadow?.version_digest===meta.digest)meta.semantic_shadow=prior.semantic_shadow;
+ if(collectPacket&&!ready&&allowed&&reviewCopyQuality(original)&&!meta.archived&&!meta.semantic_shadow){
+  const title=original.kind==='faq'?original.item.q:original.item.title;
+  const locale=original.kind==='faq'?detectGeoDraftLocale(title):original.item.lang;
+  const packet=semantic.prepare({kind:original.kind,locale,versionDigest:meta.digest,context:title,fields:fields(original),pages:pages.filter(p=>p.sentences.length)});
+  if(packet)collectPacket(packet);
+ }
  if(!ready)return {...original,item:{...original.item,review_preflight:meta}} as Candidate;
  const refs:EditorialRef[]=Array.from(new Set(result.proofs.map(p=>p.url))).map(url=>({id:'official_'+createHash('sha256').update(url).digest('hex').slice(0,24),label:new URL(url).hostname,source:'official_live_html',kind:'official_candidate',url,observed_at:meta.checked_at}));
  const existing=(original.item.evidence_refs||[]).filter(r=>!refs.some(n=>n.id===r.id||n.url===r.url));
@@ -136,6 +147,10 @@ export async function liveAutoPublicationReceipt(x:Candidate,request:typeof fetc
 }
 // Existing signed tick only, at most four candidates and 3 source URLs each.
 // One version-checked save; conflicts are not retried blindly.
+function shadowIdentity(receipt:SemanticShadowReceipt|undefined){
+ if(!receipt)return null;
+ return JSON.stringify([receipt.version_digest,receipt.packet_digest,receipt.checked_at,receipt.status,receipt.reason,receipt.reviewed_claims,receipt.requests,receipt.reviewers.map(r=>[r.model,r.provider,r.cost]),receipt.publication_authorized,receipt.independent_gateway_verified]);
+}
 export async function runReviewEvidenceBatch(){
  if(!getSupabaseCredentials())return {status:'storage_unavailable',processed:0,ready:0};
  const c=await getContent();
@@ -144,7 +159,21 @@ export async function runReviewEvidenceBatch(){
  const visitorItems=items.filter(x=>!technical.includes(x));
  const selected=evidence.selectReviewBatch(visitorItems.filter(x=>evidence.discoveryRepairDue(x)||evidence.due(x.item.review_preflight,x.kind,identityFields(x))));
  if(!selected.length)return {status:'idle',processed:0,ready:0,technical_tasks:technical.length};
- const checked=await Promise.all(selected.map(check));
+ const packets=new Map<number,SemanticPacket>();
+ const checked=await Promise.all(selected.map((x,i)=>check(x,p=>packets.set(i,p))));
+ // At most one real candidate per existing tick, with live verified zero-cost
+ // OpenRouter quota. No credentials means no inference; no new scheduler.
+ // Shadow diagnostics cannot unlock either human or automated publication.
+ let shadowStatus='not_attempted';
+ const index=checked.findIndex((x,i)=>packets.has(i)&&!!x.item.review_preflight);
+ if(index>=0&&process.env.OPENROUTER_API_KEY){
+  const packet=packets.get(index)!;
+  const r=await shadow.reviewCandidate(packet).catch(()=>({status:'blocked' as const,reason:'shadow_review_unavailable',reviewedClaims:0,requests:0,reviewers:[]}));
+  const meta=checked[index].item.review_preflight!;
+  // Do not consume a candidate's one review attempt if no inference occurred.
+  if(r.requests>0)meta.semantic_shadow={version_digest:meta.digest,packet_digest:packet.packetDigest,checked_at:new Date().toISOString(),status:r.status,reason:r.reason,reviewed_claims:r.reviewedClaims||0,requests:r.requests,reviewers:r.reviewers,publication_authorized:false,independent_gateway_verified:false};
+  shadowStatus=r.status+':'+r.reason;
+ }else if(index>=0)shadowStatus='credential_unavailable';
  const faq=new Map<ContentDraft,ContentDraft>(),editorial=new Map<EditorialItem,EditorialItem>();
  for(let i=0;i<selected.length;i++){
   const before=selected[i],after=checked[i];
@@ -156,8 +185,8 @@ export async function runReviewEvidenceBatch(){
  const saved=await getContent();
  const verified=checked.every(x=>{
   const records=x.kind==='faq'?saved.drafts.filter(i=>i.q===(x.item as ContentDraft).q):saved.editorialItems.filter(i=>i.id===(x.item as EditorialItem).id);
-  return records.some(i=>i.review_preflight?.digest===x.item.review_preflight?.digest&&i.review_preflight?.checked_at===x.item.review_preflight?.checked_at&&i.review_preflight?.source_discovery_version===evidence.SOURCE_DISCOVERY_VERSION&&i.status==='pending');
+  return records.some(i=>i.review_preflight?.digest===x.item.review_preflight?.digest&&i.review_preflight?.checked_at===x.item.review_preflight?.checked_at&&i.review_preflight?.source_discovery_version===evidence.SOURCE_DISCOVERY_VERSION&&shadowIdentity(i.review_preflight?.semantic_shadow)===shadowIdentity(x.item.review_preflight?.semantic_shadow)&&i.status==='pending');
  });
  if(!verified)throw Error('review_evidence_readback_unverified');
- return {status:'saved_verified',processed:checked.length,ready:checked.filter(readyForHuman).length,technical_tasks:technical.length};
+ return {status:'saved_verified',processed:checked.length,ready:checked.filter(readyForHuman).length,technical_tasks:technical.length,semantic_shadow:shadowStatus};
 }

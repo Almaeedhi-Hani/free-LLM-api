@@ -264,3 +264,15 @@ test('semantic shadow contract binds trilingual claim coverage to source passage
  assert(source.includes('evidence.discoveryRepairDue(x)||evidence.due('));
  assert(source.includes('source_discovery_version:evidence.SOURCE_DISCOVERY_VERSION'));
  });
+
+ test('real candidate shadow remains distinct from publication proof and is bounded to one existing review tick',()=>{
+ const fs=require('node:fs');
+ const worker=fs.readFileSync('src/lib/telegram-ops-advanced-evidence.ts','utf8');
+ const gate=worker.slice(worker.indexOf('export function autoPublicationBlockReason'),worker.indexOf('// Existing signed tick'));
+ assert(!gate.includes('semantic_shadow'));
+ assert(worker.includes('const index=checked.findIndex')&&worker.includes('process.env.OPENROUTER_API_KEY'));
+ assert(worker.includes('if(r.requests>0)meta.semantic_shadow='));
+ assert(worker.includes('publication_authorized:false,independent_gateway_verified:false'));
+ assert(worker.includes('shadowIdentity(i.review_preflight?.semantic_shadow)'));
+ assert(worker.includes('prior?.semantic_shadow?.version_digest===meta.digest'));
+ });

@@ -11,6 +11,8 @@ on:
       - 'src/lib/geo-semantic-review.cjs'
       - 'scripts/geo-openrouter-account-benchmark.cjs'
       - 'scripts/geo-openrouter-account-benchmark.test.cjs'
+      - 'src/lib/geo-free-review-provider.cjs'
+      - 'src/lib/geo-openrouter-review.cjs'
   push:
     branches: [main]
     paths:

@@ -51,5 +51,17 @@ const {fixtures}=require('./geo-semantic-review-smoke.cjs');
   const p=await r.json();p.model='wrong/model';return new Response(JSON.stringify(p));
  }});
  assert.equal(badModel.reason,'model_identity_mismatch');assert.equal(badModel.requests,1);
+ const {reviewCandidate}=require('../src/lib/geo-openrouter-review.cjs');
+ const packet=fixtures()[0].packet;
+ const candidate=await reviewCandidate(packet,{env,fetchFn:async(url,o)=>{
+  const r=await fake(url,o);if(o.method!=='POST')return r;
+  const p=await r.json();const data=JSON.parse(p.choices[0].message.content);
+  data.goals=data.goals.filter(g=>g.packetDigest===packet.packetDigest);
+  p.choices[0].message.content=JSON.stringify(data);return new Response(JSON.stringify(p));
+ }});
+ assert.equal(candidate.status,'openrouter_shadow_pass',JSON.stringify(candidate));
+ assert.equal(candidate.reviewedClaims,1);
+ assert.equal(candidate.publicationAuthorized,false);assert.equal(candidate.independentGatewayVerified,false);
+ assert.equal((await reviewCandidate(null,{env,fetchFn:()=>{throw Error('unexpected request')}})).reason,'official_packet_unavailable');
  console.log('PASS OpenRouter account metadata, no paid fallback, two bounded synthetic calls and zero-cost receipt');
 })().catch(e=>{console.error(e);process.exitCode=1;});
