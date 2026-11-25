@@ -1,0 +1,220 @@
+.hero {
+  max-width: 1440px;
+  margin: auto;
+  padding: 32px 5% 0;
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  min-height: 640px;
+  gap: 5%;
+  align-items: stretch;
+}
+.hero-copy {
+  padding: 56px 0 0;
+  display: flex;
+  flex-direction: column;
+}
+.eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  line-height: 1.9;
+}
+.eyebrow > span {
+  height: 6px;
+  width: 6px;
+  background: #b69b66;
+  border-radius: 50%;
+}
+.hero h1 {
+  font-size: clamp(38px, 4.6vw, 70px);
+  line-height: 1.3;
+  letter-spacing: -2.5px;
+  font-weight: 600;
+  margin: 26px 0;
+}
+.hero h1 > span {
+  display: block;
+}
+.hero-accent {
+  color: #809e81;
+}
+.hero-intro {
+  max-width: 460px;
+  color: #67766b;
+  font-size: 15px;
+  line-height: 2;
+}
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-top: 28px;
+  flex-wrap: wrap;
+}
+.action-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 30px;
+  background: var(--ink);
+  color: white;
+  padding: 17px 25px;
+  border-radius: 4px;
+  font-size: 13px;
+  transition: background 0.2s;
+}
+.action-primary:hover {
+  background: #24584d;
+}
+.action-primary span {
+  font-size: 20px;
+}
+.action-text {
+  font-size: 12px;
+  display: inline-flex;
+  gap: 12px;
+  align-items: center;
+}
+.hero-bottom {
+  margin-top: auto;
+  padding: 42px 0 24px;
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line);
+  gap: 15px;
+  font-size: 10px;
+  color: #748476;
+}
+.hero-bottom > span:first-child {
+  letter-spacing: 3px;
+  direction: ltr;
+}
+.hero-art {
+  background: #d2d9ca;
+  position: relative;
+  min-height: 580px;
+  overflow: hidden;
+  border-radius: 150px 6px 6px 6px;
+  isolation: isolate;
+  background-image: linear-gradient(155deg, #e6e6d7, #c1d1bb 55%, #719989);
+}
+.hero-art:after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    #fff1 4px
+  );
+  z-index: 4;
+  pointer-events: none;
+}
+.art-sun {
+  position: absolute;
+  top: 13%;
+  left: 15%;
+  width: 155px;
+  aspect-ratio: 1;
+  background: #f3edcf;
+  border-radius: 50%;
+  box-shadow: 0 0 100px #f7eac055;
+}
+.art-orbit {
+  position: absolute;
+  top: 6%;
+  left: 8%;
+  width: 87%;
+  aspect-ratio: 1;
+  border: 1px solid #f6f5df70;
+  border-radius: 50%;
+}
+.tower {
+  position: absolute;
+  bottom: 17%;
+  background: linear-gradient(90deg, #2c6158, #81a397 72%, #aec3ac);
+  box-shadow: 25px 20px 40px #204c4533;
+  border: 1px solid #c7d5bc70;
+  z-index: 2;
+  background-size: auto;
+}
+.tower:after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 11px, #d4dfc63b 11px 12px),
+    repeating-linear-gradient(90deg, transparent 0 13px, #b5cabb3b 13px 14px);
+}
+.tower-one {
+  left: 20%;
+  width: 22%;
+  height: 54%;
+  transform: skewY(-8deg);
+  clip-path: polygon(0 10%, 100% 0, 100% 100%, 0 100%);
+}
+.tower-two {
+  left: 46%;
+  width: 20%;
+  height: 69%;
+  clip-path: polygon(50% 0, 100% 17%, 100% 100%, 0 100%, 0 17%);
+  background: linear-gradient(90deg, #a8c0ad, #477669 55%, #285b51);
+}
+.tower-three {
+  right: 10%;
+  height: 39%;
+  width: 18%;
+  transform: skewY(9deg);
+  background: linear-gradient(90deg, #a8bda5, #3f6d61);
+}
+.tower-four {
+  left: 9%;
+  height: 27%;
+  width: 14%;
+  background: #6e9280;
+}
+.art-ground {
+  position: absolute;
+  bottom: -18%;
+  left: -20%;
+  width: 140%;
+  height: 46%;
+  background: #426c5d;
+  border-radius: 50%;
+  z-index: 3;
+  transform: rotate(-9deg);
+}
+.art-caption {
+  position: absolute;
+  bottom: 35px;
+  left: 30px;
+  z-index: 5;
+  color: #f2f1df;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  direction: ltr;
+}
+.art-caption span {
+  font-size: 9px;
+  letter-spacing: 4px;
+}
+.art-caption strong {
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: 1px;
+}
+.art-coordinate {
+  position: absolute;
+  top: 28px;
+  right: 25px;
+  writing-mode: vertical-rl;
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: #3a6658;
+  direction: ltr;
+}

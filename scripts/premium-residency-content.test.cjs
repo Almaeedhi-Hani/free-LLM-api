@@ -23,7 +23,7 @@ test('seven distinct official products, consistent fees and translated condition
  assert.ok(sources.every(s=>!s.url.includes('Select-products')));
 });
 test('page keeps public FAQs consistent with schema and avoids editorial proposals',()=>{
- const c=fs.readFileSync('src/components/PremiumResidencyPage.tsx','utf8');
+ const c=['src/components/PremiumResidencyPage.tsx','src/lib/residency/model.ts','src/components/residency/ResidencyProducts.tsx','src/components/residency/ResidencyComparison.tsx','src/components/residency/ResidencyReferences.tsx','src/components/residency/ResidencyHero.tsx','src/components/residency/ResidencyGuidance.tsx'].map(path=>fs.readFileSync(path,'utf8')).join('\n');
  assert.match(c,/mainEntity:faqs\.map/);assert.match(c,/<details key=\{i\}/);
  assert.match(c,/whatsAppUrlForLanguage\(contact,lang\)/);
  assert.doesNotMatch(c,/EditorialBlock|approvedEditorial|Select-products|l\.apply\[lang\]/);
@@ -35,7 +35,8 @@ test('page keeps public FAQs consistent with schema and avoids editorial proposa
 });
 
 test('Premium Residency is discoverable through localized desktop and mobile menus',()=>{
- const layout=fs.readFileSync('src/app/layout.tsx','utf8');
+ const layout=fs.readFileSync('src/components/layout/SiteHeader.tsx','utf8');
+ assert(fs.readFileSync('src/app/layout.tsx','utf8').includes('<SiteHeader lang={lang} hasGuides={hasGuides} />'));
  const mobile=fs.readFileSync('src/components/MobileFloatingNav.tsx','utf8');
  assert.equal(layout.split('localizedPath(lang,"/services/premium-residency")').length-1,2);
  assert.match(layout,/الإقامة المميزة/);

@@ -1,0 +1,46 @@
+/* Public site: architectural emerald, warm paper and restrained typography. */
+:root {
+  --ink: #123b35;
+  --paper: #f8f7f2;
+  --muted: #6b7770;
+  --line: #dce1d8;
+}
+body {
+  margin: 0;
+  color: var(--ink);
+  background: var(--paper);
+  direction: inherit;
+  font-family: Tahoma, Arial, "Microsoft YaHei", sans-serif;
+}
+a {
+  text-decoration: none;
+}
+button,
+a,
+input,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+a,
+button {
+  touch-action: manipulation;
+}
+html {
+  scroll-padding-top: 110px;
+}
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+.skip-link {
+  position: fixed;
+  top: -80px;
+  z-index: 100;
+  background: white;
+  padding: 16px;
+}
+.skip-link:focus {
+  top: 0;
+}

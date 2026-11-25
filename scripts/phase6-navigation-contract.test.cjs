@@ -1,7 +1,7 @@
 'use strict';
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
-const source=fs.readFileSync('src/app/admin/dashboard/page.tsx','utf8');
+const source=require('./support/admin-dashboard-source.cjs').readAdminDashboardSource();
 const tabs=[...source.matchAll(/^  \| '([^']+)'/gm)].map(x=>x[1]);
 const groups=source.slice(source.indexOf('const NAV_HUBS:'),source.indexOf('export default function AdminDashboard'));
 const hubs=[...groups.matchAll(/\{key:'([^']+)',label:'([^']+)',icon:'[^']+',landing:'([^']+)',tabs:\[([^\]]+)\]\}/g)];

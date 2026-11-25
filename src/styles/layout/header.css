@@ -1,0 +1,70 @@
+.site-header {
+  background: rgba(248, 247, 242, 0.96);
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(14px);
+}
+.header-inner {
+  max-width: 1440px;
+  margin: auto;
+  padding: 22px 5%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+}
+.wordmark {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 700;
+  font-size: 21px;
+  line-height: 1.4;
+}
+.wordmark small {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 3px;
+  font-weight: 500;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.brand-symbol {
+  width: 43px;
+  height: 43px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #8eaa97;
+  border-radius: 12px 0;
+  font-size: 29px;
+}
+.desktop-nav {
+  display: flex;
+  gap: 30px;
+  font-size: 13px;
+}
+.desktop-nav a:hover {
+  color: #8e6e37;
+}
+.language-switch {
+  display: flex;
+  gap: 3px;
+  direction: ltr;
+  border: 1px solid var(--line);
+  border-radius: 30px;
+  padding: 4px;
+}
+.language-switch a {
+  font-size: 11px;
+  padding: 7px 9px;
+  border-radius: 30px;
+}
+.language-switch a[aria-current="true"] {
+  background: var(--ink);
+  color: white;
+}
+.mobile-nav {
+  display: none;
+}

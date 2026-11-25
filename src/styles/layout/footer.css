@@ -1,0 +1,45 @@
+.site-footer {
+  border-top: 1px solid var(--line);
+  padding: 60px 5% 20px;
+}
+.footer-top {
+  max-width: 1300px;
+  margin: auto;
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr;
+  gap: 45px;
+}
+.footer-brand {
+  font-size: 25px;
+  font-weight: 600;
+  display: flex;
+  gap: 30px;
+}
+.footer-top p {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 15px;
+}
+.footer-top h2 {
+  font-size: 12px;
+  margin-bottom: 20px;
+}
+.footer-top > div:not(:first-child) > a {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin: 13px 0;
+  overflow-wrap: anywhere;
+  width: fit-content;
+}
+.footer-bottom {
+  max-width: 1300px;
+  margin: 40px auto 0;
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+  display: flex;
+  justify-content: space-between;
+  gap: 30px;
+  font-size: 9px;
+  color: #7f8c7b;
+}

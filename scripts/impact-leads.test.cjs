@@ -36,7 +36,7 @@ assert(packageRoute.includes('const saved = await fetch'),'only persisted reques
 assert(!packageRoute.includes('INSERT INTO impact_lead_events'),'no non-atomic, duplicate event writes');
 const page=fs.readFileSync('src/app/insights/[slug]/page.tsx','utf8');
 assert(page.includes('?from="+encodeURIComponent('),'article CTA carries a first-party origin');
-const form=fs.readFileSync('src/app/packages/PackageRequest.tsx','utf8');
+const form=fs.readFileSync('src/components/packages/usePackageRequest.ts','utf8');
 assert(form.includes('sourcePath:new URLSearchParams(window.location.search)'));
 const ui=fs.readFileSync('src/components/ContentImpactCenter.tsx','utf8');
 assert(ui.includes('طلبات العملاء المحفوظة')&&ui.includes('إحالة المتصفح؛ ليست دليل سببية'));

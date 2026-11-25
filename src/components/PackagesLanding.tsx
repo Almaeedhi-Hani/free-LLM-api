@@ -3,7 +3,7 @@ import { localizedPath } from "@/lib/site-language";
 import { siteUrl } from "@/lib/site-seo";
 import { packageOffers, packageDisclosure, packageUpdatedAt } from "@/lib/package-offers";
 import type { PackageLocale } from "@/lib/package-offers";
-import PackageRequest from "@/app/packages/PackageRequest";
+import PackageRequest from "@/components/packages/PackageRequest";
 import { EditorialBlock } from "@/components/EditorialBlock";
 
 export default async function PackagesLanding({lang}:{lang:PackageLocale}) {

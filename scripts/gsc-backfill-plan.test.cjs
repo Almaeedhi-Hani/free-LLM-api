@@ -30,7 +30,7 @@ for(const invalid of [
  {now,earliestDate:'2026-11-10',history:[{metric_date:'2026-11-11',status:'success_no_data',checked_at:'2026-11-12T00:00:00Z',rows_fetched:3,attempts:1}]},
  ])assert.throws(()=>planGscCatchup(invalid));
 const fs=require('node:fs');
-const cron=fs.readFileSync('src/app/api/cron-gsc/route.ts','utf8');
+const cron=fs.readFileSync('src/lib/gsc/sync-service.ts','utf8');
 assert(cron.includes('collectGscDimensionRows'),'existing production GSC collector remains untouched');
 assert(cron.includes('lookbackDays:60'),'catch-up must span both 28-day comparison windows');
 assert(cron.includes("const earliestDate='2026-11-15'"),'live backfill must not query before approved first measurement window');

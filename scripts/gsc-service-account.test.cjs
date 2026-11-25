@@ -40,7 +40,7 @@ const {getGscServiceAccountToken} = require('../.visibility-test-build/gsc-servi
   writeFileSync(path,JSON.stringify(credential));
   await assert.rejects(()=>getGscServiceAccountToken(path,async()=>new Response('invalid grant',{status:400})),/gsc_service_account_token_400/);
   const {readFileSync}=require('node:fs');
-  const route=readFileSync('src/app/api/cron-gsc/route.ts','utf8');
+  const route=readFileSync('src/lib/gsc/sync-service.ts','utf8');
   assert(route.includes("process.env.GSC_AUTH_MODE === 'service_account'"));
   assert(route.includes('getGscServiceAccountToken(process.env.GOOGLE_APPLICATION_CREDENTIALS!)'));
   assert(route.includes("authorization: 'Bearer ' + accessToken"));

@@ -31,7 +31,7 @@ const store=require('../.impact-test-build/lib/source-policy-store.js');
  assert.equal(called,1);
  await assert.rejects(()=>store.getCompetitorDomains(async()=>({ok:false,status:503}),{url:'https://example.supabase.co',key:'test'}),/competitor_source_read/);
  const page=fs.readFileSync('src/app/insights/[slug]/page.tsx','utf8');
- const worker=fs.readFileSync('src/lib/geo-auto-publication.ts','utf8');
+ const worker=['runner','policy-store','citations','official-evidence','types'].map(name=>fs.readFileSync('src/lib/geo/publication/'+name+'.ts','utf8')).join('\n');
  assert(page.includes('getCompetitorDomains()')&&page.includes('isDisplayable(source,competitorDomains)'));
  assert(page.includes('nofollow noopener noreferrer'));
  assert(worker.includes('optionalResearchCitations(candidate,competitorDomains)'));

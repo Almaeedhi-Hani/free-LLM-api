@@ -84,7 +84,7 @@ const mkReply=(body,status=200)=>({ok:status>=200&&status<300,status,
    'managed GSC migration must be strictly additive and not replace original v1 functions');
 
 
- const route=fs.readFileSync('src/app/api/cron-gsc/route.ts','utf8');
+ const route=fs.readFileSync('src/lib/gsc/sync-service.ts','utf8');
  assert(route.includes("process.env.GSC_BACKFILL_ENABLED==='true'"));
  assert(route.includes('executeGscCatchup('));
  assert(route.includes('createGscAtomicStore('));

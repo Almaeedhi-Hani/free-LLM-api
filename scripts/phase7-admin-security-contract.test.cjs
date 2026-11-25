@@ -1,7 +1,7 @@
 'use strict';
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
-const admin=fs.readFileSync('src/app/admin/dashboard/page.tsx','utf8');
+const admin=require('./support/admin-dashboard-source.cjs').readAdminDashboardSource();
 const browser=fs.readFileSync('scripts/admin-consolidation-browser-e2e.cjs','utf8');
 assert(admin.includes("headers: { 'x-admin-secret': saved }"),'Session restoration must authenticate with admin API');
 assert(admin.includes("if (r.status === 401)"),'Admin API rejects expired credentials');

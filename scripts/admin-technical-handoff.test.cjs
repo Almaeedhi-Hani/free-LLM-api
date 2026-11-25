@@ -33,7 +33,7 @@ assert(board.includes('إنشاء تذكرة تنفيذ')&&board.includes('با�
 assert(board.includes("confirm:'CREATE_GEO_TECHNICAL_ISSUE'"));
 assert(board.includes('window.confirm('),'Explicit operator choice before GitHub write');
 assert(board.includes('لن يُعدّ الكود منفذًا'),'UI must not confuse issue creation with deployment');
-const admin=fs.readFileSync('src/app/admin/dashboard/page.tsx','utf8');
+const admin=require('./support/admin-dashboard-source.cjs').readAdminDashboardSource();
 assert(admin.includes('<TechnicalTaskBoard secret={secret} items={content.editorialItems||[]} onOpenDetails={()=>setTab(\'editorial\')} />'));
 assert(fs.existsSync('scripts/admin-seven-hubs-browser-e2e.cjs'));
 const browser=fs.readFileSync('scripts/admin-seven-hubs-browser-e2e.cjs','utf8');

@@ -23,7 +23,7 @@ const row=url=>({keys:[url],clicks:1,impressions:5,ctr:0.2,position:4});
  let last=0;
  await assert.rejects(()=>collect(async(_d,n)=>{last=n;return Array.from({length:GSC_PAGE_SIZE},()=>row('https://example.test/x'))},'page'),/row_ceiling/);
  assert.equal(last,24000);
- const source=require('node:fs').readFileSync('src/app/api/cron-gsc/route.ts','utf8');
+ const source=require('node:fs').readFileSync('src/lib/gsc/sync-service.ts','utf8');
  assert(source.includes('collectGscDimensionRows')&&source.includes('page_rows')&&source.includes('gsc_daily_metrics?on_conflict='));
  console.log('PASS GSC: paginated dimensions, real zero rows, safe bounds, no fabricated page metrics');
 })().catch(e=>{console.error(e);process.exitCode=1});

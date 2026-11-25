@@ -31,8 +31,10 @@ assert(content.includes('...patch.contact?.whatsappAdvisors'),'other language ad
 assert(content.includes('...patch.contact?.whatsappNumbers'),'partial contact edits retain independently assigned numbers');
 const app=fs.readFileSync('src/app/layout.tsx','utf8');
 assert(app.includes('<WhatsAppFloat locale={lang} contact={contact}/>'),'floating WhatsApp is mounted');
-assert(app.includes('whatsAppUrlForLanguage(contact,lang)'),'footer uses locale-specific URL');
-const home=fs.readFileSync('src/app/page.tsx','utf8');
+assert(app.includes('whatsAppUrlForLanguage(contact,lang)'),'layout resolves locale-specific URL');
+assert(app.includes('<SiteFooter lang={lang} contact={contact} whatsappHref={whatsappHref} />'),'footer receives localized URL');
+assert(fs.readFileSync('src/components/layout/SiteFooter.tsx','utf8').includes('href={whatsappHref}'),'footer uses localized URL');
+const home=fs.readFileSync('src/components/home/ContactSection.tsx','utf8');
 assert(home.includes('whatsAppUrlForLanguage(content.contact,lang)'),'home CTA uses locale-specific URL');
 const float=fs.readFileSync('src/components/WhatsAppFloat.tsx','utf8');
 for(const value of ['usePathname','pathname.startsWith(\'/admin/\')','aria-expanded={open}',
@@ -49,7 +51,7 @@ for(const className of [
 ])assert(float.includes(className),'Missing compact 280x315 responsive feature: '+className);
 assert(!float.includes('w-[min(90vw,365px)]'),'Old fixed-width list must be removed');
 assert(!float.includes('min-h-[82px]'),'Old large advisor card spacing must be removed');
-const admin=fs.readFileSync('src/app/admin/dashboard/page.tsx','utf8');
+const admin=require('./support/admin-dashboard-source.cjs').readAdminDashboardSource();
 for(const value of ['whatsappAr','whatsappEn','whatsappZh','whatsappNumbers:',
  "numberKey:'whatsappAr'","numberKey:'whatsappEn'","numberKey:'whatsappZh'",
  "'رقم واتساب '+lang",'contactToForm'])

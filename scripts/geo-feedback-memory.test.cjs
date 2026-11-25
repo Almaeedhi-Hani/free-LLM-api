@@ -78,10 +78,10 @@ assert(!/delete\s+from\s+(?:public\.)?(?:keywords|geo_publication_events|opportu
 const paths={
  discovery:fs.readFileSync('src/app/api/geo/discovery/route.ts','utf8'),
  results:fs.readFileSync('src/app/api/geo/results/route.ts','utf8'),
- publisher:fs.readFileSync('src/lib/geo-auto-publication.ts','utf8'),
- market:fs.readFileSync('src/lib/market-intelligence.ts','utf8'),
+ publisher:['runner','policy-store','citations','official-evidence','types'].map(name=>fs.readFileSync('src/lib/geo/publication/'+name+'.ts','utf8')).join('\n'),
+ market:['src/lib/market/analysis.ts','src/lib/market/discovery.ts'].map(p=>fs.readFileSync(p,'utf8')).join('\n'),
  admin:fs.readFileSync('src/app/api/admin/geo-feedback/route.ts','utf8'),
- ui:fs.readFileSync('src/app/admin/dashboard/page.tsx','utf8')
+ ui:require('./support/admin-dashboard-source.cjs').readAdminDashboardSource()
 };
 assert(paths.discovery.includes('reviewer_excluded:excluded')&&paths.discovery.includes('getGeoFeedbackIndex()'));
 assert(paths.results.includes('reviewer_excluded:excluded')&&paths.results.includes('excludesFaq(memory,d.q)'));

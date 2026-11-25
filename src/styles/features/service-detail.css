@@ -1,0 +1,50 @@
+.service-detail {
+  padding-top: 60px;
+}
+.breadcrumb {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 50px;
+}
+.service-detail h1 {
+  font-size: 52px;
+  font-weight: 500;
+  line-height: 1.4;
+  margin: 20px 0;
+}
+.detail-lead {
+  font-size: 19px;
+  color: var(--muted);
+  line-height: 2;
+  max-width: 840px;
+}
+.detail-columns {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 80px;
+  margin-top: 55px;
+}
+.detail-columns h2 {
+  font-size: 24px;
+  font-weight: 500;
+}
+.detail-columns p {
+  font-size: 13px;
+  line-height: 2;
+  color: var(--muted);
+}
+.detail-step {
+  display: flex;
+  gap: 24px;
+  border-top: 1px solid var(--line);
+  padding: 24px 0;
+}
+.detail-step > span {
+  font-size: 28px;
+  color: #9cad8e;
+}
+.detail-step h3 {
+  font-size: 16px;
+  margin-bottom: 10px;
+}

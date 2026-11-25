@@ -1,0 +1,52 @@
+import { packageOffers, packageGroups } from "@/lib/package-offers";
+import type {PackageLocale} from "@/lib/package-offers";
+
+export type License="services"|"trading"|"professional";
+export type Offer={id:string;name:string;ar:string;price:number;days?:string;installments?:number;features:string[]};
+export const catalog:Record<License,{ar:string;en:string;zh:string;description:string;offers:Offer[]}>={
+services:{ar:"الترخيص الاستثماري الخدمي",en:"Services Investment License",zh:"服务类投资登记",description:"الاستشارات، تقنية المعلومات، التسويق، الضيافة، التعليم، الصيانة والخدمات اللوجستية.",offers:[
+{id:"gcc",name:"GCC citizens",ar:"مواطنو دول الخليج",price:packageOffers.find(o=>o.slug==="services-gcc")!.price,days:"Advisor to confirm",installments:2,features:[]},
+{id:"premium",name:"Premium Residency Holders",ar:"حاملو الإقامة المميزة",price:packageOffers.find(o=>o.slug==="services-premium")!.price,days:"Advisor to confirm",installments:2,features:[]},
+{id:"branch",name:"Saudi Branch Setup",ar:"تأسيس فرع سعودي",price:packageOffers.find(o=>o.slug==="services-branch")!.price,days:"Advisor to confirm",installments:2,features:[]},
+{id:"scratch",name:"Saudi Branch from Scratch",ar:"تأسيس فرع سعودي من الصفر",price:packageOffers.find(o=>o.slug==="services-scratch")!.price,days:"Advisor to confirm",installments:3,features:[]}]},
+trading:{ar:"الترخيص الاستثماري التجاري",en:"Trading Investment License",zh:"贸易类投资登记",description:"الاستيراد والبيع بالجملة وتجارة المنتجات، وبعض الأنشطة الأخرى بحسب الأهلية.",offers:[
+{id:"ready",name:"Branches ready",ar:"الفروع جاهزة",price:packageOffers.find(o=>o.slug==="trading-ready")!.price,days:"Advisor to confirm",installments:2,features:[]},
+{id:"add",name:"Add branches",ar:"إضافة فروع",price:packageOffers.find(o=>o.slug==="trading-add")!.price,days:"Advisor to confirm",installments:3,features:[]},
+{id:"scratch",name:"From scratch",ar:"التأسيس من الصفر",price:packageOffers.find(o=>o.slug==="trading-scratch")!.price,days:"Advisor to confirm",installments:3,features:[]}]},
+professional:{ar:"الترخيص الاستثماري المهني",en:"Professional Investment License",zh:"专业类投资登记",description:"الهندسة والعمارة والمحاسبة والمحاماة والاستشارات المهنية وفق متطلبات النشاط.",offers:[
+{id:"ready",name:"Branches ready",ar:"الفروع جاهزة",price:packageOffers.find(o=>o.slug==="professional-ready")!.price,days:"Advisor to confirm",installments:2,features:[]},
+{id:"add",name:"Add branches",ar:"إضافة فروع",price:packageOffers.find(o=>o.slug==="professional-add")!.price,days:"Advisor to confirm",installments:3,features:[]},
+{id:"scratch",name:"From scratch",ar:"التأسيس من الصفر",price:packageOffers.find(o=>o.slug==="professional-scratch")!.price,days:"Advisor to confirm",installments:3,features:[]}]}
+};
+export const words={ar:{title:"باقات التراخيص الاستثمارية",intro:"التأسيس ليس قرار سعر فقط. صفة المستثمر ونوع النشاط والمستندات تحدد المسار الصحيح؛ اختر نوع الترخيص لنراجع معك الخطوات والأتعاب والاستثناءات.",compare:"مقارنة الأسعار",details:"تفاصيل الباقة",select:"اختيار الباقة",open:"عرض الباقات",all:"العودة لأنواع التراخيص",contact:"بيانات العميل",investment:"تفاصيل الاستثمار",review:"مراجعة الطلب",back:"السابق",next:"التالي",finish:"إنهاء المعاينة",name:"الاسم الكامل",email:"البريد الإلكتروني",phone:"رقم الهاتف",country:"دولة الإقامة",activity:"النشاط",budget:"الميزانية الاستثمارية",notes:"ملاحظات",company:"هل لديك شركة خارج السعودية؟",yes:"نعم",no:"لا",unsure:"غير متأكد",undecided:"لم أحدد بعد",unknown:"تفاصيل هذه الباقة غير متوفرة حاليًا.",days:"المدة",installments:"الدفعات",valid:"يرجى إدخال الاسم والهاتف وبريد إلكتروني صحيح.",done:"اكتملت المعاينة.",currency:"ر.س"},
+en:{title:"Investment license packages",intro:"Formation is not just about price. Your activity, investor status and documents shape the route. Choose a license type to review the scope, fees and exclusions before deciding.",compare:"Price comparison",details:"Package details",select:"Choose package",open:"View packages",all:"All license types",contact:"Contact details",investment:"Investment details",review:"Review request",back:"Back",next:"Next",finish:"Finish preview",name:"Full name",email:"Email",phone:"Phone",country:"Country",activity:"Business activity",budget:"Investment budget",notes:"Notes",company:"Do you have a company outside Saudi Arabia?",yes:"Yes",no:"No",unsure:"Unsure",undecided:"Undecided",unknown:"Package details are currently unavailable.",days:"Timeline",installments:"Instalments",valid:"Enter your name, phone and a valid email.",done:"Preview completed.",currency:"SAR"},
+zh:{title:"投资登记套餐",intro:"设立公司并非只比较价格。投资者身份、业务类型及文件决定适合的办理路径；请选择类别，了解服务范围、费用及除外项目。",compare:"价格比较",details:"套餐详情",select:"选择套餐",open:"查看套餐",all:"返回许可类型",contact:"联系信息",investment:"投资详情",review:"核对信息",back:"返回",next:"下一步",finish:"完成预览",name:"姓名",email:"邮箱",phone:"电话",country:"居住国家",activity:"经营活动",budget:"投资预算",notes:"备注",company:"是否拥有沙特境外公司？",yes:"是",no:"否",unsure:"不确定",undecided:"未确定",unknown:"暂未提供此套餐的详细信息。",days:"预计时间",installments:"分期次数",valid:"请填写姓名、电话和有效邮箱。",done:"预览已完成。",currency:"SAR"}};
+export const editorialLabels:Record<PackageLocale,{who:string;story:string;prepare:string;excluded:string;scope:string}> = {
+ ar:{who:"تصلح هذه الباقة لمن؟",story:"كيف نبدأ معك؟",prepare:"ما الذي نحتاجه منك؟",excluded:"ما الذي لا يشمله السعر؟",scope:"ما الذي نعمل عليه؟"},
+ en:{who:"Who this package is for",story:"How we approach your case",prepare:"What to prepare",excluded:"What is not included",scope:"What we help you plan"},
+ zh:{who:"适合哪些投资者？",story:"我们如何规划您的方案",prepare:"开始前需准备什么？",excluded:"不包含哪些项目？",scope:"我们协助规划的范围"}
+};
+export const editorialFAQ:Record<PackageLocale,{q:string;a:string}[]> = {
+ ar:[
+  {q:"هل تشمل أتعاب الباقة الرسوم الحكومية؟",a:"لا. السعر مقابل خدماتنا المهنية؛ الرسوم الحكومية والضرائب والتصديقات ورأس المال وتكاليف الأطراف الخارجية منفصلة. التخفيض على أتعابنا فقط."},
+  {q:"هل اختيار الباقة يضمن الموافقة؟",a:"لا. الجهة المختصة تراجع أهلية المستثمر والمستندات والنشاط قبل إصدار أي موافقة؛ لا يمكن ضمان النتيجة."},
+  {q:"كيف أختار المسار الأنسب؟",a:"نبدأ من النشاط وصفة المستثمر وما إذا كان يمتلك شركة أجنبية قائمة، ثم نحدد الوثائق والجهات المعنية ونطاق العمل."},
+  {q:"هل تتغير أتعاب الخدمة أو نطاقها؟",a:"يمكن تخصيص نطاق الخدمة بعد تقييم الحالة، وتُحدد المخرجات والأتعاب النهائية والدفعات في عرض مكتوب قبل الالتزام."}
+ ],
+ en:[
+  {q:"Are government fees included?",a:"No. Our prices cover professional service fees only. Government charges, taxes, attestations, capital and third-party costs are separate; discounts apply to our fees alone."},
+  {q:"Does a package guarantee approval?",a:"No. The competent authorities determine eligibility, documents, activity permissions and final outcomes."},
+  {q:"How do I select the right route?",a:"We begin with your proposed activity, investor status and any existing foreign company, then outline the relevant authorities, documents and scope."},
+  {q:"Can the scope or fees change?",a:"The final deliverables, professional fees and payment stages are agreed in a written quotation before commitment."}
+ ],
+ zh:[
+  {q:"套餐包含政府费用吗？",a:"不包含。报价仅为我们的专业服务费；政府收费、税费、认证、资本金及第三方费用另计。优惠仅适用于我们的服务费。"},
+  {q:"选择套餐就能保证获批吗？",a:"不能。资格、文件、业务活动及最终审批由沙特主管机构决定。"},
+  {q:"怎样选择合适的办理路径？",a:"先了解业务、投资者身份与境外公司情况，再明确主管机构、文件及服务范围。"},
+  {q:"服务范围和费用可以调整吗？",a:"具体交付内容、专业服务费及付款节点将在确定委托前通过书面报价确认。"}
+ ]
+};
+export const verifiedFeatures:Record<PackageLocale,string[]>={ar:["خدمات التأسيس","ترخيص الفرع السعودي وتسجيله","مستشار مخصص طوال مراحل التأسيس"],en:["Company formation services","Saudi branch licensed and registered","Dedicated advisor throughout"],zh:["公司设立服务","沙特分支机构许可及注册","全程专属顾问"]};
+export const timeline=(days:string,lang:PackageLocale)=>days==="Advisor to confirm"?(lang==="ar"?"يحددها المستشار":lang==="zh"?"由顾问确认":"Advisor to confirm"):lang==="ar"?days.replace(" working days"," يوم عمل"):lang==="zh"?days.replace(" working days"," 个工作日"):days;
+export const money=(n:number)=>n.toLocaleString("en-US");
+export const start={name:"",email:"",phone:"",country:"",company:"unsure",activity:"",budget:"undecided",notes:""};
