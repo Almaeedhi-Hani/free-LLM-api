@@ -107,6 +107,7 @@ jobs:
       PRECHECK: ${{ needs.production-preflight.result }}
       W02: ${{ needs.market-radar.result }}
       W01: ${{ needs.geo-intelligence.result }}
+      W01_OUTCOME: ${{ needs.geo-intelligence.outputs.execution_outcome }}
       W03: ${{ needs.geo-publisher.result }}
       W05: ${{ needs.llm-feed.result }}
       W06: ${{ needs.maintenance.result }}
@@ -130,7 +131,7 @@ jobs:
             echo '| --- | --- |'
             echo "| Preflight | $PRECHECK |"
             echo "| W02 Market Radar | $W02 |"
-            echo "| W01 GEO | $W01 |"
+            echo "| W01 GEO | $W01 (${W01_OUTCOME:-not_reported}) |"
             echo "| W03 Publisher | $W03 |"
             echo "| W05 Index | $W05 |"
             echo "| W06 Maintenance | $W06 |"
@@ -139,6 +140,9 @@ jobs:
           if [ "$GITHUB_EVENT_NAME" = push ]; then
             echo '[V3_PRODUCTION] definition smoke only; production calls were intentionally disabled'
             exit 0
+          fi
+          if [ "$W01" = failure ] && [ "$W01_OUTCOME" = partial_success ]; then
+            echo '::warning::GEO validation-only partial success; publication remains blocked'
           fi
           for result in "$W01" "$W03"; do
             [ "$result" = success ] || { echo "::error::Required production child workflow failed: $result"; exit 1; }
