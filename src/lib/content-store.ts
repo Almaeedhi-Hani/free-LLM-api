@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { type EditorialItem } from './editorial-types';
+import { type EditorialItem,type ReviewPreflight } from './editorial-types';
 import path from 'path';
 import {
   StorageConflictError,
@@ -25,6 +25,7 @@ export interface ContentDraft {
   /** Search evidence metadata for admin review; NOT independently verified authority sources. */
   evidence_ids?: string[];
   evidence_refs?: Array<{id:string;label:string;source:string;kind:string;url?:string;observed_at?:string}>;
+  review_preflight?: ReviewPreflight;
   claim_evidence?: Array<{claim:string;quote:string;url:string}>;
 }
 
