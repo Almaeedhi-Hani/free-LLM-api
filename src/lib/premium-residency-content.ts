@@ -1,7 +1,7 @@
 // Curated visitor-facing content. Source snapshots reviewed 2026-11-25; official portal requires JS for direct browsing.
 // Product-specific links are kept alongside the claims. No AI editorial drafts are used.
 type Localized = { ar: string; en: string; zh: string };
-type ResidencyProduct = { id: string; name: Localized; fee: number; period: Localized; annual?: boolean; eligibility: Localized; source: string };
+type ResidencyProduct = { id: string; name: Localized; fee: number | null; period: Localized; annual?: boolean; eligibility: Localized; source: string };
 export const products: ResidencyProduct[] = [
   {
     "id": "unlimited",
@@ -51,7 +51,7 @@ export const products: ResidencyProduct[] = [
       "en": "Business investor residency",
       "zh": "商业投资者居留"
     },
-    "fee": 4000,
+    "fee": null,
     "period": {
       "ar": "دائمة مع شروط أول عامين",
       "en": "Permanent, with conditions during the first two years",
@@ -71,7 +71,7 @@ export const products: ResidencyProduct[] = [
       "en": "Entrepreneur residency",
       "zh": "创业者居留"
     },
-    "fee": 4000,
+    "fee": null,
     "period": {
       "ar": "5 سنوات للفئة الأولى؛ دائمة مشروطة للفئة الثانية",
       "en": "5 years for category 1; conditional permanent residency for category 2",
@@ -91,7 +91,7 @@ export const products: ResidencyProduct[] = [
       "en": "Real estate owner residency",
       "zh": "房产业主居留"
     },
-    "fee": 4000,
+    "fee": null,
     "period": {
       "ar": "مرتبطة باستمرار شروط الملكية أو الانتفاع",
       "en": "Tied to continued property eligibility",
@@ -111,7 +111,7 @@ export const products: ResidencyProduct[] = [
       "en": "Exceptional competence residency",
       "zh": "杰出人才居留"
     },
-    "fee": 4000,
+    "fee": null,
     "period": {
       "ar": "5 سنوات قابلة للتجديد؛ مسار للدائمة بشروط",
       "en": "5 years, renewable; conditional path to permanent residency",
@@ -131,7 +131,7 @@ export const products: ResidencyProduct[] = [
       "en": "Gifted residency",
       "zh": "文体专才居留"
     },
-    "fee": 4000,
+    "fee": null,
     "period": {
       "ar": "5 سنوات قابلة للتجديد؛ مسار للدائمة بشروط",
       "en": "5 years, renewable; conditional path to permanent residency",
@@ -231,14 +231,14 @@ export const faqs = [
   },
   {
     "q": {
-      "ar": "هل 4,000 ريال تشمل الاستثمار أو شراء العقار؟",
-      "en": "Does the SAR 4,000 fee include investment or property costs?",
-      "zh": "4000里亚尔是否包含投资或购房成本？"
+      "ar": "هل المقابل المالي الحكومي يشمل الاستثمار أو شراء العقار؟",
+      "en": "Does the government product fee include investment or property costs?",
+      "zh": "政府居留产品费用是否包含投资或购房成本？"
     },
     "a": {
-      "ar": "لا. هذا مقابل المنتج لبعض المسارات، وليس رأس المال أو قيمة العقار أو أتعاب الاستشارة أو رسوم المعالجة والتأمين.",
-      "en": "No. It is the product fee for certain routes, not investment capital, property value, advisory fees, processing fees or insurance.",
-      "zh": "不包含。该金额是部分产品的费用，不包括投资本金、房产价值、咨询费、申请处理费或保险。"
+      "ar": "لا. المقابل المالي الحكومي منفصل عن رأس المال وقيمة العقار وأتعاب الاستشارة ورسوم المعالجة والتأمين.",
+      "en": "No. Government product fees do not include investment capital, property value, advisory fees, processing fees or insurance.",
+      "zh": "不包含。政府居留产品费用不包括投资本金、房产价值、咨询费、申请处理费或保险。"
     }
   },
   {
@@ -321,6 +321,11 @@ export const labels = {
     "en": "Government residency product fee",
     "zh": "政府居留产品费用"
   },
+  "feeNotDisplayed": {
+    "ar": "غير معروض",
+    "en": "Not displayed",
+    "zh": "未展示"
+  },
   "duration": {
     "ar": "مدة الإقامة",
     "en": "Duration",
@@ -347,9 +352,9 @@ export const labels = {
     "zh": "官方产品详情"
   },
   "feeNote": {
-    "ar": "هذه المبالغ هي المقابل المالي الحكومي لمنتجات الإقامة المميزة، ويُسدد للمركز بعد الموافقة على الطلب. مبلغ 4,000 ريال ليس تكلفة الحصول على الإقامة كاملة، ولا يشمل الاستثمار أو العقار أو رسوم معالجة الطلب أو التأمين الطبي أو أتعاب خدماتنا المهنية. تختلف شروط الأهلية حسب المنتج، وقد تتغير الرسوم والشروط.",
-    "en": "These are government residency product fees payable to the Center after approval. SAR 4,000 is not the total cost of obtaining residency. Investment, property, application processing, medical insurance and our professional fees are separate. Eligibility varies by product and conditions and fees may change.",
-    "zh": "以上为申请获批后向中心缴纳的政府居留产品费用。4000沙特里亚尔并非获得居留的全部成本，不包含投资、房产、申请处理费、医疗保险及我们的专业服务费。各产品资格条件不同，条件及费用可能调整。"
+    "ar": "هذه المبالغ هي المقابل المالي الحكومي لمنتجات الإقامة المميزة، ويُسدد للمركز بعد الموافقة على الطلب. المقابل المالي الحكومي ليس تكلفة الحصول على الإقامة كاملة، ولا يشمل الاستثمار أو العقار أو رسوم معالجة الطلب أو التأمين الطبي أو أتعاب خدماتنا المهنية. تختلف شروط الأهلية حسب المنتج، وقد تتغير الرسوم والشروط.",
+    "en": "These are government residency product fees payable to the Center after approval. Government fees are not the total cost of obtaining residency. Investment, property, application processing, medical insurance and our professional fees are separate. Eligibility varies by product and conditions and fees may change.",
+    "zh": "以上为申请获批后向中心缴纳的政府居留产品费用。政府费用并非获得居留的全部成本，不包含投资、房产、申请处理费、医疗保险及我们的专业服务费。各产品资格条件不同，条件及费用可能调整。"
   },
   "benefits": {
     "ar": "مزايا الإقامة المميزة",
