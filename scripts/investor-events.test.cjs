@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
-const {parseConsent,publicPage,validateInvestorSignal}=require('../.investor-test-build/investor-events.js');
+const {parseConsent,allowsLanguagePreference,publicPage,validateInvestorSignal}=require('../.investor-test-build/investor-events.js');
 const consent={version:2,necessary:true,analytics:true,marketing:false};
 assert(parseConsent(JSON.stringify(consent)));
 assert(parseConsent(encodeURIComponent(JSON.stringify(consent))));
@@ -18,3 +18,8 @@ assert.equal(validateInvestorSignal({...signal,phone:'123'}),null);
 assert.equal(validateInvestorSignal({...signal,page:'/en/insights/test'}),null);
 assert.equal(validateInvestorSignal({...signal,event:'lead_saved'}),null);
 console.log('PASS closed vocabulary and explicit fresh analytics consent');
+
+assert.equal(allowsLanguagePreference(JSON.stringify({...consent,preferences:true})),true);
+assert.equal(allowsLanguagePreference(JSON.stringify({...consent,preferences:false})),false);
+assert.equal(allowsLanguagePreference(JSON.stringify(consent)),false);
+assert.equal(allowsLanguagePreference(null),false);

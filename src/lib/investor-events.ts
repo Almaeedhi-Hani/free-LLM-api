@@ -12,6 +12,12 @@ export function parseConsent(raw:string|undefined|null):boolean{
  return value.version===CONSENT_VERSION&&value.necessary===true&&value.analytics===true&&typeof value.marketing==="boolean";
  }catch{return false}
 }
+export function allowsLanguagePreference(raw:string|undefined|null):boolean{
+ if(!raw)return false;
+ try{let value;try{value=JSON.parse(raw)}catch{value=JSON.parse(decodeURIComponent(raw))}
+ return value.version===CONSENT_VERSION&&value.necessary===true&&value.preferences===true;
+ }catch{return false}
+}
 export function publicPage(path:string):Page|null{
  const p=path.replace(/^\/(?:en|zh)(?=\/|$)/,"").replace(/\/$/,"")||"/";
  if(p==="/")return "home";
