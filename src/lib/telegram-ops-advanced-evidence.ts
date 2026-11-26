@@ -243,7 +243,7 @@ export async function runReviewEvidenceBatch(){
   return {i,original,pages,entry:{kind:original.kind,locale:localeFor(original),original:text.slice(0,2500),excerpts}};
  }));
  const inputs=repairInputs.filter((x):x is NonNullable<typeof x>=>x!==null);
- let repairRequests=0,repaired=checked.filter((x,i)=>x.kind==='faq'&&selected[i].kind==='faq'&&x.item.a!==(selected[i].item as ContentDraft).a&&readyForHuman(x)).length,repairStatus='no_source_backed_repair';
+ let repairRequests=0,repaired=checked.filter((x,i)=>x.kind==='faq'&&selected[i].kind==='faq'&&x.item.a!==(selected[i].item as ContentDraft).a&&readyForHuman(x)).length,repairStatus=repaired?'catalog_exact_repair':'no_source_backed_repair';
  if(inputs.length&&process.env.OPENROUTER_API_KEY){
   let proposals:RepairProposal[]=[];
   const trial=await repairProvider.runReviews({prompt:repair.prompt(inputs.map((x,slot)=>({...x.entry,slot}))),deadlineMs:45000,maxModels:2,assessResults:results=>{
