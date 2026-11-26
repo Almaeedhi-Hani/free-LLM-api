@@ -1,5 +1,5 @@
 'use strict';
-const VERSION='backlog-repair-v1';
+const VERSION='backlog-repair-v2';
 const tokens=s=>new Set(String(s).toLowerCase().match(/[\p{L}\p{N}]{3,}/gu)||[]);
 function snippets(text,pages){
  const words=tokens(text);
@@ -21,4 +21,20 @@ function proposals(results,n){
  }
  return list;
 }
-module.exports={VERSION,snippets,prompt,proposals};
+// Reserve four of the existing twelve checks for repairable blocked records.
+// Cooldown after a source/provider failure; never spend a second model attempt
+// on the same repair version. The remaining slots continue fresh verification.
+function selectBacklogBatch(items,select,canRepair,priority){
+ const blocked=items.filter(canRepair);
+ const preferred=blocked.filter(priority);
+ const first=select(preferred,2);
+ const reserved=[...first,...select(blocked.filter(x=>!first.includes(x)),Math.max(1,4-first.length)).slice(0,4-first.length)];
+ const remaining=items.filter(x=>!reserved.includes(x));
+ return [...reserved,...select(remaining,12-reserved.length)].slice(0,12);
+}
+function repairDue(meta,now=Date.now()){
+ if(meta?.status!=='blocked'||meta.archived||meta.repair_version===VERSION||meta.reason==='policy_unavailable_or_excluded')return false;
+ const checked=Date.parse(meta.checked_at||'');
+ return !Number.isFinite(checked)||now-checked>=3*3600000;
+}
+module.exports={VERSION,snippets,prompt,proposals,selectBacklogBatch,repairDue};
