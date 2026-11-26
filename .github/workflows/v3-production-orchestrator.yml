@@ -75,6 +75,8 @@ jobs:
     needs: [production-preflight, market-radar]
     if: always() && !cancelled() && needs.production-preflight.result == 'success' && github.event_name != 'push' && github.ref == 'refs/heads/main' && vars.V3_MASTER_PAUSED != 'true'
     uses: ./.github/workflows/geo-analysis.yml
+    with:
+      publication_owned_by_master: true
     secrets: inherit
 
   geo-publisher:
@@ -142,7 +144,7 @@ jobs:
             exit 0
           fi
           if [ "$W01" = failure ] && [ "$W01_OUTCOME" = partial_success ]; then
-            echo '::warning::GEO validation-only partial success; publication remains blocked'
+            echo '::warning::GEO validation-only partial success; independent W03 checks previously qualified drafts'
           fi
           for result in "$W01" "$W03"; do
             [ "$result" = success ] || { echo "::error::Required production child workflow failed: $result"; exit 1; }
