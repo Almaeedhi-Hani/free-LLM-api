@@ -34,7 +34,7 @@ function issueKey(issue){return 'alert:watchdog:'+issue.number+':'+String(issue.
 function alerts(d){
  const out=health(d).filter(x=>['failed','stale','partial','blocked'].includes(x.state)).map(x=>({
  key:'alert:'+createHash('sha256').update(JSON.stringify([x.name,x.state,x.when])).digest('hex'),
- text:'⚠️ '+x.name+' — '+(({failed:'آخر نتيجة فاشلة',stale:'آخر نتيجة تجاوزت حد الحداثة',partial:'نجاح جزئي — حُفظت نتائج صالحة ورُفضت مقترحات غير مطابقة؛ النشر محجوب',blocked:'التشغيل محجوب بضوابط الحماية'})[x.state])+'\nآخر سجل: '+x.when
+ text:'⚠️ '+x.name+' — '+(({failed:'آخر نتيجة فاشلة',stale:'آخر نتيجة تجاوزت حد الحداثة',partial:'نجاح جزئي — حُفظت نتائج صالحة ورُفضت مقترحات غير مطابقة؛ الناشر المستقل يفحص المسودات المؤهلة',blocked:'التشغيل محجوب بضوابط الحماية'})[x.state])+'\nآخر سجل: '+x.when
  }));
  if(Array.isArray(d.watchdogIssues))for(const x of d.watchdogIssues){
   if(Number.isSafeInteger(x.number)&&x.number>0)out.push({key:issueKey(x),text:'⚠️ Watchdog — بلاغ مفتوح #'+x.number+'\nhttps://github.com/Almaeedhi-Hani/free-LLM-api/issues/'+x.number});
@@ -42,7 +42,7 @@ function alerts(d){
  return out;
 }
 function healthText(d){
- const labels={partial:'نجاح جزئي — النشر محجوب',blocked:'محجوب بضوابط الحماية',recent:'نتيجة ناجحة حديثة',failed:'فشل في آخر نتيجة',stale:'النتيجة قديمة',unknown:'غير مؤكد',pending:'بانتظار دورة مزامنة اليوم'};
+ const labels={partial:'نجاح جزئي — النشر المستقل يُقيّم المحتوى',blocked:'محجوب بضوابط الحماية',recent:'نتيجة ناجحة حديثة',failed:'فشل في آخر نتيجة',stale:'النتيجة قديمة',unknown:'غير مؤكد',pending:'بانتظار دورة مزامنة اليوم'};
  const names={'Market Radar':'استخبارات السوق','GEO':'المحتوى والظهور التوليدي (GEO)','GSC':'محركات البحث (GSC)','Watchdog':'مراقب الأنظمة'};
  const date=v=>v?new Intl.DateTimeFormat('ar-SA',{calendar:'gregory',timeZone:'Asia/Riyadh',dateStyle:'short',timeStyle:'short'}).format(new Date(v)):'غير مؤكد';
  return health(d).map(x=>names[x.name]+': '+labels[x.state]+' — '+date(x.when)).join('\n')+'\nبلاغات Watchdog المفتوحة: '+(Array.isArray(d.watchdogIssues)?d.watchdogIssues.length+(d.watchdogIssues.length===100?' أو أكثر':''):'غير متاح')+'\nنجاح تشغيل Watchdog لا يعني غياب الأعطال.';
