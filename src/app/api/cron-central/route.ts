@@ -124,10 +124,12 @@ export async function POST(req:NextRequest){
   // No retries: uncertain 204 responses cannot be dispatched twice safely.
   // Optional notification sidecar; no new cron or production dispatch dependency.
   const review=mode==='tick'?runReviewEvidenceBatch().catch(()=>({status:'unverified',processed:0,ready:0})):Promise.resolve({status:'not_requested'});
-  const telegram=mode==='tick'?runTelegramTick(new Date().toISOString()).catch(()=>({status:'monitor_unavailable'})):Promise.resolve({status:'not_requested'});
+  const telegram=mode==='tick'?review.then(result=>runTelegramTick(new Date().toISOString(),result)).catch(()=>({status:'monitor_unavailable'})):Promise.resolve({status:'not_requested'});
   const results:unknown[]=[];
   const slot=mode==='tick'?tick.toISOString().slice(0,13)+':00:00Z':undefined;
   for(const task of tasks){
+    // Review and Radar may run concurrently, but W01 must not overwrite the content snapshot under review.
+    if(task==='master')await review;
     try{results.push(task==='W02'?await callRadar():task==='weekly'?await saveWeeklyReport():await dispatchGitHub(task,token,slot));}
     catch(e){results.push({task,status:'error',reason:e instanceof Error?e.message:'failed'});}
   }

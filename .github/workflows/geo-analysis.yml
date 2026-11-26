@@ -6,6 +6,10 @@ on:
   # Keep only cadence-verified natural schedules and explicit manual dispatch.
   workflow_dispatch:  # Manual trigger
   workflow_call:
+    inputs:
+      publication_owned_by_master:
+        type: boolean
+        default: false
     outputs:
       execution_outcome:
         description: Verified GEO execution classification
@@ -66,7 +70,7 @@ jobs:
         run: |
           node -e 'const fs=require("node:fs"); const r=JSON.parse(fs.readFileSync("market-intel/geo-persisted-results.json")); const c=require("./scripts/geo-editorial-no-data-contract.cjs"); const outcome=r.dashboard_synced===true?c.classifyGeoOutcome(r.stages):"failed"; fs.appendFileSync(process.env.GITHUB_OUTPUT,"execution_outcome="+outcome+"\n");'
       - name: Guarded automatic publication after a successful GEO cycle
-        if: steps.cadence.outputs.run == 'true'
+        if: steps.cadence.outputs.run == 'true' && !inputs.publication_owned_by_master
         # Use independently approved DB policy (including high-risk permission, quota).
         # Separate daily auto-publication continues if research is only partial.
         env:

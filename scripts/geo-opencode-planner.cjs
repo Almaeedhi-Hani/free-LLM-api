@@ -131,7 +131,7 @@ function promptForLocale(lang,evidence){
  * original/legal/financial claims policy while using far fewer tokens.
  * The full OpenCode legacy prompt remains unchanged for its own tests.
  */
-function promptForDirectLocale(lang,evidence,repair){
+function promptForDirectLocale(lang,evidence,repair,backlogPriority=false){
  if(!LANGS.includes(lang))throw Error('Unsupported analysis language');
  if(!Array.isArray(evidence)||!evidence.length||evidence.length>8)
   throw Error('Evidence must contain 1-8 records');
@@ -173,6 +173,7 @@ function promptForDirectLocale(lang,evidence,repair){
  }));
  const hasGrowth=evidence.some(e=>['goal','opportunity','gsc','performance','inventory'].includes(e.type));
  if(hasGrowth)rules.push('Operational records guide priority, not factual authority. Prefer existing goals/opportunities; cite exact goal_ evidence IDs in the editorial action when working on that goal. Avoid duplicate pending/live topics. Only a new explicit publication objective may include publication_target as a valid exact public path; no model may close goals. Use aggregate statistics without claiming causation, individual profiling, or filling missing measurements.');
+ if(backlogPriority)rules.push('The verified existing visitor-content backlog exceeds the review batch capacity. Prioritize source research and existing goals; return drafts:[] and editorial_actions:[] except valid technical_seo/internal_link tasks. Do not create more visitor copy until the queue is reduced.');
  if(repair)rules.push('This is a single validation repair. Output replacements only for the listed rejected FAQ/editorial slots, in listed order. Leave opportunities, goals and unrelated arrays empty. Do not repeat accepted work or invent copy, routes or sources. If a replacement is not justified by the same evidence, omit it.');
  rules.push('Apply the repository-owned skill_guidance as supporting instructions. The existing output schema, official-source allowlist, evidence IDs, risk gates and free-provider limits take precedence. Do not execute tools, invent missing evidence or claim checks not performed.');
  const skillNames=selectDirectSkills(evidence);

@@ -66,7 +66,7 @@ export async function reviewCard(key:string):Promise<ReviewCard>{
 }
 export async function reviewNotificationCandidates(){
  const items=pending(await readContent());
- return items.map((x,index)=>({x,index})).filter(({x})=>x.item.review_preflight?.status==='blocked'&&!readyForHuman(x)).sort((a,b)=>Number(!!b.x.item.review_preflight?.archived)-Number(!!a.x.item.review_preflight?.archived)).slice(0,30).map(({x,index})=>({key:'review-card:exception:'+core.fingerprint(x.kind,{identity:x.kind==='faq'?x.item.q:x.item.id,digest:x.item.review_preflight?.digest,archived:!!x.item.review_preflight?.archived}),...buildReviewCard(items,index)}));
+ return items.map((x,index)=>({x,index})).filter(({x})=>x.item.review_preflight?.status==='blocked'&&x.item.review_preflight.archived===true&&!['implementation_handoff','policy_unavailable_or_excluded'].includes(x.item.review_preflight.reason)&&!readyForHuman(x)).sort((a,b)=>Number(!!b.x.item.review_preflight?.archived)-Number(!!a.x.item.review_preflight?.archived)).slice(0,30).map(({x,index})=>({key:'review-card:exception:'+core.fingerprint(x.kind,{identity:x.kind==='faq'?x.item.q:x.item.id,digest:x.item.review_preflight?.digest,archived:!!x.item.review_preflight?.archived}),...buildReviewCard(items,index)}));
 }
 // Read-only, item-version-bound tools. No approval, content writes or workflow dispatch.
 export async function reviewDiagnostics(a:Action):Promise<ReviewCard>{

@@ -30,7 +30,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - run: npm ci
       - run: node --test scripts/telegram-ops.test.cjs scripts/telegram-phase2.test.cjs scripts/telegram-advanced.test.cjs scripts/telegram-coordinator.test.cjs scripts/telegram-voice-providers.test.cjs
       - run: node scripts/v3-supabase-central.test.cjs
-      - run: npm ci
       - run: npm run build

@@ -9,7 +9,7 @@ import {officialSourceQueries,officialResultsFromRss} from './editorial-official
 import {getSupabaseCredentials} from './storage-mode';
 import {getGeoFeedbackIndex,excludesEditorial,excludesFaq} from './geo-agent-feedback';
 import {editorialPath} from './content-impact';
-import {catalogProofPage,isCatalogProofUrl} from './geo-publication-catalog';
+import {catalogProofPage,isCatalogProofUrl,catalogFeeFaqAnswer} from './geo-publication-catalog';
 const lanes=require('./geo-evidence-lanes.cjs') as {classify:(kind:Kind,item:ContentDraft|EditorialItem,fields:string[],planning?:boolean)=>EvidenceLane;VERSION:string};
 export type PublicationReceipt={urls:string[];proofs:Array<EditorialClaimEvidence&{checked_at:string;verified_by:'live_official_exact_quote'|'first_party_catalog_exact'}>};
 type Kind='faq'|'editorial';
@@ -19,7 +19,7 @@ const semantic=require('./geo-semantic-review.cjs') as {prepare:(input:{kind:Kin
 const shadow=require('./geo-openrouter-review.cjs') as {reviewCandidate:(packet:SemanticPacket)=>Promise<{status:'openrouter_shadow_pass'|'blocked';reason:string;reviewedClaims?:number;requests:number;reviewers:Array<{model:string;provider:string;cost:0}>}>};
 type Result={total:number;matched:number;proofs:EditorialClaimEvidence[];complete:boolean};
 type RepairProposal={slot:number;q?:unknown;a?:unknown;title?:unknown;summary?:unknown;body?:unknown};
-const repair=require('./geo-backlog-repair.cjs') as {VERSION:string;snippets:(text:string,pages:SourcePage[])=>{url:string;text:string}[];prompt:(entries:unknown[])=>string;proposals:(results:unknown[],n:number)=>RepairProposal[]};
+const repair=require('./geo-backlog-repair.cjs') as {VERSION:string;snippets:(text:string,pages:SourcePage[])=>{url:string;text:string}[];prompt:(entries:unknown[])=>string;proposals:(results:unknown[],n:number)=>RepairProposal[];selectBacklogBatch:(items:Candidate[],select:(items:Candidate[],limit?:number)=>Candidate[],canRepair:(x:Candidate)=>boolean,priority:(x:Candidate)=>boolean)=>Candidate[];repairDue:(meta:ReviewPreflight|undefined)=>boolean};
 const REPAIR_VERSION=repair.VERSION;
 const repairProvider=require('./geo-openrouter-review.cjs') as {runReviews:(x:{prompt:string;deadlineMs:number;maxModels:number;assessResults:(results:unknown[])=>{status:string;reason:string}})=>Promise<{requests:number;status:string;reason:string}>};
 const safeRepairText=(s:unknown,max:number):s is string=>typeof s==='string'&&!!s.trim()&&s.length<=max&&!/<[^>]+>|https?:\/\//i.test(s);
@@ -100,9 +100,21 @@ async function discover(x:Candidate){
  return evidence.selectOfficialCandidates(targets,saved,discovered);
 }
 type SourcePage={url:string;sentences:string[]};
-async function check(x:Candidate,collectPacket?:(packet:SemanticPacket)=>void,collectPages?:(pages:SourcePage[])=>void,providedPages?:SourcePage[]):Promise<Candidate>{
+async function check(x:Candidate,collectPacket?:(packet:SemanticPacket)=>void,collectPages?:(pages:SourcePage[])=>void,providedPages?:SourcePage[],allowCatalogRepair=true):Promise<Candidate>{
  // Only a trailing procedural note may be removed, and only if remaining
  // copy passes all checks and has live exact coverage. No legal paraphrase.
+ if(allowCatalogRepair&&x.kind==='faq'){
+  const answer=catalogFeeFaqAnswer(x.item.q,localeFor(x));
+  if(answer&&answer!==x.item.a&&await reviewContentPolicy(x).catch(()=>false)){
+   const next={kind:'faq' as const,item:{...x.item,a:answer,lang:localeFor(x),review_preflight:undefined,claim_evidence:undefined}};
+   const verified=await check(next,undefined,undefined,[],false);
+   if(readyForHuman(verified)&&autoPublicationBlockReason(verified,true)===null){
+    verified.item.review_preflight!.repair_version=REPAIR_VERSION;
+    verified.item.review_preflight!.repair_attempted_at=new Date().toISOString();
+    return verified;
+   }
+  }
+ }
  const candidate:Candidate=x.kind==='faq'?{kind:'faq',item:{...x.item,a:splitGeoDraftReviewText(x.item.a).answer}}:x;
  const allowed=await reviewContentPolicy(candidate).catch(()=>false);
  const lane=evidenceLane(candidate);
@@ -113,7 +125,9 @@ async function check(x:Candidate,collectPacket?:(packet:SemanticPacket)=>void,co
   const meta:ReviewPreflight={status:'blocked',digest:evidence.digest(x.kind,identityFields(x)),checked_at:new Date().toISOString(),matched:0,total:0,reason:'implementation_handoff',attempts:(prior?.attempts||0)+1,archived:false,...(prior?.repair_version===REPAIR_VERSION?{repair_version:prior.repair_version,repair_attempted_at:prior.repair_attempted_at}:{}),source_discovery_version:evidence.SOURCE_DISCOVERY_VERSION,evidence_lane:lane,evidence_lane_version:lanes.VERSION};
   return {...x,item:{...x.item,review_preflight:meta}} as Candidate;
  }
- const urls=allowed&&lane!=='commercial'?(providedPages?providedPages.map(p=>p.url):await discover(candidate)):[];
+ const catalog=catalogFor(candidate);
+ const catalogComplete=allowed&&evidence.matchPublication(fields(candidate),[],lane,catalog).complete;
+ const urls=allowed&&lane!=='commercial'&&!catalogComplete?(providedPages?providedPages.map(p=>p.url):await discover(candidate)):[];
  const pages=providedPages||await Promise.all(urls.map(async url=>({url,sentences:await evidence.page(url)})));
  collectPages?.(pages);
  const result=evidence.matchPublication(fields(candidate),pages,lane,catalogFor(candidate));
@@ -194,12 +208,14 @@ export async function runReviewEvidenceBatch(){
  const visitorItems=items.filter(x=>!technical.includes(x));
  const laneCounts:Record<string,number>={};
  for(const item of items){const lane=evidenceLane(item);laneCounts[lane]=(laneCounts[lane]||0)+1;}
- const selected=evidence.selectReviewBatch(visitorItems.filter(x=>{
+ const repairable=(x:Candidate)=>repair.repairDue(x.item.review_preflight);
+ const eligibleItems=visitorItems.filter(x=>{
   const lane=evidenceLane(x),meta=x.item.review_preflight;
   if(meta?.evidence_lane_version!==lanes.VERSION)return true;
   if(lane==='implementation'&&meta?.digest===evidence.digest(x.kind,identityFields(x))&&meta.repair_version===REPAIR_VERSION)return false;
-  return (meta?.status==='blocked'&&meta.repair_version!==REPAIR_VERSION&&!meta.archived)||evidence.discoveryRepairDue(x)||evidence.due(x.item.review_preflight,x.kind,identityFields(x));
- }),12);
+  return repairable(x)||evidence.discoveryRepairDue(x)||evidence.due(x.item.review_preflight,x.kind,identityFields(x));
+ });
+ const selected=repair.selectBacklogBatch(eligibleItems,evidence.selectReviewBatch,repairable,x=>x.kind==='faq'&&!!catalogFeeFaqAnswer(x.item.q,localeFor(x)));
  if(!selected.length)return {status:'idle',processed:0,ready:0,technical_tasks:technical.length,evidence_lanes:laneCounts};
  const packets=new Map<number,SemanticPacket>();
  const sourcePages=new Map<number,SourcePage[]>();
@@ -210,7 +226,7 @@ export async function runReviewEvidenceBatch(){
   checked.push(...group);
  }
  // Reuse the existing free two-model review budget rather than add model calls.
- const repairDue=checked.map((x,i)=>({x,i})).filter(({x,i})=>x.item.review_preflight?.status==='blocked'&&!x.item.review_preflight.archived&&selected[i].item.review_preflight?.repair_version!==REPAIR_VERSION);
+ const repairDue=checked.map((x,i)=>({x,i})).filter(({x,i})=>x.item.review_preflight?.status==='blocked'&&!x.item.review_preflight.archived&&selected[i].item.review_preflight?.repair_version!==REPAIR_VERSION&&x.item.review_preflight.reason!=='policy_unavailable_or_excluded');
  const repairSlots=[...repairDue.filter(({x})=>x.kind==='faq').slice(0,2),...repairDue.filter(({x})=>x.kind==='editorial').slice(0,2)];
  for(const entry of repairDue)if(repairSlots.length<4&&!repairSlots.includes(entry))repairSlots.push(entry);
  const repairInputs=await Promise.all(repairSlots.map(async ({x,i})=>{
@@ -227,7 +243,7 @@ export async function runReviewEvidenceBatch(){
   return {i,original,pages,entry:{kind:original.kind,locale:localeFor(original),original:text.slice(0,2500),excerpts}};
  }));
  const inputs=repairInputs.filter((x):x is NonNullable<typeof x>=>x!==null);
- let repairRequests=0,repaired=0,repairStatus='no_source_backed_repair';
+ let repairRequests=0,repaired=checked.filter((x,i)=>x.kind==='faq'&&selected[i].kind==='faq'&&x.item.a!==(selected[i].item as ContentDraft).a&&readyForHuman(x)).length,repairStatus=repaired?'catalog_exact_repair':'no_source_backed_repair';
  if(inputs.length&&process.env.OPENROUTER_API_KEY){
   let proposals:RepairProposal[]=[];
   const trial=await repairProvider.runReviews({prompt:repair.prompt(inputs.map((x,slot)=>({...x.entry,slot}))),deadlineMs:45000,maxModels:2,assessResults:results=>{
