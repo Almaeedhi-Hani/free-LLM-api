@@ -277,6 +277,7 @@ async function stageEvidence() {
   logStage('EVIDENCE', 'Building evidence bundle...');
   // Read from local market-intel or Supabase
   let evidenceItems = [];
+  let backlogPending=null;
   // Try loading from local files
   const files = ['market-intel/competitors.json', 'market-intel/observations.json', 'market-intel/keywords.json'];
   for (const f of files) {
@@ -328,6 +329,7 @@ async function stageEvidence() {
         const data = await res.json();
         if (data.competitors) evidenceItems.push(...data.competitors.map((c, i) => ({ id: `comp_${c.id || i}`, type: 'competitor', source: 'supabase', name: c.name || c.domain, domain: c.domain, language: c.language || 'ar' })));
         if (data.observations) evidenceItems.push(...data.observations.map((o, i) => ({ id: `obs_${o.id || i}`, type: 'observation', source: 'supabase', name: o.title || o.content?.substring(0, 50), language: o.language || 'ar' })));
+        if(data.growth_context?.sources?.content==='available'&&Number.isSafeInteger(data.growth_context.backlog_pending)&&data.growth_context.backlog_pending>=0)backlogPending=data.growth_context.backlog_pending;
         if(data.growth_context&&Array.isArray(data.growth_context.items)){
           const context=data.growth_context.items.filter(e=>e&&typeof e.id==='string'&&typeof e.name==='string'&&['goal','opportunity','gsc','performance','inventory'].includes(e.type)&&['ar','en','zh'].includes(e.language)).slice(0,40);
           evidenceItems.push(...context);
@@ -404,7 +406,7 @@ async function stageEvidence() {
   }));
   logStage('EVIDENCE', `Built bundle: ${evidenceItems.length} items`);
   const {chooseResearchEvidence}=require('./geo-opencode-planner.cjs');
-  stageResults.evidence = { total: evidenceItems.length, keyword_quality:{excluded:quality.excluded,by_language:quality.by_language}, items: chooseResearchEvidence(evidenceItems,60) };
+  stageResults.evidence = { backlog_pending:backlogPending,total: evidenceItems.length, keyword_quality:{excluded:quality.excluded,by_language:quality.by_language}, items: chooseResearchEvidence(evidenceItems,60) };
   return { records_processed: evidenceItems.length, status: evidenceItems.length > 0 ? 'success' : 'partial' };
 }
 
@@ -424,6 +426,8 @@ async function stageGeoAnalysis() {
   const modelCalls=new Map();
   const repairable=[];
   const outputFields=['drafts','editorial_actions'];
+  const backlogPriority=!!direct&&Number.isSafeInteger(stageResults.evidence?.backlog_pending)&&stageResults.evidence.backlog_pending>=12;
+  if(backlogPriority)logStage('GEO_ANALYSIS','Verified backlog >= one review batch; defer new visitor copy, keep research and technical tasks');
   const checkOutputs=(data,lang,limits)=>{
     const checks={};
     for(const field of outputFields){
@@ -470,7 +474,7 @@ async function stageGeoAnalysis() {
       const recovered=freshModels.length===0;
       const evidence=selectLocaleEvidence(all,lang,recovered?2:index===0?8:index===1?4:2);
       const timeoutMs=recovered?45000:index===0?90000:index===1?60000:45000;
-      const prompt=direct?promptForDirectLocale(lang,evidence):promptForLocale(lang,evidence);
+      const prompt=direct?promptForDirectLocale(lang,evidence,undefined,backlogPriority):promptForLocale(lang,evidence);
       if(direct){const input=JSON.parse(prompt);const skillNames=Object.keys(input.skill_guidance||{});if(skillNames.length)logStage('GEO_ANALYSIS',lang+' local OpenCode skills: '+skillNames.join(','));const contextTypes=(input.research_evidence||[]).filter(e=>['goal','opportunity','gsc','performance','inventory'].includes(e.kind)).map(e=>e.kind);if(contextTypes.length)logStage('GEO_ANALYSIS',lang+' growth context delivered: '+contextTypes.join(','));}
       const trial=direct
         ?await direct.generate(prompt,model,{timeoutMs})
@@ -497,7 +501,7 @@ async function stageGeoAnalysis() {
   // Give every locale its normal analysis before spending one unused direct-model
   // attempt for format repair. A repair never gets its own fallback chain.
   const eligibleRepairModels=candidateModels.filter(m=>!unavailableModels.has(m)&&!quotaLimitedModels.has(m));
-  const repair=direct&&eligibleRepairModels.length&&repairable.find(item=>item.hasBudget&&
+  const repair=direct&&!backlogPriority&&eligibleRepairModels.length&&repairable.find(item=>item.hasBudget&&
     outputFields.some(field=>item.checks[field].rejected.length));
   if(repair){
     const errors=Object.fromEntries(outputFields.map(field=>[field,repair.checks[field].rejected]));
@@ -550,6 +554,12 @@ async function stageGeoAnalysis() {
       result.validation[field].repaired+=repaired;
       result[field].push(...accepted);
     }
+  }
+  if(backlogPriority){
+    const technical=result.editorial_actions.filter(e=>['technical_seo','internal_link'].includes(e.kind));
+    result.deferred_backlog={pending:stageResults.evidence.backlog_pending,faq:result.drafts.length,editorial:result.editorial_actions.length-technical.length};
+    logStage('GEO_ANALYSIS','Deferred additional visitor proposals: '+JSON.stringify(result.deferred_backlog));
+    result.drafts=[];result.editorial_actions=technical;
   }
   // Generated claims must never be confused with independently verified outcomes.
   stageResults.geo_analysis=result;
