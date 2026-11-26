@@ -17,7 +17,7 @@ import {editorialPath} from './content-impact';
 import {createHash} from 'node:crypto';
 
 export type GrowthEvidence={id:string;type:string;source:string;name:string;language:'ar'|'en'|'zh'|'multi';snippet:string;observed_at?:string};
-export type GrowthContext={status:'available'|'partial';items:GrowthEvidence[];sources:Record<string,string>};
+export type GrowthContext={status:'available'|'partial';items:GrowthEvidence[];sources:Record<string,string>;backlog_pending?:number};
 type QueryRow=GscPageRecord;
 type DayOutcome={metric_date:string;status:string};
 type AIObservation={provider:string;page_path:string;result:string;verification_status:string;observed_at:string};
@@ -125,7 +125,8 @@ export async function loadGrowthContext(keywords:readonly {term?:string;keyword?
   push({id:'performance_'+lang,type:'performance',source:'stored_impact_summary',language:lang,name:'Observed outcomes (not causal or legal proof)',snippet:short(JSON.stringify({gsc_days:coverage?currentCoverage:null,gsc_rows:gsc?pages.length:null,requests_28d:leadsForLang,ai_manual_samples:ai?samples.length:null,ai_cited:ai?samples.filter(e=>e.result==='cited').length:null,revision:impact?{path:impact.targetPath,status:impact.status,click_delta:impact.change?.clicks??null}:null}),285)});
   push({id:'inventory_'+lang,type:'inventory',source:'content_store',language:lang,name:'Existing content / reviewer learning',snippet:short(JSON.stringify({feed_scope:'sitewide_process_24h',feed_bot_requests:feedStats.botRequests,top_feed:feedStats.byFeed[0]?.path||null,ai_referral_views:feedStats.aiReferrals,available:!!content,excluded:countFeedback,live:liveTitles,pending:pendingTitles,faq:liveFaq}),285)});
  }
- return {status:Object.values(sources).every(s=>s==='available')?'available':'partial',items,sources};
+ const backlog_pending=content?content.drafts.filter(d=>d.status==='pending'&&!d.review_preflight?.archived&&!excludesFaq(memory,d.q)).length+pending.filter(e=>!e.review_preflight?.archived&&!['technical_seo','internal_link'].includes(e.kind)).length:undefined;
+ return {status:Object.values(sources).every(s=>s==='available')?'available':'partial',items,sources,backlog_pending};
 }
 
 /** A goal can be closed only with an explicit machine-verifiable metric, an
