@@ -292,7 +292,7 @@ test('semantic shadow contract binds trilingual claim coverage to source passage
  assert.equal(f('Is it sunny?','Check the forecast.'),'unknown');
  const fs=require('node:fs'),worker=fs.readFileSync('src/lib/telegram-ops-advanced-evidence.ts','utf8');
  assert(worker.includes("if(lane==='implementation')"));
- assert(worker.indexOf("if(lane==='implementation')")<worker.indexOf("const urls=allowed&&lane!=='commercial'?"));
+ assert(worker.indexOf("if(lane==='implementation')")<worker.indexOf("const urls=allowed&&lane!=='commercial'&&!catalogComplete?"));
  assert(worker.includes('evidence.matchPublication')&&worker.includes('first_party_catalog'));
  assert(worker.includes('catalogFor(candidate)'));
  assert(worker.includes("if(x.item.risk_level!=='low'&&!allowHighRisk)return 'sensitive_publication_disabled'"));
@@ -319,3 +319,44 @@ test('routed exact proof: catalog scope, one official authority, mixed sources, 
 
 test('backlog repair preserves default cap and adds bounded balanced batch',()=>{const e=require('../src/lib/telegram-ops-advanced-evidence.cjs');const rows=Array.from({length:24},(_,i)=>({kind:i<12?'faq':'editorial',item:{id:'i'+i}}));assert.equal(e.selectReviewBatch(rows,12).length,12);assert.equal(e.selectReviewBatch(rows,99).length,12);assert.equal(e.selectReviewBatch(rows,12).filter(x=>x.kind==='faq').length,6);});
 test('model repairs are proposals only, bounded and source anchored',()=>{const r=require('../src/lib/geo-backlog-repair.cjs');assert.equal(r.snippets('investment registration',[{url:'https://example.gov.sa',sentences:['Investment registration information','x'.repeat(451)]}]).length,1);assert.equal(r.proposals([{data:{goals:[{slot:0,q:'valid'},{slot:0,q:'duplicate'},{slot:8,q:'invalid'}]}}],1).length,1);assert(r.prompt([]).includes('exact sentence'));});
+
+test('backlog reserves blocked capacity, prioritizes catalog repair, keeps fresh work and cooldown',()=>{
+ const e=require('../src/lib/telegram-ops-advanced-evidence.cjs'),r=require('../src/lib/geo-backlog-repair.cjs');
+ const now=Date.parse('2026-11-26T09:00:00Z'), old=new Date(now-4*3600000).toISOString();
+ const blocked=Array.from({length:8},(_,i)=>({kind:i<4?'faq':'editorial',item:{id:'old'+i,review_preflight:{status:'blocked',reason:'exact_claim_coverage_incomplete',checked_at:old}}}));
+ const fresh=Array.from({length:20},(_,i)=>({kind:i<10?'faq':'editorial',item:{id:'fresh'+i}}));
+ const chosen=r.selectBacklogBatch([...fresh,...blocked],e.selectReviewBatch,x=>r.repairDue(x.item.review_preflight,now),x=>x.item.id==='old3');
+ assert.equal(chosen.length,12);assert(chosen.includes(blocked[3]));assert.equal(chosen.slice(0,4).filter(x=>blocked.includes(x)).length,4);assert(chosen.some(x=>fresh.includes(x)));
+ assert(!r.repairDue({...blocked[0].item.review_preflight,checked_at:new Date(now-1000).toISOString()},now));
+ assert(!r.repairDue({...blocked[0].item.review_preflight,repair_version:r.VERSION},now));
+ assert(!r.repairDue({...blocked[0].item.review_preflight,archived:true},now));
+ assert(!r.repairDue({...blocked[0].item.review_preflight,reason:'policy_unavailable_or_excluded'},now));
+});
+test('known fee-boundary FAQ uses actual deployed disclosure and remains exact-proof gated',async()=>{
+ const fs=require('node:fs'),ts=require('typescript'),vm=require('node:vm');
+ const load=(path,req)=>{const m={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,{module:m,exports:m.exports,require:req});return m.exports;};
+ const offers=load('src/lib/package-offers.ts',require);
+ const c=load('src/lib/geo-publication-catalog.ts',p=>{assert.equal(p,'./package-offers');return offers;});
+ const e=require('../src/lib/telegram-ops-advanced-evidence.cjs'),lanes=require('../src/lib/geo-evidence-lanes.cjs');
+ const q='Are professional package fees the same as Saudi government fees?';
+ const answer=c.catalogFeeFaqAnswer(q,'en');assert.equal(answer,offers.packageDisclosure.en);
+ assert.equal(c.catalogFeeFaqAnswer(q,'ar'),null);assert.equal(c.catalogFeeFaqAnswer('What is the Saudi government fee?','en'),null);
+ const catalog=c.catalogProofPage('en'),lane=lanes.classify('faq',{q},[answer]);assert.equal(lane,'mixed');
+ const result=e.matchPublication([answer],[],lane,catalog);assert(result.complete);assert(result.proofs.every(p=>p.url===catalog.url));
+ const refs=[{url:catalog.url,kind:'first_party_catalog'}];const receipt=await e.livePublicationReceipt([answer],result.proofs,refs,lane,catalog,()=>assert.fail('catalog proof needs no external request'));
+ assert(receipt);assert(!e.matchPublication([answer+' Guaranteed approval.'],[],lane,catalog).complete);
+ assert.equal(await e.livePublicationReceipt([answer],result.proofs,refs,lane,{...catalog,sentences:[]},()=>assert.fail()),null);
+ const quality=load('src/lib/geo-draft-quality.ts',require);assert(quality.assessGeoDraftCopy(q,answer).publishable);
+ const worker=fs.readFileSync('src/lib/telegram-ops-advanced-evidence.ts','utf8');
+ assert(worker.includes('autoPublicationBlockReason(verified,true)===null')&&worker.includes('reviewContentPolicy(x)'));
+ assert(fs.readFileSync('src/lib/telegram-ops-advanced.ts','utf8').includes('review_preflight.archived===true'));
+ const central=fs.readFileSync('src/app/api/cron-central/route.ts','utf8');assert(central.includes("if(task==='master')await review"));
+ const master=fs.readFileSync('.github/workflows/v3-production-orchestrator.yml','utf8');assert(master.includes('publication_owned_by_master: true'));
+ assert(fs.readFileSync('.github/workflows/geo-analysis.yml','utf8').includes('!inputs.publication_owned_by_master'));
+});
+test('backlog priority keeps research but prevents new visitor proposals above capacity',()=>{
+ const fs=require('node:fs');
+ const worker=fs.readFileSync('scripts/opencode-geo-analysis.js','utf8');
+ assert(worker.includes('backlog_pending>=12')&&worker.includes('result.deferred_backlog')&&worker.includes('result.drafts=[];result.editorial_actions=technical'));
+ assert(worker.includes('const repair=direct&&!backlogPriority'));
+});
