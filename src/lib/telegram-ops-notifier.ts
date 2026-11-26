@@ -68,14 +68,20 @@ async function reconcileReviewSubscription(cfg:NonNullable<ReturnType<typeof cor
   return status;
  }catch{return 'subscription_unverified';}
 }
-export async function runTelegramTick(now:string){
+export async function runTelegramTick(now:string,reviewEvidence:Record<string,unknown>={status:'owned_by_central_tick'}){
  if(!telegramPhase2Enabled())return {status:'disabled'};
  const cfg=core.config(process.env);if(!cfg)return {status:'configuration_incomplete'};
  const subscription=reconcileReviewSubscription(cfg,now);
  const d=await snapshot(now);
- const reviewEvidence={status:'owned_by_central_tick'};
+ const since=new Date(Date.parse(now)-3*3600000).toISOString();
  const day=phase.dailyKey(now);
  const candidates:{key:string;kind:'daily'|'alert';text:string;inline_keyboard?:ReviewButton[][]}[]=[...(day?[{key:day,kind:'daily' as const,text:'الإحاطة اليومية\n'+core.render('/brief',{...d,healthSummary:phase.healthText(d)})}]:[]),...phase.alerts(d).map(x=>({...x,kind:'alert' as const}))];
+ if(reviewEvidence.status==='saved_verified'||reviewEvidence.status==='unverified'){
+  const [editorial,faq]=await Promise.all(['geo_publication_events','geo_faq_publication_events'].map(table=>rows(table+'?select=id&status=eq.published&published_at=gte.'+encodeURIComponent(since)+'&limit=20')));
+  const known=editorial!==null&&faq!==null?String(editorial.length+faq.length):'غير مؤكد';
+  const n=(v:unknown)=>typeof v==='number'?String(v):'غير مؤكد';
+  candidates.push({key:'geo-review-progress:'+now.slice(0,13),kind:'alert',text:'📊 معالجة مسودات GEO\n'+(reviewEvidence.status==='saved_verified'?'تم حفظ الفحص والتحقق منه':'تعذر تأكيد حفظ الفحص')+'\nفُحصت: '+n(reviewEvidence.processed)+' | أُصلحت: '+n(reviewEvidence.repaired)+' | جاهزة للتحقق النهائي: '+n(reviewEvidence.ready)+'\nالمعلقة: '+n(d.pending)+'\nالنشر المؤكد خلال آخر 3 ساعات: '+known+'\nالنشر الحالي يظل خاضعًا للتحقق والحد اليومي.'});
+ }
  // Reuse the existing signed tick and delivery ledger, no new schedule.
  if(process.env.TELEGRAM_OPS_ADVANCED_ENABLED==='true'){
   try{
