@@ -249,8 +249,7 @@ export async function runReviewEvidenceBatch(){
  }
  const inputs=repair.sourceReadySlots(repairInputs,4);
  const repairConfigured=Boolean(process.env.OPENROUTER_API_KEY);
- let repairRequests=0,repaired=checked.filter((x,i)=>x.kind==='faq'&&selected[i].kind==='faq'&&x.item.a!==(selected[i].item as ContentDraft).a&&readyForHuman(x)).length,repairStatus='';
- repairStatus=repaired&&!inputs.length?'catalog_exact_repair':repair.repairInputStatus(inputs,repairConfigured);
+ let repairRequests=0,repaired=checked.filter((x,i)=>x.kind==='faq'&&selected[i].kind==='faq'&&x.item.a!==(selected[i].item as ContentDraft).a&&readyForHuman(x)).length,repairStatus=repaired&&!inputs.length?'catalog_exact_repair':repair.repairInputStatus(inputs,repairConfigured);
  if(inputs.length&&repairConfigured){
   let proposals:RepairProposal[]=[];
   const trial=await repairProvider.runReviews({prompt:repair.prompt(inputs.map((x,slot)=>({...x.entry,slot}))),deadlineMs:45000,maxModels:2,assessResults:results=>{
