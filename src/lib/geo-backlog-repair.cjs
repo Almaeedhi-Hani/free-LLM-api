@@ -37,4 +37,17 @@ function repairDue(meta,now=Date.now()){
  const checked=Date.parse(meta.checked_at||'');
  return !Number.isFinite(checked)||now-checked>=3*3600000;
 }
-module.exports={VERSION,snippets,prompt,proposals,selectBacklogBatch,repairDue};
+// Only allocate model slots after source gathering. Empty source packets
+// cannot displace candidates that actually have evidence.
+function sourceReadySlots(inputs,limit=4){
+ const cap=Math.max(1,Math.min(4,Math.floor(limit)||4));
+ const ready=inputs.filter(x=>Array.isArray(x?.entry?.excerpts)&&x.entry.excerpts.length);
+ const half=Math.floor(cap/2);
+ const chosen=[...ready.filter(x=>x.entry.kind==='faq').slice(0,half),...ready.filter(x=>x.entry.kind==='editorial').slice(0,half)];
+ for(const x of ready){if(chosen.length>=cap)break;if(!chosen.includes(x))chosen.push(x)}
+ return chosen;
+}
+function repairInputStatus(inputs,configured){
+ return !inputs.length?'no_source_backed_repair':!configured?'repair_credential_missing':'repair_inputs_ready';
+}
+module.exports={VERSION,snippets,prompt,proposals,selectBacklogBatch,repairDue,sourceReadySlots,repairInputStatus};

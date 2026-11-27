@@ -360,3 +360,27 @@ test('backlog priority keeps research but prevents new visitor proposals above c
  assert(worker.includes('backlog_pending>=12')&&worker.includes('result.deferred_backlog')&&worker.includes('result.drafts=[];result.editorial_actions=technical'));
  assert(worker.includes('const repair=direct&&!backlogPriority'));
 });
+
+test('official topic recovery recognizes observed register-a-company and foreign investment questions',()=>{
+ const e=require('../src/lib/telegram-ops-advanced-evidence.cjs');
+ for(const q of ['What are the primary requirements for a foreign investor to register a company in Saudi Arabia?','What are the steps to register a company in Saudi Arabia?','Company registration in Saudi Arabia']){
+  const topics=e.faqTopicTargets(q);
+  assert(topics.includes('company-formation'));
+  assert(e.selectOfficialCandidates(topics,[],[]).length>0);
+ }
+ assert(e.faqTopicTargets('沙特外商投资制度的主要特点是什么？').includes('misa-license'));
+ assert(!e.faqTopicTargets('What are the steps to register a bicycle?').includes('company-formation'));
+ assert.equal(e.SOURCE_DISCOVERY_VERSION,'manifest-topic-recovery-v2');
+});
+test('source-less candidates cannot consume the four existing repair slots',()=>{
+ const r=require('../src/lib/geo-backlog-repair.cjs');
+ const row=(i,kind,available)=>({i,entry:{kind,excerpts:available?[{url:'https://mc.gov.sa/',text:'Fixture source sentence'}]:[]}});
+ const inputs=[null,row(0,'faq',false),row(1,'editorial',false),row(2,'faq',false),row(3,'editorial',false),row(4,'faq',true),row(5,'faq',true),row(6,'editorial',true),row(7,'editorial',true),row(8,'faq',true)];
+ assert.deepEqual(r.sourceReadySlots(inputs).map(x=>x.i),[4,5,6,7]);
+ assert.deepEqual(r.sourceReadySlots(inputs,2).map(x=>x.i),[4,6]);
+ assert.equal(r.sourceReadySlots(inputs.filter(x=>x?.entry.kind==='faq')).length,3);
+ assert.equal(r.sourceReadySlots([null,row(0,'faq',false)]).length,0);
+ assert.equal(r.repairInputStatus([],false),'no_source_backed_repair');
+ assert.equal(r.repairInputStatus([inputs[5]],false),'repair_credential_missing');
+ assert.equal(r.repairInputStatus([inputs[5]],true),'repair_inputs_ready');
+});

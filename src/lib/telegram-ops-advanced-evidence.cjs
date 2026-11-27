@@ -19,11 +19,11 @@ function faqTopicTargets(title){
  const s=norm(title);
  const rules=[
   ['corporate-banking',/corporate bank|bank account|banking|\bkyc\b|حساب.{0,16}(?:بنكي|مصرفي)|البنك المركزي|银行|开户/iu],
-  ['misa-license',/investment registration|investment licen[cs]|\bmisa\b|التسجيل الاستثماري|ترخيص الاستثمار|وزارة الاستثمار|投资登记|投资许可|投资部/iu],
+  ['misa-license',/investment registration|investment licen[cs]|foreign investment (?:law|system|regime)|外商投资制度|外资投资制度|\bmisa\b|التسجيل الاستثماري|ترخيص الاستثمار|وزارة الاستثمار|投资登记|投资许可|投资部/iu],
   ['premium-residency',/premium residency|الإقامة المميزة|高级居留|优质居留/iu],
   ['investment-funds',/investment funds?|صناديق الاستثمار|صندوق استثماري|投资基金/iu],
   ['contract-drafting',/articles of association|corporate contracts?|governance|عقد التأسيس|عقود الشركات|الحوكمة|公司章程|公司合同|治理/iu],
-  ['company-formation',/company formation|company incorporation|establish.{0,24}compan|set up.{0,24}compan|تأسيس.{0,15}شرك|إنشاء.{0,15}شرك|设立公司|公司设立|公司注册|注册公司/iu]
+  ['company-formation',/company formation|company incorporation|company registration|register.{0,24}compan|incorporat.{0,24}compan|establish.{0,24}compan|set up.{0,24}compan|تأسيس.{0,15}شرك|إنشاء.{0,15}شرك|设立公司|公司设立|公司注册|注册公司/iu]
  ];
  return rules.filter(([,rx])=>rx.test(s)).map(([target])=>target);
 }
@@ -125,7 +125,7 @@ function assessPublicationRisk(kind,item,copyFields,result){
 // Reopen only the old missing-candidate outcome when a new deterministic
 // topic mapping now produces actual allowlisted candidates. One attempt per
 // discovery version, never reopen an archived record or bypass evidence gates.
-const SOURCE_DISCOVERY_VERSION='manifest-topic-recovery-v1';
+const SOURCE_DISCOVERY_VERSION='manifest-topic-recovery-v2';
 function discoveryRepairDue(x){
  const m=x?.item?.review_preflight;
  if(!m||m.status!=='blocked'||m.archived===true||m.reason!=='no_official_candidates'||m.source_discovery_version===SOURCE_DISCOVERY_VERSION)return false;
